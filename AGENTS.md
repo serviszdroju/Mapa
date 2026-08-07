@@ -12,4 +12,6 @@ Current audit decision: production must be Firebase-first and must not reintrodu
 
 Current optimization decision: implement the Word performance brief incrementally while preserving the original visual style, Firebase-backed data, detail functions, protocols, photos, document exports, and offline drafts. Prefer debounced UI work, cached map/data rendering, and no idle polling over visible redesigns or destructive data changes.
 
+Current visual refinement decision: when exploring improved visuals, keep the page built like the user's current web app: left controls, central map, and right point detail. Preserve the original color palette, especially the blue action color and existing status colors. Improve detail quality, hierarchy, spacing, tabs, cards, status indicators, typography, and polish rather than introducing a new dashboard or different product architecture.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
