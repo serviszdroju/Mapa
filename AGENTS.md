@@ -10,4 +10,6 @@ Current durable design decision: the user wants the redesigned GitHub Pages site
 
 Current audit decision: production must be Firebase-first and must not reintroduce public operational datasets such as `data.csv` or hardcoded plaintext address inventories. If a private export is needed locally, keep it ignored under `private-data/`. The public site can show the app shell without login, but service points, protocols, photos, and doklady must come from Firebase/Cloudinary after authentication.
 
+Current optimization decision: implement the Word performance brief incrementally while preserving the original visual style, Firebase-backed data, detail functions, protocols, photos, document exports, and offline drafts. Prefer debounced UI work, cached map/data rendering, and no idle polling over visible redesigns or destructive data changes.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

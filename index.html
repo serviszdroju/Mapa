@@ -74,17 +74,20 @@ setTimeout(()=>{
 },2000);
 
 
-function mobileFixMap(){
+let mobileFixMapTimer=0;
+function runMobileFixMap(){
   try{
     if(window.map && window.map.invalidateSize){
-      setTimeout(()=>window.map.invalidateSize(true),100);
-      setTimeout(()=>window.map.invalidateSize(true),450);
-      setTimeout(()=>window.map.invalidateSize(true),1000);
+      window.map.invalidateSize(true);
       if(typeof fit==="function"){
-        setTimeout(()=>fit(),600);
+        fit();
       }
     }
   }catch(e){}
+}
+function mobileFixMap(){
+  clearTimeout(mobileFixMapTimer);
+  mobileFixMapTimer=setTimeout(runMobileFixMap,160);
 }
 window.addEventListener("resize", mobileFixMap);
 window.addEventListener("orientationchange", mobileFixMap);
@@ -2558,8 +2561,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-07-fast-shell-v34";
-const APP_SHELL_CACHE_NAME="astip-szz-v34-static";
+const APP_BUILD_VERSION="2026-08-07-stability-v35";
+const APP_SHELL_CACHE_NAME="astip-szz-v35-static";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -2596,7 +2599,7 @@ function showAppShellFast(message=""){
 }
 
 function initMapShell(){
-  if(window.map && window.L){
+  if(window.map && window.map.invalidateSize && window.L){
     map=window.map;
     if(!layer) layer=L.layerGroup().addTo(map);
     return map;
@@ -2610,8 +2613,7 @@ function initMapShell(){
   map=window.map;
   L.tileLayer(MAP_TILE_URL_TEMPLATE,{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
   layer=L.layerGroup().addTo(map);
-  setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},80);
-  setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},450);
+  requestAnimationFrame(()=>{try{map.invalidateSize(true);}catch(e){}});
   return map;
 }
 
@@ -3384,6 +3386,7 @@ async function cacheMapTileUrls(urls,options={}){
     return;
   }
   const unique=[...new Set(urls)];
+  const label=options.label || "mapu";
   let index=0, done=0, ok=0, failed=0;
   window.__mapTileCacheRunning=true;
   setOfflineMapButtonState(true,options.buttonText || "Stahuji mapu...");
@@ -3393,7 +3396,19 @@ async function cacheMapTileUrls(urls,options={}){
       try{ await window.registerSzzServiceWorker(); }catch(e){ if(typeof reportSzzServiceWorkerError==="function") reportSzzServiceWorkerError(e); }
     }
     const shellCount=await cacheAppShellForOffline();
-    const label=options.label || "mapu";
+    if(navigator.storage && typeof navigator.storage.estimate==="function"){
+      try{
+        const estimate=await navigator.storage.estimate();
+        const quota=Number(estimate && estimate.quota) || 0;
+        const usage=Number(estimate && estimate.usage) || 0;
+        const expectedBytes=unique.length*18000;
+        if(quota && usage+expectedBytes>quota*0.92){
+          throw Object.assign(new Error(`V zařízení není dost volného místa pro offline ${label}. Odhad: ${Math.ceil(expectedBytes/1048576)} MB.`),{offlineQuota:true});
+        }
+      }catch(e){
+        if(e && e.offlineQuota) throw e;
+      }
+    }
     setOfflineMapStatus(`Aplikace offline připravena (${shellCount} souborů). Stahuji ${label}: 0 / ${unique.length} dlaždic...`);
     const cache=await caches.open(MAP_TILE_CACHE_NAME);
     async function worker(){
@@ -5402,30 +5417,67 @@ window.openDetailById=function(id){
   const idx=rows.findIndex(r=>detailKey(r)===key);
   if(idx>=0) return window.openDetail(idx);
 };
+let mapMarkerCache=new Map();
+function mapMarkerSignature(group,fill){
+  return [
+    Number(group.lat).toFixed(6),
+    Number(group.lon).toFixed(6),
+    fill,
+    group.label || "",
+    (group.rows || []).map(row=>[
+      detailKey(row),
+      siteSourceLabel(row),
+      statusText(row)
+    ].join(":")).join("|")
+  ].join("||");
+}
+function buildMapMarkerForGroup(group,fill){
+  if(group.rows.length>1){
+    return L.marker([group.lat,group.lon],{
+      icon:L.divIcon({
+        className:"source-group-marker-wrap",
+        html:`<div class="source-group-marker" style="background:${esc(fill)}">${group.rows.length}</div>`,
+        iconSize:[26,26],
+        iconAnchor:[13,13]
+      })
+    }).bindPopup(groupPopupHtml(group));
+  }
+  const r=group.rows[0];
+  return L.circleMarker([r.lat,r.lon],{radius:8,color:"#fff",weight:2,fillColor:fill,fillOpacity:.92})
+    .bindPopup(groupPopupHtml(group));
+}
+function updateMapMarkers(groups){
+  if(!layer) return;
+  const visibleKeys=new Set();
+  (groups || []).forEach(group=>{
+    if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) return;
+    const key=group.key || `${group.lat},${group.lon}`;
+    const fill=groupColor(group.rows);
+    const signature=mapMarkerSignature(group,fill);
+    visibleKeys.add(key);
+    const cached=mapMarkerCache.get(key);
+    if(cached && cached.signature===signature) return;
+    if(cached && cached.marker){
+      try{layer.removeLayer(cached.marker);}catch(e){}
+    }
+    const marker=buildMapMarkerForGroup(group,fill);
+    marker.addTo(layer);
+    mapMarkerCache.set(key,{marker,signature});
+  });
+  mapMarkerCache.forEach((cached,key)=>{
+    if(visibleKeys.has(key)) return;
+    if(cached && cached.marker){
+      try{layer.removeLayer(cached.marker);}catch(e){}
+    }
+    mapMarkerCache.delete(key);
+  });
+}
 function render(){
   syncRowIndexes();
   window.rows=rows;
   if(rows.length) resetFirebaseRowsAutoReload();
-  layer.clearLayers();
   const vis=filtered(), gps=vis.filter(inCzSk);
-  groupRowsByPlace(gps).forEach(group=>{
-    if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) return;
-    const fill=groupColor(group.rows);
-    if(group.rows.length>1){
-      L.marker([group.lat,group.lon],{
-        icon:L.divIcon({
-          className:"source-group-marker-wrap",
-          html:`<div class="source-group-marker" style="background:${esc(fill)}">${group.rows.length}</div>`,
-          iconSize:[26,26],
-          iconAnchor:[13,13]
-        })
-      }).bindPopup(groupPopupHtml(group)).addTo(layer);
-    }else{
-      const r=group.rows[0];
-      L.circleMarker([r.lat,r.lon],{radius:8,color:"#fff",weight:2,fillColor:fill,fillOpacity:.92})
-        .bindPopup(groupPopupHtml(group)).addTo(layer);
-    }
-  });
+  updateMapMarkers(groupRowsByPlace(gps));
   const list=document.getElementById("list");list.innerHTML="";
   groupRowsByPlace(vis).sort((a,b)=>{
     const ar=groupRepresentative(a.rows), br=groupRepresentative(b.rows);
@@ -5463,6 +5515,21 @@ function setFirebaseAutoReloadCount(count){
   try{sessionStorage.setItem(FIREBASE_EMPTY_RELOAD_KEY,String(count));}catch(e){}
 }
 async function scheduleFirebaseRowsAutoReload(delay=9000){
+  if(hasLoadedRows()){
+    resetFirebaseRowsAutoReload();
+    return;
+  }
+  const nextCount=firebaseAutoReloadCount()+1;
+  if(nextCount>3){
+    const gps=document.getElementById("gpsBox");
+    if(gps){
+      gps.style.display="block";
+      gps.className="notice err";
+      gps.textContent="Body se zatím nenačetly. Zkontroluj přihlášení přes účet @astip.cz nebo oprávnění Firebase a použij ruční obnovení.";
+    }
+    return;
+  }
+  setFirebaseAutoReloadCount(nextCount);
   clearTimeout(firebaseRowsAutoReloadTimer);
   firebaseRowsAutoReloadTimer=setTimeout(async()=>{
     if(!firebaseReady || !firebaseUnifiedPrimary) return;
@@ -5479,19 +5546,10 @@ async function scheduleFirebaseRowsAutoReload(delay=9000){
       resetFirebaseRowsAutoReload();
       return;
     }
-    const nextCount=firebaseAutoReloadCount()+1;
-    if(nextCount<=8){
-      setFirebaseAutoReloadCount(nextCount);
-      const p=document.getElementById("progress");
-      if(p) p.textContent=`Body se nenačetly, obnovuji stránku (${nextCount}/8)...`;
-      setTimeout(()=>location.reload(),600);
-    }else{
-      const gps=document.getElementById("gpsBox");
-      if(gps){
-        gps.style.display="block";
-        gps.className="notice err";
-        gps.textContent="Body se ani po opakovaném obnovení nenačetly. Zkontroluj přihlášení přes účet @astip.cz nebo oprávnění Firebase.";
-      }
+    const p=document.getElementById("progress");
+    if(p) p.textContent=`Body se zatím nenačetly, zkouším znovu (${nextCount}/3)...`;
+    if(nextCount<3){
+      scheduleFirebaseRowsAutoReload(Math.min(delay*1.7,30000));
     }
   },delay);
 }
@@ -10072,30 +10130,37 @@ async function loadHistory(siteId){
 
 window.loadHistory=loadHistory;
 
-window.addEventListener("online",()=>{
+let offlineSyncInFlight=null;
+function runOfflineSync(reason="manual",silent=false){
+  if(navigator.onLine===false) return Promise.resolve(0);
+  if(offlineSyncInFlight) return offlineSyncInFlight;
   if(typeof syncOfflineChanges==="function"){
-    syncOfflineChanges({reason:"online"}).then(count=>{
-      if(count && selectedSite){
-        if(typeof loadHistory==="function") loadHistory(selectedSite.id);
-        if(typeof loadSitePhotos==="function") loadSitePhotos(selectedSite);
-      }
-    });
-  }else if(selectedSite && typeof syncOfflineProtocolsForSite==="function"){
-    syncOfflineProtocolsForSite(selectedSite).then(count=>{
-      if(count && typeof loadHistory==="function") loadHistory(selectedSite.id);
-    });
+    offlineSyncInFlight=syncOfflineChanges({reason,silent}).finally(()=>{offlineSyncInFlight=null;});
+    return offlineSyncInFlight;
   }
+  if(selectedSite && typeof syncOfflineProtocolsForSite==="function"){
+    offlineSyncInFlight=syncOfflineProtocolsForSite(selectedSite).finally(()=>{offlineSyncInFlight=null;});
+    return offlineSyncInFlight;
+  }
+  return Promise.resolve(0);
+}
+
+window.addEventListener("online",()=>{
+  runOfflineSync("online").then(count=>{
+    if(count && selectedSite){
+      if(typeof loadHistory==="function") loadHistory(selectedSite.id);
+      if(typeof loadSitePhotos==="function") loadSitePhotos(selectedSite);
+    }
+  });
 });
 
 window.addEventListener("offline",()=>{
   if(typeof showSaveConfirmation==="function") showSaveConfirmation("Offline režim. Změny se uloží lokálně.");
 });
-
-setInterval(()=>{
-  if(navigator.onLine!==false && typeof syncOfflineChanges==="function"){
-    syncOfflineChanges({reason:"interval",silent:true});
-  }
-},60000);
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible") runOfflineSync("visible",true);
+});
+window.addEventListener("focus",()=>runOfflineSync("focus",true));
 
 
 
@@ -10113,26 +10178,6 @@ function fixMapView(){
     });
 
     if(typeof fit==="function") fit();
-
-    setTimeout(()=>{
-      map.invalidateSize(true);
-      map.eachLayer(layer=>{
-        if(layer && layer.redraw){
-          try{ layer.redraw(); }catch(e){}
-        }
-      });
-      if(typeof fit==="function") fit();
-    },300);
-
-    setTimeout(()=>{
-      map.invalidateSize(true);
-      map.eachLayer(layer=>{
-        if(layer && layer.redraw){
-          try{ layer.redraw(); }catch(e){}
-        }
-      });
-      if(typeof fit==="function") fit();
-    },1000);
 
   }catch(e){
     console.warn("Map refresh error",e);
@@ -10307,7 +10352,12 @@ if(typeof window.bindLoginButtons==="function"){
 
 
 document.getElementById("closeDrawer").onclick=()=>document.getElementById("drawer").classList.remove("open");
-document.getElementById("search").addEventListener("input",render);
+let filterRenderTimer=0;
+function scheduleFilterRender(delay=220){
+  clearTimeout(filterRenderTimer);
+  filterRenderTimer=setTimeout(render,delay);
+}
+document.getElementById("search").addEventListener("input",()=>scheduleFilterRender());
 document.getElementById("statusFilter").addEventListener("change",()=>{updateStatusFilterColor();render();});
 document.getElementById("regionFilter").addEventListener("change",render);
 document.getElementById("fitBtn").addEventListener("click",fit);
@@ -12233,9 +12283,15 @@ document.addEventListener("keydown",e=>{
   picker.click();
 });
 
-window.addEventListener("resize",fixMapView);
+let fixMapViewTimer=0;
+function scheduleFixMapView(delay=180){
+  clearTimeout(fixMapViewTimer);
+  fixMapViewTimer=setTimeout(()=>{ if(typeof fixMapView==="function") fixMapView(); },delay);
+}
+window.addEventListener("resize",()=>scheduleFixMapView());
+window.addEventListener("orientationchange",()=>scheduleFixMapView(240));
 window.addEventListener("DOMContentLoaded",()=>{
-  setTimeout(()=>{ if(typeof fixMapView==="function") fixMapView(); },800);
+  scheduleFixMapView(800);
 });
 async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();
@@ -14117,9 +14173,9 @@ setTimeout(()=>{
     },true);
     document.__firebaseUnifiedAddCaptureBound=true;
   }
-  document.addEventListener("DOMContentLoaded",bind);
-  setTimeout(bind,100); setTimeout(bind,500); setTimeout(bind,1500); setInterval(bind,1200);
-  setTimeout(()=>loadFirebaseSites(),3500);
+  document.addEventListener("DOMContentLoaded",bind,{once:true});
+  setTimeout(bind,100);
+  setTimeout(bind,800);
   try{
     const compat=ensureCompatFirebase();
     if(compat && compat.auth){
@@ -14297,11 +14353,7 @@ setTimeout(()=>{
 
   document.addEventListener("DOMContentLoaded", ()=>{
     setTimeout(autoMigrateIfNeeded, 3000);
-    setTimeout(autoMigrateIfNeeded, 6000);
-    setTimeout(autoMigrateIfNeeded, 10000);
   });
-
-  setInterval(autoMigrateIfNeeded, 5000);
 })();
 </script>
 
@@ -14757,7 +14809,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-07-fast-shell-v34";
+  const serviceWorkerBuildVersion="2026-08-07-stability-v35";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
