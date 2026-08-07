@@ -2317,7 +2317,8 @@ const firebaseConfig = {
 };
 window.__firebaseConfig = firebaseConfig;
 
-const CSV_FILE="data.csv";
+const CSV_FILE="";
+const PUBLIC_CSV_DATA_ENABLED=false;
 let firebaseReady = !firebaseConfig.apiKey.includes("VLOZIT");
 const firebaseConfigured = firebaseReady;
 const CLOUDINARY_PHOTOS = {
@@ -2433,14 +2434,128 @@ window.forgetKnownSignedIn=forgetKnownSignedIn;
 window.lastKnownUserEmail=lastKnownUserEmail;
 window.setStartupAuthChecking=setStartupAuthChecking;
 window.knownSignedIn=knownSignedIn;
-const ORIGINAL_PINK_PLACES = ["bedřichov 290, hotel", "benešov, máchova 400, nemocnice rudolfa a stefanie", "borek u rokycan, policie", "bratislava, františka kubu 2,3,5,6 -rinok rača", "bratislava, trnavská cesta 8a, 6b, 19123 - nová cvernovka", "bratislava, volvo, lamač-bory", "brno, hrázní 1", "brno, jakubská 126,11,  kostel sv jakuba", "brno, kabátníkova 2, bd", "brno, kotlářská 3, bd", "brno, metodějova 3120/6", "brno, oblá 79", "brno, rotalova 80,82,84, bd", "brno, sokolova 1e", "brno, spolková 8a", "brno, svážná 1", "brno, česká 11, škola charbulova", "bruntál, zahradní 48, strojmetal - pozor info ve složce", "choceň, běstovice, de heus", "chotěboř, severní 1911, bd", "dek trade", "dobřichovice, anežky české 1119", "frýdek místek, revoluční 1282, dps", "frýdek-místek, 17.listopadu 147", "havlíčkův brod, nuselská 3240, zš", "hradec králové, jana koziny 1237, biskupské gymnázium", "humpolec, okružní 1296, cobap", "jablonec nad nisou, v. nezvala 87/14, dps", "karviná, lázeňská, darkov", "klatovy, podhůrecká 815/3, dps", "kralupy nad vltavou, palackého nám. 1, mú", "kroměříž, erbenovo nábř. 4262", "kyjov, strážovská, centrumpro seniory", "kyjovice, domov na zámku", "luhačovice, zatloukalova 1144", "milovice, armádní 882,883", "milovice, dětské centrum, dětská 361", "mnichovice, bezručova 346, zš", "neslovice, lesní 368, bd", "nupaky, komerční 528, auto opat", "nymburk, soudní, penzion panorama", "olomouc, eduarda hamburgera 9, 11", "olomouc, loudova 7 + 11, 15", "olomouc, tř. j. pelikána 5,7,9,11,13", "opatovice nad labem, siko koupelny", "opava, císařského pluku 3078/1", "opava, nákladní 2", "opava, olomoucká 88, psychiatrická léčebna", "opava, rolnická 24", "osoblaha, klášterní 34 - dps", "ostrava, 28. října, red house", "pacov, malovcova 1080", "pec pod sněžkou, velká úpa 360, bd", "pelhřimov, habrová 2523 + 2524, bd", "pelhřimov, habrová 2525, 2526, bd", "plesná, spojovací 80, kodus, okres cheb", "plzeň, nemocniční 6 a stehlíkova 5,7,9", "plzeň, průmyslová 2a, škoda electric", "plzeň, rybářská 26, bd", "poprad, slovenského odboja, karpatská rezidence", "poříčí nad sázavou, parc. č. 190-71, hala h1 + h2", "praha 10, bd u hranic", "praha 10, ramonova 3466, bd hagibor", "praha, budínova 2, protialkoholní záchytka, bulovka", "praha, choceradská 2, bd", "praha, dobratická 525, zš tupolevova", "praha, dopraváků 749/3, stiebel eltron", "praha, hloubětín 837-2, bd, kbelská 1152", "praha, holečkova 13, hotel", "praha, horolezecká 1a", "praha, hradešínská 52, bd", "praha, ke kříži 1653-8 -vivus 4. etapa", "praha, ke kříži 1672, vivus -5. etapa", "praha, konviktská 14, cloister inn", "praha, koubkova 12", "praha, libocká 643, domov sv. rodiny", "praha, lucemburská 9, ubytovna", "praha, maltézské náměstí 8, bd s ubytovnou", "praha, na bělidle 23", "praha, na chvalské tvrzi", "praha, na poříčí, mb 48 - opletal", "praha, na vackově -os vackov", "praha, nad kazankou 19", "praha, novovysočanská 8, dps", "praha, opletalova 40, hotel gold bank", "praha, oty bubeníčka 1654-4, vivus 4. etapa", "praha, parmská 390, dps", "praha, plzeňská 56, hotel", "praha, polyfunkční objekt dlouhá", "praha, sazovická 508", "praha, spálená 12, městská poliklinika", "praha, starokošířská 13, bd", "praha, v podhájí 20, bd braník residences", "praha, vivus uhřiněves ke kříži -1636, oty bubeníčka -1637, 1638, 1639", "praha, vladivostocká 1530/12, slavia hotel", "praha, řešovská 852-10, bohnice -rezidence jasmín", "prostějov, průmyslová 20", "slatinice, ld balnea", "slavkov u brna, slovanská 758, destila", "slušovice, dostihová 725, kodus", "sobotka, libošovice 39, charita", "sokolovská uhelná, vintířov, vřesová, suas zpracování odpadů", "střelice, tetčická 31169", "teplice, nám. svobody 3316, oc teplice", "trnava, včelárska 2", "uherský brod, vlčnovská 2512, sklad ptáček", "vamberk, smetanovo nábřeží 334, vaspo", "vejprty, nerudova1221_14, dzr krakonoš", "velké meziříčí, u světlé 9, dps", "vrchlabí - herlíkovice, horská 547, apartmány mlýn herlíkovice", "vrchlabí, horská 179", "český těšín, střelniční 257/3, gerontocentrum", "čimelice, siko koupelny"];
+const ORIGINAL_PINK_PLACE_SIGNATURES = [
+  ["6vrmki",["1e6czpv","cr7vq4","yu2gnx"]],
+  ["higs6y",["1j9lg23","nfilqo","1b7yg2j","14kyml8","1aa9uym","1faa9l8"]],
+  ["1s03s0l",["1u7m7c8","1g22zp4","w65g5a"]],
+  ["1efrdsi",["176i0pa","od9cga","1hh4ahk","10nzhrc","14pohr8"]],
+  ["18h2ule",["176i0pa","1lstc6x","1lp6mx5","16mgxvl","zybcnz","y2ofdq"]],
+  ["lm0fak",["176i0pa","1l5y5td","iwee0x","1nsvkdj"]],
+  ["b51m4l",["lhw3ca","ehkfsp"]],
+  ["dy93se",["lhw3ca","1s8tv0v","wivq38","9ygcft","15zb019"]],
+  ["1hjlzw1",["lhw3ca","xtqkvi"]],
+  ["h8gz3x",["lhw3ca","14g8vl1"]],
+  ["9rmeig",["lhw3ca","ezwic3","2yu6tf"]],
+  ["2zhzhk",["lhw3ca","1avwabv"]],
+  ["4am6y2",["lhw3ca","sb4pit"]],
+  ["a7dg1o",["lhw3ca","6rk1oh"]],
+  ["w7ljts",["lhw3ca","myg6ry"]],
+  ["gavtle",["lhw3ca","10sqgf2"]],
+  ["1h724e0",["lhw3ca","1q6slpq","w7toxf","1i7y2b8"]],
+  ["yuyqmg",["1l4fkd3","f0x6ue","1w5y23g","hj0i8j","4cuscl","1nliijn"]],
+  ["3ygyub",["f6r7xv","j11nzl","d3n3um"]],
+  ["1wy8y7l",["wfeom3","16aetmf","a31zoh"]],
+  ["1h6jzed",["1k57qej","mj7kgp"]],
+  ["4we63n",["1vwvt4s","3ihptp","1rar0hm","10o9acx"]],
+  ["19uf2fe",["8tsfs","13n73r4","4dz2ww","1tyauuk"]],
+  ["u8zx48",["8tsfs","13n73r4","13p18i2","wsa76l"]],
+  ["1bjc8i7",["52sgxi","nzpd32","2grid5","1oekbmc"]],
+  ["edil9r",["19eotm","1wra6dj","6rbfzx","rx07jb","1xktyys","1rirt7k","1d7ro4e"]],
+  ["flomx7",["1hdn7vg","1hganrp","1xu8g25","1ddi60u"]],
+  ["1t5gs8",["fdr91f","af5v5o","8v165","1aovow0"]],
+  ["ze38vb",["x42rmd","1c5wgpg","zcszi0"]],
+  ["1719v4j",["10mu7op","72t3ir","gtg5hx"]],
+  ["1jkul9k",["t7jo1n","af5v5o","awerna","65wfw7","cx2aef"]],
+  ["1lko6z7",["x275p4","1in443b","17vdzxo","eiinb"]],
+  ["1mm4mm4",["tie0vw","15cbzkf","sgv8lg","v6rih0"]],
+  ["1mbmohv",["np884z","1wog1by","1jpvanj"]],
+  ["1cwxsub",["1o7hwae","cc0474","3nb4bb"]],
+  ["113ke6",["19masxz","vkdgkh","m436rx","lu3l2y"]],
+  ["1bjmspd",["19masxz","pwbbjb","1pnmdj5","oscwrf","1mcyjpz"]],
+  ["3nazi1",["1veon3y","zv4u8w","hkthcs"]],
+  ["is8s17",["z6uabh","oq2eya","1jv24h8"]],
+  ["171jmzh",["583z67","1smu937","1h60fkq","14ku3yu","1ff95z3"]],
+  ["a81hrh",["x4usxh","11ymqgz","1bwywao","elfvki"]],
+  ["19tclqq",["169ur0f","1mtg2ub","1gehror"]],
+  ["p2r0or",["169ur0f","8j03r7"]],
+  ["pfojsd",["169ur0f","2sq1rg"]],
+  ["19o01c6",["6bleu1","af5v5o","1w54qy2","3tk6mr","10dc24q"]],
+  ["17kb978",["1boa2rw","1sq0pcb","1c4uwe0","1au2yy9"]],
+  ["hbc9tk",["1boa2rw","1hd3mzr"]],
+  ["k4ie5p",["1boa2rw","15x4orr","13vwpcg","1gsez7d"]],
+  ["12cmhj1",["1boa2rw","4cjpu8"]],
+  ["626ggt",["yc1wgi","s6ky9g"]],
+  ["1fzswca",["1dr35gp","j10qav","i0tgik","3lo2u3"]],
+  ["b16fwv",["ks4ha","14lc1of","56h7bg"]],
+  ["1b9nk9v",["yhjxbb","j781kc","y4flug","1iekoig","9v0mz7","1m2yy10"]],
+  ["m1zx9i",["2tdlaj","3ysiw2","1987r0f","18e8xxi"]],
+  ["1qg0w9r",["2tdlaj","3ysiw2","18o8jmh","17u9qjk"]],
+  ["59o2s",["nmic5s","19hwwhd","rkryn1","18gt4ix"]],
+  ["1y1o8n1",["1qg1jpq","1mx48wc","1cku7mf"]],
+  ["2t6ryi",["1qg1jpq","18klsyp","19k21tn","1pj9dj2"]],
+  ["13dfsrn",["1qg1jpq","13vjk9e"]],
+  ["zfggna",["qqyvyr","1s5b7tk","18bqfj4","1pkj6of","10ayd74"]],
+  ["15flziq",["taf3cp","af5v5o","t99sum","tth9ht","1y8gvq5","1nb1hqp"]],
+  ["187yc68",["1atpxi5","1hvljlw"]],
+  ["1jsvvg0",["1atpxi5","fzcife","1rnewwu","1diwk9p"]],
+  ["1tovic5",["1atpxi5","oyisx1","iarna","1s9y1ty","emyv0h"]],
+  ["1uyjn1r",["1atpxi5","1ysu37f"]],
+  ["25gy73",["1atpxi5","1hcq5pd","1e44sy1","9rpksm"]],
+  ["1i3hb5p",["1atpxi5","wuhtnk","16no619","1n2kfoz","i0tstb"]],
+  ["mgb5z9",["1atpxi5","bm8oi3","1k7n7e9","1b834te","bcqho"]],
+  ["e3dzgl",["1atpxi5","1ccgwrb","yu2gnx"]],
+  ["v11sz2",["1atpxi5","1r2ulbu"]],
+  ["3tql97",["1atpxi5","1fuw726"]],
+  ["502vi3",["1atpxi5","1lml086","e9x7dy","10mx5gy","wwp5vg"]],
+  ["mf2o2t",["1atpxi5","1lml086","izk56j","10mx5gy","wwp5vg"]],
+  ["jttefr",["1atpxi5","1k79mk6","16617g6","179d3gw"]],
+  ["19669yg",["1atpxi5","1gevc2r"]],
+  ["1d06c24",["1atpxi5","4hkefu","yv2vks","1wog1by","billhk"]],
+  ["8r5zw4",["1atpxi5","508upz","553fn7"]],
+  ["1frn4g0",["1atpxi5","sggs01","osvryw","1gouza0"]],
+  ["1krnsn6",["1atpxi5","ah6gry"]],
+  ["ol88fc",["1atpxi5","1ur02ay","euzlyi"]],
+  ["ldaybi",["1atpxi5","taf3cp","byipny"]],
+  ["39621j",["1atpxi5","zwg0bi","1ndbn4f"]],
+  ["1j6vl7y",["1atpxi5","af5v5o","1quojj7"]],
+  ["1j8gzq6",["1atpxi5","9cp1m9"]],
+  ["yng5ta",["1atpxi5","ccd3qy","yu2gnx","1tlcmtv","gj5lef"]],
+  ["jpb6d7",["1atpxi5","1fmu9ut","xbj2dt","f3w0gv","10mx5gy","wwp5vg"]],
+  ["stou4z",["1atpxi5","1f0ig44","1fzvyv7"]],
+  ["liw9gm",["1atpxi5","1x0vjcv","yu2gnx"]],
+  ["mjnncs",["1atpxi5","e6zsgv","nmetue"]],
+  ["1fjmozl",["1atpxi5","dtplis","ebdrgo"]],
+  ["1mxg13j",["1atpxi5","fr1m2v","1xzrbod","e1k0pi"]],
+  ["1mthen3",["1atpxi5","1n4vjcb"]],
+  ["l71hwi",["1atpxi5","12rt4bu","1du6z5e","hqxnnk"]],
+  ["114c8sm",["1atpxi5","10mx5gy","1jhus6u","1lml086","1f6mnn7","1fmu9ut","xbj2dt","1ewn1y8","1j2h3ct","1ishhnu"]],
+  ["fiq4hb",["1atpxi5","1xjjm43","1ms7fpk","1s986n3","yu2gnx"]],
+  ["11s8dek",["1atpxi5","1lljptl","h30xl8","1bqndnf","10ayd74","m12k7"]],
+  ["1gltufv",["1mwy3ml","18klsyp"]],
+  ["9yi602",["vaqzh7","ojv55g"]],
+  ["1iate7r",["mvkhd7","hm1nmo","3go7xx","13lvowj","186wwln"]],
+  ["1mgwp",["1cqfti6","fkxzq","75bjuj","rkryn1"]],
+  ["lthffx",["1pyczks","p6t4lu","4m7eaj"]],
+  ["axwpn",["1b53jar","1ofk8k4","mlr1h0","14xq0oz","j6bit9","1aeum0w","1plyc2m"]],
+  ["sydbyw",["1jhk2p0","ikunwf","1jztqk9"]],
+  ["1hxhtzk",["xesj0l","cx2aef","1ibm8mx","1e0f8io"]],
+  ["132n0uf",["1m5olmv","1a1z82d"]],
+  ["cngtbf",["13byjt8","nzpd32","1ewdlsk","17a7dnn","1ksj7ug","zv7yst"]],
+  ["bsat19",["xg1nmt","hhg0ej","153d5we","io9x11","10vk0pg"]],
+  ["1xuht7a",["h7xn2z","1vii903","1r1oe1n","qbhib7"]],
+  ["1ft45aa",["1jij3ac","1vl06rf","1q09z76"]],
+  ["zjds1p",["rietxk","1yv7jrw","17cvsnz","1i05jnl","ovs0ti","1keqkdf"]],
+  ["1k4c8q1",["rietxk","17cvsnz","1sfacrc"]],
+  ["60wkg7",["1jj252e","lqbnc0","jtc860","cg20tx","gmu7wx"]],
+  ["scd46t",["1lz3k94","3tk6mr","10dc24q"]],
+];
 
 window.addEventListener("load",()=>{
   if(!firebaseReady){
     const st=document.getElementById("startupStatus");
     const message=firebaseConfigured
-      ? "Firebase se zatím nepodařilo načíst. Mapa se otevře z uložených dat, přihlášení můžeš zkusit tlačítkem."
-      : "Firebase není nastavený – otevírám mapu bez ukládání.";
+      ? "Firebase se zatím nepodařilo načíst. Servisní data se z bezpečnostních důvodů načtou až po přihlášení."
+      : "Firebase není nastavený – servisní data nejsou v této veřejné verzi dostupná.";
     if(st) st.textContent=message;
     const box=document.getElementById("firebaseBox");
     if(box){
@@ -2499,13 +2614,13 @@ if(firebaseReady){
       if(box){
         box.style.display="block";
         box.className="notice err";
-        box.textContent="Firebase knihovny se nepodařilo načíst. Přihlášení zatím není dostupné, mapa běží z uložených dat.";
+        box.textContent="Firebase knihovny se nepodařilo načíst. Přihlášení zatím není dostupné a veřejný CSV export už není součástí produkčního webu.";
       }
     }
     const st=document.getElementById("startupStatus");
     if(st) st.textContent=compatAvailable
       ? "Firebase modul se načetl v záložním režimu. Otevírám mapu."
-      : "Firebase není dostupný. Otevírám offline uloženou mapu.";
+      : "Firebase není dostupný. Servisní data se načtou po obnovení přihlášení nebo připojení.";
     setTimeout(()=>{try{showApp();}catch(err){}},500);
   }
   if(firebaseReady && appMod && authMod && fsMod){
@@ -2822,7 +2937,7 @@ if(firebaseReady){
     const topLogoutBtn=document.getElementById("topLogoutBtn");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     if(topLogoutBtn) topLogoutBtn.style.display="block";
-    setProgressStatus(message || "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+    setProgressStatus(message || "Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
     setTimeout(()=>{
       try{
         if(typeof window.loadFirebaseSitesUnified==="function"){
@@ -2958,7 +3073,7 @@ if(firebaseReady){
         }
         clearAuthPending();
         if(shouldKeepAppOpenOnAuthNull()){
-          keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+          keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
           return;
         }
         if(!explicitSignOutPending()){
@@ -2997,13 +3112,13 @@ if(firebaseReady){
           return;
         }
         if(Date.now()-authBootStartedAt>=AUTH_RESTORE_GRACE_MS){
-          keepAppOpenDuringAuthRestore("Přihlášení se zatím nepodařilo obnovit. Mapa zůstává otevřená z uložených dat a přihlášení zkusím obnovit na pozadí.");
+          keepAppOpenDuringAuthRestore("Přihlášení se zatím nepodařilo obnovit. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní a přihlášení zkusím obnovit na pozadí.");
         }
       },600);
       return;
     }
     if(knownSession || appIsOpenOrHasRows()){
-      keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+      keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
       return;
     }
     if(explicitSignOutPending()){
@@ -3021,7 +3136,7 @@ if(firebaseReady){
       return;
     }
     clearSignedUser();
-    keepAppOpenDuringAuthRestore("Nejsi přihlášený k Firebase. Mapa se otevřela z uložených dat, pro úpravy klikni na Přihlásit technika.");
+    keepAppOpenDuringAuthRestore("Nejsi přihlášený k Firebase. Servisní data se načtou po přihlášení; případná lokální cache se použije jen pro dříve přihlášené zařízení.");
   }
 
   window.__startFirebaseRedirectLogin=startFirebaseRedirectLogin;
@@ -3066,8 +3181,8 @@ window.map=L.map("map").setView([49.9,15.5],7);
 const map=window.map;
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-07-serviszdroju-auth-domain-v32";
-const APP_SHELL_CACHE_NAME="astip-szz-v32-static";
+const APP_BUILD_VERSION="2026-08-07-secure-firebase-only-v33";
+const APP_SHELL_CACHE_NAME="astip-szz-v33-static";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -3234,7 +3349,7 @@ async function cacheMapTileUrls(urls,options={}){
   setOfflineMapStatus(options.startMessage || "Připravuji aplikaci pro offline otevření...");
   try{
     if("serviceWorker" in navigator && window.registerSzzServiceWorker){
-      try{ await window.registerSzzServiceWorker(); }catch(e){}
+      try{ await window.registerSzzServiceWorker(); }catch(e){ if(typeof reportSzzServiceWorkerError==="function") reportSzzServiceWorkerError(e); }
     }
     const shellCount=await cacheAppShellForOffline();
     const label=options.label || "mapu";
@@ -3674,27 +3789,27 @@ function meaningfulTokens(s){
     .filter(t => t.length >= 3 && !["dps","ldn","ups","astip","strong","minut","min","bud"].includes(t));
 }
 
-function pinkMatch(place, pinkPlace){
-  const a = normPinkText(place);
-  const b = normPinkText(pinkPlace);
-  if(!a || !b) return false;
-
-  if(a.includes(b) || b.includes(a)) return true;
-
-  const at = meaningfulTokens(a);
-  const bt = meaningfulTokens(b);
-
-  if(!at.length || !bt.length) return false;
-
-  let common = 0;
-  for(const t of bt){
-    if(at.includes(t)) common++;
+function pinkHashValue(value){
+  let h=2166136261;
+  for(const ch of String(value || "")){
+    h^=ch.charCodeAt(0);
+    h=Math.imul(h,16777619)>>>0;
   }
+  return h.toString(36);
+}
 
-  if(common >= 2) return true;
-  if(bt.length === 1 && at.includes(bt[0])) return true;
-
-  return false;
+function pinkSignatureMatch(place, signature){
+  const a=normPinkText(place);
+  if(!a || !Array.isArray(signature)) return false;
+  if(pinkHashValue(a)===signature[0]) return true;
+  const at=new Set(meaningfulTokens(a).map(pinkHashValue));
+  const bt=Array.isArray(signature[1]) ? signature[1] : [];
+  if(!at.size || !bt.length) return false;
+  let common=0;
+  for(const tokenHash of bt){
+    if(at.has(tokenHash)) common++;
+  }
+  return common>=2 || (bt.length===1 && common===1);
 }
 
 function isNoOrderSite(r){
@@ -3714,7 +3829,7 @@ function isNoOrderSite(r){
     raw["Původní adresa / umístění"]
   ].map(v=>safe(v)).filter(Boolean).join(" | ");
 
-  if(ORIGINAL_PINK_PLACES.some(p => pinkMatch(place,p))) return true;
+  if(ORIGINAL_PINK_PLACE_SIGNATURES.some(signature => pinkSignatureMatch(place,signature))) return true;
 
   const text=[
     raw["Růžová"],
@@ -4794,7 +4909,7 @@ async function deleteSelectedSite(){
   if(!currentUser){st.textContent="Nejdřív se přihlaš.";return;}
   if(!isAppAdmin()){st.textContent="Mazat body může jen správce.";return;}
 
-  const ok=confirm("Opravdu smazat toto místo i jeho uložené údaje z Firebase?\\n\\nPozor: místa z původního data.csv nepůjde fyzicky odstranit z CSV, ale uloží se jako skryté.");
+  const ok=confirm("Opravdu smazat toto místo i jeho uložené údaje z Firebase?\\n\\nU původně importovaných míst se uloží také skrytý záznam, aby se bod po obnově znovu nezobrazil.");
   if(!ok) return;
 
   try{
@@ -12098,6 +12213,12 @@ function scheduleFirebaseUnifiedPrimaryLoad(delay=0){
 }
 let csvLoadPromise=null;
 window.loadCsvRowsForMigration=function(){
+  if(!PUBLIC_CSV_DATA_ENABLED || !CSV_FILE){
+    const message="Veřejný CSV export není v produkční verzi dostupný. Servisní data se načítají po přihlášení z Firebase.";
+    const p=document.getElementById("progress");
+    if(p) p.textContent=message;
+    return Promise.resolve([]);
+  }
   if(originalCsvRows.length) return Promise.resolve(originalCsvRows);
   if(csvLoadPromise) return csvLoadPromise;
   csvLoadPromise=new Promise((resolve,reject)=>{
@@ -12121,7 +12242,7 @@ window.loadCsvRowsForMigration=function(){
       await loadExtraSites();
       resolve(originalCsvRows);
     },error:e=>{
-      if(!firebaseUnifiedPrimary) document.getElementById("progress").textContent="Nepodařilo se načíst data.csv: "+e;
+      if(!firebaseUnifiedPrimary) document.getElementById("progress").textContent="Veřejný CSV zdroj není dostupný: "+e;
       reject(e);
     }});
   });
@@ -12130,7 +12251,12 @@ window.loadCsvRowsForMigration=function(){
 if(firebaseUnifiedPrimary){
   scheduleFirebaseUnifiedPrimaryLoad();
 }else{
-  window.loadCsvRowsForMigration().catch(()=>{});
+  window.loadCsvRowsForMigration().then(()=>{
+    rows=[];
+    window.rows=rows;
+    filters();
+    render();
+  }).catch(()=>{});
 }
 
 window.addEventListener("DOMContentLoaded",()=>{
@@ -13853,32 +13979,7 @@ setTimeout(()=>{
     return false;
   }
   async function migrateCsvToFirebase(){
-    const database=db(), u=await waitCompatUser();
-    if(!database){sideStatus("Firebase není dostupný.",true);return;}
-    if(!u){sideStatus("Nejdřív se přihlaš přes Google.",true);return;}
-    const sourceRows=typeof window.getCurrentCsvRows==="function" ? window.getCurrentCsvRows() : [];
-    if(!Array.isArray(sourceRows)||!sourceRows.length){sideStatus("CSV ještě není načtené.",true);return;}
-    if(!confirm("Opravdu migrovat data.csv do Firebase? Spustí se jednorázový import všech bodů.")) return;
-    try{
-      const existingSnap=await database.collection(FB_COLLECTION).get();
-      const seenKeys=existingDedupKeysFromSnapshot(existingSnap);
-      sideStatus("Migruji CSV do Firebase...");
-      const batchLimit=350; let batch=database.batch(), count=0, batchCount=0, skipped=0;
-      for(let i=0;i<sourceRows.length;i++){
-        const raw=Object.assign({}, sourceRows[i].raw || {});
-        if(hasDuplicateKey(seenKeys,raw)){skipped++;continue;}
-        addDedupKeys(seenKeys,raw);
-        const docId=docIdFromRaw(raw,i);
-        if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
-        const ref=database.collection(FB_COLLECTION).doc(docId);
-        batch.set(ref,{raw:raw,dedupKeys:dedupKeys(raw),migratedFromCsv:true,csvIndex:i,name:raw["Název"]||raw["Adresa / umístění"]||raw["Adresa_GPS"]||"",lat:num(raw["GPS_lat"]),lon:num(raw["GPS_lon"]),updatedAt:serverTimestampValue(),updatedBy:u.email||""},{merge:true});
-        count++; batchCount++;
-        if(batchCount>=batchLimit){await batch.commit(); sideStatus(`Migrováno ${count} / ${sourceRows.length} bodů...`); batch=database.batch(); batchCount=0;}
-      }
-      if(batchCount>0) await batch.commit();
-      sideStatus(`<b>Migrace hotová.</b> Uloženo ${count} bodů do Firebase, přeskočeno duplicit: ${skipped}. Načítám Firebase data...`);
-      await loadFirebaseSites();
-    }catch(e){sideStatus("Chyba migrace: "+e.message,true);}
+    sideStatus("Veřejná CSV migrace je v produkční verzi vypnutá. Data se spravují po přihlášení přes Firebase.",true);
   }
   async function savePoint(e){
     if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
@@ -13992,7 +14093,7 @@ setTimeout(()=>{
 
 
 <script>
-/* AUTO MIGRACE DO FIREBASE PO PRIHLASENI */
+/* AUTO MIGRACE DO FIREBASE PO PRIHLASENI - v produkci vypnuto */
 (function(){
   return;
   const COLLECTION = "sitesUnified";
@@ -14073,7 +14174,7 @@ setTimeout(()=>{
         sourceRows=await window.loadCsvRowsForMigration();
       }
       if(!Array.isArray(sourceRows) || !sourceRows.length){
-        showAutoStatus("Firebase je prázdná, ale data.csv ještě není připravené pro jednorázovou migraci.", true);
+        showAutoStatus("Firebase je prázdná a veřejný import není v produkční verzi dostupný.", true);
         autoStarted = false;
         return;
       }
@@ -14085,7 +14186,7 @@ setTimeout(()=>{
         }
       });
 
-      showAutoStatus("Firebase je prázdná. Spouštím jednorázovou migraci data.csv do Firebase...");
+      showAutoStatus("Firebase je prázdná. Jednorázová migrace je v produkční verzi vypnutá.");
 
       const total = sourceRows.length;
       let batch = database.batch();
@@ -14104,7 +14205,7 @@ setTimeout(()=>{
         const docId = docIdFromRawAuto(raw, i);
 
         if(!raw["Klíč_adresy"]) raw["Klíč_adresy"] = "firebase_" + docId;
-        raw["Zdroj_dat"] = raw["Zdroj_dat"] || "Firebase migrace z data.csv";
+        raw["Zdroj_dat"] = raw["Zdroj_dat"] || "Firebase jednorázová migrace";
 
         const ref = database.collection(COLLECTION).doc(docId);
         batch.set(ref, {
@@ -14603,10 +14704,18 @@ document.addEventListener("DOMContentLoaded",()=>{
   updateSzzInstallButtons();
 });
 
+function reportSzzServiceWorkerError(err){
+  console.warn("Service worker se nepodarilo spustit",err);
+  try{
+    if(typeof setSzzInstallStatus==="function"){
+      setSzzInstallStatus("Offline aplikaci se nepodařilo připravit. Zkus obnovit stránku nebo zkontroluj připojení.","error");
+    }
+  }catch(e){}
+}
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-07-serviszdroju-auth-domain-v32";
+  const serviceWorkerBuildVersion="2026-08-07-secure-firebase-only-v33";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
@@ -14643,8 +14752,8 @@ function registerSzzServiceWorker(){
   return window.__szzServiceWorkerRegistrationPromise;
 }
 window.registerSzzServiceWorker=registerSzzServiceWorker;
-registerSzzServiceWorker().catch(()=>{});
-window.addEventListener("load",()=>registerSzzServiceWorker().catch(()=>{}));
+registerSzzServiceWorker().catch(reportSzzServiceWorkerError);
+window.addEventListener("load",()=>registerSzzServiceWorker().catch(reportSzzServiceWorkerError));
 </script>
 
 </body>

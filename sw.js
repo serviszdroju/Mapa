@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v32";
+const CACHE_VERSION = "astip-szz-v33";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -6,7 +6,6 @@ const TILE_CACHE = "astip-szz-map-tiles-v1";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
-  "./data.csv",
   "./manifest.webmanifest",
   "./szz-icon.svg",
   "./szz-icon-192.png",
@@ -89,15 +88,18 @@ function isSameOriginUrl(url) {
   }
 }
 
-async function networkFirst(request) {
+async function networkFirst(request, options = {}) {
+  const {fallbackToShell = false} = options;
   const cache = await caches.open(RUNTIME_CACHE);
   try {
     const response = await fetch(new Request(request, {cache: "reload"}));
     if (response && response.ok) cache.put(request, response.clone());
     return response;
   } catch (error) {
-    return (await cache.match(request)) ||
-      (await caches.match("./")) ||
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    if (!fallbackToShell) return Response.error();
+    return (await caches.match("./")) ||
       (await caches.match("./index.html")) ||
       (await caches.match(new URL("./index.html", self.registration.scope).href)) ||
       Response.error();
@@ -144,8 +146,12 @@ function isAppShellRequest(request) {
 self.addEventListener("fetch", (event) => {
   const {request} = event;
   if (request.method !== "GET") return;
-  if (request.mode === "navigate" || isAppShellRequest(request)) {
-    event.respondWith(networkFirst(request));
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirst(request, {fallbackToShell: true}));
+    return;
+  }
+  if (isAppShellRequest(request)) {
+    event.respondWith(networkFirst(request, {fallbackToShell: request.destination === "document"}));
     return;
   }
   event.respondWith(staleWhileRevalidate(request));

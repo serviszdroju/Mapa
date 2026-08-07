@@ -3,3 +3,5 @@ dist/
 .pnpm-store/
 .DS_Store
 *.log
+data.csv
+private-data/

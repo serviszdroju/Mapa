@@ -1,38 +1,36 @@
 # Servisní mapa záložních zdrojů
 
-Nová samostatná webová aplikace pro repozitář `serviszdroju/Mapa`. Původní produkce na `karolopejlo.github.io/Mapa/` není tímto projektem upravena.
+Produkční statická aplikace pro repozitář `serviszdroju/Mapa`. Původní web na `karolopejlo.github.io/Mapa/` se tímto repozitářem neupravuje.
 
-## Co je hotové
+## Stav
 
-- Vizuální směr podle první vybrané varianty bez levé tmavé postranní lišty.
-- Interaktivní mapa, filtry, vyhledávání bez diakritiky a barevná stavová logika.
-- Detail místa se zdroji, termíny, technickými poli, historií a akcemi.
-- Frontendové workflow pro přidání místa, protokol, fotografie, doklady a hlavní historii.
-- PWA manifest a service worker s allowlist cache strategií.
-- Extrakt technického zadání v `technicke-zadani-extrakt.txt`.
-
-## Důležité poznámky
-
-Tento stav je nový frontendový základ. Produkční Firebase Auth, Firestore pravidla, Functions pro e-mail, Cloudinary upload, migrace dat a Word/RTF generování musí být připojené až po potvrzení kanonických produkčních dat, rolí, šablon a cílového hostingu podle kapitol 13 až 18 zadání.
+- Zachovaný původní vzhled servisní mapy, levý filtr, Leaflet mapa, stavové značky a detail bodu.
+- Detail bodu má horní přepínač `Detail / Protokol / Galerie / Doklad`.
+- Servisní body, protokoly, galerie a doklady se načítají a ukládají přes Firebase po přihlášení.
+- Veřejný `data.csv` není součástí produkčního webu ani cache service workeru.
+- Firestore pravidla v `firestore.rules` povolují přístup jen přihlášeným uživatelům s doménou `@astip.cz`.
 
 ## Lokální spuštění
 
+Statickou verzi lze otevřít přes lokální server:
+
+```bash
+python3 -m http.server 4176
+```
+
+## Volitelný build pro Sites
+
 ```bash
 pnpm install
-pnpm run dev
-```
-
-## Build
-
-```bash
 pnpm run build
+pnpm run test:sites
 ```
 
-Build pro statický hosting vznikne v `dist/client`.
+Build vznikne v `dist/client` a pomocné soubory pro Sites v `dist/server` a `dist/.openai`.
 
 ## GitHub Pages
 
-Součástí projektu je workflow `.github/workflows/deploy-pages.yml`. Po pushnutí do `serviszdroju/Mapa` je potřeba v GitHub nastavení repozitáře povolit Pages přes GitHub Actions. Výsledná adresa bude typicky:
+Nasazená adresa:
 
 ```text
 https://serviszdroju.github.io/Mapa/
