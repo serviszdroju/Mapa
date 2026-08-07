@@ -2,37 +2,37 @@ export const STATUS_META = {
   repair: {
     label: "Objednaná oprava",
     legend: "Objednaná oprava",
-    color: "#2f6fec",
+    color: "#3b73c7",
     priority: 1,
   },
   ordered: {
     label: "Kontrola objednána",
     legend: "Kontrola objednaná",
-    color: "#f6c342",
+    color: "#d9a62e",
     priority: 2,
   },
   stop: {
     label: "Stop Stav",
     legend: "Stop Stav",
-    color: "#7c8490",
+    color: "#798394",
     priority: 3,
   },
   overdue: {
     label: "Propadlá kontrola",
     legend: "Propadlá kontrola",
-    color: "#ef3d3d",
+    color: "#c84b4b",
     priority: 4,
   },
   soon: {
     label: "1-30 dní k termínu",
     legend: "1-30 dní k termínu",
-    color: "#ff7a1a",
+    color: "#d88435",
     priority: 5,
   },
   ok: {
     label: "OK / ostatní",
     legend: "OK / ostatní",
-    color: "#3fa857",
+    color: "#4e9a61",
     priority: 6,
   },
 };

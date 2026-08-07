@@ -6,6 +6,6 @@ Before making substantial visual changes, use the Product Design plugin's `get-c
 
 When implementing from a selected generated mock, treat that image as the source of truth for layout, component anatomy, density, spacing, color, typography, visible content, and hierarchy.
 
-Current durable design decision: use the first selected generated mock as the visual source, but remove only the original dark left vertical sidebar. Preserve the app-like composition with a dark top bar, light filter panel on the left, central map, and right detail drawer. Do not reintroduce the dark left sidebar in later revisions unless the user explicitly asks for it.
+Current durable design decision: the user disliked the previous darker dashboard-like look. Future revisions should keep the service-map composition, but use a calmer light gray/white/soft-blue interface, lower contrast, simple panels, and a stronger resemblance to a practical map tool. Do not reintroduce the dark left sidebar or a heavy dark top bar unless the user explicitly asks for it.
 
 Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

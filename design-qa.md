@@ -5,14 +5,14 @@ Date: 2026-08-07
 ## Visual Source
 
 - Selected mock: `/Users/jansoldan/.codex/generated_images/019fcb7f-a335-7e60-a9b4-44eb6bb2407d/call_LJO0vaQ0VDATkRzUwNnw2u0i.png`
-- Requested adjustment: keep the first design direction, remove only the dark left vertical sidebar.
-- Durable layout target: dark top bar, light left filter panel, central map, right detail drawer.
+- Requested adjustment: move away from the darker dashboard-like look after user feedback.
+- Durable layout target: light gray/white/soft-blue interface, compact light filter panel, central map, right detail drawer, no dark left sidebar and no heavy dark top bar.
 
 ## Evidence
 
-- Desktop production preview: `/private/tmp/servis-mapa-production-preview.png`
-- Desktop QA capture: `/private/tmp/servis-mapa-qa-desktop-final.png`
-- Mobile QA capture: `/private/tmp/servis-mapa-mobile-final.png`
+- Desktop production preview: `/private/tmp/servis-mapa-light-redesign-desktop.png`
+- Mobile production preview: `/private/tmp/servis-mapa-light-redesign-mobile.png`
+- Previous desktop QA capture: `/private/tmp/servis-mapa-qa-desktop-final.png`
 - Side-by-side design comparison: `/private/tmp/servis-mapa-design-qa-comparison.png`
 
 ## Viewports
