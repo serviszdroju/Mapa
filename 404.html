@@ -1627,17 +1627,23 @@ body{
   color:var(--text-main);
   -webkit-font-smoothing:antialiased;
 }
-.app{background:#eef2f7}
+.app{
+  grid-template-columns:330px minmax(0,1fr);
+  background:#eef2f7;
+}
 aside{
   background:linear-gradient(180deg,#ffffff 0%,#fbfdff 52%,#f8fafc 100%);
   border-right:1px solid #dbe4ef;
   box-shadow:10px 0 30px rgba(15,23,42,.08);
-  padding:18px 18px 22px;
+  width:330px;
+  min-width:330px;
+  max-width:330px;
+  padding:16px 14px 22px;
 }
-.sidebar-brand{margin:6px 0 18px}
+.sidebar-brand{margin:6px 0 16px}
 .sidebar-logo-img{
-  width:min(250px,88%);
-  max-height:116px;
+  width:min(196px,78%);
+  max-height:92px;
   filter:drop-shadow(0 8px 14px rgba(15,23,42,.10));
 }
 .app-tools{margin:2px 0 4px}
@@ -1698,7 +1704,25 @@ button:active{transform:translateY(0)}
   color:#334155;
   box-shadow:0 8px 18px rgba(15,23,42,.07);
 }
-#addSiteBtn{margin-top:10px !important}
+#addSiteBtn{
+  margin-top:10px !important;
+  min-height:48px;
+  font-size:15px;
+}
+#addSiteBtn::before{
+  content:"+";
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  margin-right:8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.18);
+  font-size:22px;
+  line-height:1;
+  vertical-align:-2px;
+}
 #topLogoutBtn,
 #mainProtocolHistoryBtn{
   background:#fff;
@@ -1715,6 +1739,39 @@ button:active{transform:translateY(0)}
   background:#fff;
   color:#0f172a;
 }
+.sidebar-nav{
+  display:grid;
+  gap:8px;
+  margin:14px 0 18px;
+  padding:8px 0 14px;
+  border-bottom:1px solid #e6edf5;
+}
+.sidebar-nav-item{
+  min-height:46px;
+  border:1px solid #dbe4ef;
+  background:#fff;
+  color:#334155;
+  text-align:left;
+  padding:10px 14px;
+  box-shadow:0 8px 18px rgba(15,23,42,.045);
+}
+.sidebar-nav-item::before{
+  content:"";
+  display:inline-block;
+  width:12px;
+  height:12px;
+  margin-right:12px;
+  border-radius:999px;
+  background:var(--blue);
+  box-shadow:0 0 0 4px #dbeafe;
+  vertical-align:-1px;
+}
+.sidebar-nav-item.active{
+  border-color:#bfdbfe;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-weight:900;
+}
 .notice{
   border-radius:10px;
   box-shadow:0 8px 20px rgba(15,23,42,.055);
@@ -1725,6 +1782,22 @@ button:active{transform:translateY(0)}
   background:#fff;
   border-color:#dbe4ef;
   box-shadow:0 8px 22px rgba(15,23,42,.055);
+}
+.stats .stat:first-child{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  column-gap:12px;
+  align-items:center;
+  padding:14px;
+}
+.stats .stat:first-child::before{
+  content:"";
+  grid-row:1 / span 2;
+  width:30px;
+  height:30px;
+  border-radius:999px;
+  border:2px solid var(--blue);
+  box-shadow:inset 0 0 0 5px #fff,0 0 0 5px #dbeafe;
 }
 .stat b{
   font-size:28px;
@@ -1738,6 +1811,15 @@ button:active{transform:translateY(0)}
   border-radius:10px;
   background:#fff;
   box-shadow:0 8px 22px rgba(15,23,42,.045);
+}
+.legend::before{
+  content:"Zobrazit na mapě";
+  display:block;
+  margin-bottom:4px;
+  color:#475569;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
 }
 .legend div{
   justify-content:flex-start;
@@ -1798,7 +1880,7 @@ button:active{transform:translateY(0)}
     top:16px;
     right:16px;
     height:calc(100vh - 32px);
-    width:clamp(560px,calc(100vw - 448px),720px);
+    width:clamp(560px,calc(100vw - 382px),720px);
     min-width:0;
     padding:18px 18px 20px;
     border:1px solid #dbe4ef;
@@ -2101,16 +2183,16 @@ button:active{transform:translateY(0)}
 }
 @media(max-width:1024px) and (orientation:landscape){
   .app{
-    grid-template-columns:395px minmax(0,1fr) !important;
+    grid-template-columns:330px minmax(0,1fr) !important;
     grid-template-rows:1fr !important;
   }
   aside{
     order:0 !important;
     border-right:1px solid var(--border) !important;
     border-top:0 !important;
-    width:395px !important;
-    min-width:395px !important;
-    max-width:395px !important;
+    width:330px !important;
+    min-width:330px !important;
+    max-width:330px !important;
   }
   #map{
     height:100dvh !important;
@@ -2149,6 +2231,10 @@ button:active{transform:translateY(0)}
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
+<button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
+<div class="sidebar-nav" aria-label="Hlavní navigace">
+  <button class="sidebar-nav-item active" type="button" aria-current="page">Mapa</button>
+</div>
 
 <div id="firebaseBox" class="notice err" style="display:none">Firebase se nepodařilo načíst.</div>
 <div class="row" id="mainLoginRow" style="display:none"><button class="primary" id="loginBtn">Přihlásit technika</button><button class="secondary" id="logoutBtn">Odhlásit</button></div>
@@ -2160,7 +2246,6 @@ button:active{transform:translateY(0)}
 <label>Hledat</label><input id="search" placeholder="název, adresa, výrobní číslo, kontakt...">
 <div class="row"><div><label>Stav</label><select id="statusFilter"><option value="">Vše</option></select></div><div><label>Kraj</label><select id="regionFilter"><option value="">Vše</option></select></div></div>
 <button class="secondary" id="fitBtn" style="margin-top:8px">Přiblížit na body</button>
-<button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
 <button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
 
 <div class="stats"><div class="stat"><b id="shownCount">0</b><span>zobrazeno</span></div><div class="stat" id="gpsStatBox" style="display:none"><b id="gpsCount">0</b><span>s GPS</span></div></div>
@@ -2958,8 +3043,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-07-visual-polish-v36";
-const APP_SHELL_CACHE_NAME="astip-szz-v36-static";
+const APP_BUILD_VERSION="2026-08-07-unified-mock-v37";
+const APP_SHELL_CACHE_NAME="astip-szz-v37-static";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -15206,7 +15291,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-07-visual-polish-v36";
+  const serviceWorkerBuildVersion="2026-08-07-unified-mock-v37";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
