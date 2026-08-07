@@ -1,0 +1,58 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "cz.astip.serviszdroju"
+    compileSdk 37
+
+    defaultConfig {
+        applicationId "cz.astip.serviszdroju"
+        minSdk 23
+        targetSdk 37
+        versionCode 1
+        versionName "1.0.0"
+
+        manifestPlaceholders = [
+            webHost: "karolopejlo.github.io",
+            webPathPrefix: "/Mapa"
+        ]
+
+        buildConfigField "String", "LAUNCH_URL", "\"https://karolopejlo.github.io/Mapa/\""
+        buildConfigField "String", "WEB_ORIGIN", "\"https://karolopejlo.github.io\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            def storePathValue = project.findProperty("SZZ_RELEASE_STORE_FILE")
+            def storePasswordValue = project.findProperty("SZZ_RELEASE_STORE_PASSWORD")
+            def keyAliasValue = project.findProperty("SZZ_RELEASE_KEY_ALIAS")
+            def keyPasswordValue = project.findProperty("SZZ_RELEASE_KEY_PASSWORD")
+            if (storePathValue && storePasswordValue && keyAliasValue && keyPasswordValue) {
+                storeFile file(storePathValue)
+                storePassword storePasswordValue
+                keyAlias keyAliasValue
+                keyPassword keyPasswordValue
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.browser:browser:1.10.0"
+}
