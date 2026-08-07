@@ -1,0 +1,390 @@
+TECHNICKÉ ZADÁNÍ
+Zrychlení a stabilizace webuServisní mapa záložních zdrojů
+Přepracování podle aktuální produkční verze při zachování všech funkcí, dat, offline režimu a uživatelského ovládání
+Projekt: Servis záložních zdrojů – mapa FZ
+Objednatel: ASTIP
+Aktualizace zadání: 4. srpna 2026
+Kontrolovaná produkce: https://karolopejlo.github.io/Mapa/
+Zdrojová revize: karolopejlo/Mapa, main/index.html, SHA a3ee9f111d58234c0151c7cef18bebfeff688f4c
+Priorita: Výkon, stabilita, offline provoz, mobilní použitelnost a bezpečné zachování dat
+Závazná zásada: Nová verze musí zachovat všechny uživatelsky dostupné funkce aktuálně nasazeného webu včetně instalace aplikace, offline režimu, více zdrojů na jednom místě, fotografií, protokolů, exportů, e-mailu a administrátorské historie. Nesmí dojít ke ztrátě jediného místa, zdroje, fotografie, protokolu, podpisu, termínu, stavu ani vlastního pole.
+1. Účel, zdroj a rozsah zadání
+Toto zadání je přepracováno podle aktuální produkční verze webu a aktuálního souboru main/index.html. Jako funkční základ se bere vše, co je v této revizi dostupné přihlášenému technikovi nebo oprávněnému administrátorovi. Starší uložené kopie nejsou zdrojem pravdy.
+Cílem je postavit rychlou, stabilní a udržovatelnou aplikaci pro každodenní práci techniků na počítači, tabletu i telefonu. Uživatelské chování a data zůstanou zachována, ale současná vnitřní struktura se může kompletně nahradit.
+Zachovat provoz na GitHub Pages nebo na jiném statickém hostingu bez nutnosti vlastního aplikačního serveru; Firebase Functions zůstávají pro serverové operace, například odesílání e-mailu.
+Zachovat online i offline práci s místy, protokoly a fotografiemi v rozsahu aktuální verze.
+Při přepisu neodstraňovat funkce jen proto, že jsou nyní realizovány duplicitním nebo neefektivním kódem.
+Odstranit staré migrační, záložní a překrývající se bloky až po ověření, že nejsou jediným nositelem platných dat nebo aktivního chování.
+2. Audit aktuální produkční verze
+Aktuální index.html má přibližně 576 700 znaků a 14 361 řádků. V jediném souboru je uživatelské rozhraní, CSS, mapová logika, přihlášení, datová vrstva, offline fronty, fotografie, generování dokumentů a administrátorské funkce.
+Ukazatel v aktuálním kódu
+Zjištěná hodnota
+Význam pro optimalizaci
+Bloky <script>
+18
+Více generací inicializace a vzájemné přepisování funkcí
+DOMContentLoaded
+14 výskytů
+Riziko duplicitní inicializace
+addEventListener
+79 výskytů
+Nutná kontrola opakovaného vázání
+setInterval / setTimeout
+3 / 91 výskytů
+Část oprav je řízena časovači místo událostí
+getDocs / kompatibilní .get()
+21 / 4 výskyty
+Riziko opakovaných úplných čtení
+Databázové kolekce
+6 hlavních
+Souběžné staré a nové datové modely
+Firebase SDK
+modulární i compat
+Duplicitní knihovny a inicializace
+Počty výskytů nejsou samy o sobě důkazem chyby, ale potvrzují, že aplikace vyžaduje systematický refaktor. Aktuální kód stále používá úplné překreslení mapové vrstvy, opakované načítání kolekcí, automatické opakované načítání a jednorázovou migraci dostupnou v běžném klientovi.
+Mapové značky se při některých změnách mažou pomocí clearLayers() a vytvářejí znovu.
+Načítání používá kolekce deletedSites, protocols, serviceRecords, siteEdits, sites a sitesUnified.
+Soubor data.csv je stále součástí přednačítané offline aplikace a migrační logiky.
+PWA service worker obsluhuje široký rozsah GET požadavků; je nutné omezit cache pouze na výslovně povolené zdroje.
+Generování protokolů Word, práce s RTF šablonou, podpisy, fotografie a administrace jsou součástí hlavního souboru a zatěžují start i techniky, kteří je právě nepoužívají.
+Závěr auditu: Komprese současného HTML nestačí. Je nutné rozdělit aplikaci na moduly, načítat těžké funkce až na vyžádání a sjednotit datový tok. Funkční rozsah se přitom nesmí zmenšit.
+3. Funkční základ aktuální verze
+Oblast
+Funkce, které se musí zachovat
+Přístup
+Google přihlášení, omezení @astip.cz, odhlášení, role pro historii a mazání
+PWA a offline
+Instalace aplikace, offline shell, stažení mapy ČR, offline fronty míst/protokolů/fotografií
+Mapa
+Body a skupiny zdrojů, popup, seznam, filtry, mapa na celou obrazovku, návrat do detailu
+Místa a zdroje
+Přidání místa, další zdroj na stejné adrese, editace, GPS, propagace společných údajů, smazání
+Stavy
+Červená, oranžová, žlutá, modrá, šedá, zelená a nezávislé růžové zvýraznění
+Protokoly
+Formulář, podpis, předvyplnění, editace, historie, Word export, e-mail, úprava a smazání dle role
+Doklady
+Data provozovatele, doklad provozuschopnosti, Stop Stav, šablona, podpis a vodoznak
+Fotografie
+Galerie/fotoaparát, náhled, optimalizace, online/offline uložení, složky, metadata a mazání
+4. Podrobné požadavky na zachování funkcí
+4.1 Přihlášení, role a spuštění
+Úvodní obrazovka s logem a stavem kontroly přihlášení.
+Google přihlášení před zobrazením chráněných dat; povolení pouze oprávněných účtů @astip.cz.
+Obnovení známého přihlášení bez zbytečného probliknutí loginu a bez skrytí skutečné chyby.
+Odhlášení technika a bezpečné vyčištění uživatelské lokální cache a rozepsaných citlivých dat.
+Role běžný technik, uživatel historie a administrátor nesmějí být řešeny jen skrytím tlačítka; oprávnění musí platit i v databázi a serverových funkcích.
+4.2 Instalace aplikace a offline mapa
+Tlačítko Stáhnout aplikaci na přihlašovací i hlavní obrazovce, pokud zařízení instalaci podporuje.
+Manifest se jménem aplikace, ikonami, standalone režimem a českým jazykem.
+Service worker s verzovanou app-shell cache a bezpečnou aktualizací bez smíchání starého HTML a nových modulů.
+Tlačítko Stáhnout mapové podklady do telefonu a stav průběhu/stavu offline mapy ČR.
+Před stahováním mapových dlaždic ověřit dostupnou kvótu, zobrazit odhad velikosti a používat poskytovatele, který offline/bulk ukládání výslovně dovoluje.
+Při nové verzi aplikace nevymazat offline rozepsané protokoly, místa nebo fotografie čekající na synchronizaci.
+4.3 Mapa, seznam, vyhledávání a filtry
+Zobrazení všech platných míst v ČR a SR, seznam míst a počet zobrazených výsledků.
+Vyhledávání podle názvu, adresy, typu zdroje, výrobního čísla, kontaktu a dalších normalizovaných polí, včetně vyhledávání bez diakritiky.
+Filtr podle stavu a kraje, samostatný filtr Hlídáme termín sami a barevné zvýraznění vybraného filtru.
+Přiblížit na body, otevřít detail z bodu i seznamu a zobrazit bod na celé mapě z detailu.
+Na telefonu zachovat režim mapy přes celou obrazovku a tlačítko Zpět na detail.
+Položka seznamu musí ukazovat zařízení, výrobní číslo, další kontrolu, stav a dostupné zdroje na daném místě.
+4.4 Stavová a barevná logika
+Aktuální priorita barvy jednotlivého zdroje musí zůstat přesně zachována. Růžová není náhradní barva stavu, ale nezávislý prstenec a filtr.
+Priorita
+Barva / označení
+Aktuální podmínka
+1
+Modrá
+Objednaná oprava
+2
+Žlutá
+Kontrola objednaná
+3
+Šedá
+Stop Stav
+4
+Červená
+Propadlá kontrola
+5
+Oranžová
+1–30 dní do termínu
+6
+Zelená
+OK / ostatní
+Nezávisle
+Růžový prstenec
+Hlídáme termín sami / bez objednávky
+U místa s více zdroji se zachovají samostatné stavy každého zdroje. Skupinový bod a seznam nesmějí skrýt závažnější stav některého zdroje. Filtry musí vracet zdroj i místo konzistentně.
+4.5 Více zdrojů na jednom místě
+Seskupit zdroje podle stabilního placeId, nikoli pouze podle volného textu adresy.
+Na mapě zobrazit jedno místo se skupinovou značkou a počtem zdrojů; po otevření nabídnout přehled jednotlivých zdrojů.
+V detailu zachovat přepínač zdrojů a tlačítko + Přidat další zdroj.
+Nový zdroj přebírá pouze společné údaje místa; typ, výrobní číslo, termíny a zařízení zůstávají samostatné.
+Změna společné adresy, GPS nebo dat provozovatele se bezpečně propíše do všech zdrojů stejného místa atomicky; změna technických údajů pouze do vybraného zdroje.
+Mazání jednoho zdroje nesmí smazat celé místo, další zdroje, jejich fotografie nebo protokoly.
+4.6 Detail, data a editace
+Horní přehled poslední a další kontroly, souhrn zdroje, stav a důležité poznámky.
+Zobrazení jen vyplněných řádků v běžném režimu; v editaci všech schválených polí.
+Upravit data, přidat vlastní řádek, uložit nebo zrušit změny.
+Samostatná tlačítka Kontrola objednána, Objednaná oprava a Stop Stav podle aktuálního chování.
+Smazat bod, ukázat bod na mapě, dopočítat GPS a vybrat polohu přímo na mapě.
+Okamžitá lokální aktualizace právě upraveného zdroje bez opětovného načtení celé databáze.
+Důležité poznámky zůstanou červeně zvýrazněné a vlastní prázdná pole se po uložení nezobrazí.
+4.7 Přidání místa, dalšího zdroje a GPS
+Přidat nové místo z hlavní obrazovky a po uložení rovnou otevřít jeho detail.
+Přidat další zdroj z detailu existujícího místa a vrátit se do správného zdroje.
+Validovat povinné místo/adresu a stabilní identitu; zabránit dvojitému uložení opakovaným klepnutím.
+Dopočítat GPS z adresy, vybrat bod na mapě, zadat GPS ručně a nabídnout zpětně nalezenou adresu k potvrzení.
+Automaticky nebo ručně určit kraj a varovat před souřadnicí mimo ČR/SR.
+Kontrolu duplicity provést indexovaným placeId/sourceId nebo normalizovaným hashem, nikoli načtením celé kolekce.
+4.8 Fotografie místa
+Výběr více fotografií z galerie i přímé pořízení fotoaparátem.
+Náhled před odesláním, optimalizace velikosti a zachování čitelné technické kvality.
+Online upload, offline uložení do IndexedDB a pozdější automatická synchronizace.
+Galerie s hlavní fotografií, předchozí/další, náhledy rozdělenými do složek a metadaty pořízení/vložení.
+Otevření plné fotografie, stažení a mazání pouze oprávněným uživatelem.
+Při chybě Cloudinary nebo sítě nesmí zmizet lokální kopie čekající na synchronizaci.
+4.9 Servisní protokol
+Rozbalovací formulář v horní části detailu s přehledem adresy, zařízení, výrobního čísla, umístění a periody.
+Předvyplnění z vybraného zdroje a přihlášeného technika; při více zdrojích správná volba konkrétního zdroje.
+Zachovat aktuální pole protokolu: místo a provozní údaje, plomby, baterie, AC/DC měření, jištění, zálohovaná zařízení, OOPP, dostupnost, podmínky, podpisy a další položky současného formuláře.
+Reset diagnostiky zůstává povinný s aktuálními volbami; bez výběru nelze uložit.
+Elektronický podpis objednavatele kreslený prstem/myší, podpis technika a korektní obnovení podpisu při editaci.
+Uložení online i offline, ochrana proti dvojímu záznamu, úprava existujícího protokolu a návrat do zavřeného formuláře.
+Po uložení aktualizovat datum kontroly, další termín a příslušnou historii/opravný stav konzistentní transakcí.
+4.10 Historie, exporty, e-mail a oficiální doklady
+Historie záznamů v detailu, seřazená od nejnovějšího, se stránkováním Předchozí/Další.
+Hlavní Historie protokolů pro oprávněné uživatele, nejnovější záznamy napříč místy a jasná identifikace místa/zdroje.
+Z historie zachovat Upravit protokol, export do Wordu, odeslat e-mailem a administrátorské smazání.
+Word export běžného protokolu včetně tabulek, zaškrtnutých zařízení a elektronického podpisu.
+Serverové odeslání protokolu e-mailem s přílohou a příjemci řízenými konfigurací mimo klientský kód.
+Doplnit a uložit data provozovatele; sdílená data propsat ke všem zdrojům stejného místa.
+Vygenerovat oficiální doklad provozuschopnosti i Stop Stav z posledního uloženého protokolu, zachovat schválenou šablonu, podpis, logo/vodoznak a názvy souborů.
+4.11 Mobilní a offline provoz
+Rozložení mapa + seznam na telefonu/tabletu a plnoobrazovkový detail s velkými dotykovými prvky.
+Při otočení zařízení správně přepočítat mapu jednou debouncovanou událostí; nepoužívat řetězce opakovaných timeoutů.
+Offline načíst naposledy synchronizovaná místa a rozepsanou/uloženou práci označit jako čekající.
+Synchronizovat v pořadí místa, protokoly a fotografie; každá položka má idempotencyKey a stav pending/syncing/synced/error.
+Po přihlášení nebo návratu online spustit jednu řízenou synchronizaci, ne několik souběžných pokusů.
+Při konfliktu dvou techniků zachovat obě verze nebo vyžádat rozhodnutí; nikdy tiše nepřepsat novější změnu starší offline kopií.
+5. Cílová technická architektura
+Aplikace může nadále běžet jako statická PWA s Firebase. Produkční zdroj se však musí sestavovat z modulů; index.html má obsahovat pouze kostru aplikace a odkaz na verzované sestavení.
+core/app – start, centrální stav, router panelů a diagnostika.
+auth/roles – jediná inicializace Firebase Authentication a ověřené role.
+data/store – normalizovaná data, IndexedDB cache, změnová synchronizace a konflikty.
+map – Leaflet, cluster index, značky, skupiny zdrojů a mapový focus režim.
+search – předpočítaný index, filtry, řazení a virtualizovaný seznam.
+places/sources – společná data místa a technická data jednotlivých zdrojů.
+protocols – formulář, podpis, historie, offline fronta; export Word načíst lazy až při použití.
+official-documents – RTF/Word šablona, funkční/Stop doklad a serverové odeslání.
+photos – výběr, resize, IndexedDB, upload, galerie a metadata; načíst až po otevření sekce.
+pwa – service worker, app-shell, aktualizace a explicitní offline mapové balíky.
+admin – hlavní historie, mazání a migrace; samostatný lazy modul.
+Povinné pravidlo: V produkci smí být pouze jedna verze Firebase SDK (modulární), jedna inicializace přihlášení a jedna registrace každé události. Žádný modul nesmí přepisovat globální funkci z jiného modulu.
+6. Datový model a Firebase
+6.1 Současný stav
+Aktuální kód pracuje s kolekcemi deletedSites, protocols, serviceRecords, siteEdits, sites a sitesUnified a zároveň obsahuje CSV migraci. Před změnou se musí určit, které záznamy jsou kanonické, a vytvořit report rozdílů a duplicit.
+6.2 Cílové logické entity
+Entita
+Obsah
+Načtení
+places
+Společná adresa, GPS, kraj, kontakty, provozovatel a souhrn zdrojů
+Lehký mapový index po přihlášení
+sources
+Typ, výrobní číslo, technická data, termíny a stav jednotlivého zdroje
+Souhrn s místem; detail na vyžádání
+protocols
+Protokol, podpis, placeId, sourceId, technik, data a verze
+Podle zdroje, stránkovaně
+serviceRecords
+Servisní a opravné záznamy
+Podle zdroje, stránkovaně
+photos
+Metadata fotografie, vazba, stav uploadu a odkaz na médium
+Až po otevření Fotografií
+auditLog
+Kdo, kdy a co změnil/smazal
+Administrace nebo konkrétní záznam
+settings/roles
+Konfigurace rolí, příjemců, verzí a funkcí
+Malý dokument po přihlášení
+Přesné názvy kolekcí může dodavatel navrhnout jinak. Povinné je oddělit lehká mapová data od těžkých detailů, protokolů a fotografií a používat stabilní placeId/sourceId.
+6.3 Načítání a synchronizace
+Zobrazit lokální cache okamžitě a následně načíst pouze změny podle updatedAt/version; neblokovat mapu čekáním na historii a fotografie.
+Každý zápis má id, placeId/sourceId, schemaVersion, updatedAt, updatedBy a version/revision.
+Po úspěšném zápisu změnit pouze příslušné místo/zdroj a související výpočty.
+Historie a fotografie se dotazují pomocí indexovaných where + orderBy + limit a stránkování.
+Kontrola duplicity používá indexovaný hash nebo transakční rezervaci ID; nikdy full-scan kolekce.
+Automatická migrace a deduplikace neběží v běžném prohlížeči technika ani v setInterval.
+7. Výkonné vykreslování mapy a seznamu
+Použít cluster index a Canvas renderer; jedna mapová značka reprezentuje místo, zdroje jsou dostupné v jeho detailu/chooseru.
+Registr markerů a skupin držet podle placeId; změna jednoho zdroje aktualizuje pouze jeho místo.
+Filtr nesmí volat clearLayers() a znovu vytvářet všechny markery; cluster index se aktualizuje inkrementálně nebo jedním levným přepnutím datasetu.
+Popup a source chooser generovat až při otevření.
+Seznam míst virtualizovat; v DOM zůstane pouze viditelná část.
+Výpočet termínu, stavu, searchText a priority provést jednou při načtení/změně zdroje.
+Vyhledávání debounce 250–350 ms; filtr pracuje pouze nad lokálním indexem a nesmí dotazovat Firestore.
+Poloha mapy, zoom, filtry, hledaný text, scroll seznamu a vybraný zdroj se zachovají po návratu z detailu.
+8. PWA, service worker a offline data
+Service worker cacheuje pouze allowlist app-shell souborů, schválené mapové dlaždice a explicitně určená veřejná média.
+Nikdy obecně necachovat všechny GET požadavky: Firebase Auth/Firestore, serverové funkce a citlivá API data musí být vyloučena.
+Verzované soubory a strategie aktualizace musí zabránit kombinaci starého HTML a nového JS.
+App-shell se načte offline; uživatelská data jsou v per-user IndexedDB a při odhlášení se bezpečně oddělí/vyčistí.
+Offline fronta používá trvalé ID, retry s backoffem, detekci konfliktu a viditelný počet čekajících položek.
+Stažení mapy je explicitní, obnovitelné, zobrazuje průběh a respektuje dostupné úložiště i pravidla poskytovatele.
+9. Protokoly, dokumenty a fotografie – výkon
+Formulář protokolu načíst až po rozbalení; historii až po otevření detailu a hlavní historii až po kliknutí oprávněného uživatele.
+Kód pro Word/RTF export, šablony, podpisy a vodoznak načíst jako samostatný lazy chunk; generování přesunout mimo kritickou cestu, případně do Web Workeru.
+E-mail odesílat serverovou funkcí; klient posílá jen ověřený dokument a metadata, příjemci a oprávnění jsou serverová konfigurace.
+Fotografie zmenšit před uploadem mimo blokující hlavní vlákno, generovat thumbnails a plnou fotografii nestahovat do seznamu.
+Galerie načítá metadata stránkovaně a obrázky lazy; Cloudinary transformace/URL centralizovat v jednom modulu.
+Při mazání protokolu/fotografie provést kontrolu role, potvrzení a audit; nechat záznam obnovitelný podle dohodnuté retenční doby.
+10. Termíny, stavy a konzistence
+Datum ukládat ISO a zobrazovat česky; výpočet další kontroly z periody 6/12 měsíců musí používat jediná testovaná funkce.
+Stejný stav se zobrazí v mapě, seznamu, detailu, source chooseru, historii i exportu.
+Uložení protokolu a aktualizace termínu/stavu provést transakcí nebo bezpečným idempotentním procesem.
+Objednaná oprava, objednaná kontrola a Stop Stav jsou samostatná explicitní pole; stav se neodvozuje z volného textu poznámky, kromě řízené jednorázové migrace.
+Růžový příznak je explicitní boolean. Seznam historických růžových adres lze použít pouze při migraci, ne při každém renderu.
+Automatické testy pokrývají včera, dnes, +1, +30, +31 dní a všechny kombinace příznaků.
+11. Bezpečnost a oprávnění
+Omezení @astip.cz vynutit ve Firestore/Storage Rules a serverových funkcích, ne pouze v JavaScriptu.
+Role technik/history/admin uložit v custom claims nebo chráněné serverové konfiguraci; ne v editovatelném klientském seznamu.
+Mazání bodu, protokolu a fotografie povolit jen určeným rolím a zapisovat do auditLog.
+Cloud upload používat omezený/signed preset, kontrolu typu, velikosti a vazby na místo; zabránit cizím uploadům.
+Firebase Function pro e-mail ověřuje přihlášení, roli, povolené příjemce, velikost a typ přílohy a má rate limit.
+Service worker a HTTP cache nesmějí uchovávat odpovědi s autentizačními tokeny nebo databázovými daty.
+Technické chyby logovat bez citlivých dat; uživateli zobrazit srozumitelnou možnost opakování.
+12. Výkonové cíle a měření
+Měření se provede na produkčním sestavení s reálnými daty nejméně ve Firefoxu a Chromu na počítači a na běžném telefonu střední třídy. Součástí předání je protokol před/po.
+Metrika
+Požadovaný výsledek
+Ověření
+První použitelná mapa
+do 3 s desktop / do 5 s telefon
+Po přihlášení, běžné připojení
+Opakované otevření
+do 2 s z lokální cache
+Druhé spuštění stejného zařízení
+Vyhledávání / filtr
+do 300 ms bez zamrznutí
+1 000 zdrojů
+Pohyb mapy
+bez vícesekundových záseků; cíl ≥45 FPS
+Performance panel
+Detail z cache
+do 200 ms
+Kliknutí → základ detailu
+Detail ze sítě
+do 1,5 s bez blokování UI
+Detail + lehké související údaje
+Nečinnost
+0 periodických databázových dotazů
+10 minut bez práce
+Jedna změna
+bez reloadu celé mapy/kolekce
+Network log
+Hlavní bundle
+≤250 kB gzip bez lazy modulů
+Build report
+Dlouhé úlohy
+žádná běžná akce >200 ms
+Main-thread trace
+13. Migrace bez ztráty dat
+Zálohovat kolekce deletedSites, protocols, serviceRecords, siteEdits, sites a sitesUnified, metadata fotografií, offline fronty testovacích zařízení a používané šablony dokumentů.
+Vytvořit funkční matici aktuální revize a automatické baseline testy před prvním přepisem.
+Zavést stabilní placeId a sourceId a vytvořit report duplicit/skupin bez automatického mazání sporných záznamů.
+Migrovat společná data místa, jednotlivé zdroje, termíny, stavy, protokoly, servisní záznamy, fotografie, podpisy a data oficiálních dokladů.
+Migrační skript spustit mimo běžnou aplikaci; musí být idempotentní, logovaný a nejprve v režimu dry-run.
+Porovnat počty před/po: míst, zdrojů, skupin, GPS, barevných stavů, protokolů, servisních záznamů, fotografií a smazaných položek.
+Nasadit staging a provést praktickou zkoušku online/offline na telefonu a tabletu s několika techniky.
+Po schválení přepnout produkci; starý systém ponechat dočasně jen pro čtení a mít ověřený rollback.
+14. Testovací požadavky
+14.1 Regresní testy funkcí
+Přihlášení/odhlášení, obnova session, odmítnutí nepovoleného účtu a všechny role.
+Instalace PWA, aktualizace service workeru a spuštění bez internetu.
+Stažení offline mapy, opakované stažení, nedostatek úložiště a offline otevření.
+Mapa, seznam, hledání, kraj, všechny stavy, růžový prstenec a skupiny více zdrojů.
+Přidání místa, dalšího zdroje, editace společných/technických dat, GPS a všech variant smazání.
+Fotografie z galerie i fotoaparátu, online/offline upload, galerie, metadata a oprávněné mazání.
+Nový i upravený protokol, více zdrojů, podpis, povinné volby, offline uložení a synchronizace.
+Detailní i hlavní historie, stránkování, Word export, e-mail, editace a smazání podle role.
+Oficiální funkční a Stop doklad se šablonou, podpisem, vodoznakem a správnými daty provozovatele.
+14.2 Výkonové a zátěžové testy
+Nejméně 1 000 zdrojů, 10 000 protokolů a 5 000 fotografických metadat.
+Rychlé psaní, změny filtrů, 100 otevření detailu a dlouhý pohyb mapy bez růstu listenerů/paměti.
+Deset minut nečinnosti bez databázových dotazů a bez opakovaných renderů.
+Souběžné uložení dvou techniků, dvě záložky a konflikt offline/online verze.
+Dávková synchronizace nejméně 20 offline položek různého typu bez duplicity.
+Export velkého protokolu a práce s fotografiemi bez zamrznutí mapy.
+14.3 Chybové a bezpečnostní testy
+Výpadek sítě ve všech fázích ukládání, uploadu, e-mailu a aktualizace aplikace.
+Chybějící Firebase index, zamítnutá pravidla, vypršené přihlášení a nedostupná serverová funkce.
+Neplatná GPS, nenalezená adresa, limit geokódování, poškozená fotografie a příliš velký soubor.
+Přímý pokus běžného technika smazat protokol/fotografii nebo načíst hlavní historii.
+Ověření, že service worker necachuje autentizované Firebase/API odpovědi.
+15. Etapy realizace
+Etapa
+Obsah
+Kontrolní bod
+1. Baseline
+Záloha, funkční matice, měření a datový audit
+Schválený inventář aktuální verze
+2. Datový základ
+ID, schéma, role, pravidla, indexy a migrační dry-run
+Počty a vazby bez rozdílů
+3. Rychlé jádro
+Moduly, přihlášení, cache, mapa, clustery, hledání
+Použitelná mapa s reálnými daty
+4. Detail
+Místa, zdroje, editace, GPS, stavy a historie
+Kompletní práce se zdrojem
+5. Terén
+Protokoly, podpisy, fotografie, offline fronty
+Online/offline test na telefonu
+6. Dokumenty
+Word/RTF, oficiální doklady, e-mail a admin
+Shoda výstupů s produkcí
+7. Nasazení
+Staging, přejímka, migrace, produkce a monitoring
+Předávací protokol a rollback
+16. Povinné předávané výstupy
+Modulární zdrojový kód a produkční sestavení bez starých duplicitních bloků.
+Návod na build a nasazení na GitHub Pages/Firebase Hosting včetně PWA aktualizace.
+Datový model, migrační skript, dry-run report a protokol počtů před/po.
+Firestore/Storage Rules, role, indexy a konfigurace Firebase Functions.
+Konfigurace fotografií a média uploadu bez tajných údajů v klientovi.
+Verzované šablony protokolů/dokladů, podpisové a obrazové podklady.
+Automatické testy termínů, stavů, ID, synchronizace a hlavních datových operací.
+Regresní matice všech funkcí kapitoly 4 a výkonový protokol před/po.
+Návod pro techniky, administrátory, zálohu, obnovu, offline práci a rollback.
+17. Akceptační kritéria
+Dílo lze převzít pouze při současném splnění všech podmínek:
+Všechny funkce kapitoly 4 fungují v online i příslušném offline režimu a oprávnění odpovídají současné produkci.
+Počty a vazby všech míst, zdrojů, protokolů, servisních záznamů a fotografií před/po souhlasí.
+Při hledání, filtrování ani změně jednoho zdroje se znovu nevytvářejí všechny markery ani nestahuje celá kolekce.
+Při desetiminutové nečinnosti neprobíhají periodické databázové dotazy.
+Aplikace splní výkonové cíle kapitoly 12 na počítači a běžném telefonu.
+Offline fronta nevytváří duplicity, neztrácí fotografie/podpisy a řeší konflikty.
+Word, oficiální doklady a e-mail mají stejné nebo lepší výsledky než aktuální verze.
+Bezpečnostní test prokáže ochranu databáze, fotografií, historie, mazání a serverového e-mailu.
+Je dostupná předchozí stabilní verze a ověřený postup návratu.
+18. Rozhodnutí před zahájením implementace
+Potvrdit, že referenční revize uvedená na titulní straně odpovídá produkci v okamžiku zahájení; novější změny přidat do funkční matice.
+Určit kanonická produkční data mezi současnými šesti kolekcemi a určit retenční dobu starých kolekcí.
+Potvrdit administrátory, uživatele hlavní historie a pravidla pro mazání/obnovu.
+Potvrdit cílový hosting a poskytovatele mapových dlaždic povolující offline balík.
+Potvrdit serverovou konfiguraci příjemců protokolů a finální šablony oficiálních dokladů.
+Doporučené pořadí: Nejdříve uzamknout funkční baseline a zálohu, potom sjednotit identity a datový model, následně vybudovat rychlé jádro a až nad ním zapojit těžké moduly protokolů, fotografií a administrace.
+19. Stručný kontrolní seznam pro převzetí
+☐  Přihlášení, role a bezpečnostní pravidla fungují.
+☐  PWA se instaluje, aktualizuje a spustí offline.
+☐  Offline mapa a fronty míst/protokolů/fotografií fungují bez ztráty dat.
+☐  Mapa, clustery, skupiny zdrojů, hledání, filtry a stavy jsou rychlé a správné.
+☐  Přidání místa i dalšího zdroje, GPS, editace a mazání odpovídají produkci.
+☐  Fotografie fungují z galerie, fotoaparátu, online i offline.
+☐  Protokol se předvyplní, podepíše, uloží, upraví, exportuje a odešle.
+☐  Oficiální funkční i Stop doklad odpovídá schválené šabloně.
+☐  Detailní i hlavní historie a administrátorské akce fungují podle role.
+☐  Při nečinnosti nejsou periodická čtení a jedna změna nenačítá celou mapu.
+☐  Počty dat a vazby před/po migraci souhlasí a existuje rollback.
