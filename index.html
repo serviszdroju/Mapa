@@ -6,6 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2563eb">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
+<link rel="dns-prefetch" href="//unpkg.com">
+<link rel="dns-prefetch" href="//www.gstatic.com">
+<link rel="dns-prefetch" href="//tile.openstreetmap.org">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./szz-app-icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./szz-app-icon-192.png">
@@ -85,7 +91,6 @@ window.addEventListener("orientationchange", mobileFixMap);
 window.addEventListener("pageshow", mobileFixMap);
 
 </script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
 
 html,body{height:100%;width:100%}
@@ -1714,9 +1719,9 @@ button,input,select,textarea{
 
 </style>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
 </head>
 <body>
@@ -2330,6 +2335,7 @@ const CLOUDINARY_PHOTOS = {
 let app, auth, db, mailFunctions=null, fb={}, currentUser=null;
 let rows=[], csvRows=[], originalCsvRows=[], extraSites=[], selectedSite=null, addSourceBaseSite=null, editCache={};
 let firebaseUnifiedPrimary = firebaseReady;
+let map=null, layer=null;
 window.firebaseReady = firebaseReady;
 window.__firebaseConfigured = firebaseConfigured;
 window.firebaseUnifiedPrimary = firebaseUnifiedPrimary;
@@ -2550,6 +2556,83 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
   ["scd46t",["1lz3k94","3tk6mr","10dc24q"]],
 ];
 
+const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
+const APP_BUILD_VERSION="2026-08-07-fast-shell-v34";
+const APP_SHELL_CACHE_NAME="astip-szz-v34-static";
+const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
+const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
+const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
+const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
+const APP_SHELL_URLS=[
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./sw.js",
+  "./szz-logo-display.png",
+  "./szz-app-icon-192.png",
+  "./szz-app-icon-512.png",
+  "./podpis-tipek.png",
+  "./podpis-tipek.jpg",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+];
+
+function showAppShellFast(message=""){
+  if(window.__szzFastShellShown) return;
+  window.__szzFastShellShown=true;
+  window.__mapAppUnlocked=true;
+  try{ if(window.setStartupAuthChecking) window.setStartupAuthChecking(false); }catch(e){}
+  const startup=document.getElementById("startupScreen");
+  const appEl=document.getElementById("mainApp");
+  const loginRow=document.getElementById("mainLoginRow");
+  const topLogout=document.getElementById("topLogoutBtn");
+  const progress=document.getElementById("progress");
+  if(startup) startup.style.display="none";
+  if(appEl) appEl.style.display="grid";
+  if(loginRow) loginRow.style.display="none";
+  if(topLogout) topLogout.style.display="block";
+  if(progress && message) progress.textContent=message;
+}
+
+function initMapShell(){
+  if(window.map && window.L){
+    map=window.map;
+    if(!layer) layer=L.layerGroup().addTo(map);
+    return map;
+  }
+  if(!window.L){
+    setTimeout(initMapShell,50);
+    return null;
+  }
+  showAppShellFast("Připravuji mapu. Servisní data se načtou po přihlášení.");
+  window.map=L.map("map").setView([49.9,15.5],7);
+  map=window.map;
+  L.tileLayer(MAP_TILE_URL_TEMPLATE,{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+  setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},80);
+  setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},450);
+  return map;
+}
+
+showAppShellFast("Připravuji mapu. Servisní data se načtou po přihlášení.");
+initMapShell();
+
+async function ensureMailFunctions(){
+  if(!firebaseReady || !app) return false;
+  if(fb.fnMod && mailFunctions) return true;
+  try{
+    const fnMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js");
+    fb.fnMod=fnMod;
+    mailFunctions=fnMod.getFunctions(app,"europe-west1");
+    window.mailFunctions=mailFunctions;
+    return true;
+  }catch(e){
+    console.warn("Firebase Functions se nepodařilo připravit",e);
+    return false;
+  }
+}
+
 window.addEventListener("load",()=>{
   if(!firebaseReady){
     const st=document.getElementById("startupStatus");
@@ -2572,16 +2655,12 @@ if(firebaseReady){
   let appMod=null;
   let authMod=null;
   let fsMod=null;
-  let fnMod=null;
   try{
-    appMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
-    authMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
-    fsMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
-    try{
-      fnMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js");
-    }catch(e){
-      console.warn("Firebase Functions knihovna se nepodařila načíst",e);
-    }
+    [appMod,authMod,fsMod] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+    ]);
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
     const compatAvailable=!!(window.firebase && firebase.initializeApp && firebase.auth);
@@ -2624,7 +2703,7 @@ if(firebaseReady){
     setTimeout(()=>{try{showApp();}catch(err){}},500);
   }
   if(firebaseReady && appMod && authMod && fsMod){
-  fb={appMod,authMod,fsMod,fnMod};
+  fb={appMod,authMod,fsMod,fnMod:null};
   app=appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(firebaseConfig);
   auth=authMod.getAuth(app);
   window.auth=auth;
@@ -2665,13 +2744,6 @@ if(firebaseReady){
   }
   window.fb=fb;
   window.db=db;
-  try{
-    if(!fnMod) throw new Error("Firebase Functions knihovna není načtená");
-    mailFunctions=fnMod.getFunctions(app,"europe-west1");
-    window.mailFunctions=mailFunctions;
-  }catch(e){
-    console.warn("Firebase Functions se nepodařilo připravit",e);
-  }
   try{
     if(window.firebase && firebase.initializeApp && (!firebase.apps || !firebase.apps.length)){
       firebase.initializeApp(firebaseConfig);
@@ -3176,37 +3248,6 @@ if(firebaseReady){
   });
   }
 }
-
-window.map=L.map("map").setView([49.9,15.5],7);
-const map=window.map;
-const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-07-secure-firebase-only-v33";
-const APP_SHELL_CACHE_NAME="astip-szz-v33-static";
-const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
-const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
-const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
-const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
-const APP_SHELL_URLS=[
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./sw.js",
-  "./szz-logo-display.png",
-  "./szz-app-icon-192.png",
-  "./szz-app-icon-512.png",
-  "./podpis-tipek.png",
-  "./podpis-tipek.jpg",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js"
-];
-L.tileLayer(MAP_TILE_URL_TEMPLATE,{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
-const layer=L.layerGroup().addTo(map);
 
 function setOfflineMapStatus(message="",state="info"){
   const el=document.getElementById("offlineMapStatus");
@@ -8996,7 +9037,8 @@ async function sendProtocolByMail(protocol){
     showSaveConfirmation("Není vybraný protokol k poslání.");
     return;
   }
-  if(!firebaseReady || !fb.fnMod || !mailFunctions){
+  const mailReady=await ensureMailFunctions();
+  if(!firebaseReady || !mailReady || !fb.fnMod || !mailFunctions){
     throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
   }
   const prepared=preparedProtocolExport(protocol);
@@ -14715,7 +14757,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-07-secure-firebase-only-v33";
+  const serviceWorkerBuildVersion="2026-08-07-fast-shell-v34";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

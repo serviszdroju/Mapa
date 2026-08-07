@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v33";
+const CACHE_VERSION = "astip-szz-v34";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -18,18 +18,7 @@ const PRECACHE_URLS = [
   "./podpis-tipek.jpg"
 ];
 
-const EXTERNAL_PRECACHE_URLS = [
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
-];
+const EXTERNAL_PRECACHE_URLS = [];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
