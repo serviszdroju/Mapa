@@ -245,6 +245,85 @@ object-fit:contain;
   padding:6px 8px !important;
   font-size:13px !important;
 }
+.app-sync-card{
+  display:grid;
+  gap:5px;
+  border:1px solid #dbe4ef;
+  border-radius:9px;
+  background:#fff;
+  padding:6px;
+  box-shadow:0 8px 18px rgba(15,23,42,.06);
+}
+.app-sync-head{
+  display:grid;
+  grid-template-columns:8px minmax(0,1fr);
+  gap:6px;
+  align-items:start;
+}
+.app-sync-dot{
+  width:8px;
+  height:8px;
+  margin-top:3px;
+  border-radius:999px;
+  background:#16a34a;
+  box-shadow:0 0 0 4px #dcfce7;
+}
+.app-sync-dot.offline{
+  background:#f97316;
+  box-shadow:0 0 0 4px #ffedd5;
+}
+.app-sync-dot.error{
+  background:#dc2626;
+  box-shadow:0 0 0 4px #fee2e2;
+}
+.app-sync-head strong{
+  display:block;
+  font-size:12px;
+  line-height:1.2;
+}
+.app-sync-head .small{
+  margin:2px 0 0;
+}
+.app-sync-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:4px;
+}
+.app-sync-cell{
+  min-width:0;
+  border:1px solid #e2e8f0;
+  border-radius:7px;
+  background:#f8fafc;
+  padding:4px 4px;
+  text-align:center;
+}
+.app-sync-cell b{
+  display:block;
+  color:#0f172a;
+  font-size:13px;
+  line-height:1;
+}
+.app-sync-cell span{
+  display:block;
+  color:#64748b;
+  font-size:9px;
+  font-weight:800;
+  line-height:1.15;
+  margin-top:2px;
+  text-transform:uppercase;
+}
+.app-sync-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+}
+.app-sync-meta{
+  min-height:14px;
+  margin:0;
+}
+.app-sync-card.syncing #syncNowBtn{
+  opacity:.7;
+}
 
 @media(max-width:850px){.app{grid-template-columns:1fr;grid-template-rows:45vh 55vh}#map{height:45vh}aside{order:2;border-right:0;border-top:1px solid var(--border);width:auto;min-width:0;max-width:none}}
 
@@ -1648,12 +1727,12 @@ aside{
   width:320px;
   min-width:320px;
   max-width:320px;
-  padding:14px 13px 18px;
+  padding:10px 10px 14px;
 }
-.sidebar-brand{margin:6px 0 14px}
+.sidebar-brand{margin:3px 0 10px}
 .sidebar-logo-img{
-  width:min(198px,76%);
-  max-height:88px;
+  width:min(178px,72%);
+  max-height:72px;
   filter:drop-shadow(0 8px 14px rgba(15,23,42,.10));
 }
 .app-tools{margin:2px 0 4px}
@@ -1665,15 +1744,17 @@ aside{
 }
 aside label{
   display:block;
-  margin:10px 0 4px;
+  margin:7px 0 3px;
   color:#475569;
-  font-size:11px;
+  font-size:10px;
   font-weight:900;
   text-transform:uppercase;
 }
 input,select,button,textarea{
   border-color:#dbe4ef;
-  border-radius:10px;
+  border-radius:7px;
+  padding:6px 8px;
+  font-size:13px;
   transition:border-color .15s ease,box-shadow .15s ease,background .15s ease,transform .15s ease;
 }
 input:focus,select:focus,textarea:focus{
@@ -1682,19 +1763,27 @@ input:focus,select:focus,textarea:focus{
   box-shadow:0 0 0 4px rgba(37,99,235,.12);
 }
 #search{
-  min-height:43px;
-  padding:9px 38px 9px 12px;
-  border-radius:8px;
+  min-height:34px;
+  padding:6px 32px 6px 9px;
+  border-radius:7px;
   background:#fff;
   background-image:var(--icon-search);
   background-repeat:no-repeat;
-  background-position:right 12px center;
-  background-size:18px 18px;
+  background-position:right 10px center;
+  background-size:16px 16px;
   box-shadow:0 8px 22px rgba(15,23,42,.055);
 }
+aside input,
+aside select{
+  min-height:34px;
+  padding:6px 8px;
+}
+aside .row{
+  gap:6px;
+}
 button{
-  min-height:40px;
-  border-radius:8px;
+  min-height:32px;
+  border-radius:7px;
 }
 button:hover{transform:translateY(-1px)}
 button:active{transform:translateY(0)}
@@ -1713,16 +1802,17 @@ button:active{transform:translateY(0)}
   border-color:#bfdbfe;
 }
 #fitBtn{
-  margin-top:9px !important;
+  margin-top:7px !important;
+  min-height:34px;
   background:linear-gradient(180deg,#9ca3af,#6b7280);
   color:#fff;
   border-color:#6b7280;
   box-shadow:0 10px 22px rgba(55,65,81,.16);
 }
 #addSiteBtn{
-  margin-top:8px !important;
-  min-height:42px;
-  font-size:14px;
+  margin-top:6px !important;
+  min-height:34px;
+  font-size:13px;
   background:linear-gradient(180deg,#444 0%,#202020 100%);
   border-color:#1f2937;
   color:#fff;
@@ -1731,8 +1821,7 @@ button:active{transform:translateY(0)}
 #topLogoutBtn,
 #addSiteBtn,
 #mainProtocolHistoryBtn,
-#fitBtn,
-.sidebar-nav-item{
+#fitBtn{
   display:flex;
   align-items:center;
   justify-content:flex-start;
@@ -1743,12 +1832,11 @@ button:active{transform:translateY(0)}
 #addSiteBtn::before,
 #topLogoutBtn::before,
 #mainProtocolHistoryBtn::before,
-#fitBtn::before,
-.sidebar-nav-item::before{
+#fitBtn::before{
   content:"";
-  width:19px;
-  height:19px;
-  flex:0 0 19px;
+  width:16px;
+  height:16px;
+  flex:0 0 16px;
   background:currentColor;
   -webkit-mask-image:var(--icon-plus);
   mask-image:var(--icon-plus);
@@ -1775,19 +1863,15 @@ button:active{transform:translateY(0)}
   -webkit-mask-image:var(--icon-crosshair);
   mask-image:var(--icon-crosshair);
 }
-.sidebar-nav-item::before{
-  -webkit-mask-image:var(--icon-pin);
-  mask-image:var(--icon-pin);
-}
 #topLogoutBtn,
 #mainProtocolHistoryBtn{
   background:#fff;
   border-color:#dbe4ef;
   box-shadow:none;
   color:#111827;
-  font-size:14px;
-  min-height:38px;
-  padding:8px 10px;
+  font-size:13px;
+  min-height:31px;
+  padding:5px 8px;
 }
 #topLogoutBtn[style*="display: block"],
 #mainProtocolHistoryBtn[style*="display: block"]{
@@ -1803,35 +1887,16 @@ button:active{transform:translateY(0)}
   background:#fff;
   color:#0f172a;
 }
-.sidebar-nav{
-  display:grid;
-  gap:6px;
-  margin:12px 0 8px;
-  padding:6px 0 6px;
-  border-bottom:1px solid #e6edf5;
-}
-.sidebar-nav-item{
-  min-height:42px;
-  border:1px solid #dbe4ef;
-  background:#fff;
-  color:#334155;
-  padding:9px 14px;
-  box-shadow:0 8px 18px rgba(15,23,42,.045);
-}
-.sidebar-nav-item.active{
-  border-color:#2563eb;
-  background:linear-gradient(180deg,#3b82f6 0%,var(--blue) 100%);
-  color:#fff;
-  font-weight:900;
-  box-shadow:0 11px 24px rgba(37,99,235,.20);
-}
 .notice{
   border-radius:10px;
+  padding:8px;
+  margin:8px 0;
+  font-size:12px;
   box-shadow:0 8px 20px rgba(15,23,42,.055);
 }
-.stats{margin:12px 0}
+.stats{margin:8px 0}
 .stat{
-  border-radius:10px;
+  border-radius:8px;
   background:#fff;
   border-color:#dbe4ef;
   box-shadow:0 8px 22px rgba(15,23,42,.055);
@@ -1839,15 +1904,15 @@ button:active{transform:translateY(0)}
 .stats .stat:first-child{
   display:grid;
   grid-template-columns:auto 1fr;
-  column-gap:12px;
+  column-gap:10px;
   align-items:center;
-  padding:12px;
+  padding:8px;
 }
 .stats .stat:first-child::before{
   content:"";
   grid-row:1 / span 2;
-  width:32px;
-  height:32px;
+  width:24px;
+  height:24px;
   border-radius:999px;
   background:var(--blue);
   -webkit-mask-image:var(--icon-eye);
@@ -1860,12 +1925,12 @@ button:active{transform:translateY(0)}
   mask-size:contain;
 }
 .stat b{
-  font-size:27px;
+  font-size:22px;
   line-height:1;
 }
 .legend{
-  gap:7px;
-  margin:14px 0 12px;
+  gap:4px;
+  margin:8px 0 8px;
   padding:0 4px;
   border:0;
   border-radius:0;
@@ -1877,21 +1942,21 @@ button:active{transform:translateY(0)}
 }
 .legend div{
   justify-content:flex-start;
-  min-height:20px;
+  min-height:16px;
   color:#111827;
   font-weight:700;
-  font-size:13px;
+  font-size:12px;
 }
 .dot{
-  width:14px;
-  height:14px;
+  width:12px;
+  height:12px;
   box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(15,23,42,.13);
 }
 .item{
   position:relative;
-  border-radius:10px;
+  border-radius:8px;
   border-color:#e0e8f2;
-  padding:12px 12px 12px 14px;
+  padding:7px 8px;
   box-shadow:0 8px 20px rgba(15,23,42,.055);
 }
 .item:hover{
@@ -1900,10 +1965,10 @@ button:active{transform:translateY(0)}
   box-shadow:0 12px 28px rgba(37,99,235,.11);
 }
 .item-title{
-  font-size:14px;
+  font-size:12px;
   line-height:1.25;
 }
-.item-meta{margin-top:4px}
+.item-meta{margin-top:2px}
 .pill{
   border-radius:999px;
   padding:4px 8px;
@@ -1932,12 +1997,12 @@ button:active{transform:translateY(0)}
 }
 @media(min-width:1025px){
   .drawer{
-    top:20px;
-    right:16px;
-    height:calc(100vh - 40px);
+    top:12px;
+    right:12px;
+    height:calc(100vh - 24px);
     width:clamp(560px,40vw,640px);
     min-width:0;
-    padding:18px 18px 18px;
+    padding:12px;
     border:1px solid #dbe4ef;
     border-radius:12px;
     background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
@@ -1946,31 +2011,31 @@ button:active{transform:translateY(0)}
   .drawer.open{transform:translateX(0)}
   .drawer-head{
     position:sticky;
-    top:-18px;
+    top:-12px;
     z-index:20;
     align-items:flex-start;
-    padding:7px 0 14px;
-    margin-bottom:4px;
+    padding:4px 0 8px;
+    margin-bottom:2px;
     background:linear-gradient(180deg,#ffffff 78%,rgba(255,255,255,.92) 100%);
     border-bottom:1px solid #e6edf5;
   }
 }
 .drawer-head h2{
-  font-size:24px;
+  font-size:22px;
   line-height:1.13;
   letter-spacing:0;
-  margin:0 0 6px;
+  margin:0 0 4px;
 }
 .drawer-head .small{
   color:#475569;
-  font-size:13px;
+  font-size:12px;
   font-weight:700;
 }
 .drawer .x{
   flex:0 0 auto;
-  min-width:88px;
-  min-height:40px;
-  padding:8px 12px;
+  min-width:76px;
+  min-height:32px;
+  padding:6px 9px;
   border:0;
   background:#64748b;
   color:#fff;
@@ -1978,23 +2043,23 @@ button:active{transform:translateY(0)}
 }
 .drawer .x:hover{background:#475569}
 .card{
-  border-radius:10px;
+  border-radius:8px;
   border-color:#e0e8f2;
   background:#fff;
   box-shadow:var(--shadow-card);
 }
 .drawer > .card{
-  margin:10px 0;
-  padding:12px;
+  margin:6px 0;
+  padding:8px;
 }
 .card h3{
-  font-size:17px;
-  margin:0 0 10px;
+  font-size:15px;
+  margin:0 0 7px;
   color:#0f172a;
 }
 .source-chooser{
-  padding:12px;
-  margin:12px 0;
+  padding:8px;
+  margin:8px 0;
   border-color:#dbeafe;
   border-radius:10px;
   background:linear-gradient(180deg,#f8fbff,#ffffff);
@@ -2002,21 +2067,21 @@ button:active{transform:translateY(0)}
 }
 .source-chooser-title{
   color:#0f172a;
-  font-size:14px;
+  font-size:13px;
 }
 .source-chooser-title::before{
   background:var(--blue);
   box-shadow:0 0 0 4px #dbeafe;
 }
 .source-chooser-buttons{
-  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:8px;
+  grid-template-columns:repeat(auto-fit,minmax(138px,1fr));
+  gap:6px;
 }
 .source-chooser-button{
   border-color:#dbe4ef;
   border-radius:8px;
-  padding:10px 11px;
-  font-size:13px;
+  padding:7px 8px;
+  font-size:12px;
   background:#fff;
   color:#0f172a;
   box-shadow:0 8px 20px rgba(15,23,42,.06);
@@ -2045,10 +2110,10 @@ button:active{transform:translateY(0)}
 }
 .detail-tabs{
   position:sticky;
-  top:62px;
+  top:48px;
   z-index:18;
   gap:0;
-  margin:12px 0 12px;
+  margin:7px 0 8px;
   padding:0;
   border:0;
   border-bottom:1px solid #e6edf5;
@@ -2057,13 +2122,13 @@ button:active{transform:translateY(0)}
   box-shadow:none;
 }
 .detail-tab{
-  min-height:42px;
+  min-height:32px;
   border-radius:0;
   border-bottom:3px solid transparent;
   color:#475569;
   background:transparent;
-  font-size:14px;
-  padding:8px 6px;
+  font-size:12px;
+  padding:5px 4px;
 }
 .detail-tab:hover{
   background:#f8fafc;
@@ -2076,16 +2141,16 @@ button:active{transform:translateY(0)}
   box-shadow:none;
 }
 .control-dates-strong{
-  gap:10px;
-  margin-bottom:10px;
+  gap:7px;
+  margin-bottom:7px;
 }
 .control-date-box{
   display:grid;
   grid-template-columns:auto minmax(0,1fr);
-  column-gap:10px;
+  column-gap:8px;
   align-items:center;
-  border-radius:10px;
-  padding:10px 12px;
+  border-radius:8px;
+  padding:6px 8px;
   border-color:#e0e8f2;
   box-shadow:0 8px 20px rgba(15,23,42,.055);
 }
@@ -2100,8 +2165,8 @@ button:active{transform:translateY(0)}
 .control-date-box::before{
   content:"";
   grid-row:1 / span 2;
-  width:26px;
-  height:26px;
+  width:20px;
+  height:20px;
   border-radius:8px;
   background:currentColor;
   -webkit-mask-image:var(--icon-calendar);
@@ -2116,30 +2181,30 @@ button:active{transform:translateY(0)}
 .control-date-box span{
   color:#475569;
   opacity:1;
-  font-size:11px;
-  margin-bottom:2px;
+  font-size:10px;
+  margin-bottom:1px;
 }
 .control-date-box b{
-  font-size:19px;
+  font-size:16px;
   line-height:1.1;
 }
 #detailTable{border-spacing:0}
 #detailTable tr{
   display:grid;
-  grid-template-columns:24px minmax(112px,138px) minmax(0,1fr);
-  gap:9px;
+  grid-template-columns:18px minmax(96px,126px) minmax(0,1fr);
+  gap:6px;
   align-items:center;
-  margin:5px 0;
-  padding:8px 10px;
-  border-radius:8px;
+  margin:3px 0;
+  padding:5px 7px;
+  border-radius:7px;
   border-color:#e0e8f2;
   background:#fff;
   box-shadow:0 7px 18px rgba(15,23,42,.045);
 }
 #detailTable tr::before{
   content:"";
-  width:20px;
-  height:20px;
+  width:16px;
+  height:16px;
   background:#0f172a;
   -webkit-mask-image:var(--icon-row);
   mask-image:var(--icon-row);
@@ -2153,25 +2218,39 @@ button:active{transform:translateY(0)}
 #detailTable td:first-child{
   margin:0;
   color:#64748b;
-  font-size:11px;
+  font-size:10px;
   text-transform:none;
 }
 #detailTable td:nth-child(2){
-  font-size:13px;
+  font-size:12px;
   font-weight:750;
   color:#0f172a;
 }
 .important-note-row{box-shadow:0 10px 24px rgba(220,38,38,.10) !important}
 .data-edit-actions{
-  gap:7px;
-  margin-top:10px;
+  gap:5px;
+  margin-top:7px;
 }
 .data-edit-actions button{
-  border-radius:8px;
-  min-height:36px;
-  padding:8px 9px;
+  border-radius:7px;
+  min-height:31px;
+  padding:5px 7px;
   font-size:12px;
 }
+.drawer input,
+.drawer select,
+.drawer textarea{
+  min-height:30px;
+  padding:5px 7px;
+  font-size:12px;
+}
+.drawer textarea{min-height:48px}
+.drawer label{
+  margin:5px 0 2px;
+  font-size:10px;
+}
+.drawer .edit-grid{gap:5px}
+.drawer button{min-height:31px}
 .site-photo-upload,
 .official-protocol-actions,
 .protocol-summary,
@@ -2328,13 +2407,30 @@ button:active{transform:translateY(0)}
     <div id="appInstallStatus" class="notice offline-map-status"></div>
     <button class="secondary" id="cacheMapTilesBtn" type="button">Stáhnout mapové podklady do telefonu</button>
     <div id="offlineMapStatus" class="notice offline-map-status"></div>
+    <div class="app-sync-card" id="appSyncCard">
+      <div class="app-sync-head">
+        <span class="app-sync-dot" id="appConnectionDot" aria-hidden="true"></span>
+        <div>
+          <strong id="appConnectionLabel">Kontroluji aplikaci</strong>
+          <p class="small" id="appSyncText">Zjišťuji lokální změny.</p>
+        </div>
+      </div>
+      <div class="app-sync-grid" aria-label="Lokální fronta změn">
+        <div class="app-sync-cell"><b id="pendingSitesCount">0</b><span>Body</span></div>
+        <div class="app-sync-cell"><b id="pendingProtocolsCount">0</b><span>Protokoly</span></div>
+        <div class="app-sync-cell"><b id="pendingPhotosCount">0</b><span>Fotky</span></div>
+        <div class="app-sync-cell"><b id="pendingDraftsCount">0</b><span>Koncepty</span></div>
+      </div>
+      <div class="app-sync-actions">
+        <button class="primary" id="syncNowBtn" type="button">Synchronizovat teď</button>
+        <button class="secondary" id="refreshOfflineStateBtn" type="button">Zkontrolovat frontu</button>
+      </div>
+      <p class="small app-sync-meta" id="appSyncMeta"></p>
+    </div>
   </div>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
-<div class="sidebar-nav" aria-label="Hlavní navigace">
-  <button class="sidebar-nav-item active" type="button" aria-current="page">Mapa</button>
-</div>
 <button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
 <button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
 
@@ -3144,8 +3240,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-visual-mock-compact-rows-v40";
-const APP_SHELL_CACHE_NAME="astip-szz-v40-static";
+const APP_BUILD_VERSION="2026-08-08-ultra-compact-ui-v42";
+const APP_SHELL_CACHE_NAME="astip-szz-v42-static";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -3161,7 +3257,14 @@ const APP_SHELL_URLS=[
   "./podpis-tipek.png",
   "./podpis-tipek.jpg",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js"
 ];
 
 function showAppShellFast(message=""){
@@ -9787,6 +9890,8 @@ function saveProtocolLocally(payload,site=selectedSite,reason=""){
     syncQueuedAt:new Date().toISOString()
   };
   appendSiteLocalArray("protocolHistory",offlinePayload,site,120);
+  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+  if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("protocol");
   return offlinePayload;
 }
 
@@ -9799,6 +9904,7 @@ function protocolDraftKey(site=selectedSite){
 
 function clearProtocolDraft(site=selectedSite){
   try{localStorage.removeItem(protocolDraftKey(site));}catch(e){}
+  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
 
 function readProtocolDraft(site=selectedSite){
@@ -9822,6 +9928,7 @@ function saveProtocolDraftNow(){
       siteKey:siteRecordKeys(selectedSite)[0] || selectedSite.id || "",
       payload
     }));
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(250);
     const st=document.getElementById("protocolStatus");
     if(st && !/uložen|upravuješ/i.test(st.textContent || "")){
       st.textContent="Rozepsaný protokol se průběžně ukládá v tomto zařízení.";
@@ -9997,6 +10104,7 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
   if(synced && !options.silent){
     showSaveConfirmation(synced===1 ? "Offline protokol uložen online." : `Offline protokoly uloženy online: ${synced}.`);
   }
+  if(synced && window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   return synced;
 }
 window.syncOfflineProtocolsForSite=syncOfflineProtocolsForSite;
@@ -11754,6 +11862,8 @@ async function saveOfflinePhotoItem(item,site=selectedSite){
   }catch(e){
     appendSiteLocalArray("offlinePhotos",payload,site,50);
   }
+  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+  if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("photo");
   return payload;
 }
 
@@ -11790,6 +11900,7 @@ async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
   if(explicitCacheKey){
     removeLocalStorageArrayItemByKey(explicitCacheKey.replace("astipMap:photos:","astipMap:offlinePhotos:"),cleanId);
   }
+  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
 
 async function readAllOfflinePhotoItems(){
@@ -11906,6 +12017,7 @@ async function syncOfflinePhotos(options={}){
     const st=document.getElementById("sitePhotosStatus");
     if(st) st.textContent=`Některé offline fotografie ještě čekají na synchronizaci: ${failed}.`;
   }
+  if((synced || failed) && window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   return synced;
 }
 window.syncOfflinePhotos=syncOfflinePhotos;
@@ -11923,6 +12035,8 @@ async function syncOfflineChanges(options={}){
   if(!signedUser) return 0;
   offlineSyncRunning=true;
   offlineSyncLastStarted=now;
+  if(window.noteSzzSyncState) window.noteSzzSyncState("syncing",{reason:options.reason || "auto"});
+  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(20);
   let siteCount=0;
   let protocolCount=0;
   let photoCount=0;
@@ -11944,18 +12058,307 @@ async function syncOfflineChanges(options={}){
         showSaveConfirmation(`Offline změny odeslány online: ${total}.`);
       }
     }
+    if(window.noteSzzSyncState) window.noteSzzSyncState("ok",{lastCount:total,reason:options.reason || "auto"});
     if(p && !options.silent) p.textContent="";
     return total;
   }catch(e){
     console.warn("Synchronizace offline změn selhala",e);
+    if(window.noteSzzSyncState) window.noteSzzSyncState("error",{lastError:e && (e.message || e.code) || String(e),reason:options.reason || "auto"});
     const p=document.getElementById("progress");
     if(p && !options.silent) p.textContent="Offline změny zůstaly uložené lokálně a zkusí se odeslat později.";
     return protocolCount+photoCount;
   }finally{
     offlineSyncRunning=false;
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   }
 }
 window.syncOfflineChanges=syncOfflineChanges;
+
+const SZZ_SYNC_STATE_KEY="astipSzzSyncState:v1";
+let szzOfflineStatusTimer=0;
+let szzOfflineStatusRun=0;
+
+function readSzzSyncState(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SZZ_SYNC_STATE_KEY) || "{}");
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function writeSzzSyncState(update={}){
+  try{
+    const next={...readSzzSyncState(),...update,updatedAt:new Date().toISOString()};
+    localStorage.setItem(SZZ_SYNC_STATE_KEY,JSON.stringify(next));
+    return next;
+  }catch(e){
+    return {...update};
+  }
+}
+
+function noteSzzSyncState(status,details={}){
+  const nowIso=new Date().toISOString();
+  if(status==="syncing"){
+    return writeSzzSyncState({
+      status:"syncing",
+      lastReason:details.reason || "",
+      syncStartedAt:nowIso,
+      lastError:""
+    });
+  }
+  if(status==="error"){
+    return writeSzzSyncState({
+      status:"error",
+      lastReason:details.reason || "",
+      lastError:safe(details.lastError || "Synchronizace selhala."),
+      lastFailedAt:nowIso
+    });
+  }
+  return writeSzzSyncState({
+    status:"ok",
+    lastReason:details.reason || "",
+    lastCount:Number(details.lastCount) || 0,
+    lastSyncedAt:nowIso,
+    lastError:""
+  });
+}
+window.noteSzzSyncState=noteSzzSyncState;
+
+function readPendingOfflineSitesCount(){
+  try{
+    const items=JSON.parse(localStorage.getItem("astipMap:offlineSites:v1") || "[]");
+    return Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw).length : 0;
+  }catch(e){
+    return 0;
+  }
+}
+
+function readPendingOfflineProtocolCount(){
+  let count=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith("astipMap:protocolHistory:")) continue;
+      const arr=JSON.parse(localStorage.getItem(key) || "[]");
+      if(!Array.isArray(arr)) continue;
+      count+=arr.filter(item=>item && item._offline && item._syncStatus!=="online").length;
+    }
+  }catch(e){}
+  return count;
+}
+
+function readProtocolDraftCount(){
+  let count=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith("astipMap:protocolDraft:")) continue;
+      const parsed=JSON.parse(localStorage.getItem(key) || "null");
+      if(parsed && parsed.payload) count++;
+    }
+  }catch(e){}
+  return count;
+}
+
+async function readPendingOfflinePhotoCount(){
+  if(typeof readAllOfflinePhotoItems==="function"){
+    try{return (await readAllOfflinePhotoItems()).length;}catch(e){}
+  }
+  let count=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith("astipMap:offlinePhotos:")) continue;
+      const arr=JSON.parse(localStorage.getItem(key) || "[]");
+      if(Array.isArray(arr)) count+=arr.filter(item=>item && (item._offline || item.storageMode==="offline" || item.localOnly)).length;
+    }
+  }catch(e){}
+  return count;
+}
+
+async function collectSzzOfflineCounts(){
+  const sites=readPendingOfflineSitesCount();
+  const protocols=readPendingOfflineProtocolCount();
+  const photos=await readPendingOfflinePhotoCount();
+  const drafts=readProtocolDraftCount();
+  return {
+    sites,
+    protocols,
+    photos,
+    drafts,
+    pending:sites+protocols+photos
+  };
+}
+
+function szzSyncTimeLabel(value){
+  const raw=safe(value);
+  if(!raw) return "zatím neproběhla";
+  const date=new Date(raw);
+  if(Number.isNaN(date.getTime())) return raw;
+  const diff=Math.max(0,Date.now()-date.getTime());
+  if(diff<45000) return "před chvílí";
+  if(diff<3600000) return `před ${Math.max(1,Math.round(diff/60000))} min`;
+  if(diff<86400000) return `před ${Math.max(1,Math.round(diff/3600000))} h`;
+  return date.toLocaleString("cs-CZ",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+
+function renderSzzOfflineAppStatus(counts){
+  const card=document.getElementById("appSyncCard");
+  if(!card) return;
+  const state=readSzzSyncState();
+  const online=navigator.onLine!==false;
+  const pending=Number(counts?.pending) || 0;
+  const drafts=Number(counts?.drafts) || 0;
+  const syncing=state.status==="syncing" && Date.now()-new Date(state.syncStartedAt || 0).getTime()<45000;
+  const dot=document.getElementById("appConnectionDot");
+  const label=document.getElementById("appConnectionLabel");
+  const text=document.getElementById("appSyncText");
+  const meta=document.getElementById("appSyncMeta");
+  const syncBtn=document.getElementById("syncNowBtn");
+  const setCount=(id,value)=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=String(value || 0);
+  };
+  setCount("pendingSitesCount",counts?.sites);
+  setCount("pendingProtocolsCount",counts?.protocols);
+  setCount("pendingPhotosCount",counts?.photos);
+  setCount("pendingDraftsCount",drafts);
+  if(dot){
+    dot.classList.toggle("offline",!online || pending>0);
+    dot.classList.toggle("error",state.status==="error" && pending>0 && online);
+  }
+  if(card) card.classList.toggle("syncing",syncing);
+  if(label){
+    label.textContent=!online
+      ? "Offline režim"
+      : syncing
+        ? "Synchronizuji změny"
+        : pending
+          ? "Čeká na synchronizaci"
+          : drafts
+            ? "Jsou uložené koncepty"
+            : "Synchronizováno";
+  }
+  if(text){
+    if(!online) text.textContent="Práce se ukládá do telefonu. Po připojení se odešle do webu.";
+    else if(syncing) text.textContent="Odesílám lokální změny do Firebase a Cloudinary.";
+    else if(pending) text.textContent=`V telefonu čeká ${pending} změn k odeslání.`;
+    else if(drafts) text.textContent="Rozepsané protokoly jsou uložené lokálně, odešlou se po uložení formuláře.";
+    else text.textContent="Všechny uložené změny jsou spárované s webem.";
+  }
+  if(meta){
+    const last=szzSyncTimeLabel(state.lastSyncedAt);
+    const lastCount=Number(state.lastCount) || 0;
+    const error=safe(state.lastError);
+    meta.textContent=error && pending
+      ? `Poslední chyba: ${error}`
+      : `Poslední synchronizace: ${last}${lastCount ? `, odesláno ${lastCount}` : ""}.`;
+  }
+  if(syncBtn){
+    syncBtn.disabled=syncing || !online || !pending;
+    syncBtn.textContent=syncing ? "Synchronizuji..." : "Synchronizovat teď";
+  }
+}
+
+async function updateSzzOfflineAppStatus(){
+  const runId=++szzOfflineStatusRun;
+  const counts=await collectSzzOfflineCounts();
+  if(runId!==szzOfflineStatusRun) return counts;
+  window.__szzOfflineCounts=counts;
+  renderSzzOfflineAppStatus(counts);
+  return counts;
+}
+window.updateSzzOfflineAppStatus=updateSzzOfflineAppStatus;
+
+function scheduleSzzOfflineAppStatus(delay=120){
+  clearTimeout(szzOfflineStatusTimer);
+  szzOfflineStatusTimer=setTimeout(()=>updateSzzOfflineAppStatus().catch(e=>console.warn("Offline stav se nepodařilo obnovit",e)),delay);
+}
+window.scheduleSzzOfflineAppStatus=scheduleSzzOfflineAppStatus;
+
+async function triggerSzzSync(reason="manual",silent=false){
+  if(window.openAppToolsPanel) window.openAppToolsPanel();
+  if(navigator.onLine===false){
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Jsi offline. Změny zůstanou uložené v telefonu.");
+    scheduleSzzOfflineAppStatus(20);
+    return 0;
+  }
+  noteSzzSyncState("syncing",{reason});
+  scheduleSzzOfflineAppStatus(20);
+  try{
+    const synced=typeof syncOfflineChanges==="function"
+      ? await syncOfflineChanges({reason,force:true,silent})
+      : 0;
+    noteSzzSyncState("ok",{reason,lastCount:synced});
+    const counts=await updateSzzOfflineAppStatus();
+    if(!silent && !synced && !counts.pending && window.showSaveConfirmation){
+      window.showSaveConfirmation("Vše je synchronizované.");
+    }
+    return synced;
+  }catch(e){
+    noteSzzSyncState("error",{reason,lastError:e && (e.message || e.code) || String(e)});
+    scheduleSzzOfflineAppStatus(20);
+    throw e;
+  }
+}
+window.triggerSzzSync=triggerSzzSync;
+
+async function registerSzzBackgroundSync(reason="change"){
+  if(!("serviceWorker" in navigator) || navigator.onLine===false) return false;
+  try{
+    const registration=window.registerSzzServiceWorker
+      ? await window.registerSzzServiceWorker()
+      : await navigator.serviceWorker.ready;
+    if(registration && "sync" in registration){
+      await registration.sync.register("astip-szz-offline-sync");
+      return true;
+    }
+  }catch(e){
+    console.warn("Background sync se nepodařilo naplánovat",reason,e);
+  }
+  return false;
+}
+window.registerSzzBackgroundSync=registerSzzBackgroundSync;
+
+function bindSzzOfflineAppControls(){
+  const syncBtn=document.getElementById("syncNowBtn");
+  const refreshBtn=document.getElementById("refreshOfflineStateBtn");
+  if(syncBtn && !syncBtn.__szzSyncBound){
+    syncBtn.__szzSyncBound=true;
+    syncBtn.addEventListener("click",()=>triggerSzzSync("manual",false).catch(e=>{
+      if(window.showSaveConfirmation) window.showSaveConfirmation("Synchronizace se nepodařila.");
+      console.warn("Ruční synchronizace selhala",e);
+    }));
+  }
+  if(refreshBtn && !refreshBtn.__szzRefreshBound){
+    refreshBtn.__szzRefreshBound=true;
+    refreshBtn.addEventListener("click",()=>updateSzzOfflineAppStatus());
+  }
+  scheduleSzzOfflineAppStatus(80);
+}
+document.addEventListener("DOMContentLoaded",bindSzzOfflineAppControls);
+bindSzzOfflineAppControls();
+
+window.addEventListener("online",()=>{
+  scheduleSzzOfflineAppStatus(20);
+  registerSzzBackgroundSync("online");
+});
+window.addEventListener("offline",()=>scheduleSzzOfflineAppStatus(20));
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible") scheduleSzzOfflineAppStatus(80);
+});
+window.addEventListener("focus",()=>scheduleSzzOfflineAppStatus(80));
+window.addEventListener("storage",event=>{
+  if(event.key && /^astip(Map|Szz)/.test(event.key)) scheduleSzzOfflineAppStatus(80);
+});
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.addEventListener("message",event=>{
+    if(event.data && event.data.type==="SZZ_SYNC_REQUEST"){
+      triggerSzzSync(event.data.reason || "background-sync",true).catch(()=>{});
+    }
+  });
+}
 
 function resetSitePhotoInput(){
   const input=document.getElementById("sitePhotosInput");
@@ -14442,6 +14845,7 @@ setTimeout(()=>{
     const id=String(docId || "");
     if(!id) return;
     writeOfflineSiteQueue(readOfflineSiteQueue().filter(item=>String(item.docId || "")!==id));
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   }
   function saveUnifiedSiteRawOffline(rawInput={},opts={},reason=""){
     const docId=String(opts.docId || rawInput.Firebase_doc_id || rawInput["Firebase_doc_id"] || `offline_${Date.now()}_${Math.random().toString(36).slice(2,7)}`);
@@ -14473,6 +14877,8 @@ setTimeout(()=>{
     if(window.showSaveConfirmation) window.showSaveConfirmation("Uloženo offline. Po připojení se odešle do Firebase.");
     const p=document.getElementById("progress");
     if(p) p.textContent="Nový bod/zdroj je uložený offline a čeká na synchronizaci.";
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+    if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("site");
     return {duplicate:false,id:docId,row,offline:true,localOnly:true};
   }
   async function syncOfflineSites(options={}){
@@ -15392,7 +15798,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-visual-mock-compact-rows-v40";
+  const serviceWorkerBuildVersion="2026-08-08-ultra-compact-ui-v42";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
