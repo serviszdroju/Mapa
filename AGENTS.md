@@ -36,4 +36,6 @@ Current performance phase 7 decision: skip unchanged marker and left-sidebar rer
 
 Current performance phase 8 decision: avoid rebuilding the row lookup map and GPS count during repeated renders when the row collection and row render fingerprints are unchanged. Keep the same lookup keys and row indexing behavior.
 
+Current performance phase 9 decision: cache offline status counts briefly so repeated focus/storage/sync UI refreshes do not rescan IndexedDB and localStorage multiple times in the same short burst. Force-refresh counts after explicit sync.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
