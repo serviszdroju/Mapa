@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v48";
+const CACHE_VERSION = "astip-szz-v49";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -141,6 +141,26 @@ async function staleWhileRevalidate(request) {
   return cached || network;
 }
 
+async function appShellStaleWhileRevalidate(request, options = {}) {
+  const {fallbackToShell = false} = options;
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = (await cache.match(request)) || (fallbackToShell ? await shellFallbackResponse() : null);
+  const network = fetch(new Request(request, {cache: "reload"}))
+    .then((response) => {
+      if (response && response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => cached);
+  return cached || network || Response.error();
+}
+
+async function shellFallbackResponse() {
+  return (await caches.match("./")) ||
+    (await caches.match("./index.html")) ||
+    (await caches.match(new URL("./index.html", self.registration.scope).href)) ||
+    null;
+}
+
 function isMapTileRequest(request) {
   try {
     const url = new URL(request.url);
@@ -201,10 +221,14 @@ self.addEventListener("fetch", (event) => {
   const {request} = event;
   if (request.method !== "GET") return;
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, {fallbackToShell: true}));
+    event.respondWith(appShellStaleWhileRevalidate(request, {fallbackToShell: true}));
     return;
   }
   if (isAppShellRequest(request)) {
+    if (request.destination === "document") {
+      event.respondWith(appShellStaleWhileRevalidate(request, {fallbackToShell: true}));
+      return;
+    }
     event.respondWith(networkFirst(request, {fallbackToShell: request.destination === "document"}));
     return;
   }
