@@ -12935,7 +12935,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const currentFolder=photoFolderName(item);
   const photoInfoRows=[
     ["Přidáno", insertedAtFull],
-    ["Složka", currentFolder || photoFolderLabel(currentFolder)],
+    ["Složka", currentFolder || "Bez data"],
     ["Uložil", uploadedBy],
     ["Pořízeno", takenAt],
     ["Velikost", bytesLabel(item.size || item.originalSize) || "není uvedeno"]

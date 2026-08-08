@@ -18,4 +18,6 @@ Current approved visual direction: implement the 2026-08-08 06:44 generated mock
 
 Current detail styling decision: regular information rows in the Detail tab should look like the compact summary rows used in Protokol, while the two date cards "Poslední proběhlá kontrola" and "Příští plánovaná kontrola" keep their existing highlighted appearance. Blue primary action buttons should be replaced with the same neutral gray button treatment used by "Přiblížit na body"; status colors and data colors stay unchanged.
 
+Current gallery styling decision: only the Galerie tab should use the 2026-08-08 07:25 visual direction: compact picker/upload controls, a large full-width photo viewer with overlay arrows and counter, a horizontal thumbnail strip, a compact photo metadata row, and small point-information cards underneath. Preserve all existing gallery behavior, photo data sources, uploads, downloads, deletes, offline storage, and the rest of the app.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
