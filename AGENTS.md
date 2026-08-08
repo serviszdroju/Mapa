@@ -28,4 +28,6 @@ Current performance phase 3 decision: keep lazy detail media/history intact acro
 
 Current performance phase 4 decision: large Firebase map row cache should be IndexedDB-first. Store only small metadata/count in `localStorage` during normal saves, and write the full row payload to `localStorage` only as a fallback when IndexedDB fails. Keep old localStorage cache reading for backward compatibility.
 
+Current performance phase 5 decision: coalesce/debounce IndexedDB map row cache saves so repeated Firebase/offline updates in a short burst write only the latest row snapshot while keeping localStorage metadata/fallback compatibility.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
