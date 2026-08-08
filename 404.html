@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase8-v55";
-const APP_SHELL_CACHE_NAME="astip-szz-v55-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase9-v56";
+const APP_SHELL_CACHE_NAME="astip-szz-v56-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -12758,6 +12758,19 @@ window.syncOfflineChanges=syncOfflineChanges;
 const SZZ_SYNC_STATE_KEY="astipSzzSyncState:v1";
 let szzOfflineStatusTimer=0;
 let szzOfflineStatusRun=0;
+const SZZ_OFFLINE_COUNTS_CACHE_MS=1200;
+let szzOfflineCountsCache=null;
+let szzOfflineCountsCacheAt=0;
+
+function cloneSzzOfflineCounts(counts){
+  return counts ? {...counts} : counts;
+}
+
+function invalidateSzzOfflineCountsCache(){
+  szzOfflineCountsCache=null;
+  szzOfflineCountsCacheAt=0;
+}
+window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
 
 function readSzzSyncState(){
   try{
@@ -12862,6 +12875,10 @@ async function readPendingOfflinePhotoCount(){
 }
 
 async function collectSzzOfflineCounts(){
+  const now=Date.now();
+  if(szzOfflineCountsCache && now-szzOfflineCountsCacheAt<SZZ_OFFLINE_COUNTS_CACHE_MS){
+    return cloneSzzOfflineCounts(szzOfflineCountsCache);
+  }
   const sites=await readPendingOfflineSitesCount();
   const protocols=await readPendingOfflineProtocolCount();
   const photos=await readPendingOfflinePhotoCount();
@@ -12869,7 +12886,7 @@ async function collectSzzOfflineCounts(){
   const ready=readSzzOfflineReadyState();
   const storage=await requestSzzPersistentStorage({request:false});
   const estimate=await szzStorageEstimate();
-  return {
+  const counts={
     sites,
     protocols,
     photos,
@@ -12882,6 +12899,9 @@ async function collectSzzOfflineCounts(){
     preparedAt:ready.preparedAt || "",
     pending:sites+protocols+photos
   };
+  szzOfflineCountsCache=counts;
+  szzOfflineCountsCacheAt=Date.now();
+  return cloneSzzOfflineCounts(counts);
 }
 
 function szzSyncTimeLabel(value){
@@ -12958,7 +12978,8 @@ function renderSzzOfflineAppStatus(counts){
   }
 }
 
-async function updateSzzOfflineAppStatus(){
+async function updateSzzOfflineAppStatus(options={}){
+  if(options && options.force) invalidateSzzOfflineCountsCache();
   const runId=++szzOfflineStatusRun;
   const counts=await collectSzzOfflineCounts();
   if(runId!==szzOfflineStatusRun) return counts;
@@ -12988,7 +13009,7 @@ async function triggerSzzSync(reason="manual",silent=false){
       ? await syncOfflineChanges({reason,force:true,silent})
       : 0;
     noteSzzSyncState("ok",{reason,lastCount:synced});
-    const counts=await updateSzzOfflineAppStatus();
+    const counts=await updateSzzOfflineAppStatus({force:true});
     if(!silent && !synced && !counts.pending && window.showSaveConfirmation){
       window.showSaveConfirmation("Vše je synchronizované.");
     }
@@ -16477,7 +16498,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v55-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v56-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16967,7 +16988,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase8-v55";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase9-v56";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
