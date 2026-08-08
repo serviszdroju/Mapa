@@ -1249,14 +1249,23 @@ button,input,select,textarea{
     display:grid;
   }
 }
+#sitePhotosCard{
+  overflow:hidden;
+}
+#sitePhotosCard > h3,
+#sitePhotosCard .photo-folder-hint{
+  display:none;
+}
 #sitePhotosList.history-photos{
   display:block;
+  margin-top:8px;
 }
 .site-photo-upload{
   display:grid;
-  grid-template-columns:1fr auto;
+  grid-template-columns:minmax(0,1fr) minmax(128px,182px);
   gap:8px;
-  align-items:end;
+  align-items:stretch;
+  margin-bottom:8px;
 }
 .site-photo-inputs{
   display:grid;
@@ -1273,119 +1282,258 @@ button,input,select,textarea{
   pointer-events:none;
 }
 .site-photo-inputs button,
-.site-photo-inputs .photo-picker-btn{
-  min-height:38px;
+.site-photo-inputs .photo-picker-btn,
+#uploadSitePhotosBtn{
+  min-height:32px;
   display:flex;
   align-items:center;
   justify-content:center;
+  gap:7px;
   text-align:center;
   cursor:pointer;
   user-select:none;
-  border:1px solid #e2e8f0;
-  border-radius:10px;
-  font-weight:800;
-  padding:8px 10px;
+  border:1px solid #dbe4ef;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:850;
+  padding:5px 9px;
   box-sizing:border-box;
+}
+.site-photo-inputs .photo-picker-btn{
+  background:#f8fafc;
+  color:#334155;
+}
+.site-photo-inputs .photo-picker-btn::before,
+#uploadSitePhotosBtn::before{
+  content:"";
+  width:14px;
+  height:14px;
+  flex:0 0 14px;
+  background:currentColor;
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+  mask-position:center;
+  -webkit-mask-size:contain;
+  mask-size:contain;
+}
+#selectGalleryPhotosBtn::before{
+  -webkit-mask-image:var(--icon-row);
+  mask-image:var(--icon-row);
+}
+#selectCameraPhotosBtn::before{
+  -webkit-mask-image:var(--icon-crosshair);
+  mask-image:var(--icon-crosshair);
+}
+#uploadSitePhotosBtn::before{
+  -webkit-mask-image:var(--icon-plus);
+  mask-image:var(--icon-plus);
 }
 .site-photo-upload input{
   width:100%;
-  min-height:38px;
-  padding:7px 9px;
+  min-height:34px;
+  padding:6px 8px;
   border:1px solid #cbd5e1;
-  border-radius:10px;
+  border-radius:7px;
   background:#fff;
 }
-.photo-folder-hint{
-  margin:7px 0 0;
-}
 @media(max-width:700px){
+  .site-photo-upload,
   .site-photo-inputs{
     grid-template-columns:1fr;
   }
 }
 .site-photos-empty{
+  padding:12px;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  background:#f8fafc;
   color:#64748b;
   font-size:13px;
+  font-weight:800;
 }
 .site-photo-viewer{
   display:grid;
   gap:8px;
 }
 .site-photo-stage{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(190px,260px);
-  gap:10px;
-  align-items:start;
+  display:block;
+}
+.site-photo-frame{
+  position:relative;
+  overflow:hidden;
+  border:1px solid #dbe4ef;
+  border-radius:9px;
+  background:#111827;
+  box-shadow:0 10px 24px rgba(15,23,42,.10);
 }
 .site-photo-main{
   display:block;
-  border:1px solid #e2e8f0;
-  border-radius:12px;
+  border:0;
+  border-radius:0;
   overflow:hidden;
-  background:#f8fafc;
+  background:#111827;
 }
 .site-photo-main img{
   display:block;
   width:100%;
-  aspect-ratio:auto;
-  max-height:360px;
-  object-fit:contain;
-  background:#0f172a;
+  height:clamp(220px,36vh,330px);
+  object-fit:cover;
+  background:#111827;
 }
-.site-photo-info{
-  border:1px solid #e2e8f0;
-  border-radius:12px;
-  background:#f8fafc;
-  padding:10px;
+.site-photo-arrow{
+  position:absolute;
+  top:50%;
+  z-index:2;
+  width:32px !important;
+  min-height:32px !important;
+  padding:0 !important;
+  border-radius:999px !important;
+  border-color:rgba(255,255,255,.82) !important;
+  background:rgba(255,255,255,.94) !important;
+  color:#111827 !important;
+  box-shadow:0 8px 18px rgba(15,23,42,.18);
+  transform:translateY(-50%);
+  font-size:22px;
+  line-height:1;
+}
+.site-photo-arrow:hover{
+  transform:translateY(-50%) scale(1.04);
+}
+.site-photo-arrow:disabled{
+  opacity:.38;
+}
+.site-photo-arrow-prev{
+  left:12px;
+}
+.site-photo-arrow-next{
+  right:12px;
+}
+.site-photo-counter{
+  position:absolute;
+  right:12px;
+  bottom:10px;
+  z-index:2;
+  padding:4px 9px;
+  border-radius:999px;
+  background:rgba(15,23,42,.76);
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+}
+.site-photo-thumbs{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  max-height:none;
+  padding:2px 1px 4px;
+  scroll-snap-type:x proximity;
+}
+.site-photo-thumb{
+  flex:0 0 70px;
+  border:2px solid transparent;
+  border-radius:8px;
+  padding:0;
+  background:#fff;
+  width:70px;
+  aspect-ratio:1.32;
   overflow:hidden;
+  scroll-snap-align:start;
+  box-shadow:0 7px 16px rgba(15,23,42,.10);
 }
-.site-photo-info h4{
-  margin:0 0 8px;
-  font-size:14px;
-  color:#0f172a;
+.site-photo-thumb.active{
+  border-color:var(--blue);
+  box-shadow:0 0 0 2px rgba(37,99,235,.18),0 7px 16px rgba(15,23,42,.10);
 }
-.site-photo-meta-table{
+.site-photo-thumb img{
   width:100%;
-  border-collapse:collapse;
-  table-layout:fixed;
+  height:100%;
+  object-fit:cover;
+  display:block;
 }
-.site-photo-meta-table th,
-.site-photo-meta-table td{
-  padding:8px 0;
-  border-top:1px solid #e2e8f0;
-  text-align:left;
-  vertical-align:top;
+.site-photo-info-strip{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:4px;
+  padding:7px;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  background:#f8fafc;
 }
-.site-photo-meta-table th{
-  width:42%;
-  padding-right:10px;
-  font-size:11px;
-  font-weight:800;
+.site-photo-info-pill{
+  min-width:0;
+  padding:4px 6px;
+  border-radius:7px;
+  background:#fff;
+}
+.site-photo-info-pill span,
+.site-photo-detail-card span{
+  display:block;
   color:#64748b;
-  text-transform:uppercase;
+  font-size:9px;
+  font-weight:900;
+  line-height:1.15;
 }
-.site-photo-meta-table td{
-  font-size:13px;
-  font-weight:800;
+.site-photo-info-pill b,
+.site-photo-detail-card b{
+  display:block;
+  margin-top:2px;
   color:#0f172a;
+  font-size:11px;
+  font-weight:900;
+  line-height:1.18;
   overflow-wrap:anywhere;
 }
-.site-photo-nav,
-.site-photo-actions{
+.site-photo-detail-grid{
   display:grid;
-  grid-template-columns:1fr auto 1fr;
-  gap:8px;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+}
+.site-photo-detail-card{
+  min-width:0;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  column-gap:6px;
   align-items:center;
+  padding:6px 7px;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  background:#fff;
+}
+.site-photo-detail-card::before{
+  content:"";
+  width:14px;
+  height:14px;
+  grid-row:1 / span 2;
+  background:#475569;
+  -webkit-mask-image:var(--icon-row);
+  mask-image:var(--icon-row);
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+  mask-position:center;
+  -webkit-mask-size:contain;
+  mask-size:contain;
 }
 .site-photo-actions{
-  grid-template-columns:1fr 1fr;
+  display:flex;
+  justify-content:flex-end;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.site-photo-actions a,
+.site-photo-actions button{
+  width:auto;
+  min-height:30px;
+  padding:5px 9px;
+  border-radius:7px;
+  font-size:12px;
 }
 .site-photo-actions a{
   display:flex;
   align-items:center;
   justify-content:center;
-  min-height:38px;
-  border-radius:10px;
   border:1px solid #e2e8f0;
   background:#f1f5f9;
   color:#0f172a;
@@ -1394,63 +1542,17 @@ button,input,select,textarea{
 }
 .site-photo-meta{
   color:#64748b;
-  font-size:12px;
+  font-size:11px;
   overflow-wrap:anywhere;
 }
-.site-photo-nav span{
-  font-size:13px;
-  font-weight:800;
-  color:#475569;
-  text-align:center;
-}
-.site-photo-folders{
-  display:grid;
-  gap:10px;
-}
-.site-photo-folder{
-  border:1px solid #e2e8f0;
-  border-radius:12px;
-  padding:8px;
-  background:#f8fafc;
-}
-.site-photo-folder-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  margin-bottom:7px;
-  color:#334155;
-  font-size:12px;
-  font-weight:900;
-}
-.site-photo-folder-head span:last-child{
-  color:#64748b;
-  font-weight:800;
-}
-.site-photo-thumbs{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(52px,64px));
-  gap:6px;
-  overflow:auto;
-  max-height:150px;
-}
-.site-photo-thumb{
-  border:2px solid transparent;
-  border-radius:10px;
-  padding:0;
-  background:#fff;
-  width:100%;
-  aspect-ratio:1;
-  overflow:hidden;
-}
-.site-photo-thumb.active{
-  border-color:#2563eb;
-}
-.site-photo-thumb img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
+@media(max-width:700px){
+  .site-photo-info-strip,
+  .site-photo-detail-grid{
+    grid-template-columns:1fr 1fr;
+  }
+  .site-photo-main img{
+    height:260px;
+  }
 }
 @media(max-width:900px){
   .data-edit-actions{
@@ -3254,8 +3356,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-neutral-detail-v44";
-const APP_SHELL_CACHE_NAME="astip-szz-v44-static";
+const APP_BUILD_VERSION="2026-08-08-gallery-layout-v46";
+const APP_SHELL_CACHE_NAME="astip-szz-v46-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10028,6 +10130,156 @@ function makeLocalRecordId(prefix="local"){
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
+const SZZ_OFFLINE_QUEUE_DB_NAME="astipMapOfflineQueues";
+const SZZ_OFFLINE_QUEUE_DB_VERSION=1;
+const SZZ_OFFLINE_SITE_QUEUE_STORE="siteQueue";
+const SZZ_OFFLINE_PROTOCOL_QUEUE_STORE="protocolQueue";
+
+function openSzzOfflineQueueDb(){
+  return new Promise((resolve,reject)=>{
+    if(!("indexedDB" in window)){
+      reject(new Error("IndexedDB není v prohlížeči dostupné."));
+      return;
+    }
+    const req=indexedDB.open(SZZ_OFFLINE_QUEUE_DB_NAME,SZZ_OFFLINE_QUEUE_DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const database=req.result;
+      if(!database.objectStoreNames.contains(SZZ_OFFLINE_SITE_QUEUE_STORE)){
+        database.createObjectStore(SZZ_OFFLINE_SITE_QUEUE_STORE,{keyPath:"docId"});
+      }
+      if(!database.objectStoreNames.contains(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE)){
+        const protocolStore=database.createObjectStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,{keyPath:"_id"});
+        protocolStore.createIndex("siteCacheKey","siteCacheKey",{unique:false});
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error || new Error("Offline databázi se nepodařilo otevřít."));
+  });
+}
+
+async function withSzzOfflineQueueStore(storeName,mode,callback){
+  const database=await openSzzOfflineQueueDb();
+  return new Promise((resolve,reject)=>{
+    const tx=database.transaction(storeName,mode);
+    const store=tx.objectStore(storeName);
+    let result;
+    tx.oncomplete=()=>{database.close();resolve(result);};
+    tx.onerror=()=>{database.close();reject(tx.error || new Error("Offline fronta selhala."));};
+    try{
+      callback(store,value=>{result=value;});
+    }catch(e){
+      database.close();
+      reject(e);
+    }
+  });
+}
+
+function uniqueByOfflineId(items=[],idKey="_id"){
+  const byId=new Map();
+  const withoutId=[];
+  (items || []).forEach(item=>{
+    if(!item) return;
+    const id=safe(item && item[idKey]);
+    if(!id){
+      withoutId.push(item);
+      return;
+    }
+    byId.set(id,item);
+  });
+  return [...withoutId,...byId.values()];
+}
+window.uniqueByOfflineId=uniqueByOfflineId;
+
+async function saveOfflineSiteQueueItem(item){
+  if(!item || !safe(item.docId)) return null;
+  try{
+    await withSzzOfflineQueueStore(SZZ_OFFLINE_SITE_QUEUE_STORE,"readwrite",(store)=>{store.put({...item});});
+    return item;
+  }catch(e){
+    console.warn("IndexedDB frontu bodů se nepodařilo uložit",e);
+    return null;
+  }
+}
+window.saveOfflineSiteQueueItem=saveOfflineSiteQueueItem;
+
+async function readOfflineSiteQueueItems(){
+  try{
+    const items=await withSzzOfflineQueueStore(SZZ_OFFLINE_SITE_QUEUE_STORE,"readonly",(store,setResult)=>{
+      const req=store.getAll();
+      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
+      req.onerror=()=>setResult([]);
+    });
+    return (items || []).filter(item=>item && item.docId && item.raw);
+  }catch(e){
+    return [];
+  }
+}
+window.readOfflineSiteQueueItems=readOfflineSiteQueueItems;
+
+async function removeOfflineSiteQueueItem(docId){
+  const id=safe(docId);
+  if(!id) return;
+  try{
+    await withSzzOfflineQueueStore(SZZ_OFFLINE_SITE_QUEUE_STORE,"readwrite",(store)=>{store.delete(id);});
+  }catch(e){}
+}
+window.removeOfflineSiteQueueItem=removeOfflineSiteQueueItem;
+
+async function saveOfflineProtocolQueueItem(item,site=selectedSite){
+  if(!item || !safe(item._id)) return null;
+  const payload={...item,siteCacheKey:siteLocalCacheKey("protocolHistory",site)};
+  try{
+    await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.put(payload);});
+    return payload;
+  }catch(e){
+    console.warn("IndexedDB frontu protokolů se nepodařilo uložit",e);
+    return null;
+  }
+}
+window.saveOfflineProtocolQueueItem=saveOfflineProtocolQueueItem;
+
+async function readAllOfflineProtocolQueueItems(){
+  try{
+    const items=await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readonly",(store,setResult)=>{
+      const req=store.getAll();
+      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
+      req.onerror=()=>setResult([]);
+    });
+    return (items || []).filter(item=>item && item._offline && item._syncStatus!=="online");
+  }catch(e){
+    return [];
+  }
+}
+window.readAllOfflineProtocolQueueItems=readAllOfflineProtocolQueueItems;
+
+async function readOfflineProtocolQueueItems(site=selectedSite){
+  const cacheKey=siteLocalCacheKey("protocolHistory",site);
+  let indexed=[];
+  try{
+    indexed=await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readonly",(store,setResult)=>{
+      const req=store.index("siteCacheKey").getAll(cacheKey);
+      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
+      req.onerror=()=>setResult([]);
+    });
+  }catch(e){}
+  if(!indexed.length){
+    indexed=(await readAllOfflineProtocolQueueItems()).filter(item=>{
+      try{return recordMatchesSite(item,site);}catch(e){return false;}
+    });
+  }
+  return indexed.filter(item=>item && item._offline && item._syncStatus!=="online");
+}
+window.readOfflineProtocolQueueItems=readOfflineProtocolQueueItems;
+
+async function removeOfflineProtocolQueueItem(id){
+  const cleanId=safe(id);
+  if(!cleanId) return;
+  try{
+    await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.delete(cleanId);});
+  }catch(e){}
+}
+window.removeOfflineProtocolQueueItem=removeOfflineProtocolQueueItem;
+
 function saveProtocolLocally(payload,site=selectedSite,reason=""){
   const offlinePayload={
     ...payload,
@@ -10041,6 +10293,7 @@ function saveProtocolLocally(payload,site=selectedSite,reason=""){
     syncQueuedAt:new Date().toISOString()
   };
   appendSiteLocalArray("protocolHistory",offlinePayload,site,120);
+  saveOfflineProtocolQueueItem(offlinePayload,site).catch(()=>{});
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("protocol");
   return offlinePayload;
@@ -10205,10 +10458,29 @@ function pendingOfflineProtocolSiteRefs(){
   return [...byKey.values()];
 }
 
+async function pendingOfflineProtocolSiteRefsAsync(){
+  const byKey=new Map();
+  pendingOfflineProtocolSiteRefs().forEach(ref=>{
+    const key=selectedSiteDocId(ref.site) || detailKey(ref.site) || ref.site?.id || "";
+    if(key) byKey.set(key,ref);
+  });
+  const indexed=await readAllOfflineProtocolQueueItems();
+  indexed.forEach(item=>{
+    const site=siteFromOfflineRecord(item,item.siteCacheKey ? String(item.siteCacheKey).replace("astipMap:protocolHistory:","") : "");
+    const key=selectedSiteDocId(site) || detailKey(site) || site.id || item.siteCacheKey || item._id;
+    const current=byKey.get(key);
+    byKey.set(key,{site,count:(current?.count || 0)+1});
+  });
+  return [...byKey.values()];
+}
+
 async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
   if(offlineProtocolSyncRunning) return 0;
   if(!site || !firebaseReady || !db || !fb.fsMod || !currentUser || navigator.onLine===false) return 0;
-  const offlineItems=readSiteLocalArray("protocolHistory",site)
+  const localItems=readSiteLocalArray("protocolHistory",site)
+    .filter(item=>item && item._offline && item._syncStatus!=="online" && recordMatchesSite(item,site));
+  const indexedItems=await readOfflineProtocolQueueItems(site);
+  const offlineItems=uniqueByOfflineId([...localItems,...indexedItems])
     .filter(item=>item && item._offline && item._syncStatus!=="online" && recordMatchesSite(item,site));
   if(!offlineItems.length) return 0;
   offlineProtocolSyncRunning=true;
@@ -10244,6 +10516,7 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
       },{merge:true});
       await updateSiteControlDateFromProtocol(payload,site,{clearManualStatus:item.clearManualStatusAfterSave !== false});
       removeSiteLocalItem("protocolHistory",id,site);
+      await removeOfflineProtocolQueueItem(id);
       appendSiteLocalArray("protocolHistory",payload,site,120);
       synced++;
     }
@@ -10264,7 +10537,7 @@ async function syncAllOfflineProtocols(options={}){
   if(!firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return 0;
   const signedUser=await waitForFirebaseUser(3000);
   if(!signedUser) return 0;
-  const refs=pendingOfflineProtocolSiteRefs();
+  const refs=await pendingOfflineProtocolSiteRefsAsync();
   let total=0;
   for(const ref of refs){
     total+=await syncOfflineProtocolsForSite(ref.site,{silent:true});
@@ -12276,27 +12549,30 @@ function noteSzzSyncState(status,details={}){
 }
 window.noteSzzSyncState=noteSzzSyncState;
 
-function readPendingOfflineSitesCount(){
+async function readPendingOfflineSitesCount(){
   try{
     const items=JSON.parse(localStorage.getItem("astipMap:offlineSites:v1") || "[]");
-    return Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw).length : 0;
+    const localItems=Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
+    const indexedItems=await readOfflineSiteQueueItems();
+    return uniqueByOfflineId([...localItems,...indexedItems],"docId").length;
   }catch(e){
     return 0;
   }
 }
 
-function readPendingOfflineProtocolCount(){
-  let count=0;
+async function readPendingOfflineProtocolCount(){
+  const localItems=[];
   try{
     for(let i=0;i<localStorage.length;i++){
       const key=localStorage.key(i);
       if(!key || !key.startsWith("astipMap:protocolHistory:")) continue;
       const arr=JSON.parse(localStorage.getItem(key) || "[]");
       if(!Array.isArray(arr)) continue;
-      count+=arr.filter(item=>item && item._offline && item._syncStatus!=="online").length;
+      arr.filter(item=>item && item._offline && item._syncStatus!=="online").forEach(item=>localItems.push(item));
     }
   }catch(e){}
-  return count;
+  const indexedItems=await readAllOfflineProtocolQueueItems();
+  return uniqueByOfflineId([...localItems,...indexedItems]).length;
 }
 
 function readProtocolDraftCount(){
@@ -12329,8 +12605,8 @@ async function readPendingOfflinePhotoCount(){
 }
 
 async function collectSzzOfflineCounts(){
-  const sites=readPendingOfflineSitesCount();
-  const protocols=readPendingOfflineProtocolCount();
+  const sites=await readPendingOfflineSitesCount();
+  const protocols=await readPendingOfflineProtocolCount();
   const photos=await readPendingOfflinePhotoCount();
   const drafts=readProtocolDraftCount();
   const ready=readSzzOfflineReadyState();
@@ -12616,6 +12892,24 @@ function sitePhotoFolderGroups(items){
   return Array.from(groups.entries()).map(([folder,photos])=>({folder,photos}));
 }
 
+function sitePhotoPointInfoRows(site=selectedSite){
+  const raw=(site && site.raw) || {};
+  const gps=Number.isFinite(site?.lat) && Number.isFinite(site?.lon)
+    ? `${site.lat.toFixed(6)}, ${site.lon.toFixed(6)}`
+    : pickRawValue(raw,["Adresa_GPS","GPS","GPS souřadnice","GPS souradnice"]);
+  const rows=[
+    ["Název", site?.adresa || pickRawValue(raw,["Název","Adresa / umístění","Umístění"])],
+    ["Kraj", site?.kraj || pickRawValue(raw,["Kraj","Region","Okres"])],
+    ["Adresa", pickRawValue(raw,["Adresa / umístění","Adresa","Umístění"]) || site?.adresa],
+    ["GPS", gps],
+    ["Popis zdroje", site?.zdroj || pickRawValue(raw,["Popis_zdroje","Popis zdroje","Zdroj","Typ zdroje"])],
+    ["Výrobní číslo", pickRawValue(raw,["Výrobní číslo","Výrobní č.","Výrobní_cislo","Zdroj","SN"])]
+  ];
+  return rows
+    .map(([label,value])=>[label,safe(value) || "-"])
+    .filter(([label,value],idx,all)=>value!=="-" || idx<3 || all.length<=3);
+}
+
 function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const list=document.getElementById("sitePhotosList");
   if(!list) return;
@@ -12640,51 +12934,40 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const uploadedBy=safe(item.uploadedBy || item.createdBy || item.ownerEmail) || "není uvedeno";
   const currentFolder=photoFolderName(item);
   const photoInfoRows=[
-    ["Datum přidání", insertedAtFull],
-    ["Složka", photoFolderLabel(currentFolder)],
+    ["Přidáno", insertedAtFull],
+    ["Složka", currentFolder || "Bez data"],
     ["Uložil", uploadedBy],
-    ["Datum pořízení", takenAt],
-    ["Úložiště", modeLabel],
+    ["Pořízeno", takenAt],
     ["Velikost", bytesLabel(item.size || item.originalSize) || "není uvedeno"]
   ];
   const downloadName=photoFileName(item,sitePhotoIndex);
   const deleteAllowed=canDeleteSitePhoto(item);
-  const folderGroups=sitePhotoFolderGroups(sitePhotoItems);
+  const pointInfoRows=sitePhotoPointInfoRows(selectedSite);
   list.innerHTML=`
     <div class="site-photo-viewer">
       <div class="site-photo-stage">
-        <a class="site-photo-main" href="${esc(fullUrl || mainUrl)}" target="_blank">
-          <img src="${esc(mainUrl)}" alt="Fotografie bodu ${sitePhotoIndex+1}">
-        </a>
-        <div class="site-photo-info">
-          <h4>Metadata fotografie</h4>
-          <table class="site-photo-meta-table"><tbody>
-            ${photoInfoRows.map(([label,value])=>`<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`).join("")}
-          </tbody></table>
+        <div class="site-photo-frame">
+          <a class="site-photo-main" href="${esc(fullUrl || mainUrl)}" target="_blank">
+            <img src="${esc(mainUrl)}" alt="Fotografie bodu ${sitePhotoIndex+1}">
+          </a>
+          <button class="secondary site-photo-arrow site-photo-arrow-prev" type="button" id="sitePhotoPrevBtn" ${thumbCount<=1 ? "disabled" : ""} aria-label="Předchozí fotografie">‹</button>
+          <button class="secondary site-photo-arrow site-photo-arrow-next" type="button" id="sitePhotoNextBtn" ${thumbCount<=1 ? "disabled" : ""} aria-label="Další fotografie">›</button>
+          <span class="site-photo-counter">${sitePhotoIndex+1} / ${thumbCount}</span>
         </div>
       </div>
+      <div class="site-photo-thumbs">
+        ${sitePhotoItems.map((photo,idx)=>`<button class="site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}" type="button" data-photo-idx="${idx}" aria-label="Zobrazit fotografii ${idx+1}"><img src="${esc(photoThumbUrl(photo))}" alt="Náhled ${idx+1}"></button>`).join("")}
+      </div>
+      <div class="site-photo-info-strip">
+        ${photoInfoRows.map(([label,value])=>`<div class="site-photo-info-pill"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}
+      </div>
+      <div class="site-photo-detail-grid">
+        ${pointInfoRows.map(([label,value])=>`<div class="site-photo-detail-card"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}
+      </div>
+      ${meta ? `<div class="site-photo-meta">${esc(meta)}</div>` : ""}
       <div class="site-photo-actions">
         <a href="${esc(fullUrl || mainUrl)}" target="_blank" download="${esc(downloadName)}">Stáhnout fotku</a>
         <button class="danger" type="button" id="deleteSitePhotoBtn" ${deleteAllowed ? "" : "disabled"}>Smazat fotku</button>
-      </div>
-      ${meta ? `<div class="site-photo-meta">${esc(meta)}</div>` : ""}
-      <div class="site-photo-nav">
-        <button class="secondary" type="button" id="sitePhotoPrevBtn" ${thumbCount<=1 ? "disabled" : ""}>Předchozí</button>
-        <span>${sitePhotoIndex+1} / ${thumbCount}</span>
-        <button class="secondary" type="button" id="sitePhotoNextBtn" ${thumbCount<=1 ? "disabled" : ""}>Další</button>
-      </div>
-      <div class="site-photo-folders">
-        ${folderGroups.map(group=>`
-          <section class="site-photo-folder">
-            <div class="site-photo-folder-head">
-              <span>${esc(photoFolderLabel(group.folder))}</span>
-              <span>${group.photos.length} fotek</span>
-            </div>
-            <div class="site-photo-thumbs">
-              ${group.photos.map(({photo,idx})=>`<button class="site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}" type="button" data-photo-idx="${idx}"><img src="${esc(photoThumbUrl(photo))}" alt="Náhled ${idx+1}"></button>`).join("")}
-            </div>
-          </section>
-        `).join("")}
       </div>
     </div>`;
   const prev=document.getElementById("sitePhotoPrevBtn");
@@ -15009,6 +15292,9 @@ setTimeout(()=>{
   function writeOfflineSiteQueue(items=[]){
     try{
       localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,JSON.stringify(items));
+      if(window.saveOfflineSiteQueueItem){
+        items.forEach(item=>window.saveOfflineSiteQueueItem(item).catch(()=>{}));
+      }
     }catch(e){
       console.warn("Offline frontu nových bodů se nepodařilo uložit",e);
     }
@@ -15017,6 +15303,7 @@ setTimeout(()=>{
     const id=String(docId || "");
     if(!id) return;
     writeOfflineSiteQueue(readOfflineSiteQueue().filter(item=>String(item.docId || "")!==id));
+    if(window.removeOfflineSiteQueueItem) window.removeOfflineSiteQueueItem(id).catch(()=>{});
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   }
   function saveUnifiedSiteRawOffline(rawInput={},opts={},reason=""){
@@ -15026,15 +15313,17 @@ setTimeout(()=>{
     if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
     const now=new Date().toISOString();
     const queue=readOfflineSiteQueue().filter(item=>String(item.docId || "")!==docId);
-    queue.push({
+    const queuedItem={
       docId,
       raw,
       createdAt:now,
       updatedAt:now,
       reason:String(reason || "Offline režim"),
       createdBy:(window.currentUser && window.currentUser.email) || window.lastKnownUserEmail?.() || ""
-    });
+    };
+    queue.push(queuedItem);
     writeOfflineSiteQueue(queue);
+    if(window.saveOfflineSiteQueueItem) window.saveOfflineSiteQueueItem(queuedItem).catch(()=>{});
     const row=rowFromDoc(docId,{raw,createdAt:now,updatedAt:now,manualEntry:true,localOnly:true,offline:true});
     const nextRows=(Array.isArray(window.rows) ? window.rows : [])
       .filter(existing=>String(existing.firebaseDocId || existing.raw?.["Firebase_doc_id"] || existing.id || "")!==docId)
@@ -15055,7 +15344,10 @@ setTimeout(()=>{
   }
   async function syncOfflineSites(options={}){
     if(navigator.onLine===false) return 0;
-    const queue=readOfflineSiteQueue();
+    const queue=(window.uniqueByOfflineId || ((items)=>items))([
+      ...readOfflineSiteQueue(),
+      ...(window.readOfflineSiteQueueItems ? await window.readOfflineSiteQueueItems() : [])
+    ],"docId");
     if(!queue.length) return 0;
     const database=db();
     if(!database) return 0;
@@ -15825,9 +16117,13 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v44-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v46-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
+const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
+const SZZ_INSTALL_QUEUE_DB_VERSION=1;
+const SZZ_INSTALL_SITE_QUEUE_STORE="siteQueue";
+const SZZ_INSTALL_PROTOCOL_QUEUE_STORE="protocolQueue";
 const SZZ_INSTALL_SHELL_URLS=[
   "./",
   "./index.html",
@@ -15844,6 +16140,210 @@ const SZZ_INSTALL_SHELL_URLS=[
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
 ];
+
+function szzInstallSafe(value){
+  return String(value ?? "").trim();
+}
+
+function szzInstallUniqueById(items=[],idKey="_id"){
+  const byId=new Map();
+  const withoutId=[];
+  (items || []).forEach(item=>{
+    if(!item) return;
+    const id=szzInstallSafe(item[idKey]);
+    if(!id){
+      withoutId.push(item);
+      return;
+    }
+    byId.set(id,item);
+  });
+  return [...withoutId,...byId.values()];
+}
+window.uniqueByOfflineId=window.uniqueByOfflineId || szzInstallUniqueById;
+
+function openSzzInstallQueueDb(){
+  return new Promise((resolve,reject)=>{
+    if(!("indexedDB" in window)){
+      reject(new Error("IndexedDB není v prohlížeči dostupné."));
+      return;
+    }
+    const req=indexedDB.open(SZZ_INSTALL_QUEUE_DB_NAME,SZZ_INSTALL_QUEUE_DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const database=req.result;
+      if(!database.objectStoreNames.contains(SZZ_INSTALL_SITE_QUEUE_STORE)){
+        database.createObjectStore(SZZ_INSTALL_SITE_QUEUE_STORE,{keyPath:"docId"});
+      }
+      if(!database.objectStoreNames.contains(SZZ_INSTALL_PROTOCOL_QUEUE_STORE)){
+        const protocolStore=database.createObjectStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,{keyPath:"_id"});
+        protocolStore.createIndex("siteCacheKey","siteCacheKey",{unique:false});
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error || new Error("Offline databázi se nepodařilo otevřít."));
+  });
+}
+
+async function withSzzInstallQueueStore(storeName,mode,callback){
+  const database=await openSzzInstallQueueDb();
+  return new Promise((resolve,reject)=>{
+    const tx=database.transaction(storeName,mode);
+    const store=tx.objectStore(storeName);
+    let result;
+    tx.oncomplete=()=>{database.close();resolve(result);};
+    tx.onerror=()=>{database.close();reject(tx.error || new Error("Offline fronta selhala."));};
+    try{
+      callback(store,value=>{result=value;});
+    }catch(e){
+      database.close();
+      reject(e);
+    }
+  });
+}
+
+window.saveOfflineSiteQueueItem=window.saveOfflineSiteQueueItem || async function(item){
+  if(!item || !szzInstallSafe(item.docId)) return null;
+  await withSzzInstallQueueStore(SZZ_INSTALL_SITE_QUEUE_STORE,"readwrite",(store)=>{store.put({...item});});
+  return item;
+};
+
+window.readOfflineSiteQueueItems=window.readOfflineSiteQueueItems || async function(){
+  try{
+    const items=await withSzzInstallQueueStore(SZZ_INSTALL_SITE_QUEUE_STORE,"readonly",(store,setResult)=>{
+      const req=store.getAll();
+      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
+      req.onerror=()=>setResult([]);
+    });
+    return (items || []).filter(item=>item && item.docId && item.raw);
+  }catch(e){
+    return [];
+  }
+};
+
+window.removeOfflineSiteQueueItem=window.removeOfflineSiteQueueItem || async function(docId){
+  const id=szzInstallSafe(docId);
+  if(!id) return;
+  try{
+    await withSzzInstallQueueStore(SZZ_INSTALL_SITE_QUEUE_STORE,"readwrite",(store)=>{store.delete(id);});
+  }catch(e){}
+};
+
+function szzInstallSiteCacheKey(site={},kind="protocolHistory"){
+  const raw=site && site.raw || {};
+  const key=szzInstallSafe(site.firebaseDocId || raw["Firebase_doc_id"] || site.id || site.siteId || site.siteKey || "unknown");
+  return `astipMap:${kind}:${key}`;
+}
+
+window.saveOfflineProtocolQueueItem=window.saveOfflineProtocolQueueItem || async function(item,site={}){
+  if(!item || !szzInstallSafe(item._id)) return null;
+  const payload={...item,siteCacheKey:szzInstallSiteCacheKey(site)};
+  await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.put(payload);});
+  return payload;
+};
+
+window.readAllOfflineProtocolQueueItems=window.readAllOfflineProtocolQueueItems || async function(){
+  try{
+    const items=await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,"readonly",(store,setResult)=>{
+      const req=store.getAll();
+      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
+      req.onerror=()=>setResult([]);
+    });
+    return (items || []).filter(item=>item && item._offline && item._syncStatus!=="online");
+  }catch(e){
+    return [];
+  }
+};
+
+window.readOfflineProtocolQueueItems=window.readOfflineProtocolQueueItems || async function(site={}){
+  const cacheKey=szzInstallSiteCacheKey(site);
+  try{
+    const items=await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,"readonly",(store,setResult)=>{
+      const req=store.index("siteCacheKey").getAll(cacheKey);
+      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
+      req.onerror=()=>setResult([]);
+    });
+    return (items || []).filter(item=>item && item._offline && item._syncStatus!=="online");
+  }catch(e){
+    return [];
+  }
+};
+
+window.removeOfflineProtocolQueueItem=window.removeOfflineProtocolQueueItem || async function(id){
+  const cleanId=szzInstallSafe(id);
+  if(!cleanId) return;
+  try{
+    await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.delete(cleanId);});
+  }catch(e){}
+};
+
+function szzInstallLocalArrayEntries(prefix){
+  const entries=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith(prefix)) continue;
+      const arr=JSON.parse(localStorage.getItem(key) || "[]");
+      if(Array.isArray(arr)) entries.push(...arr);
+    }
+  }catch(e){}
+  return entries;
+}
+
+async function szzInstallOfflineCounts(){
+  let localSites=[];
+  try{
+    const parsed=JSON.parse(localStorage.getItem("astipMap:offlineSites:v1") || "[]");
+    localSites=Array.isArray(parsed) ? parsed.filter(item=>item && item.docId && item.raw) : [];
+  }catch(e){}
+  const indexedSites=await window.readOfflineSiteQueueItems();
+  const localProtocols=szzInstallLocalArrayEntries("astipMap:protocolHistory:")
+    .filter(item=>item && item._offline && item._syncStatus!=="online");
+  const indexedProtocols=await window.readAllOfflineProtocolQueueItems();
+  let drafts=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key && key.startsWith("astipMap:protocolDraft:")){
+        const parsed=JSON.parse(localStorage.getItem(key) || "null");
+        if(parsed && parsed.payload) drafts++;
+      }
+    }
+  }catch(e){}
+  return {
+    sites:szzInstallUniqueById([...localSites,...indexedSites],"docId").length,
+    protocols:szzInstallUniqueById([...localProtocols,...indexedProtocols]).length,
+    photos:0,
+    drafts
+  };
+}
+
+window.updateSzzOfflineAppStatus=window.updateSzzOfflineAppStatus || async function(){
+  const counts=await szzInstallOfflineCounts();
+  const setCount=(id,value)=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=String(value || 0);
+  };
+  setCount("pendingSitesCount",counts.sites);
+  setCount("pendingProtocolsCount",counts.protocols);
+  setCount("pendingPhotosCount",counts.photos);
+  setCount("pendingDraftsCount",counts.drafts);
+  const pending=counts.sites+counts.protocols+counts.photos;
+  const label=document.getElementById("appConnectionLabel");
+  const text=document.getElementById("appSyncText");
+  const meta=document.getElementById("appSyncMeta");
+  const syncBtn=document.getElementById("syncNowBtn");
+  if(label) label.textContent=navigator.onLine===false ? "Offline režim" : (pending ? "Čeká na synchronizaci" : "Synchronizováno");
+  if(text) text.textContent=navigator.onLine===false
+    ? "Práce se ukládá do telefonu. Po připojení se odešle do webu."
+    : pending ? `V telefonu čeká ${pending} změn k odeslání.` : "Všechny uložené změny jsou spárované s webem.";
+  if(meta) meta.textContent=meta.textContent || "Offline fronta připravena v telefonu.";
+  if(syncBtn) syncBtn.disabled=navigator.onLine===false || !pending || typeof window.syncOfflineChanges!=="function";
+  return counts;
+};
+
+window.scheduleSzzOfflineAppStatus=window.scheduleSzzOfflineAppStatus || function(delay=120){
+  clearTimeout(window.__szzInstallStatusTimer);
+  window.__szzInstallStatusTimer=setTimeout(()=>window.updateSzzOfflineAppStatus?.().catch(()=>{}),delay);
+};
 
 window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(){
   if(!("caches" in window)) return 0;
@@ -16105,7 +16605,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-neutral-detail-v44";
+  const serviceWorkerBuildVersion="2026-08-08-gallery-layout-v46";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
