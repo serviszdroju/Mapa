@@ -114,7 +114,7 @@ box-shadow:0 0 0 4px #ec4899 !important;
 border-color:#be185d !important;
 }
 
-:root{--red:#dc2626;--orange:#f97316;--green:#16a34a;--gray:#64748b;--blue:#2563eb;--border:#e2e8f0}
+:root{--red:#dc2626;--orange:#f97316;--green:#16a34a;--gray:#64748b;--blue:#2563eb;--border:#e2e8f0;--button-neutral-top:#9ca3af;--button-neutral-bottom:#6b7280;--button-neutral-border:#6b7280;--button-neutral-shadow:0 10px 22px rgba(55,65,81,.16)}
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f8fafc;color:#0f172a}
 .app{display:grid;grid-template-columns:395px minmax(0,1fr);height:100vh}
@@ -128,7 +128,7 @@ h1{font-size:20px;margin:0 0 6px}.small{font-size:13px;color:#64748b;line-height
 .offline-map-status.ok{border-color:#bbf7d0;background:#ecfdf5;color:#166534}
 input,select,button,textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:white;font-size:14px}
 textarea{min-height:75px;resize:vertical}
-button{font-weight:700;cursor:pointer}.primary{background:var(--blue);color:white;border-color:var(--blue)}.secondary{background:#f1f5f9}.danger{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+button{font-weight:700;cursor:pointer}.primary{background:linear-gradient(180deg,var(--button-neutral-top),var(--button-neutral-bottom));color:white;border-color:var(--button-neutral-border)}.secondary{background:#f1f5f9}.danger{background:#fee2e2;color:#991b1b;border-color:#fecaca}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
 .stat{border:1px solid var(--border);border-radius:14px;padding:10px}.stat b{font-size:22px;display:block}
 .legend{display:grid;gap:6px;margin:10px 0;font-size:13px}.legend div{display:flex;gap:8px;align-items:center}
@@ -316,6 +316,9 @@ object-fit:contain;
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:4px;
+}
+.app-sync-actions .wide{
+  grid-column:1 / -1;
 }
 .app-sync-meta{
   min-height:14px;
@@ -928,9 +931,9 @@ button,input,select,textarea{
   border-color:#f59e0b;
 }
 .repair-toggle-active{
-  background:#dbeafe;
-  color:#1d4ed8;
-  border-color:#93c5fd;
+  background:#eef2f7;
+  color:#334155;
+  border-color:#94a3b8;
 }
 .stop-toggle-active{
   background:#e2e8f0;
@@ -1788,9 +1791,10 @@ button{
 button:hover{transform:translateY(-1px)}
 button:active{transform:translateY(0)}
 .primary{
-  background:linear-gradient(180deg,#3b82f6 0%,var(--blue) 100%);
-  border-color:#1d4ed8;
-  box-shadow:0 11px 24px rgba(37,99,235,.22);
+  background:linear-gradient(180deg,var(--button-neutral-top),var(--button-neutral-bottom));
+  border-color:var(--button-neutral-border);
+  color:#fff;
+  box-shadow:var(--button-neutral-shadow);
 }
 .secondary{
   background:#f8fafc;
@@ -1798,16 +1802,16 @@ button:active{transform:translateY(0)}
   border-color:#dbe4ef;
 }
 .secondary:hover{
-  background:#eef6ff;
-  border-color:#bfdbfe;
+  background:#f1f5f9;
+  border-color:#cbd5e1;
 }
 #fitBtn{
   margin-top:7px !important;
   min-height:34px;
-  background:linear-gradient(180deg,#9ca3af,#6b7280);
+  background:linear-gradient(180deg,var(--button-neutral-top),var(--button-neutral-bottom));
   color:#fff;
-  border-color:#6b7280;
-  box-shadow:0 10px 22px rgba(55,65,81,.16);
+  border-color:var(--button-neutral-border);
+  box-shadow:var(--button-neutral-shadow);
 }
 #addSiteBtn{
   margin-top:6px !important;
@@ -2105,8 +2109,8 @@ button:active{transform:translateY(0)}
   border-style:dashed;
 }
 .source-chooser-button[data-add-source]:hover{
-  background:#eff6ff;
-  border-color:#93c5fd;
+  background:#f1f5f9;
+  border-color:#94a3b8;
 }
 .detail-tabs{
   position:sticky;
@@ -2132,12 +2136,12 @@ button:active{transform:translateY(0)}
 }
 .detail-tab:hover{
   background:#f8fafc;
-  color:#1d4ed8;
+  color:#334155;
 }
 .detail-tab.active{
   background:transparent;
-  color:var(--blue);
-  border-bottom-color:var(--blue);
+  color:#334155;
+  border-bottom-color:#6b7280;
   box-shadow:none;
 }
 .control-dates-strong{
@@ -2188,43 +2192,49 @@ button:active{transform:translateY(0)}
   font-size:16px;
   line-height:1.1;
 }
-#detailTable{border-spacing:0}
-#detailTable tr{
+#detailDataCard #detailTable:not(.data-edit-table){
   display:grid;
-  grid-template-columns:18px minmax(96px,126px) minmax(0,1fr);
-  gap:6px;
-  align-items:center;
-  margin:3px 0;
-  padding:5px 7px;
-  border-radius:7px;
-  border-color:#e0e8f2;
-  background:#fff;
-  box-shadow:0 7px 18px rgba(15,23,42,.045);
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:5px;
+  border-spacing:0;
 }
-#detailTable tr::before{
-  content:"";
-  width:16px;
-  height:16px;
-  background:#0f172a;
-  -webkit-mask-image:var(--icon-row);
-  mask-image:var(--icon-row);
-  -webkit-mask-repeat:no-repeat;
-  mask-repeat:no-repeat;
-  -webkit-mask-position:center;
-  mask-position:center;
-  -webkit-mask-size:contain;
-  mask-size:contain;
+#detailDataCard #detailTable:not(.data-edit-table) tbody{
+  display:contents;
 }
-#detailTable td:first-child{
+#detailDataCard #detailTable:not(.data-edit-table) tr{
+  display:block;
+  width:auto;
+  min-width:0;
   margin:0;
+  padding:6px 8px;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:none;
+}
+#detailDataCard #detailTable:not(.data-edit-table) tr::before{
+  display:none;
+}
+#detailDataCard #detailTable:not(.data-edit-table) td{
+  display:block;
+  width:auto !important;
+  border:0;
+  padding:0;
+}
+#detailDataCard #detailTable:not(.data-edit-table) td:first-child{
+  margin:0 0 2px;
   color:#64748b;
   font-size:10px;
+  line-height:1.15;
+  font-weight:800;
   text-transform:none;
 }
-#detailTable td:nth-child(2){
-  font-size:12px;
-  font-weight:750;
+#detailDataCard #detailTable:not(.data-edit-table) td:nth-child(2){
   color:#0f172a;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.2;
+  overflow-wrap:anywhere;
 }
 .important-note-row{box-shadow:0 10px 24px rgba(220,38,38,.10) !important}
 .data-edit-actions{
@@ -2268,6 +2278,9 @@ button:active{transform:translateY(0)}
   .detail-tab{
     font-size:13px;
     min-height:42px;
+  }
+  #detailDataCard #detailTable:not(.data-edit-table){
+    grid-template-columns:1fr;
   }
 }
 
@@ -2422,6 +2435,7 @@ button:active{transform:translateY(0)}
         <div class="app-sync-cell"><b id="pendingDraftsCount">0</b><span>Koncepty</span></div>
       </div>
       <div class="app-sync-actions">
+        <button class="secondary wide" id="prepareOfflineAppBtn" type="button">Připravit offline data</button>
         <button class="primary" id="syncNowBtn" type="button">Synchronizovat teď</button>
         <button class="secondary" id="refreshOfflineStateBtn" type="button">Zkontrolovat frontu</button>
       </div>
@@ -3240,8 +3254,10 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-ultra-compact-ui-v42";
-const APP_SHELL_CACHE_NAME="astip-szz-v42-static";
+const APP_BUILD_VERSION="2026-08-08-neutral-detail-v44";
+const APP_SHELL_CACHE_NAME="astip-szz-v44-static";
+const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
+const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -3981,6 +3997,140 @@ async function cacheAppShellForOffline(){
   }
   return saved;
 }
+window.cacheAppShellForOffline=cacheAppShellForOffline;
+
+function szzBytesLabel(value){
+  const bytes=Number(value) || 0;
+  if(!bytes) return "";
+  if(bytes<1024) return `${bytes} B`;
+  if(bytes<1048576) return `${Math.round(bytes/1024)} kB`;
+  if(bytes<1073741824) return `${Math.round(bytes/104857.6)/10} MB`;
+  return `${Math.round(bytes/107374182.4)/10} GB`;
+}
+
+async function szzStorageEstimate(){
+  if(!navigator.storage || typeof navigator.storage.estimate!=="function") return null;
+  try{
+    const estimate=await navigator.storage.estimate();
+    return {
+      usage:Number(estimate && estimate.usage) || 0,
+      quota:Number(estimate && estimate.quota) || 0
+    };
+  }catch(e){
+    return null;
+  }
+}
+
+async function requestSzzPersistentStorage(options={}){
+  const result={supported:false,persisted:false,requested:false,granted:false};
+  if(!navigator.storage) return result;
+  result.supported=typeof navigator.storage.persisted==="function" || typeof navigator.storage.persist==="function";
+  try{
+    if(typeof navigator.storage.persisted==="function"){
+      result.persisted=await navigator.storage.persisted();
+    }
+    if(!result.persisted && options.request && typeof navigator.storage.persist==="function"){
+      result.requested=true;
+      result.granted=await navigator.storage.persist();
+      result.persisted=result.granted || (typeof navigator.storage.persisted==="function" ? await navigator.storage.persisted() : false);
+    }
+  }catch(e){
+    result.error=e && (e.message || e.code) || String(e);
+  }
+  return result;
+}
+window.requestSzzPersistentStorage=requestSzzPersistentStorage;
+
+function readCachedFirebaseSiteCount(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SZZ_FIREBASE_SITE_CACHE_KEY) || "null");
+    const items=Array.isArray(parsed && parsed.items) ? parsed.items : [];
+    return items.filter(item=>item && item.docId && item.raw).length;
+  }catch(e){
+    return 0;
+  }
+}
+
+function cacheCurrentFirebaseRowsForOffline(){
+  const currentRows=Array.isArray(window.rows) ? window.rows : rows;
+  const firebaseRows=(currentRows || []).filter(row=>row && (row.firebaseDocId || (row.raw && row.raw["Firebase_doc_id"])));
+  if(firebaseRows.length && typeof window.saveFirebaseMapRowsCache==="function"){
+    try{ window.saveFirebaseMapRowsCache(firebaseRows); }catch(e){}
+  }
+  return firebaseRows.length || readCachedFirebaseSiteCount();
+}
+
+function readSzzOfflineReadyState(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SZZ_OFFLINE_READY_KEY) || "{}");
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function writeSzzOfflineReadyState(update={}){
+  try{
+    const next={...readSzzOfflineReadyState(),...update,updatedAt:new Date().toISOString()};
+    localStorage.setItem(SZZ_OFFLINE_READY_KEY,JSON.stringify(next));
+    return next;
+  }catch(e){
+    return {...update};
+  }
+}
+
+async function prepareSzzOfflineAppData(options={}){
+  if(window.openAppToolsPanel) window.openAppToolsPanel();
+  const button=document.getElementById("prepareOfflineAppBtn");
+  const syncText=document.getElementById("appSyncText");
+  if(button){
+    button.disabled=true;
+    button.textContent="Připravuji offline...";
+  }
+  if(syncText) syncText.textContent="Ukládám aplikaci a servisní data do telefonu.";
+  try{
+    const storage=await requestSzzPersistentStorage({request:true});
+    let shellCount=0;
+    try{
+      if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
+      shellCount=await cacheAppShellForOffline();
+    }catch(e){
+      console.warn("Offline shell se nepodařilo připravit",e);
+    }
+    let loadedRows=null;
+    if(navigator.onLine!==false && typeof window.loadFirebaseSitesUnified==="function"){
+      try{
+        loadedRows=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true});
+      }catch(e){
+        console.warn("Servisní data se nepodařilo přednačíst",e);
+      }
+    }
+    const cachedRows=cacheCurrentFirebaseRowsForOffline();
+    const estimate=await szzStorageEstimate();
+    const ready=writeSzzOfflineReadyState({
+      preparedAt:new Date().toISOString(),
+      persistentStorage:!!storage.persisted,
+      persistentStorageSupported:!!storage.supported,
+      shellCount,
+      cachedRows,
+      loadedRows:Array.isArray(loadedRows) ? loadedRows.length : null,
+      storageUsage:estimate ? estimate.usage : 0,
+      storageQuota:estimate ? estimate.quota : 0
+    });
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
+    if(syncText) syncText.textContent=cachedRows
+      ? `Offline připraveno: ${cachedRows} bodů v telefonu.`
+      : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.";
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+    return ready;
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent="Připravit offline data";
+    }
+  }
+}
+window.prepareSzzOfflineAppData=prepareSzzOfflineAppData;
 
 function clampTile(value,z){
   const max=Math.pow(2,z)-1;
@@ -4081,6 +4231,7 @@ async function cacheMapTileUrls(urls,options={}){
     if("serviceWorker" in navigator && window.registerSzzServiceWorker){
       try{ await window.registerSzzServiceWorker(); }catch(e){ if(typeof reportSzzServiceWorkerError==="function") reportSzzServiceWorkerError(e); }
     }
+    await requestSzzPersistentStorage({request:true});
     const shellCount=await cacheAppShellForOffline();
     if(navigator.storage && typeof navigator.storage.estimate==="function"){
       try{
@@ -12182,11 +12333,20 @@ async function collectSzzOfflineCounts(){
   const protocols=readPendingOfflineProtocolCount();
   const photos=await readPendingOfflinePhotoCount();
   const drafts=readProtocolDraftCount();
+  const ready=readSzzOfflineReadyState();
+  const storage=await requestSzzPersistentStorage({request:false});
+  const estimate=await szzStorageEstimate();
   return {
     sites,
     protocols,
     photos,
     drafts,
+    cachedRows:readCachedFirebaseSiteCount(),
+    persistentStorage:!!(storage.persisted || ready.persistentStorage),
+    storageSupported:!!(storage.supported || ready.persistentStorageSupported),
+    storageUsage:estimate ? estimate.usage : (Number(ready.storageUsage) || 0),
+    storageQuota:estimate ? estimate.quota : (Number(ready.storageQuota) || 0),
+    preparedAt:ready.preparedAt || "",
     pending:sites+protocols+photos
   };
 }
@@ -12251,9 +12411,13 @@ function renderSzzOfflineAppStatus(counts){
     const last=szzSyncTimeLabel(state.lastSyncedAt);
     const lastCount=Number(state.lastCount) || 0;
     const error=safe(state.lastError);
+    const cachedRows=Number(counts?.cachedRows) || 0;
+    const usageLabel=szzBytesLabel(counts?.storageUsage);
+    const storageLabel=counts?.persistentStorage ? "úložiště trvalé" : (counts?.storageSupported ? "úložiště běžné" : "úložiště nezjištěno");
+    const offlineLabel=cachedRows ? `Offline data: ${cachedRows} bodů, ${storageLabel}${usageLabel ? `, ${usageLabel}` : ""}.` : `Offline data: ${storageLabel}.`;
     meta.textContent=error && pending
       ? `Poslední chyba: ${error}`
-      : `Poslední synchronizace: ${last}${lastCount ? `, odesláno ${lastCount}` : ""}.`;
+      : `Poslední synchronizace: ${last}${lastCount ? `, odesláno ${lastCount}` : ""}. ${offlineLabel}`;
   }
   if(syncBtn){
     syncBtn.disabled=syncing || !online || !pending;
@@ -12324,6 +12488,14 @@ window.registerSzzBackgroundSync=registerSzzBackgroundSync;
 function bindSzzOfflineAppControls(){
   const syncBtn=document.getElementById("syncNowBtn");
   const refreshBtn=document.getElementById("refreshOfflineStateBtn");
+  const prepareBtn=document.getElementById("prepareOfflineAppBtn");
+  if(prepareBtn && !prepareBtn.__szzPrepareBound){
+    prepareBtn.__szzPrepareBound=true;
+    prepareBtn.addEventListener("click",()=>prepareSzzOfflineAppData({reason:"manual"}).catch(e=>{
+      if(window.showSaveConfirmation) window.showSaveConfirmation("Offline příprava se nepodařila.");
+      console.warn("Offline příprava selhala",e);
+    }));
+  }
   if(syncBtn && !syncBtn.__szzSyncBound){
     syncBtn.__szzSyncBound=true;
     syncBtn.addEventListener("click",()=>triggerSzzSync("manual",false).catch(e=>{
@@ -14215,7 +14387,7 @@ setTimeout(()=>{
   display:none!important;
 }
 #fbUnifiedPanel button{min-height:42px;border-radius:10px;border:1px solid #e2e8f0;font-weight:800;cursor:pointer}
-.fbPrimary{background:#2563eb;color:white;border-color:#2563eb!important}
+.fbPrimary{background:linear-gradient(180deg,var(--button-neutral-top),var(--button-neutral-bottom));color:white;border-color:var(--button-neutral-border)!important;box-shadow:var(--button-neutral-shadow)}
 .fbSecondary{background:#f1f5f9;color:#0f172a}
 .fbDanger{background:#fee2e2;color:#991b1b;border-color:#fecaca!important}
 .fbDbBadge{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:12px;padding:8px;font-size:12px;margin:8px 0}
@@ -15653,6 +15825,122 @@ setTimeout(()=>{
 </script>
 
 <script>
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v44-static";
+const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
+const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
+const SZZ_INSTALL_SHELL_URLS=[
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./sw.js",
+  "./szz-logo-display.png",
+  "./szz-app-icon-192.png",
+  "./szz-app-icon-512.png",
+  "./podpis-tipek.png",
+  "./podpis-tipek.jpg",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
+];
+
+window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(){
+  if(!("caches" in window)) return 0;
+  const cache=await caches.open(SZZ_INSTALL_SHELL_CACHE_NAME);
+  let saved=0;
+  for(const url of SZZ_INSTALL_SHELL_URLS){
+    try{
+      let response=null;
+      try{
+        response=await fetch(new Request(url,{cache:"reload"}));
+      }catch(e){
+        response=await fetch(new Request(url,{mode:"no-cors",credentials:"omit",cache:"reload"}));
+      }
+      if(response && (response.ok || response.type==="opaque")){
+        await cache.put(new Request(url),response.clone());
+        saved++;
+      }
+    }catch(e){
+      console.warn("Offline shell fallback se nepodařilo uložit",url,e);
+    }
+  }
+  return saved;
+};
+
+window.requestSzzPersistentStorage=window.requestSzzPersistentStorage || async function(options={}){
+  const result={supported:false,persisted:false,requested:false,granted:false};
+  if(!navigator.storage) return result;
+  result.supported=typeof navigator.storage.persisted==="function" || typeof navigator.storage.persist==="function";
+  try{
+    if(typeof navigator.storage.persisted==="function") result.persisted=await navigator.storage.persisted();
+    if(!result.persisted && options.request && typeof navigator.storage.persist==="function"){
+      result.requested=true;
+      result.granted=await navigator.storage.persist();
+      result.persisted=result.granted || (typeof navigator.storage.persisted==="function" ? await navigator.storage.persisted() : false);
+    }
+  }catch(e){
+    result.error=e && (e.message || e.code) || String(e);
+  }
+  return result;
+};
+
+function szzInstallCachedRowsCount(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SZZ_INSTALL_SITE_CACHE_KEY) || "null");
+    const items=Array.isArray(parsed && parsed.items) ? parsed.items : [];
+    return items.filter(item=>item && item.docId && item.raw).length;
+  }catch(e){
+    return 0;
+  }
+}
+
+function szzInstallCacheCurrentRows(){
+  const currentRows=Array.isArray(window.rows) ? window.rows : [];
+  const firebaseRows=currentRows.filter(row=>row && (row.firebaseDocId || (row.raw && row.raw["Firebase_doc_id"])));
+  if(firebaseRows.length && typeof window.saveFirebaseMapRowsCache==="function"){
+    try{ window.saveFirebaseMapRowsCache(firebaseRows); }catch(e){}
+  }
+  return firebaseRows.length || szzInstallCachedRowsCount();
+}
+
+window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async function(){
+  if(window.openAppToolsPanel) window.openAppToolsPanel();
+  const button=document.getElementById("prepareOfflineAppBtn");
+  const text=document.getElementById("appSyncText");
+  if(button){
+    button.disabled=true;
+    button.textContent="Připravuji offline...";
+  }
+  if(text) text.textContent="Ukládám aplikaci a servisní data do telefonu.";
+  try{
+    const storage=await window.requestSzzPersistentStorage({request:true});
+    if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
+    const shellCount=await window.cacheAppShellForOffline();
+    if(navigator.onLine!==false && typeof window.loadFirebaseSitesUnified==="function"){
+      try{ await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true}); }catch(e){}
+    }
+    const cachedRows=szzInstallCacheCurrentRows();
+    const ready={
+      preparedAt:new Date().toISOString(),
+      persistentStorage:!!storage.persisted,
+      persistentStorageSupported:!!storage.supported,
+      shellCount,
+      cachedRows
+    };
+    try{ localStorage.setItem(SZZ_INSTALL_OFFLINE_READY_KEY,JSON.stringify(ready)); }catch(e){}
+    if(text) text.textContent=cachedRows ? `Offline připraveno: ${cachedRows} bodů v telefonu.` : "Aplikace je připravená pro offline otevření.";
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
+    return ready;
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent="Připravit offline data";
+    }
+  }
+};
+
 let deferredSzzInstallPrompt=null;
 
 function isSzzAppInstalledView(){
@@ -15717,10 +16005,17 @@ async function installSzzAppFromPage(){
   setSzzInstallBusy(true,"Připravuji instalaci...");
   setSzzInstallStatus("Připravuji aplikaci pro offline otevření...");
   try{
-    if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
-    if(typeof cacheAppShellForOffline==="function"){
-      const count=await cacheAppShellForOffline();
+    if(window.prepareSzzOfflineAppData){
+      const ready=await window.prepareSzzOfflineAppData({reason:"install"});
+      const count=Number(ready && ready.shellCount) || 0;
       setSzzInstallStatus(`Aplikace připravena pro offline otevření (${count} souborů). Spouštím instalaci...`,"ok");
+    }else{
+      if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
+      if(window.requestSzzPersistentStorage) await window.requestSzzPersistentStorage({request:true});
+      if(window.cacheAppShellForOffline){
+        const count=await window.cacheAppShellForOffline();
+        setSzzInstallStatus(`Aplikace připravena pro offline otevření (${count} souborů). Spouštím instalaci...`,"ok");
+      }
     }
   }catch(e){
     console.warn("Příprava aplikace pro instalaci selhala",e);
@@ -15770,7 +16065,7 @@ window.addEventListener("appinstalled",()=>{
   if(window.showSaveConfirmation) window.showSaveConfirmation("Aplikace nainstalována.");
 });
 
-document.addEventListener("DOMContentLoaded",()=>{
+function bindSzzInstallControls(){
   const appToolsToggle=document.getElementById("appToolsToggle");
   const appToolsPanel=document.getElementById("appToolsPanel");
   if(appToolsToggle && appToolsPanel && !appToolsToggle.__appToolsBound){
@@ -15782,10 +16077,22 @@ document.addEventListener("DOMContentLoaded",()=>{
     });
   }
   document.querySelectorAll(".install-app-btn").forEach(button=>{
+    if(button.__szzInstallBound) return;
+    button.__szzInstallBound=true;
     button.addEventListener("click",installSzzAppFromPage);
   });
+  const prepareOfflineBtn=document.getElementById("prepareOfflineAppBtn");
+  if(prepareOfflineBtn && !prepareOfflineBtn.__szzInstallPrepareBound){
+    prepareOfflineBtn.__szzInstallPrepareBound=true;
+    prepareOfflineBtn.addEventListener("click",()=>window.prepareSzzOfflineAppData?.({reason:"manual"}).catch(e=>{
+      if(window.showSaveConfirmation) window.showSaveConfirmation("Offline příprava se nepodařila.");
+      console.warn("Offline příprava selhala",e);
+    }));
+  }
   updateSzzInstallButtons();
-});
+}
+document.addEventListener("DOMContentLoaded",bindSzzInstallControls);
+bindSzzInstallControls();
 
 function reportSzzServiceWorkerError(err){
   console.warn("Service worker se nepodarilo spustit",err);
@@ -15798,7 +16105,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-ultra-compact-ui-v42";
+  const serviceWorkerBuildVersion="2026-08-08-neutral-detail-v44";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
