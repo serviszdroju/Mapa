@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v46";
+const CACHE_VERSION = "astip-szz-v48";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -27,8 +27,7 @@ const EXTERNAL_PRECACHE_URLS = [
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js"
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"
 ];
 
 self.addEventListener("install", (event) => {

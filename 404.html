@@ -245,6 +245,16 @@ object-fit:contain;
   padding:6px 8px !important;
   font-size:13px !important;
 }
+.android-install-help{
+  margin:-1px 0 2px;
+  padding:7px 8px;
+  border:1px solid #dbe4ef;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  line-height:1.35;
+}
 .app-sync-card{
   display:grid;
   gap:5px;
@@ -2519,6 +2529,7 @@ button:active{transform:translateY(0)}
   <button class="secondary app-tools-toggle" id="appToolsToggle" type="button" aria-expanded="false">Aplikace</button>
   <div class="app-tools-panel" id="appToolsPanel">
     <button class="secondary install-app-btn" id="installAppBtn" type="button">Stáhnout aplikaci</button>
+    <p class="android-install-help">Android: otevři web v Chromu a klepni na Stáhnout aplikaci. Když se dialog neukáže, otevři menu prohlížeče a zvol Instalovat aplikaci. Po instalaci otevři ikonu v telefonu a dej Připravit offline data.</p>
     <div id="appInstallStatus" class="notice offline-map-status"></div>
     <button class="secondary" id="cacheMapTilesBtn" type="button">Stáhnout mapové podklady do telefonu</button>
     <div id="offlineMapStatus" class="notice offline-map-status"></div>
@@ -3356,8 +3367,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-gallery-layout-v46";
-const APP_SHELL_CACHE_NAME="astip-szz-v46-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase1-v48";
+const APP_SHELL_CACHE_NAME="astip-szz-v48-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3381,8 +3392,7 @@ const APP_SHELL_URLS=[
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js"
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"
 ];
 
 function showAppShellFast(message=""){
@@ -5973,10 +5983,10 @@ function filtered(){
   const kn=regionTextNorm(k);
 
   return rows.filter(r=>{
-    const st=statusText(r);
+    const st=r._statusText || statusText(r);
 
     const okQ = !qn || rowMatchesSearch(r,qn);
-    const okK = !kn || regionTextNorm(rowRegion(r)) === kn;
+    const okK = !kn || (r._regionNorm || regionTextNorm(rowRegion(r))) === kn;
 
     // Růžová je nezávislý příznak z původního Excelu.
     // Proto se filtruje samostatně přes isNoOrderSite(r).
@@ -6015,9 +6025,10 @@ function rowSearchText(r){
   ].join(" ");
 }
 function rowMatchesSearch(r,normalizedQuery){
-  const hay=searchNorm(rowSearchText(r));
+  if(r && (r._searchRawRef!==r.raw || !r._searchText)) ensureRowFastIndexes(r,Number.isFinite(r.i) ? r.i : 0);
+  const hay=(r && r._searchText) || searchNorm(rowSearchText(r));
   if(hay.includes(normalizedQuery)) return true;
-  const compactHay=hay.replace(/\s+/g,"");
+  const compactHay=(r && r._compactSearchText) || hay.replace(/\s+/g,"");
   const compactQuery=normalizedQuery.replace(/\s+/g,"");
   return compactQuery.length>=3 && compactHay.includes(compactQuery);
 }
@@ -6247,8 +6258,54 @@ function renderSourceChooser(site=selectedSite){
 function rowRegion(r){
   return canonicalRegionValue(r && r.kraj) || inferRegionFromAddressText(rowSearchText(r));
 }
+let siteRowsByAnyId=new Map();
+let rowsGpsCountCache=0;
+let lastVisiblePlaceGroups=[];
+let renderRequested=false;
+let mapMoveRenderTimer=0;
+const MAP_MARKER_RENDER_LIMIT=900;
+
+function rowLookupKeys(r){
+  const raw=(r && r.raw) || {};
+  return [
+    r ? detailKey(r) : "",
+    r && r.id,
+    r && r.firebaseDocId,
+    raw["Firebase_doc_id"],
+    raw["Klíč_adresy"],
+    raw["ID_mista"]
+  ].map(x=>String(x || "").trim()).filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+}
+
+function ensureRowFastIndexes(r,index){
+  if(!r) return;
+  r.i=index;
+  if(r._searchRawRef!==r.raw || !r._searchText){
+    const text=searchNorm(rowSearchText(r));
+    r._searchText=text;
+    r._compactSearchText=text.replace(/\s+/g,"");
+    r._searchRawRef=r.raw;
+  }
+  if(r._regionRawRef!==r.raw || !r._regionNorm){
+    r._regionNorm=regionTextNorm(rowRegion(r));
+    r._regionRawRef=r.raw;
+  }
+  r._statusText=statusText(r);
+}
+
 function syncRowIndexes(){
-  rows.forEach((r,i)=>{r.i=i;});
+  const lookup=new Map();
+  let gpsCount=0;
+  rows.forEach((r,i)=>{
+    ensureRowFastIndexes(r,i);
+    if(inCzSk(r)) gpsCount++;
+    rowLookupKeys(r).forEach(key=>{
+      if(!lookup.has(key)) lookup.set(key,r);
+    });
+  });
+  siteRowsByAnyId=lookup;
+  rowsGpsCountCache=gpsCount;
+  window.siteRowsByAnyId=siteRowsByAnyId;
 }
 function detailKey(r){
   return editCacheKeyForRow(r);
@@ -6353,7 +6410,9 @@ Object.assign(window,{
 });
 window.openDetailById=function(id){
   const key=String(id || "");
-  const idx=rows.findIndex(r=>detailKey(r)===key);
+  const direct=siteRowsByAnyId && siteRowsByAnyId.get(key);
+  if(direct) return window.openDetail(direct.i);
+  const idx=rows.findIndex(r=>detailKey(r)===key || r.id===key || r.firebaseDocId===key || String(r.raw?.["Firebase_doc_id"] || "")===key);
   if(idx>=0) return window.openDetail(idx);
 };
 let mapMarkerCache=new Map();
@@ -6370,20 +6429,52 @@ function mapMarkerSignature(group,fill){
     ].join(":")).join("|")
   ].join("||");
 }
+function attachLazyMarkerPopup(marker,group){
+  marker.on("click",()=>{
+    marker.bindPopup(groupPopupHtml(group)).openPopup();
+  });
+  return marker;
+}
 function buildMapMarkerForGroup(group,fill){
   if(group.rows.length>1){
-    return L.marker([group.lat,group.lon],{
+    return attachLazyMarkerPopup(L.marker([group.lat,group.lon],{
       icon:L.divIcon({
         className:"source-group-marker-wrap",
         html:`<div class="source-group-marker" style="background:${esc(fill)}">${group.rows.length}</div>`,
         iconSize:[26,26],
         iconAnchor:[13,13]
       })
-    }).bindPopup(groupPopupHtml(group));
+    }),group);
   }
   const r=group.rows[0];
-  return L.circleMarker([r.lat,r.lon],{radius:8,color:"#fff",weight:2,fillColor:fill,fillOpacity:.92})
-    .bindPopup(groupPopupHtml(group));
+  return attachLazyMarkerPopup(L.circleMarker([r.lat,r.lon],{radius:8,color:"#fff",weight:2,fillColor:fill,fillOpacity:.92}),group);
+}
+function groupHasUsableGps(group){
+  return group && Number.isFinite(group.lat) && Number.isFinite(group.lon) && group.lat>=47 && group.lat<=51.5 && group.lon>=12 && group.lon<=23;
+}
+function groupsInsideCurrentMap(groups){
+  const gpsGroups=(groups || []).filter(groupHasUsableGps);
+  if(!map || typeof map.getBounds!=="function") return gpsGroups.slice(0,MAP_MARKER_RENDER_LIMIT);
+  let bounds=null;
+  try{bounds=map.getBounds().pad(0.18);}catch(e){}
+  if(!bounds || typeof bounds.contains!=="function") return gpsGroups.slice(0,MAP_MARKER_RENDER_LIMIT);
+  const visible=gpsGroups.filter(group=>bounds.contains([group.lat,group.lon]));
+  return visible.slice(0,MAP_MARKER_RENDER_LIMIT);
+}
+function renderMapGroups(groups){
+  updateMapMarkers(groupsInsideCurrentMap(groups));
+}
+function refreshVisibleMapMarkers(){
+  if(!lastVisiblePlaceGroups.length) return;
+  renderMapGroups(lastVisiblePlaceGroups);
+}
+function bindMapViewportRendering(){
+  if(!map || map.__szzViewportRenderBound || typeof map.on!=="function") return;
+  map.__szzViewportRenderBound=true;
+  map.on("moveend zoomend",()=>{
+    clearTimeout(mapMoveRenderTimer);
+    mapMoveRenderTimer=setTimeout(refreshVisibleMapMarkers,70);
+  });
 }
 function updateMapMarkers(groups){
   if(!layer) return;
@@ -6411,27 +6502,38 @@ function updateMapMarkers(groups){
     mapMarkerCache.delete(key);
   });
 }
-function render(){
-  syncRowIndexes();
-  window.rows=rows;
-  if(rows.length) resetFirebaseRowsAutoReload();
-  const vis=filtered(), gps=vis.filter(inCzSk);
-  updateMapMarkers(groupRowsByPlace(gps));
-  const list=document.getElementById("list");list.innerHTML="";
-  groupRowsByPlace(vis).sort((a,b)=>{
+function renderSidebarGroups(groups){
+  const list=document.getElementById("list");
+  if(!list) return;
+  const fragment=document.createDocumentFragment();
+  groups.slice().sort((a,b)=>{
     const ar=groupRepresentative(a.rows), br=groupRepresentative(b.rows);
     return ((daysToComputedNext(ar)??999999)-(daysToComputedNext(br)??999999));
   }).slice(0,160).forEach(group=>{
     const r=groupRepresentative(group.rows) || group.rows[0];
-    const d=document.createElement("div");d.className="item";
+    const d=document.createElement("div");
+    d.className="item";
     const sources=group.rows.length>1
       ? `<div class="item-sources">${group.rows.slice(0,5).map(row=>`<span class="item-source-chip">${esc(siteSourceLabel(row))}</span>`).join("")}${group.rows.length>5 ? `<span class="item-source-chip">+${group.rows.length-5}</span>` : ""}</div>`
       : "";
     d.innerHTML=`<div class="item-title">${esc(group.label || r.adresa || "Bez názvu")}</div><div class="item-meta">${group.rows.length>1 ? `${group.rows.length} zdrojů na místě` : esc(siteSourceLabel(r))}<br>Další kontrola: <b>${esc(displayNext(r)||"není vyplněno")}</b></div>${sources}<span class="pill ${pill(r)}">${esc(statusText(r))}</span>`;
-    d.onclick=()=>window.openDetailById(detailKey(r));list.appendChild(d);
+    d.onclick=()=>window.openDetailById(detailKey(r));
+    fragment.appendChild(d);
   });
+  list.replaceChildren(fragment);
+}
+function render(){
+  syncRowIndexes();
+  window.rows=rows;
+  if(rows.length) resetFirebaseRowsAutoReload();
+  bindMapViewportRendering();
+  const vis=filtered();
+  const groups=groupRowsByPlace(vis);
+  lastVisiblePlaceGroups=groups;
+  renderMapGroups(groups);
+  renderSidebarGroups(groups);
   document.getElementById("shownCount").textContent=vis.length;
-  document.getElementById("gpsCount").textContent=rows.filter(inCzSk).length;
+  document.getElementById("gpsCount").textContent=rowsGpsCountCache;
   const box=document.getElementById("gpsBox");
   if(box){
     box.style.display="none";
@@ -6439,6 +6541,15 @@ function render(){
     box.innerHTML="";
   }
 }
+function requestRender(){
+  if(renderRequested) return;
+  renderRequested=true;
+  requestAnimationFrame(()=>{
+    renderRequested=false;
+    render();
+  });
+}
+window.requestRender=requestRender;
 const FIREBASE_EMPTY_RELOAD_KEY="astipFirebaseEmptyReloadCount";
 let firebaseRowsAutoReloadTimer=null;
 function hasLoadedRows(){
@@ -11470,11 +11581,11 @@ document.getElementById("closeDrawer").onclick=()=>document.getElementById("draw
 let filterRenderTimer=0;
 function scheduleFilterRender(delay=220){
   clearTimeout(filterRenderTimer);
-  filterRenderTimer=setTimeout(render,delay);
+  filterRenderTimer=setTimeout(requestRender,delay);
 }
 document.getElementById("search").addEventListener("input",()=>scheduleFilterRender());
-document.getElementById("statusFilter").addEventListener("change",()=>{updateStatusFilterColor();render();});
-document.getElementById("regionFilter").addEventListener("change",render);
+document.getElementById("statusFilter").addEventListener("change",()=>{updateStatusFilterColor();requestRender();});
+document.getElementById("regionFilter").addEventListener("change",requestRender);
 document.getElementById("fitBtn").addEventListener("click",fit);
 const mapBackBtn=document.getElementById("mapBackBtn");
 if(mapBackBtn) mapBackBtn.onclick=returnFromMapFocus;
@@ -15263,18 +15374,73 @@ setTimeout(()=>{
     snap.forEach(doc=>firebaseRows.push(rowFromDoc(doc.id, doc.data()||{})));
     return firebaseRows;
   }
+  const MAP_ROWS_CACHE_DB_NAME="astipMapRowsCache";
+  const MAP_ROWS_CACHE_DB_VERSION=1;
+  const MAP_ROWS_CACHE_STORE="rows";
+  const MAP_ROWS_CACHE_RECORD_KEY="latest";
+  function mapRowsCacheItems(firebaseRows){
+    return (firebaseRows || []).map(row=>({
+      docId:row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id || "",
+      raw:row.raw || {},
+      latestProtocolDate:row.firebaseData?.latestProtocolDate || ""
+    })).filter(item=>item.docId && item.raw && Object.keys(item.raw).length);
+  }
+  function openMapRowsCacheDb(){
+    return new Promise((resolve,reject)=>{
+      if(!("indexedDB" in window)){
+        reject(new Error("IndexedDB není dostupné."));
+        return;
+      }
+      const req=indexedDB.open(MAP_ROWS_CACHE_DB_NAME,MAP_ROWS_CACHE_DB_VERSION);
+      req.onupgradeneeded=()=>{
+        const database=req.result;
+        if(!database.objectStoreNames.contains(MAP_ROWS_CACHE_STORE)){
+          database.createObjectStore(MAP_ROWS_CACHE_STORE,{keyPath:"key"});
+        }
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error || new Error("Cache bodů se nepodařila otevřít."));
+    });
+  }
+  async function saveMapRowsCacheIndexedDbItems(items){
+    if(!items.length) return;
+    const database=await openMapRowsCacheDb();
+    return new Promise((resolve,reject)=>{
+      const tx=database.transaction(MAP_ROWS_CACHE_STORE,"readwrite");
+      tx.objectStore(MAP_ROWS_CACHE_STORE).put({key:MAP_ROWS_CACHE_RECORD_KEY,savedAt:Date.now(),items});
+      tx.oncomplete=()=>{database.close();resolve(true);};
+      tx.onerror=()=>{database.close();reject(tx.error || new Error("Cache bodů se nepodařila uložit."));};
+    });
+  }
+  function rowsFromMapRowsCacheItems(items){
+    return (items || []).map(item=>rowFromDoc(item.docId,{raw:item.raw || {},latestProtocolDate:item.latestProtocolDate || ""})).filter(Boolean);
+  }
+  async function readMapRowsCacheIndexedDb(){
+    try{
+      const database=await openMapRowsCacheDb();
+      const record=await new Promise((resolve,reject)=>{
+        const tx=database.transaction(MAP_ROWS_CACHE_STORE,"readonly");
+        const req=tx.objectStore(MAP_ROWS_CACHE_STORE).get(MAP_ROWS_CACHE_RECORD_KEY);
+        req.onsuccess=()=>resolve(req.result || null);
+        req.onerror=()=>reject(req.error || new Error("Cache bodů se nepodařila přečíst."));
+        tx.oncomplete=()=>database.close();
+        tx.onerror=()=>{database.close();reject(tx.error || new Error("Cache bodů se nepodařila přečíst."));};
+      });
+      const items=Array.isArray(record?.items) ? record.items : [];
+      return rowsFromMapRowsCacheItems(items);
+    }catch(e){
+      return [];
+    }
+  }
   function saveMapRowsCache(firebaseRows){
     try{
-      const items=(firebaseRows || []).map(row=>({
-        docId:row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id || "",
-        raw:row.raw || {},
-        latestProtocolDate:row.firebaseData?.latestProtocolDate || ""
-      })).filter(item=>item.docId && item.raw && Object.keys(item.raw).length);
+      const items=mapRowsCacheItems(firebaseRows);
       if(!items.length) return;
       localStorage.setItem(FIREBASE_SITE_CACHE_KEY,JSON.stringify({
         savedAt:Date.now(),
         items
       }));
+      saveMapRowsCacheIndexedDbItems(items).catch(e=>console.warn("IndexedDB cache bodů se nepodařila uložit",e));
     }catch(e){
       console.warn("Cache bodů se nepodařila uložit",e);
     }
@@ -15377,10 +15543,14 @@ setTimeout(()=>{
       const parsed=JSON.parse(localStorage.getItem(FIREBASE_SITE_CACHE_KEY) || "null");
       const items=Array.isArray(parsed?.items) ? parsed.items : [];
       if(!items.length) return [];
-      return items.map(item=>rowFromDoc(item.docId,{raw:item.raw || {},latestProtocolDate:item.latestProtocolDate || ""})).filter(Boolean);
+      return rowsFromMapRowsCacheItems(items);
     }catch(e){
       return [];
     }
+  }
+  async function readMapRowsCacheFast(){
+    const indexed=await readMapRowsCacheIndexedDb();
+    return indexed.length ? indexed : readMapRowsCache();
   }
   function applyFirebaseRows(firebaseRows, openDocId=null, sourceLabel="", saveCache=true){
     firebaseRows.forEach((r,i)=>r.i=i);
@@ -15398,10 +15568,10 @@ setTimeout(()=>{
     sideStatus(sourceLabel || `<b>Firebase režim aktivní.</b> Načteno ${loadedRows.length} bodů z Firebase.`);
     return loadedRows;
   }
-  function showMapRowsCache(openDocId=null){
+  async function showMapRowsCache(openDocId=null){
     if(openDocId) return [];
     if(Array.isArray(rows) && rows.length) return [];
-    const cachedRows=readMapRowsCache();
+    const cachedRows=await readMapRowsCacheFast();
     if(!cachedRows.length) return [];
     return applyFirebaseRows(cachedRows, openDocId, `<b>Načteno ${cachedRows.length} bodů z lokální cache.</b> Aktualizuji Firebase na pozadí...`, false);
   }
@@ -15464,7 +15634,7 @@ setTimeout(()=>{
       const signedUser=await waitCompatUser();
       if(!signedUser){
         if(navigator.onLine===false || (window.knownSignedIn && window.knownSignedIn())){
-          const cachedRows=showMapRowsCache(openDocId);
+          const cachedRows=await showMapRowsCache(openDocId);
           if(cachedRows.length){
             const p=document.getElementById("progress");
             if(p) p.textContent=navigator.onLine===false
@@ -15478,7 +15648,7 @@ setTimeout(()=>{
         return [];
       }
       if(!opts.skipLocalCache){
-        const cachedRows=showMapRowsCache(openDocId);
+        const cachedRows=await showMapRowsCache(openDocId);
         if(cachedRows.length && !opts.force){
           setTimeout(()=>loadFirebaseSites(openDocId,{force:true,skipLocalCache:true}),80);
           return cachedRows;
@@ -16117,7 +16287,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v46-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v48-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16605,7 +16775,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-gallery-layout-v46";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase1-v48";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
