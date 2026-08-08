@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase2-v49";
-const APP_SHELL_CACHE_NAME="astip-szz-v49-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase3-v50";
+const APP_SHELL_CACHE_NAME="astip-szz-v50-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3945,8 +3945,7 @@ if(firebaseReady){
     }
     if(selectedSite){
       setTimeout(()=>{
-        try{ loadHistory(selectedSite.id); }catch(e){}
-        try{ loadSitePhotos(selectedSite); }catch(e){}
+        try{ window.refreshLoadedDetailTabs?.(selectedSite); }catch(e){}
       },250);
     }
   }
@@ -8460,6 +8459,30 @@ function ensureDetailTabLoad(tabName=activeDetailTabName(),site=selectedSite){
   }
 }
 window.ensureDetailTabLoad=ensureDetailTabLoad;
+function refreshDetailTabLoad(tabName=activeDetailTabName(),site=selectedSite){
+  if(!site || !sameDetailLazySite(site)) return;
+  if(tabName==="gallery"){
+    detailLazyLoadState.photosLoaded=false;
+    if(detailLazyLoadState.photosLoading) return;
+    ensureDetailTabLoad("gallery",site);
+  }
+  if(tabName==="protocol" || tabName==="document"){
+    detailLazyLoadState.historyLoaded=false;
+    if(detailLazyLoadState.historyLoading) return;
+    ensureDetailTabLoad(tabName,site);
+  }
+}
+function refreshLoadedDetailTabs(site=selectedSite){
+  if(!site || !sameDetailLazySite(site)) return;
+  const active=activeDetailTabName();
+  if(active==="gallery" || detailLazyLoadState.photosLoaded){
+    refreshDetailTabLoad("gallery",site);
+  }
+  if(active==="protocol" || active==="document" || detailLazyLoadState.historyLoaded){
+    refreshDetailTabLoad(active==="document" ? "document" : "protocol",site);
+  }
+}
+window.refreshLoadedDetailTabs=refreshLoadedDetailTabs;
 
 function timeValueFromAny(raw){
   if(raw && typeof raw.toDate==="function") return raw.toDate().getTime();
@@ -11412,8 +11435,7 @@ function runOfflineSync(reason="manual",silent=false){
 window.addEventListener("online",()=>{
   runOfflineSync("online").then(count=>{
     if(count && selectedSite){
-      if(typeof loadHistory==="function") loadHistory(selectedSite.id);
-      if(typeof loadSitePhotos==="function") loadSitePhotos(selectedSite);
+      if(typeof window.refreshLoadedDetailTabs==="function") window.refreshLoadedDetailTabs(selectedSite);
     }
   });
 });
@@ -12628,8 +12650,7 @@ async function syncOfflineChanges(options={}){
     const total=siteCount+protocolCount+photoCount;
     if(total){
       if(selectedSite){
-        try{ await loadSitePhotos(selectedSite); }catch(e){}
-        try{ await loadHistory(selectedSite.id); }catch(e){}
+        try{ window.refreshLoadedDetailTabs?.(selectedSite); }catch(e){}
       }
       if(!options.silent){
         showSaveConfirmation(`Offline změny odeslány online: ${total}.`);
@@ -16335,7 +16356,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v49-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v50-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16823,7 +16844,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase2-v49";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase3-v50";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
