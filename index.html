@@ -3043,8 +3043,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-07-unified-mock-v37";
-const APP_SHELL_CACHE_NAME="astip-szz-v37-static";
+const APP_BUILD_VERSION="2026-08-08-visual-rollback-v39";
+const APP_SHELL_CACHE_NAME="astip-szz-v39-static";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -15291,7 +15291,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-07-unified-mock-v37";
+  const serviceWorkerBuildVersion="2026-08-08-visual-rollback-v39";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
