@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase5-v52";
-const APP_SHELL_CACHE_NAME="astip-szz-v52-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase6-v53";
+const APP_SHELL_CACHE_NAME="astip-szz-v53-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -5985,8 +5985,10 @@ function filtered(){
   const k=safe(document.getElementById("regionFilter").value);
   const qn=searchNorm(q);
   const kn=regionTextNorm(k);
+  const signature=JSON.stringify([rowsIndexVersion,qn,s,kn]);
+  if(filteredRowsCache.signature===signature) return filteredRowsCache.rows;
 
-  return rows.filter(r=>{
+  const result=rows.filter(r=>{
     const st=r._statusText || statusText(r);
 
     const okQ = !qn || rowMatchesSearch(r,qn);
@@ -6003,6 +6005,8 @@ function filtered(){
 
     return okQ && okK && okS;
   });
+  filteredRowsCache={signature,rows:result};
+  return result;
 }
 function searchNorm(v){
   return safe(v)
@@ -6157,6 +6161,13 @@ function groupRowsByPlace(inputRows){
     return group;
   });
 }
+function cachedPlaceGroups(inputRows){
+  const signature=JSON.stringify([rowsIndexVersion,filteredRowsCache.signature,inputRows ? inputRows.length : 0]);
+  if(placeGroupsCache.sourceRows===inputRows && placeGroupsCache.signature===signature) return placeGroupsCache.groups;
+  const groups=groupRowsByPlace(inputRows);
+  placeGroupsCache={sourceRows:inputRows,signature,groups};
+  return groups;
+}
 function sourceButtonHtml(row){
   return `<button class="source-popup-btn" type="button" onclick="openDetailById(${esc(JSON.stringify(detailKey(row)))})">${esc(siteSourceLabel(row))}<small>${esc(statusText(row))}</small></button>`;
 }
@@ -6267,6 +6278,11 @@ let rowsGpsCountCache=0;
 let lastVisiblePlaceGroups=[];
 let renderRequested=false;
 let mapMoveRenderTimer=0;
+let rowsIndexVersion=0;
+let indexedRowsRef=null;
+let indexedRowsLength=-1;
+let filteredRowsCache={signature:"",rows:[]};
+let placeGroupsCache={sourceRows:null,signature:"",groups:[]};
 const MAP_MARKER_RENDER_LIMIT=900;
 
 function rowLookupKeys(r){
@@ -6279,6 +6295,20 @@ function rowLookupKeys(r){
     raw["Klíč_adresy"],
     raw["ID_mista"]
   ].map(x=>String(x || "").trim()).filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+}
+
+function rowRenderFingerprint(r){
+  if(!r) return "";
+  return [
+    rowLookupKeys(r).join(","),
+    Number.isFinite(r.lat) ? Number(r.lat).toFixed(6) : "",
+    Number.isFinite(r.lon) ? Number(r.lon).toFixed(6) : "",
+    r._regionNorm || "",
+    r._statusText || "",
+    sitePlaceGroupKey(r),
+    sitePlaceLabel(r),
+    siteSourceIdentity(r)
+  ].join("|");
 }
 
 function ensureRowFastIndexes(r,index){
@@ -6298,10 +6328,26 @@ function ensureRowFastIndexes(r,index){
 }
 
 function syncRowIndexes(){
+  const rowsRefChanged=indexedRowsRef!==rows;
+  const rowsLengthChanged=indexedRowsLength!==rows.length;
+  let indexesChanged=rowsRefChanged || rowsLengthChanged;
   const lookup=new Map();
   let gpsCount=0;
   rows.forEach((r,i)=>{
+    const beforeIndex=r && r.i;
+    const beforeSearchRawRef=r && r._searchRawRef;
+    const beforeRegion=r && r._regionNorm;
+    const beforeStatus=r && r._statusText;
+    const beforeFingerprint=r && r._renderIndexFingerprint;
     ensureRowFastIndexes(r,i);
+    const nextFingerprint=r ? rowRenderFingerprint(r) : "";
+    if(r && (beforeIndex!==r.i || beforeSearchRawRef!==r._searchRawRef || beforeRegion!==r._regionNorm || beforeStatus!==r._statusText)){
+      indexesChanged=true;
+    }
+    if(r && beforeFingerprint!==nextFingerprint){
+      r._renderIndexFingerprint=nextFingerprint;
+      indexesChanged=true;
+    }
     if(inCzSk(r)) gpsCount++;
     rowLookupKeys(r).forEach(key=>{
       if(!lookup.has(key)) lookup.set(key,r);
@@ -6310,6 +6356,11 @@ function syncRowIndexes(){
   siteRowsByAnyId=lookup;
   rowsGpsCountCache=gpsCount;
   window.siteRowsByAnyId=siteRowsByAnyId;
+  if(indexesChanged){
+    rowsIndexVersion++;
+    indexedRowsRef=rows;
+    indexedRowsLength=rows.length;
+  }
 }
 function detailKey(r){
   return editCacheKeyForRow(r);
@@ -6532,7 +6583,7 @@ function render(){
   if(rows.length) resetFirebaseRowsAutoReload();
   bindMapViewportRendering();
   const vis=filtered();
-  const groups=groupRowsByPlace(vis);
+  const groups=cachedPlaceGroups(vis);
   lastVisiblePlaceGroups=groups;
   renderMapGroups(groups);
   renderSidebarGroups(groups);
@@ -6650,7 +6701,7 @@ function updateStatusFilterColor(){
   const cls=statusFilterClass(st.value);
   if(cls) st.classList.add(cls);
 }
-function fit(){const pts=filtered().filter(inCzSk).map(r=>[r.lat,r.lon]);if(pts.length)map.fitBounds(pts,{padding:[30,30]})}
+function fit(){syncRowIndexes();const pts=filtered().filter(inCzSk).map(r=>[r.lat,r.lon]);if(pts.length)map.fitBounds(pts,{padding:[30,30]})}
 window.fit=fit;
 
 let mapFocusDetailKey="";
@@ -16396,7 +16447,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v52-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v53-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16886,7 +16937,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase5-v52";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase6-v53";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
