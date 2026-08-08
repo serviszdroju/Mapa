@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase4-v51";
-const APP_SHELL_CACHE_NAME="astip-szz-v51-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase5-v52";
+const APP_SHELL_CACHE_NAME="astip-szz-v52-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -15449,6 +15449,10 @@ setTimeout(()=>{
   const MAP_ROWS_CACHE_DB_VERSION=1;
   const MAP_ROWS_CACHE_STORE="rows";
   const MAP_ROWS_CACHE_RECORD_KEY="latest";
+  const MAP_ROWS_CACHE_SAVE_DELAY_MS=120;
+  let mapRowsCacheSaveTimer=0;
+  let mapRowsCacheSaveVersion=0;
+  let pendingMapRowsCacheItems=[];
   function mapRowsCacheItems(firebaseRows){
     return (firebaseRows || []).map(row=>({
       docId:row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id || "",
@@ -15503,32 +15507,48 @@ setTimeout(()=>{
       return [];
     }
   }
+  function writeMapRowsCacheMeta(items,storage="indexedDB"){
+    try{
+      localStorage.setItem(FIREBASE_SITE_CACHE_KEY,JSON.stringify({
+        savedAt:Date.now(),
+        count:items.length,
+        storage
+      }));
+    }catch(storageError){
+      console.warn("Metadata cache bodů se nepodařila uložit",storageError);
+    }
+  }
+  function writeMapRowsCacheFallback(items){
+    try{
+      localStorage.setItem(FIREBASE_SITE_CACHE_KEY,JSON.stringify({
+        savedAt:Date.now(),
+        count:items.length,
+        storage:"localStorage",
+        items
+      }));
+    }catch(storageError){
+      console.warn("Fallback cache bodů se nepodařila uložit",storageError);
+    }
+  }
+  function scheduleMapRowsCacheIndexedDbSave(items){
+    pendingMapRowsCacheItems=items;
+    const saveVersion=++mapRowsCacheSaveVersion;
+    clearTimeout(mapRowsCacheSaveTimer);
+    mapRowsCacheSaveTimer=setTimeout(()=>{
+      const latestItems=pendingMapRowsCacheItems;
+      pendingMapRowsCacheItems=[];
+      saveMapRowsCacheIndexedDbItems(latestItems).catch(e=>{
+        console.warn("IndexedDB cache bodů se nepodařila uložit, používám localStorage fallback",e);
+        if(saveVersion===mapRowsCacheSaveVersion) writeMapRowsCacheFallback(latestItems);
+      });
+    },MAP_ROWS_CACHE_SAVE_DELAY_MS);
+  }
   function saveMapRowsCache(firebaseRows){
     try{
       const items=mapRowsCacheItems(firebaseRows);
       if(!items.length) return;
-      try{
-        localStorage.setItem(FIREBASE_SITE_CACHE_KEY,JSON.stringify({
-          savedAt:Date.now(),
-          count:items.length,
-          storage:"indexedDB"
-        }));
-      }catch(storageError){
-        console.warn("Metadata cache bodů se nepodařila uložit",storageError);
-      }
-      saveMapRowsCacheIndexedDbItems(items).catch(e=>{
-        console.warn("IndexedDB cache bodů se nepodařila uložit, používám localStorage fallback",e);
-        try{
-          localStorage.setItem(FIREBASE_SITE_CACHE_KEY,JSON.stringify({
-            savedAt:Date.now(),
-            count:items.length,
-            storage:"localStorage",
-            items
-          }));
-        }catch(storageError){
-          console.warn("Fallback cache bodů se nepodařila uložit",storageError);
-        }
-      });
+      writeMapRowsCacheMeta(items);
+      scheduleMapRowsCacheIndexedDbSave(items);
     }catch(e){
       console.warn("Cache bodů se nepodařila uložit",e);
     }
@@ -15637,6 +15657,7 @@ setTimeout(()=>{
     }
   }
   async function readMapRowsCacheFast(){
+    if(pendingMapRowsCacheItems.length) return rowsFromMapRowsCacheItems(pendingMapRowsCacheItems);
     const indexed=await readMapRowsCacheIndexedDb();
     return indexed.length ? indexed : readMapRowsCache();
   }
@@ -16375,7 +16396,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v51-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v52-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16865,7 +16886,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase4-v51";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase5-v52";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
