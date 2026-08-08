@@ -24,4 +24,6 @@ Current performance optimization decision: implement `optimalizace_webu_servis_z
 
 Current performance phase 2 decision: continue with low-risk runtime optimizations only: lazy-load gallery and protocol history when their detail tabs are opened, reduce Cloudinary thumbnail size, add lazy/async image hints, and use stale-while-revalidate for HTML shell loading. Keep detail fields, tabs, uploads, protocols, doklady, and offline behavior unchanged.
 
+Current performance phase 3 decision: keep lazy detail media/history intact across login and offline/online sync. Background refreshes should call `refreshLoadedDetailTabs` so only the currently open or previously loaded detail tab refreshes; explicit user actions inside Galerie or Protokol may still reload that tab immediately.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
