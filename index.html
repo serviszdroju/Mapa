@@ -245,6 +245,16 @@ object-fit:contain;
   padding:6px 8px !important;
   font-size:13px !important;
 }
+.android-install-help{
+  margin:-1px 0 2px;
+  padding:7px 8px;
+  border:1px solid #dbe4ef;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  line-height:1.35;
+}
 .app-sync-card{
   display:grid;
   gap:5px;
@@ -2519,6 +2529,7 @@ button:active{transform:translateY(0)}
   <button class="secondary app-tools-toggle" id="appToolsToggle" type="button" aria-expanded="false">Aplikace</button>
   <div class="app-tools-panel" id="appToolsPanel">
     <button class="secondary install-app-btn" id="installAppBtn" type="button">Stáhnout aplikaci</button>
+    <p class="android-install-help">Android: otevři web v Chromu a klepni na Stáhnout aplikaci. Když se dialog neukáže, otevři menu prohlížeče a zvol Instalovat aplikaci. Po instalaci otevři ikonu v telefonu a dej Připravit offline data.</p>
     <div id="appInstallStatus" class="notice offline-map-status"></div>
     <button class="secondary" id="cacheMapTilesBtn" type="button">Stáhnout mapové podklady do telefonu</button>
     <div id="offlineMapStatus" class="notice offline-map-status"></div>
@@ -3356,8 +3367,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-gallery-layout-v46";
-const APP_SHELL_CACHE_NAME="astip-szz-v46-static";
+const APP_BUILD_VERSION="2026-08-08-install-help-v47";
+const APP_SHELL_CACHE_NAME="astip-szz-v47-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -16117,7 +16128,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v46-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v47-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16605,7 +16616,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-gallery-layout-v46";
+  const serviceWorkerBuildVersion="2026-08-08-install-help-v47";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
