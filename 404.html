@@ -2974,6 +2974,9 @@ Cena FZ: ..."></textarea>
       const tabs=document.getElementById("detailTabs");
       if(tabs) tabs.scrollIntoView({behavior:"smooth",block:"start"});
     }
+    if(typeof window.ensureDetailTabLoad==="function"){
+      window.ensureDetailTabLoad(target);
+    }
   }
   document.addEventListener("click",e=>{
     const btn=e.target.closest && e.target.closest(".detail-tab");
@@ -3367,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase1-v48";
-const APP_SHELL_CACHE_NAME="astip-szz-v48-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase2-v49";
+const APP_SHELL_CACHE_NAME="astip-szz-v49-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8394,41 +8397,69 @@ function editCurrentHistoryProtocol(){
   form?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
+let detailLazyLoadKey="";
+let detailLazyLoadState={historyLoaded:false,historyLoading:false,photosLoaded:false,photosLoading:false};
+function detailLazyKey(site=selectedSite){
+  if(!site) return "";
+  return String(detailKey(site) || site.firebaseDocId || site.raw?.["Firebase_doc_id"] || site.id || "").trim();
+}
+function activeDetailTabName(){
+  return document.getElementById("drawer")?.dataset?.detailTab || "data";
+}
+function sameDetailLazySite(site=selectedSite){
+  return !!site && detailLazyKey(site)===detailLazyLoadKey;
+}
+function resetDetailLazyLoadState(site){
+  detailLazyLoadKey=detailLazyKey(site);
+  detailLazyLoadState={historyLoaded:false,historyLoading:false,photosLoaded:false,photosLoading:false};
+  detailHistoryItems=[];
+  detailHistoryIndex=0;
+  sitePhotoItems=[];
+  sitePhotoIndex=0;
+  const history=document.getElementById("history");
+  if(history) history.textContent="Zatím nenačteno.";
+  const photoList=document.getElementById("sitePhotosList");
+  if(photoList) photoList.innerHTML='<div class="site-photos-empty">Fotografie se načtou po otevření Galerie.</div>';
+  const photoStatus=document.getElementById("sitePhotosStatus");
+  if(photoStatus) photoStatus.textContent="";
+  updateOfficialProtocolSourceInfo();
+}
 function startDetailAsyncLoads(site){
-  setTimeout(()=>{
-    const sameSite=site && selectedSite && detailKey(site)===detailKey(selectedSite);
-    if(!sameSite) return;
-    try{ resetSitePhotoInput(); }catch(e){}
-    try{ loadSitePhotos(site); }catch(e){ console.warn("Načtení fotografií detailu selhalo",e); }
-    try{ loadHistory(site.id); }catch(e){ console.warn("Načtení historie detailu selhalo",e); }
-    try{ ensureDetailAsyncLoads(site); }catch(e){}
-  },0);
+  resetDetailLazyLoadState(site);
+  try{ resetSitePhotoInput(); }catch(e){}
 }
 
 function ensureDetailAsyncLoads(site){
-  setTimeout(()=>{
-    const sameSite=site && selectedSite && detailKey(site)===detailKey(selectedSite);
-    if(!sameSite) return;
-    const history=document.getElementById("history");
-    if(history && history.textContent.trim()==="Zatím nenačteno."){
-      try{ loadHistory(site.id); }catch(e){ console.warn("Opakované načtení historie selhalo",e); }
-    }
-    const photoList=document.getElementById("sitePhotosList");
-    const photoStatus=document.getElementById("sitePhotosStatus");
-    const emptyPhotos=photoList && (!photoList.innerHTML || photoList.textContent.includes("Zatím nejsou uložené"));
-    if(emptyPhotos && photoStatus && !photoStatus.textContent.includes("Načítám")){
-      try{ loadSitePhotos(site); }catch(e){ console.warn("Opakované načtení fotografií selhalo",e); }
-    }
-  },250);
-  setTimeout(()=>{
-    const sameSite=site && selectedSite && detailKey(site)===detailKey(selectedSite);
-    if(!sameSite) return;
-    const history=document.getElementById("history");
-    if(history && history.textContent.trim()==="Zatím nenačteno."){
-      try{ loadHistory(site.id); }catch(e){}
-    }
-  },1200);
+  return ensureDetailTabLoad(activeDetailTabName(),site);
 }
+function ensureDetailTabLoad(tabName=activeDetailTabName(),site=selectedSite){
+  if(!site || !sameDetailLazySite(site)) return;
+  if(tabName==="gallery"){
+    if(detailLazyLoadState.photosLoaded || detailLazyLoadState.photosLoading) return;
+    detailLazyLoadState.photosLoading=true;
+    const st=document.getElementById("sitePhotosStatus");
+    if(st && !st.textContent) st.textContent="Načítám fotografie...";
+    Promise.resolve(loadSitePhotos(site))
+      .then(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.photosLoaded=true; })
+      .catch(e=>{
+        detailLazyLoadState.photosLoaded=false;
+        console.warn("Načtení fotografií detailu selhalo",e);
+      })
+      .finally(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.photosLoading=false; });
+  }
+  if(tabName==="protocol" || tabName==="document"){
+    if(detailLazyLoadState.historyLoaded || detailLazyLoadState.historyLoading) return;
+    detailLazyLoadState.historyLoading=true;
+    Promise.resolve(loadHistory(site.id))
+      .then(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.historyLoaded=true; })
+      .catch(e=>{
+        detailLazyLoadState.historyLoaded=false;
+        console.warn("Načtení historie detailu selhalo",e);
+      })
+      .finally(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.historyLoading=false; });
+  }
+}
+window.ensureDetailTabLoad=ensureDetailTabLoad;
 
 function timeValueFromAny(raw){
   if(raw && typeof raw.toDate==="function") return raw.toDate().getTime();
@@ -11140,7 +11171,7 @@ function renderHistory(){
     </div>
     <div class="history-item">
       ${rows.map(([label,value])=>`<div class="history-detail-row"><span>${esc(label)}</span><span>${esc(value)}</span></div>`).join("")}
-      ${photos.length ? `<div class="history-photos">${photos.map((url,idx)=>`<a href="${esc(url)}" target="_blank"><img src="${esc(url)}" alt="Foto ${idx+1}"></a>`).join("")}</div>` : ""}
+      ${photos.length ? `<div class="history-photos">${photos.map((url,idx)=>`<a href="${esc(url)}" target="_blank"><img src="${esc(url)}" alt="Foto ${idx+1}" loading="lazy" decoding="async"></a>`).join("")}</div>` : ""}
       ${historyActionButtons ? `<div class="history-actions">${historyActionButtons}</div>` : ""}
     </div>
   `;
@@ -11182,6 +11213,8 @@ function renderHistory(){
 async function loadHistory(siteId){
   const history=document.getElementById("history");
   if(!history) return;
+  const requestedKey=detailLazyKey(selectedSite);
+  const stillSameSite=()=>!requestedKey || requestedKey===detailLazyKey(selectedSite);
   if(!canViewProtocolHistory()){
     detailHistoryItems=[];
     detailHistoryIndex=0;
@@ -11215,14 +11248,17 @@ async function loadHistory(siteId){
   }
   history.textContent="Načítám historii…";
   const signedUser=await waitForFirebaseUser();
+  if(!stillSameSite()) return;
   if(!signedUser){
     showLocalHistoryOnly("Čekám na přihlášení, historie se načte po přihlášení.");
     return;
   }
   await syncOfflineProtocolsForSite(selectedSite,{silent:true});
+  if(!stillSameSite()) return;
 
   try{
     await refreshSiteDataFromFirebase(selectedSite);
+    if(!stillSameSite()) return;
     const {collection,query,where,getDocs,doc,getDoc}=fb.fsMod;
     const items=[];
     const addHistoryItem=item=>{
@@ -11328,7 +11364,9 @@ async function loadHistory(siteId){
     }
 
     await readCollection("serviceRecords","Servisní záznam");
+    if(!stillSameSite()) return;
     await readCollection("protocols","Protokol");
+    if(!stillSameSite()) return;
 
     const finalItems=items.filter(item=>recordMatchesSite(item,selectedSite));
     if(!finalItems.length){
@@ -11350,7 +11388,7 @@ async function loadHistory(siteId){
     detailHistoryIndex=0;
     renderHistory();
   }catch(e){
-    history.textContent="Chyba načtení historie: "+e.message;
+    if(stillSameSite()) history.textContent="Chyba načtení historie: "+e.message;
   }
 }
 
@@ -12154,7 +12192,11 @@ function photoFullUrl(item){
 }
 
 function photoThumbUrl(item){
-  return safe(item && (item.thumbUrl || item.previewUrl || item.thumbnailUrl)) || photoDisplayUrl(item);
+  const original=safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl));
+  if(original) return cloudinaryTransformUrl(original,"f_auto,q_auto,w_240,c_limit");
+  const explicit=safe(item && (item.thumbUrl || item.previewUrl || item.thumbnailUrl));
+  const fallback=photoDisplayUrl(item);
+  return cloudinaryTransformUrl(explicit || fallback,"f_auto,q_auto,w_240,c_limit");
 }
 
 function bytesLabel(bytes){
@@ -12306,7 +12348,7 @@ async function uploadPhotoToCloudinaryPreset(photoId,file,preset,folderName=""){
   return {
     url:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_1600,c_limit"),
     displayUrl:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_1600,c_limit"),
-    thumbUrl:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_360,c_limit"),
+    thumbUrl:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_240,c_limit"),
     fullUrl,
     storagePath:folderPath,
     cloudinaryFolder:folderPath,
@@ -12949,7 +12991,7 @@ function renderSitePhotoPreview(){
   const thumbs=files.map((file,idx)=>{
     const url=URL.createObjectURL(file);
     sitePhotoPreviewUrls.push(url);
-    return `<div class="photo-preview-item"><img src="${esc(url)}" alt="Nová fotografie ${idx+1}"><span class="photo-preview-index">${idx+1}</span></div>`;
+    return `<div class="photo-preview-item"><img src="${esc(url)}" alt="Nová fotografie ${idx+1}" decoding="async"><span class="photo-preview-index">${idx+1}</span></div>`;
   }).join("");
   box.innerHTML=`
     <div class="photo-preview-head">
@@ -13059,7 +13101,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
       <div class="site-photo-stage">
         <div class="site-photo-frame">
           <a class="site-photo-main" href="${esc(fullUrl || mainUrl)}" target="_blank">
-            <img src="${esc(mainUrl)}" alt="Fotografie bodu ${sitePhotoIndex+1}">
+            <img src="${esc(mainUrl)}" alt="Fotografie bodu ${sitePhotoIndex+1}" decoding="async">
           </a>
           <button class="secondary site-photo-arrow site-photo-arrow-prev" type="button" id="sitePhotoPrevBtn" ${thumbCount<=1 ? "disabled" : ""} aria-label="Předchozí fotografie">‹</button>
           <button class="secondary site-photo-arrow site-photo-arrow-next" type="button" id="sitePhotoNextBtn" ${thumbCount<=1 ? "disabled" : ""} aria-label="Další fotografie">›</button>
@@ -13067,7 +13109,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
         </div>
       </div>
       <div class="site-photo-thumbs">
-        ${sitePhotoItems.map((photo,idx)=>`<button class="site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}" type="button" data-photo-idx="${idx}" aria-label="Zobrazit fotografii ${idx+1}"><img src="${esc(photoThumbUrl(photo))}" alt="Náhled ${idx+1}"></button>`).join("")}
+        ${sitePhotoItems.map((photo,idx)=>`<button class="site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}" type="button" data-photo-idx="${idx}" aria-label="Zobrazit fotografii ${idx+1}"><img src="${esc(photoThumbUrl(photo))}" alt="Náhled ${idx+1}" loading="lazy" decoding="async"></button>`).join("")}
       </div>
       <div class="site-photo-info-strip">
         ${photoInfoRows.map(([label,value])=>`<div class="site-photo-info-pill"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}
@@ -13098,6 +13140,8 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
 async function loadSitePhotos(site=selectedSite){
   const st=document.getElementById("sitePhotosStatus");
   if(!st) return;
+  const requestedKey=detailLazyKey(site);
+  const stillSameSite=()=>!requestedKey || requestedKey===detailLazyKey(selectedSite);
   const items=[];
   const addPhoto=item=>{
     if(!item || !photoDisplayUrl(item)) return;
@@ -13106,6 +13150,7 @@ async function loadSitePhotos(site=selectedSite){
     items.push(item);
   };
   const renderLoaded=(message="")=>{
+    if(!stillSameSite()) return;
     items.sort((a,b)=>historyTimeValue(b)-historyTimeValue(a));
     renderSitePhotos(items);
     st.textContent=message || (items.length ? `Načteno fotografií: ${items.length}.` : "");
@@ -13125,14 +13170,17 @@ async function loadSitePhotos(site=selectedSite){
     renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "");
     return;
   }
+  if(!stillSameSite()) return;
   st.textContent="Načítám fotografie...";
   const signedUser=await waitForFirebaseUser();
+  if(!stillSameSite()) return;
   if(!signedUser){
     renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "Čekám na přihlášení, fotografie se načtou po přihlášení.");
     return;
   }
   try{
     await refreshSiteDataFromFirebase(site);
+    if(!stillSameSite()) return;
     const embeddedPhotos=Array.isArray(site?.firebaseData?.photos) ? site.firebaseData.photos : [];
     embeddedPhotos.forEach((item,idx)=>{
       addPhoto({...item,_id:item._id || `embedded_photo_${idx}`});
@@ -13146,7 +13194,7 @@ async function loadSitePhotos(site=selectedSite){
     if(items.length){
       renderLoaded(`Načteno lokálních fotografií: ${items.length}. Online fotky se nepodařilo načíst.`);
     }else{
-      st.textContent="Chyba načtení fotografií: "+e.message;
+      if(stillSameSite()) st.textContent="Chyba načtení fotografií: "+e.message;
     }
   }
 }
@@ -16287,7 +16335,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v48-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v49-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16775,7 +16823,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase1-v48";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase2-v49";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
