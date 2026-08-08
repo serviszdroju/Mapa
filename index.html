@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase9-v56";
-const APP_SHELL_CACHE_NAME="astip-szz-v56-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase10-v57";
+const APP_SHELL_CACHE_NAME="astip-szz-v57-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8309,6 +8309,57 @@ window.openDetail=function(i){
 let detailHistoryItems=[];
 let detailHistoryIndex=0;
 let protocolEditState=null;
+const DETAIL_HISTORY_CACHE_MS=45000;
+const DETAIL_HISTORY_MUTATION_KINDS=new Set(["protocolHistory","serviceHistory","protocols","serviceRecords"]);
+const detailHistoryCache=new Map();
+
+function detailHistoryCacheKey(site=selectedSite){
+  if(!site) return "";
+  const keys=[detailLazyKey(site), selectedSiteDocId(site), ...siteRecordKeys(site), currentUserEmail()]
+    .map(x=>String(x || "").trim())
+    .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+  return keys.join("|");
+}
+
+function cloneDetailHistoryItem(item){
+  return item && typeof item==="object" ? {...item} : item;
+}
+
+function readDetailHistoryCache(site=selectedSite){
+  const key=detailHistoryCacheKey(site);
+  if(!key) return null;
+  const cached=detailHistoryCache.get(key);
+  if(!cached) return null;
+  if(Date.now()-cached.savedAt>DETAIL_HISTORY_CACHE_MS){
+    detailHistoryCache.delete(key);
+    return null;
+  }
+  return Array.isArray(cached.items) ? cached.items.map(cloneDetailHistoryItem) : [];
+}
+
+function writeDetailHistoryCache(site=selectedSite,items=[]){
+  const key=detailHistoryCacheKey(site);
+  if(!key) return;
+  detailHistoryCache.set(key,{
+    savedAt:Date.now(),
+    items:Array.isArray(items) ? items.map(cloneDetailHistoryItem) : []
+  });
+}
+
+function clearDetailHistoryCache(site=selectedSite){
+  if(!site){
+    detailHistoryCache.clear();
+    return;
+  }
+  const key=detailHistoryCacheKey(site);
+  if(key) detailHistoryCache.delete(key);
+  else detailHistoryCache.clear();
+}
+window.clearDetailHistoryCache=clearDetailHistoryCache;
+
+function clearDetailHistoryCacheForKind(kind,site=selectedSite){
+  if(DETAIL_HISTORY_MUTATION_KINDS.has(String(kind || ""))) clearDetailHistoryCache(site);
+}
 
 function setInputValue(id,value){
   const el=document.getElementById(id);
@@ -10340,6 +10391,7 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
     let next=(id ? arr.filter(x=>safe(x && x._id)!==id) : arr).concat([{...item}]);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     localStorage.setItem(siteLocalCacheKey(kind,site),JSON.stringify(next));
+    clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
   }
@@ -10350,6 +10402,7 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
     if(!cleanId) return;
     const next=readSiteLocalArray(kind,site).filter(item=>safe(item && item._id)!==cleanId);
     localStorage.setItem(siteLocalCacheKey(kind,site),JSON.stringify(next));
+    clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila upravit",kind,e);
   }
@@ -10809,6 +10862,7 @@ async function saveSiteChildItem(kind,id,item,site=selectedSite){
       siteDocId:docId,
       updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
     },{merge:true});
+    clearDetailHistoryCacheForKind(kind,site);
     return true;
   }catch(e){
     console.warn("Uložení pod bod selhalo",kind,e);
@@ -10840,6 +10894,7 @@ async function deleteSiteChildItem(kind,id,site=selectedSite){
   try{
     const {doc,deleteDoc}=fb.fsMod;
     await deleteDoc(doc(db,"sitesUnified",docId,kind,cleanId));
+    clearDetailHistoryCacheForKind(kind,site);
     return true;
   }catch(e){
     console.warn("Smazání položky pod bodem selhalo",kind,e);
@@ -10868,6 +10923,7 @@ async function removeEmbeddedSiteItem(field,id,site=selectedSite){
       site.firebaseData=site.firebaseData || {};
       site.firebaseData[field]=next;
     }
+    clearDetailHistoryCacheForKind(field,site);
     return true;
   }catch(e){
     console.warn("Smazání vložené položky selhalo",field,e);
@@ -10904,6 +10960,7 @@ async function appendEmbeddedSiteItem(field,item,site=selectedSite){
       site.firebaseData=site.firebaseData || {};
       site.firebaseData[field]=current;
     }
+    clearDetailHistoryCacheForKind(field,site);
     return true;
   }catch(e){
     console.warn("Záložní uložení do místa selhalo",field,e);
@@ -11361,6 +11418,13 @@ async function loadHistory(siteId){
   }
   await syncOfflineProtocolsForSite(selectedSite,{silent:true});
   if(!stillSameSite()) return;
+  const cachedHistoryItems=readDetailHistoryCache(selectedSite);
+  if(cachedHistoryItems){
+    detailHistoryItems=cachedHistoryItems;
+    detailHistoryIndex=0;
+    renderHistory();
+    return;
+  }
 
   try{
     await refreshSiteDataFromFirebase(selectedSite);
@@ -11478,6 +11542,7 @@ async function loadHistory(siteId){
     if(!finalItems.length){
       detailHistoryItems=[];
       detailHistoryIndex=0;
+      writeDetailHistoryCache(selectedSite,[]);
       history.textContent="Zatím žádný záznam.";
       updateOfficialProtocolSourceInfo();
       return;
@@ -11492,6 +11557,7 @@ async function loadHistory(siteId){
     }
     detailHistoryItems=finalItems;
     detailHistoryIndex=0;
+    writeDetailHistoryCache(selectedSite,finalItems);
     renderHistory();
   }catch(e){
     if(stillSameSite()) history.textContent="Chyba načtení historie: "+e.message;
@@ -16498,7 +16564,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v56-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v57-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -16988,7 +17054,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase9-v56";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase10-v57";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
