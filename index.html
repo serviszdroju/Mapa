@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase12-v59";
-const APP_SHELL_CACHE_NAME="astip-szz-v59-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase13-v60";
+const APP_SHELL_CACHE_NAME="astip-szz-v60-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6984,7 +6984,8 @@ window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
   if(existingIndex>=0) nextRows[existingIndex]=firebaseRow;
   else nextRows.push(firebaseRow);
 
-  return window.setFirebaseSiteRows(nextRows, openDocId || firebaseRow.firebaseDocId || firebaseRow.id);
+  const targetOpenDocId=openDocId===false ? null : (openDocId || firebaseRow.firebaseDocId || firebaseRow.id);
+  return window.setFirebaseSiteRows(nextRows, targetOpenDocId);
 };
 window.getCurrentCsvRows = function(){
   return originalCsvRows.length ? originalCsvRows : csvRows;
@@ -15799,9 +15800,11 @@ setTimeout(()=>{
     const signedUser=await waitCompatUser(2500);
     if(!signedUser) return 0;
     let synced=0;
+    const syncedRows=[];
     for(const item of queue){
       try{
-        await saveUnifiedSiteRaw(item.raw,{docId:item.docId,skipOffline:true});
+        const result=await saveUnifiedSiteRaw(item.raw,{docId:item.docId,skipOffline:true});
+        if(result && result.row) syncedRows.push({id:result.id || item.docId,row:result.row});
         removeOfflineSiteFromQueue(item.docId);
         synced++;
       }catch(e){
@@ -15811,7 +15814,9 @@ setTimeout(()=>{
     if(synced && !options.silent && window.showSaveConfirmation){
       window.showSaveConfirmation(synced===1 ? "Offline bod/zdroj odeslán online." : `Offline body/zdroje odeslány online: ${synced}.`);
     }
-    if(synced && typeof loadFirebaseSites==="function"){
+    if(syncedRows.length){
+      syncedRows.forEach(item=>upsertSavedFirebaseRowAfterSave(item.row,item.id,{openDetail:false,focusMap:false}));
+    }else if(synced && typeof loadFirebaseSites==="function"){
       try{ await loadFirebaseSites(null,{force:true,skipLocalCache:true}); }catch(e){}
     }
     return synced;
@@ -15957,16 +15962,17 @@ setTimeout(()=>{
       if(lockLoad) firebaseSitesLoading=false;
     }
   }
-  function upsertSavedFirebaseRowAfterSave(row, docId=null){
+  function upsertSavedFirebaseRowAfterSave(row, docId=null, options={}){
     const id=String(docId || row?.firebaseDocId || row?.raw?.["Firebase_doc_id"] || row?.id || "");
     if(!row || !id || typeof window.upsertFirebaseSiteRow!=="function") return false;
     try{
-      const loadedRows=window.upsertFirebaseSiteRow(row,id);
+      const quiet=options.openDetail===false && options.focusMap===false;
+      const loadedRows=window.upsertFirebaseSiteRow(row,quiet ? false : id);
       if(Array.isArray(loadedRows) && loadedRows.length) saveMapRowsCache(loadedRows);
       const found=(loadedRows || []).find(r=>String(r.firebaseDocId || r.raw?.["Firebase_doc_id"] || r.id || "")===id);
       const target=found || row;
-      if(Number.isFinite(target.lat)&&Number.isFinite(target.lon) && window.map) window.map.setView([target.lat,target.lon],14);
-      if(typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(id),150);
+      if(options.focusMap!==false && Number.isFinite(target.lat)&&Number.isFinite(target.lon) && window.map) window.map.setView([target.lat,target.lon],14);
+      if(options.openDetail!==false && typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(id),150);
       return true;
     }catch(e){
       console.warn("Rychlé zobrazení uloženého bodu selhalo, načítám čistě z Firebase",e);
@@ -16586,7 +16592,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v59-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v60-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17076,7 +17082,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase12-v59";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase13-v60";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
