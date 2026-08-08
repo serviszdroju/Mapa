@@ -1,7 +1,8 @@
-const CACHE_VERSION = "astip-szz-v40";
+const CACHE_VERSION = "astip-szz-v42";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
+const OFFLINE_SYNC_TAG = "astip-szz-offline-sync";
 
 const PRECACHE_URLS = [
   "./",
@@ -18,7 +19,17 @@ const PRECACHE_URLS = [
   "./podpis-tipek.jpg"
 ];
 
-const EXTERNAL_PRECACHE_URLS = [];
+const EXTERNAL_PRECACHE_URLS = [
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -45,6 +56,20 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
 });
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === OFFLINE_SYNC_TAG) {
+    event.waitUntil(notifyClientsToSync("background-sync"));
+  }
+});
+
+async function notifyClientsToSync(reason) {
+  const clientsList = await self.clients.matchAll({type: "window", includeUncontrolled: true});
+  await Promise.all(clientsList.map((client) => client.postMessage({
+    type: "SZZ_SYNC_REQUEST",
+    reason
+  })));
+}
 
 async function cacheUrls(cache, urls) {
   await Promise.allSettled(urls.map(async (url) => {
@@ -95,6 +120,14 @@ async function networkFirst(request, options = {}) {
   }
 }
 
+async function networkOnly(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    return Response.error();
+  }
+}
+
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(isMapTileRequest(request) ? TILE_CACHE : RUNTIME_CACHE);
   const cached = await cache.match(request);
@@ -113,6 +146,39 @@ function isMapTileRequest(request) {
   try {
     const url = new URL(request.url);
     return url.hostname === "tile.openstreetmap.org" && /\/\d+\/\d+\/\d+\.png$/.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function isFirebaseOrAuthRequest(request) {
+  try {
+    const url = new URL(request.url);
+    const host = url.hostname;
+    return host === "accounts.google.com" ||
+      host === "apis.google.com" ||
+      host === "oauth2.googleapis.com" ||
+      host === "securetoken.googleapis.com" ||
+      host === "identitytoolkit.googleapis.com" ||
+      host === "firestore.googleapis.com" ||
+      host === "firebase.googleapis.com" ||
+      host === "firebaseinstallations.googleapis.com" ||
+      host === "firebasestorage.googleapis.com" ||
+      host.endsWith(".googleapis.com") && /\/(google\.firestore|identitytoolkit|securetoken)\//.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function isRuntimeCacheAllowed(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.origin === self.location.origin) return true;
+    if (isMapTileRequest(request)) return true;
+    if (url.hostname === "unpkg.com" && ["script", "style"].includes(request.destination)) return true;
+    if (url.hostname === "www.gstatic.com" && ["script", "style", "font"].includes(request.destination)) return true;
+    if (url.hostname === "res.cloudinary.com" && request.destination === "image") return true;
+    return request.destination === "image";
   } catch (error) {
     return false;
   }
@@ -141,6 +207,10 @@ self.addEventListener("fetch", (event) => {
   }
   if (isAppShellRequest(request)) {
     event.respondWith(networkFirst(request, {fallbackToShell: request.destination === "document"}));
+    return;
+  }
+  if (isFirebaseOrAuthRequest(request) || !isRuntimeCacheAllowed(request)) {
+    event.respondWith(networkOnly(request));
     return;
   }
   event.respondWith(staleWhileRevalidate(request));
