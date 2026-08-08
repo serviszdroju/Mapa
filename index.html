@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase13-v60";
-const APP_SHELL_CACHE_NAME="astip-szz-v60-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase14-v61";
+const APP_SHELL_CACHE_NAME="astip-szz-v61-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -15348,39 +15348,103 @@ setTimeout(()=>{
     if(batchCount>0) await batch.commit();
     return count;
   }
+  function duplicateCandidateScore(data, existingKeys, docId, wanted){
+    const raw=(data&&data.raw)||{};
+    let score=0;
+    existingKeys.forEach(k=>{
+      if(!wanted.has(k)) return;
+      score += k.startsWith("address:") ? 1000 : 100;
+    });
+    if(Number.isFinite(num(raw["GPS_lat"])) && Number.isFinite(num(raw["GPS_lon"]))) score+=50;
+    if(data && data.manualEntry) score+=1000000;
+    if(docId && !String(docId).startsWith("site_")) score+=500000;
+    if(val(raw["Adresa_GPS"]) || val(raw["Adresa / umístění"])) score+=10;
+    if(val(raw["Název"])) score+=5;
+    if(data && data.createdAt) score+=3;
+    if(data && data.migratedFromCsv) score-=1000;
+    return score;
+  }
+  function bestDuplicateFromDocEntries(entries, wanted, skip){
+    let found=null;
+    (entries || []).forEach(entry=>{
+      const id=String(entry && entry.id || "");
+      if(!id || (skip && id===skip)) return;
+      const data=(entry && entry.data) || {};
+      const existingKeys=dedupKeys(data.raw || {});
+      if(!existingKeys.some(k=>wanted.has(k))) return;
+      const score=duplicateCandidateScore(data, existingKeys, id, wanted);
+      if(!found || score>found.score) found={id,data,score};
+    });
+    return found ? {id:found.id,data:found.data} : null;
+  }
+  function currentRowDuplicateEntries(){
+    const current=Array.isArray(window.rows) ? window.rows : [];
+    return current.map(row=>{
+      const raw=row && row.raw || {};
+      const data={...(row?.firebaseData || {}),raw};
+      const id=String(row?.firebaseDocId || raw["Firebase_doc_id"] || row?.id || "");
+      return {id,data};
+    }).filter(entry=>entry.id && entry.data && entry.data.raw);
+  }
+  function currentRowsHaveFirestoreDedupKeys(){
+    const current=Array.isArray(window.rows) ? window.rows : [];
+    return current.length>0 && current.every(row=>Array.isArray(row?.firebaseData?.dedupKeys));
+  }
+  async function queryDuplicateDocsByDedupKeys(database, keys, skip){
+    const uniqueKeys=(keys || []).map(k=>String(k || "")).filter((k,idx,arr)=>k && arr.indexOf(k)===idx);
+    if(!uniqueKeys.length) return {queried:false,entries:[]};
+    const chunks=[];
+    for(let i=0;i<uniqueKeys.length;i+=10) chunks.push(uniqueKeys.slice(i,i+10));
+    const entries=[];
+    const seen=new Set();
+    const addEntry=(id,data)=>{
+      const cleanId=String(id || "");
+      if(!cleanId || seen.has(cleanId) || (skip && cleanId===skip)) return;
+      seen.add(cleanId);
+      entries.push({id:cleanId,data:data || {}});
+    };
+    let queried=false;
+    for(const chunk of chunks){
+      try{
+        const fs=window.fb && window.fb.fsMod;
+        if(fs && window.db && fs.collection && fs.query && fs.where && fs.getDocs){
+          const snap=await fs.getDocs(fs.query(fs.collection(window.db,FB_COLLECTION),fs.where("dedupKeys","array-contains-any",chunk)));
+          snap.forEach(docSnap=>addEntry(docSnap.id,docSnap.data() || {}));
+          queried=true;
+          continue;
+        }
+        if(database && typeof database.collection==="function"){
+          const collectionRef=database.collection(FB_COLLECTION);
+          if(collectionRef && typeof collectionRef.where==="function"){
+            const snap=await collectionRef.where("dedupKeys","array-contains-any",chunk).get();
+            snap.forEach(docSnap=>addEntry(docSnap.id,docSnap.data() || {}));
+            queried=true;
+          }
+        }
+      }catch(e){
+        console.warn("Rychlý dotaz duplicit podle dedupKeys selhal",e);
+        return {queried:false,entries:[]};
+      }
+    }
+    return {queried,entries};
+  }
   async function findDuplicateDoc(database, raw, skipDocId=null){
     const keys=dedupKeys(raw);
     if(!keys.length) return null;
     const wanted=new Set(keys);
     const skip=skipDocId ? String(skipDocId) : "";
+    const localMatch=bestDuplicateFromDocEntries(currentRowDuplicateEntries(),wanted,skip);
+    if(localMatch) return localMatch;
+    const fastResult=await queryDuplicateDocsByDedupKeys(database,keys,skip);
+    const fastMatch=bestDuplicateFromDocEntries(fastResult.entries,wanted,skip);
+    if(fastMatch) return fastMatch;
+    if(fastResult.queried && currentRowsHaveFirestoreDedupKeys()) return null;
     const snap=await database.collection(FB_COLLECTION).get();
-    let found=null;
-    function candidateScore(data, existingKeys, docId){
-      const raw=(data&&data.raw)||{};
-      let score=0;
-      existingKeys.forEach(k=>{
-        if(!wanted.has(k)) return;
-        score += k.startsWith("address:") ? 1000 : 100;
-      });
-      if(Number.isFinite(num(raw["GPS_lat"])) && Number.isFinite(num(raw["GPS_lon"]))) score+=50;
-      if(data && data.manualEntry) score+=1000000;
-      if(docId && !String(docId).startsWith("site_")) score+=500000;
-      if(val(raw["Adresa_GPS"]) || val(raw["Adresa / umístění"])) score+=10;
-      if(val(raw["Název"])) score+=5;
-      if(data && data.createdAt) score+=3;
-      if(data && data.migratedFromCsv) score-=1000;
-      return score;
-    }
+    const entries=[];
     snap.forEach(doc=>{
-      if(skip && doc.id===skip) return;
-      const data=doc.data()||{};
-      const existingKeys=dedupKeys(data.raw || {});
-      if(existingKeys.some(k=>wanted.has(k))){
-        const score=candidateScore(data, existingKeys, doc.id);
-        if(!found || score>found.score) found={id:doc.id, data, score};
-      }
+      entries.push({id:doc.id,data:doc.data() || {}});
     });
-    return found ? {id:found.id,data:found.data} : null;
+    return bestDuplicateFromDocEntries(entries,wanted,skip);
   }
 
   function docIdFromRaw(raw,i){
@@ -16592,7 +16656,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v60-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v61-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17082,7 +17146,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase13-v60";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase14-v61";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
