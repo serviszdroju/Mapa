@@ -44,4 +44,6 @@ Current performance phase 11 decision: after saving a Firebase site/source, pref
 
 Current performance phase 12 decision: the main Firebase add-site panel must pass its freshly saved row into the same post-save single-row refresh path, so every add-site/source entry point avoids a full collection reload when local verification succeeds.
 
+Current performance phase 13 decision: offline site/source synchronization should reuse the same single-row upsert path without focusing the map or opening detail, and only fall back to a full Firebase reload if no saved rows are available.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
