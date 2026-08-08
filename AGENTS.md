@@ -32,4 +32,6 @@ Current performance phase 5 decision: coalesce/debounce IndexedDB map row cache 
 
 Current performance phase 6 decision: cache filtered row results and place groups by row-index version plus active filter values so repeated renders without changed data skip expensive filtering/grouping while preserving the same DOM and map behavior.
 
+Current performance phase 7 decision: skip unchanged marker and left-sidebar rerenders when the grouped rows, row-index version, active filters, and map bounds have not changed. Keep the existing marker/sidebar DOM structure and event handlers.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
