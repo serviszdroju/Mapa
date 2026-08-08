@@ -40,4 +40,6 @@ Current performance phase 9 decision: cache offline status counts briefly so rep
 
 Current performance phase 10 decision: cache loaded detail history briefly per site/user and invalidate it whenever protocol/service child, embedded, or local records change, so reopening Protokol does not repeat the full Firestore fallback query burst.
 
+Current performance phase 11 decision: after saving a Firebase site/source, prefer a single-row local upsert plus IndexedDB map cache update, and keep the full Firebase reload only as a fallback when the local upsert cannot be verified.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

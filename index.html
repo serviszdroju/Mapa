@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase10-v57";
-const APP_SHELL_CACHE_NAME="astip-szz-v57-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase11-v58";
+const APP_SHELL_CACHE_NAME="astip-szz-v58-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11896,6 +11896,7 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
   try{
     let savedRef=null;
     let savedOffline=false;
+    let savedRow=null;
     if(firebaseUnifiedPrimary){
       if(typeof window.saveUnifiedSiteRaw!=="function") throw new Error("Firebase ukládání nových bodů ještě není připravené.");
       const raw={...(data.allRawData || {})};
@@ -11926,11 +11927,13 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
       if(result.duplicate){
         st.textContent="Bod už existuje. Otevírám existující záznam.";
         addSourceBaseSite=null;
-        if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified==="function") await window.loadFirebaseSitesUnified(result.id);
+        if(navigator.onLine !== false && typeof window.refreshFirebaseSitesAfterSave==="function") await window.refreshFirebaseSitesAfterSave(result.id,result.row);
+        else if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified==="function") await window.loadFirebaseSitesUnified(result.id);
         return;
       }
       savedRef={id:result.id};
       savedOffline=!!result.offline;
+      savedRow=result.row || null;
     }else{
       const {collection,addDoc}=fb.fsMod;
       savedRef=await addDoc(collection(db,"sites"),data);
@@ -11959,7 +11962,7 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
         setTimeout(()=>window.openDetailById(savedRef.id),250);
       }
     }else if(firebaseUnifiedPrimary && typeof window.refreshFirebaseSitesAfterSave==="function"){
-      await window.refreshFirebaseSitesAfterSave(savedRef && savedRef.id);
+      await window.refreshFirebaseSitesAfterSave(savedRef && savedRef.id, savedRow);
     }else if(firebaseUnifiedPrimary && typeof window.loadFirebaseSitesUnified==="function"){
       await window.loadFirebaseSitesUnified();
     }else{
@@ -14410,7 +14413,8 @@ setTimeout(()=>{
         const result=await window.saveUnifiedSiteRaw(raw,{docId:id});
         if(result.duplicate){
           if(st) st.textContent="Bod už existuje. Otevírám existující záznam.";
-          if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified==="function") await window.loadFirebaseSitesUnified(result.id);
+          if(navigator.onLine !== false && typeof window.refreshFirebaseSitesAfterSave==="function") await window.refreshFirebaseSitesAfterSave(result.id,result.row);
+          else if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified==="function") await window.loadFirebaseSitesUnified(result.id);
           return;
         }
         savedOffline=!!result.offline;
@@ -14450,7 +14454,7 @@ setTimeout(()=>{
     try{
       let visibleAfterReload=true;
       if(savedUnified && typeof window.refreshFirebaseSitesAfterSave==="function"){
-        visibleAfterReload=await window.refreshFirebaseSitesAfterSave(savedId);
+        visibleAfterReload=await window.refreshFirebaseSitesAfterSave(savedId,row);
       }else if(savedUnified && typeof window.loadFirebaseSitesUnified==="function"){
         await window.loadFirebaseSitesUnified();
       }else if(!savedOffline && window.__firebaseUnifiedPrimary !== false && typeof window.loadFirebaseSitesUnified==="function"){
@@ -14781,7 +14785,8 @@ setTimeout(()=>{
         const result=await window.saveUnifiedSiteRaw(row.raw,{docId:row.id});
         if(result.duplicate){
           if(st) st.textContent="Bod už existuje. Otevírám existující záznam.";
-          if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified==="function") await window.loadFirebaseSitesUnified(result.id);
+          if(navigator.onLine !== false && typeof window.refreshFirebaseSitesAfterSave==="function") await window.refreshFirebaseSitesAfterSave(result.id,result.row);
+          else if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified==="function") await window.loadFirebaseSitesUnified(result.id);
           return;
         }
         savedOffline=!!result.offline;
@@ -14813,7 +14818,7 @@ setTimeout(()=>{
     try{
       let visibleAfterReload=true;
       if(savedUnified && typeof window.refreshFirebaseSitesAfterSave==="function"){
-        visibleAfterReload=await window.refreshFirebaseSitesAfterSave(savedId);
+        visibleAfterReload=await window.refreshFirebaseSitesAfterSave(savedId,row);
       }else if(savedUnified && typeof window.loadFirebaseSitesUnified==="function"){
         await window.loadFirebaseSitesUnified();
       }else if(!savedOffline && window.__firebaseUnifiedPrimary !== false && typeof window.loadFirebaseSitesUnified==="function"){
@@ -15541,9 +15546,7 @@ setTimeout(()=>{
     closePanel();
     window.__lastSavedFirebaseSiteDocId=duplicate.id;
     if(previewMarker){try{map.removeLayer(previewMarker);}catch(_e){} previewMarker=null;}
-    await loadFirebaseSites();
-    if(Number.isFinite(row.lat)&&Number.isFinite(row.lon)) map.setView([row.lat,row.lon],14);
-    setTimeout(()=>window.openDetailById(duplicate.id),150);
+    upsertSavedFirebaseRowAfterSave(row, duplicate.id);
     return row;
   }
   async function calcGps(){
@@ -15954,8 +15957,26 @@ setTimeout(()=>{
       if(lockLoad) firebaseSitesLoading=false;
     }
   }
-  async function refreshAfterSave(docId){
+  function upsertSavedFirebaseRowAfterSave(row, docId=null){
+    const id=String(docId || row?.firebaseDocId || row?.raw?.["Firebase_doc_id"] || row?.id || "");
+    if(!row || !id || typeof window.upsertFirebaseSiteRow!=="function") return false;
+    try{
+      const loadedRows=window.upsertFirebaseSiteRow(row,id);
+      if(Array.isArray(loadedRows) && loadedRows.length) saveMapRowsCache(loadedRows);
+      const found=(loadedRows || []).find(r=>String(r.firebaseDocId || r.raw?.["Firebase_doc_id"] || r.id || "")===id);
+      const target=found || row;
+      if(Number.isFinite(target.lat)&&Number.isFinite(target.lon) && window.map) window.map.setView([target.lat,target.lon],14);
+      if(typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(id),150);
+      return true;
+    }catch(e){
+      console.warn("Rychlé zobrazení uloženého bodu selhalo, načítám čistě z Firebase",e);
+      return false;
+    }
+  }
+
+  async function refreshAfterSave(docId, savedRow=null){
     const id=String(docId || "");
+    if(savedRow && upsertSavedFirebaseRowAfterSave(savedRow,id)) return true;
     const loadedRows=await loadFirebaseSites();
     const found=(loadedRows || []).find(r=>String(r.firebaseDocId || "")===id);
     if(found){
@@ -16517,7 +16538,8 @@ setTimeout(()=>{
       if(result && result.duplicate){
         if(st) st.textContent = "Takový zdroj už existuje. Otevírám existující záznam.";
         restoreNormalDrawerTemplateForSource();
-        if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified === "function") await window.loadFirebaseSitesUnified(savedId);
+        if(navigator.onLine !== false && typeof window.refreshFirebaseSitesAfterSave === "function") await window.refreshFirebaseSitesAfterSave(savedId, result.row);
+        else if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified === "function") await window.loadFirebaseSitesUnified(savedId);
         if(typeof window.openDetailById === "function") setTimeout(()=>window.openDetailById(savedId), 250);
         return;
       }
@@ -16529,7 +16551,7 @@ setTimeout(()=>{
 
       let visible = true;
       if(!savedOffline && typeof window.refreshFirebaseSitesAfterSave === "function"){
-        visible = await window.refreshFirebaseSitesAfterSave(savedId);
+        visible = await window.refreshFirebaseSitesAfterSave(savedId, result && result.row ? result.row : localRow);
       }else if(!savedOffline && typeof window.loadFirebaseSitesUnified === "function"){
         await window.loadFirebaseSitesUnified(savedId);
       }else if(typeof render === "function"){
@@ -16564,7 +16586,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v57-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v58-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17054,7 +17076,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase10-v57";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase11-v58";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
