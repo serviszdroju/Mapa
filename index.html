@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-08-performance-phase11-v58";
-const APP_SHELL_CACHE_NAME="astip-szz-v58-static";
+const APP_BUILD_VERSION="2026-08-08-performance-phase12-v59";
+const APP_SHELL_CACHE_NAME="astip-szz-v59-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -16060,7 +16060,7 @@ setTimeout(()=>{
       if(previewMarker){try{map.removeLayer(previewMarker);}catch(_e){} previewMarker=null;}
       closePanel();
       window.__lastSavedFirebaseSiteDocId=ref.id;
-      const visibleAfterReload=await refreshAfterSave(ref.id);
+      const visibleAfterReload=await refreshAfterSave(ref.id,row);
       clearForm(true);
       if(visibleAfterReload) sideStatus("<b>Bod uložen.</b> Nové místo je načtené z Firebase stejně jako po refreshi.");
       return false;
@@ -16586,7 +16586,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v58-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v59-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17076,7 +17076,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-08-performance-phase11-v58";
+  const serviceWorkerBuildVersion="2026-08-08-performance-phase12-v59";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
