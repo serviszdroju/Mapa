@@ -82,4 +82,6 @@ Current performance phase 30 decision: add a short-lived per-site cache for `get
 
 Current performance phase 31 decision: batch Firestore `siteKeys` lookups for detail history and latest-protocol reads with `array-contains-any` chunks, falling back to the original per-key `array-contains` queries if batching fails so older data remains reachable.
 
+Current performance phase 32 decision: run the remaining keyed/text Firestore fallback queries for detail history and latest-protocol reads through a bounded concurrent scheduler, and fetch `serviceRecords` plus `protocols` in parallel; keep all old matching fallbacks so legacy text-only protocol data remains visible.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
