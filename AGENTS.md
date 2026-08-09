@@ -64,4 +64,6 @@ Current performance phase 21 decision: cache rows grouped by `sitePlaceGroupKey`
 
 Current performance phase 22 decision: cache computed source label and normalized source identity per row/raw/source fingerprint so sidebar chips, source choosers, marker popups, detail subtitles, protocol matching, and document metadata reuse the same source text until the row source fields change.
 
+Current performance phase 23 decision: cache computed place label and place-group key per row/raw/address/GPS/fallback fingerprint so grouping, marker rendering, sidebar ordering, detail source switching, and add-source flows reuse the same address grouping until the row place fields change.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
