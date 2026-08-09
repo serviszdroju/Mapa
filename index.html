@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase36-v83";
-const APP_SHELL_CACHE_NAME="astip-szz-v83-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase37-v84";
+const APP_SHELL_CACHE_NAME="astip-szz-v84-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -12267,7 +12267,8 @@ async function openMainProtocolHistoryPanel(){
     list.textContent="Zatím není uložený žádný protokol.";
     return;
   }
-  list.innerHTML=items.map(item=>{
+  const fragment=document.createDocumentFragment();
+  items.forEach(item=>{
     const title=protocolGlobalHistoryTitle(item);
     const key=safe(item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : ""));
     const meta=isAppAdmin() ? [
@@ -12275,11 +12276,21 @@ async function openMainProtocolHistoryPanel(){
       historyDateLabel(item) ? `kontrola ${historyDateLabel(item)}` : "",
       safe(item.createdBy || item.technicianEmail || item.updatedBy)
     ].filter(Boolean).join(" | ") : "";
-    return `<div class="main-history-row">
-      <button type="button" data-history-site-key="${esc(key)}">${esc(title)}</button>
-      ${meta ? `<small>${esc(meta)}</small>` : ""}
-    </div>`;
-  }).join("");
+    const row=document.createElement("div");
+    row.className="main-history-row";
+    const button=document.createElement("button");
+    button.type="button";
+    button.dataset.historySiteKey=key;
+    button.textContent=title;
+    row.appendChild(button);
+    if(meta){
+      const small=document.createElement("small");
+      small.textContent=meta;
+      row.appendChild(small);
+    }
+    fragment.appendChild(row);
+  });
+  list.replaceChildren(fragment);
   list.querySelectorAll("[data-history-site-key]").forEach(btn=>{
     btn.onclick=()=>{
       const key=btn.getAttribute("data-history-site-key");
@@ -17239,7 +17250,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v83-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v84-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17726,7 +17737,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase36-v83";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase37-v84";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
