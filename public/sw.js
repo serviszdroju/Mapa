@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v64";
+const CACHE_VERSION = "astip-szz-v65";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -33,7 +33,8 @@ const EXTERNAL_PRECACHE_URLS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cacheUrls(cache, PRECACHE_URLS.concat(EXTERNAL_PRECACHE_URLS)))
+      .then((cache) => cacheUrls(cache, PRECACHE_URLS))
+      .then(() => { cacheExternalShellUrls(); })
       .then(() => self.skipWaiting())
   );
 });
@@ -91,6 +92,15 @@ async function cacheUrls(cache, urls) {
       console.warn("Offline cache: soubor se nepodařilo uložit", url, error);
     }
   }));
+}
+
+async function cacheExternalShellUrls() {
+  try {
+    const cache = await caches.open(STATIC_CACHE);
+    await cacheUrls(cache, EXTERNAL_PRECACHE_URLS);
+  } catch (error) {
+    console.warn("Offline cache: externí knihovny se nepodařilo připravit", error);
+  }
 }
 
 function isSameOriginUrl(url) {

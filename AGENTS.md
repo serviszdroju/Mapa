@@ -54,4 +54,6 @@ Current performance phase 16 decision: cache the main cross-site protocol histor
 
 Current performance phase 17 decision: coalesce Firebase background refreshes after cache-first startup, skip them while the page is hidden/offline or data was freshly loaded, and preserve manual reloads plus post-save refresh behavior.
 
+Current performance phase 18 decision: keep critical service-worker precache focused on same-origin app shell files and warm external CDN libraries in the background, so service-worker install/update is not blocked by Leaflet/Firebase CDN fetches while manual offline preparation can still cache those libraries explicitly.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
