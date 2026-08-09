@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase19-v66";
-const APP_SHELL_CACHE_NAME="astip-szz-v66-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase20-v67";
+const APP_SHELL_CACHE_NAME="astip-szz-v67-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -4745,41 +4745,120 @@ function periodMonths(r){
   return 6;
 }
 function computedNextDate(r){
+  const cached=ensureRowScheduleCache(r);
+  if(cached) return Number.isFinite(cached.nextTime) ? new Date(cached.nextTime) : null;
+  return computeComputedNextDate(r);
+}
+function computeComputedNextDate(r){
   const last=parseDateValue(r.posledni);
   if(last) return addMonths(last, periodMonths(r));
   const next=parseDateValue(r.pristi);
   return next;
 }
-function daysToComputedNext(r){
-  const next=computedNextDate(r);
+function computeDaysFromDate(next){
   if(!next) return null;
   const today=new Date(); today.setHours(0,0,0,0);
   next.setHours(0,0,0,0);
   return Math.round((next.getTime()-today.getTime())/86400000);
 }
+function computeDaysToComputedNext(r){
+  return computeDaysFromDate(computeComputedNextDate(r));
+}
+function rowScheduleFingerprint(r){
+  const raw=(r && r.raw) || {};
+  return [
+    r && r.posledni,
+    r && r.pristi,
+    r && r.ordered,
+    r && r.repairOrdered,
+    r && r.stopped,
+    r && r.noOrder,
+    first(raw,LAST_CHECK_KEYS),
+    first(raw,NEXT_CHECK_KEYS),
+    raw["Hlídáme sami termín"],
+    raw["Hlídáme kontroly sami"],
+    raw["Hlídáme termín sami"],
+    raw["Růžová"],
+    raw["Ruzova"],
+    raw["Typ"],
+    raw["Kategorie"],
+    raw["Poznámky"],
+    raw["Poznámky_mapy"],
+    raw["DŮLEŽITÁ POZNÁMKA"],
+    raw["Zdrojový_soubor"],
+    raw["Zdrojovy_soubor"],
+    raw["Zdroj_dat"],
+    raw["Perioda"],
+    raw["period"],
+    raw["Perioda kontrol"],
+    raw["Perioda_kontrol"],
+    raw["Četnost kontrol"],
+    raw["Perioda zkoušky provozuschopnosti"]
+  ].map(v=>String(v ?? "")).join("|");
+}
+function ensureRowScheduleCache(r){
+  if(!r) return null;
+  const fingerprint=rowScheduleFingerprint(r);
+  if(r._scheduleCache && r._scheduleFingerprint===fingerprint) return r._scheduleCache;
+  const next=computeComputedNextDate(r);
+  const days=computeDaysFromDate(next ? new Date(next.getTime()) : null);
+  let status="OK / ostatní";
+  let markerColor="#16a34a";
+  let priority=10;
+  if(r.repairOrdered === true){
+    status="Objednaná oprava";
+    markerColor="#2563eb";
+    priority=45;
+  }else if(r.ordered === true){
+    status="Kontrola objednaná";
+    markerColor="#eab308";
+    priority=50;
+  }else if(r.stopped === true){
+    status="Stop Stav";
+    markerColor="#64748b";
+    priority=30;
+  }else if(Number.isFinite(days) && days < 0){
+    status="Propadlá kontrola";
+    markerColor="#dc2626";
+    priority=70;
+  }else if(Number.isFinite(days) && days >= 1 && days <= 30){
+    status="1–30 dní k termínu";
+    markerColor="#f97316";
+    priority=60;
+  }else if(isNoOrderSite(r)){
+    priority=20;
+  }
+  const pillClass=markerColor==="#dc2626"?"red":markerColor==="#f97316"?"orange":markerColor==="#eab308"?"yellow":markerColor==="#2563eb"?"blue":markerColor==="#64748b"?"gray":"green";
+  const cache={
+    nextTime:next ? next.getTime() : NaN,
+    days,
+    display:next ? formatDateCz(next) : (r.pristi || ""),
+    color:markerColor,
+    status,
+    pill:pillClass,
+    priority
+  };
+  r._scheduleFingerprint=fingerprint;
+  r._scheduleCache=cache;
+  return cache;
+}
+function daysToComputedNext(r){
+  const cached=ensureRowScheduleCache(r);
+  return cached ? cached.days : null;
+}
 function displayNext(r){
-  const d=computedNextDate(r);
-  return d ? formatDateCz(d) : (r.pristi || "");
+  const cached=ensureRowScheduleCache(r);
+  return cached ? cached.display : (r && r.pristi || "");
 }
 function color(r){
-  const d=daysToComputedNext(r);
-  if(r.repairOrdered === true) return "#2563eb";
-  if(r.ordered === true) return "#eab308";
-  if(r.stopped === true) return "#64748b";
-  if(Number.isFinite(d) && d < 0) return "#dc2626";
-  if(Number.isFinite(d) && d >= 1 && d <= 30) return "#f97316";
-  return "#16a34a";
+  const cached=ensureRowScheduleCache(r);
+  return cached ? cached.color : "#16a34a";
 }
 function statusText(r){
-  const d=daysToComputedNext(r);
-  if(r.repairOrdered === true) return "Objednaná oprava";
-  if(r.ordered === true) return "Kontrola objednaná";
-  if(r.stopped === true) return "Stop Stav";
-  if(Number.isFinite(d) && d < 0) return "Propadlá kontrola";
-  if(Number.isFinite(d) && d >= 1 && d <= 30) return "1–30 dní k termínu";
-  return "OK / ostatní";
+  const cached=ensureRowScheduleCache(r);
+  return cached ? cached.status : "OK / ostatní";
 }
-function pill(r){const c=color(r);return c==="#dc2626"?"red":c==="#f97316"?"orange":c==="#eab308"?"yellow":c==="#2563eb"?"blue":c==="#64748b"?"gray":"green"}
+function pill(r){const cached=ensureRowScheduleCache(r);return cached ? cached.pill : "green"}
 
 function normPinkText(s){
   return String(s || "")
@@ -6121,14 +6200,8 @@ function recordSourceMatchesSite(record,site){
   return siteSource===recordSource || siteSource.includes(recordSource) || recordSource.includes(siteSource);
 }
 function statusPriority(r){
-  const st=statusText(r);
-  if(st==="Propadlá kontrola") return 70;
-  if(st==="1–30 dní k termínu") return 60;
-  if(st==="Kontrola objednaná") return 50;
-  if(st==="Objednaná oprava") return 45;
-  if(st==="Stop Stav") return 30;
-  if(isNoOrderSite(r)) return 20;
-  return 10;
+  const cached=ensureRowScheduleCache(r);
+  return cached ? cached.priority : 10;
 }
 function groupRepresentative(groupRows){
   const rowsList=groupRows || [];
@@ -6317,6 +6390,7 @@ function rowRenderFingerprint(r){
     Number.isFinite(r.lon) ? Number(r.lon).toFixed(6) : "",
     r._regionNorm || "",
     r._statusText || "",
+    r._scheduleFingerprint || rowScheduleFingerprint(r),
     sitePlaceGroupKey(r),
     sitePlaceLabel(r),
     siteSourceIdentity(r)
@@ -6336,7 +6410,8 @@ function ensureRowFastIndexes(r,index){
     r._regionNorm=regionTextNorm(rowRegion(r));
     r._regionRawRef=r.raw;
   }
-  r._statusText=statusText(r);
+  const schedule=ensureRowScheduleCache(r);
+  r._statusText=schedule ? schedule.status : statusText(r);
 }
 
 function rebuildRowLookupCache(){
@@ -16803,7 +16878,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v66-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v67-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17293,7 +17368,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase19-v66";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase20-v67";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
