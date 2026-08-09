@@ -78,4 +78,6 @@ Current performance phase 28 decision: use the existing `siteRowsByAnyId` lookup
 
 Current performance phase 29 decision: replace repeated startup binding fallback timers for add-site/detail/Firebase controls with a shared idempotent DOM/load lifecycle initializer; preserve the final Firebase add-site panel as the active handler while removing idle timeout retries.
 
+Current performance phase 30 decision: add a short-lived per-site cache for `getLastProtocol()` using the same detail history cache key/invalidation path, so repeated detail/protocol rendering does not re-run the same Firestore protocol lookups while preserving fresh data after protocol mutations.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
