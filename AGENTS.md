@@ -90,4 +90,6 @@ Current performance phase 34 decision: merge IndexedDB offline protocol queue it
 
 Current performance phase 35 decision: have `getLastProtocol()` reuse the merged local protocol history helper, so latest-protocol/date prefill logic can see IndexedDB-backed offline protocol records in addition to legacy localStorage records.
 
+Current performance phase 36 decision: render the per-site protocol history detail with DOM elements and `replaceChildren()` instead of rebuilding a large HTML string; keep the same classes, text, photos, action button IDs, and handlers.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
