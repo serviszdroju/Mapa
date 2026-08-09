@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase16-v63";
-const APP_SHELL_CACHE_NAME="astip-szz-v63-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase17-v64";
+const APP_SHELL_CACHE_NAME="astip-szz-v64-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -15151,13 +15151,55 @@ setTimeout(()=>{
   window.firebaseUnifiedEditableKeys = FB_USER_FIELDS.map(f=>f.key);
   const FB_COLLECTION = "sitesUnified";
   const FIREBASE_SITE_CACHE_KEY = "astipFirebaseSitesMapCacheV2";
+  const FIREBASE_BACKGROUND_REFRESH_MIN_MS = 45000;
   let previewMarker = null;
   let firebaseSitesLoading = false;
+  let firebaseSitesLastNetworkLoadAt = 0;
+  let firebaseSitesBackgroundRefreshTimer = null;
+  let firebaseSitesBackgroundRefreshPromise = null;
 
   const val = v => String(v ?? "").trim();
   const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
   const num = v => { const n = parseFloat(String(v ?? "").replace(",", ".")); return Number.isFinite(n) ? n : NaN; };
   const esc = v => String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+
+  function markFirebaseSitesNetworkLoad(){
+    firebaseSitesLastNetworkLoadAt = Date.now();
+  }
+
+  function firebaseSitesNetworkIsFresh(maxAge=FIREBASE_BACKGROUND_REFRESH_MIN_MS){
+    return !!firebaseSitesLastNetworkLoadAt && Date.now()-firebaseSitesLastNetworkLoadAt < maxAge;
+  }
+
+  function canRunFirebaseSitesBackgroundRefresh(openDocId=null){
+    if(openDocId) return false;
+    if(navigator.onLine===false) return false;
+    if(document.visibilityState==="hidden") return false;
+    if(firebaseSitesBackgroundRefreshPromise) return false;
+    if(firebaseSitesNetworkIsFresh()) return false;
+    return true;
+  }
+
+  function scheduleFirebaseSitesBackgroundRefresh(openDocId=null, delay=80){
+    if(!canRunFirebaseSitesBackgroundRefresh(openDocId)) return;
+    clearTimeout(firebaseSitesBackgroundRefreshTimer);
+    firebaseSitesBackgroundRefreshTimer=setTimeout(async()=>{
+      firebaseSitesBackgroundRefreshTimer=null;
+      if(!canRunFirebaseSitesBackgroundRefresh(openDocId)) return;
+      firebaseSitesBackgroundRefreshPromise=loadFirebaseSites(null,{
+        force:true,
+        skipLocalCache:true,
+        skipFirestoreCache:true,
+        backgroundRefresh:true
+      }).catch(e=>{
+        console.warn("Tiché obnovení Firebase bodů selhalo",e);
+        return Array.isArray(window.rows) ? window.rows : [];
+      }).finally(()=>{
+        firebaseSitesBackgroundRefreshPromise=null;
+      });
+      await firebaseSitesBackgroundRefreshPromise;
+    },delay);
+  }
 
   function rawKeyNorm(k){
     return String(k || "").trim().toLowerCase()
@@ -16062,6 +16104,9 @@ setTimeout(()=>{
     return {duplicate:false,id:ref.id,row};
   }
   async function loadFirebaseSites(openDocId=null, opts={}){
+    if(opts.auto && !openDocId && Array.isArray(window.rows) && window.rows.length && firebaseSitesNetworkIsFresh()){
+      return window.rows;
+    }
     const lockLoad=!openDocId && !opts.retryAuth && !opts.retryPermission && !opts.force;
     if(lockLoad && firebaseSitesLoading){
       const started=Date.now();
@@ -16090,7 +16135,7 @@ setTimeout(()=>{
       if(!opts.skipLocalCache){
         const cachedRows=await showMapRowsCache(openDocId);
         if(cachedRows.length && !opts.force){
-          setTimeout(()=>loadFirebaseSites(openDocId,{force:true,skipLocalCache:true}),80);
+          scheduleFirebaseSitesBackgroundRefresh(openDocId,80);
           return cachedRows;
         }
       }
@@ -16106,6 +16151,7 @@ setTimeout(()=>{
       }
       sideStatus("Načítám body z Firebase...");
       const snap=await collectionRef.get();
+      markFirebaseSitesNetworkLoad();
       const firebaseRows=rowsFromSnapshot(snap);
       return applyFirebaseRows(firebaseRows, openDocId);
     }catch(e){
@@ -16261,7 +16307,7 @@ setTimeout(()=>{
   try{
     const compat=ensureCompatFirebase();
     if(compat && compat.auth){
-      compat.auth().onAuthStateChanged(user=>{ if(user) loadFirebaseSites(); });
+      compat.auth().onAuthStateChanged(user=>{ if(user) loadFirebaseSites(null,{auto:true}); });
     }
   }catch(e){}
   window.loadFirebaseSitesUnified=loadFirebaseSites;
@@ -16747,7 +16793,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v63-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v64-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17237,7 +17283,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase16-v63";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase17-v64";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
