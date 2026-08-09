@@ -70,4 +70,6 @@ Current performance phase 24 decision: avoid rebuilding the detail source choose
 
 Current performance phase 25 decision: cache the read-only detail table HTML per row based on the displayed field values so repeated openings and refreshes of the same unchanged point reuse identical markup while edit mode, raw data, and field ordering stay unchanged.
 
+Current performance phase 26 decision: avoid redundant textContent writes for displayed control dates in the detail panel by updating DOM text only when the rendered value changes; keep the same date formatting, fields, and edit behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
