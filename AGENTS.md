@@ -60,4 +60,6 @@ Current performance phase 19 decision: cache the representative row for each fre
 
 Current performance phase 20 decision: cache computed next-check date, days-to-check, marker color, status text, pill class, and status priority per row fingerprint so map/sidebar/detail renders reuse the same schedule state until the row date/status inputs change.
 
+Current performance phase 21 decision: cache rows grouped by `sitePlaceGroupKey` for the active row collection/version so detail source pickers, multi-source checks, popup/document helpers, and add-source flows do not repeatedly filter and sort the full point list for the same place.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
