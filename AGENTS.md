@@ -72,4 +72,6 @@ Current performance phase 25 decision: cache the read-only detail table HTML per
 
 Current performance phase 26 decision: avoid redundant textContent writes for displayed control dates in the detail panel by updating DOM text only when the rendered value changes; keep the same date formatting, fields, and edit behavior.
 
+Current performance phase 27 decision: publish GitHub Pages from the production Vite output in `dist/client` instead of the raw development `index.html`; keep document RTF templates in the public build output so Doklad exports continue to fetch them from the site root.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
