@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase30-v77";
-const APP_SHELL_CACHE_NAME="astip-szz-v77-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase31-v78";
+const APP_SHELL_CACHE_NAME="astip-szz-v78-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8672,6 +8672,31 @@ function clearDetailHistoryCacheForKind(kind,site=selectedSite){
   if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearMainProtocolHistoryCache();
 }
 
+function uniqueNonEmptyStrings(values=[]){
+  return (Array.isArray(values) ? values : [])
+    .map(value=>String(value || "").trim())
+    .filter((value,idx,arr)=>value && arr.indexOf(value)===idx);
+}
+
+async function readFirestoreArrayContainsAny(fsMod,database,colName,field,values,addDocSnap,warnLabel="Firestore dotaz"){
+  const cleanValues=uniqueNonEmptyStrings(values);
+  if(!cleanValues.length || !fsMod || !database || typeof addDocSnap!=="function") return true;
+  const {collection,query,where,getDocs}=fsMod;
+  if(!collection || !query || !where || !getDocs) return false;
+  for(let i=0;i<cleanValues.length;i+=10){
+    const chunk=cleanValues.slice(i,i+10);
+    try{
+      const q=query(collection(database,colName),where(field,"array-contains-any",chunk));
+      const snap=await getDocs(q);
+      snap.forEach(addDocSnap);
+    }catch(e){
+      console.warn(warnLabel,field,e);
+      return false;
+    }
+  }
+  return true;
+}
+
 function setInputValue(id,value){
   const el=document.getElementById(id);
   if(el) el.value=value;
@@ -11867,12 +11892,20 @@ async function loadHistory(siteId){
           const d=docSnap.data();
           items.push({...d,_type:typeLabel,_collection:colName,_id:docSnap.id});
         };
+        const siteKeysBatchOk=await readFirestoreArrayContainsAny(
+          fb.fsMod,
+          db,
+          colName,
+          "siteKeys",
+          historySiteIds,
+          addDocSnap,
+          `Historie dávkový dotaz selhal ${colName}`
+        );
         for(const id of historySiteIds){
           for(const lookup of [
             ["siteId","==",id],
             ["siteKey","==",id],
-            ["firebaseDocId","==",id],
-            ["siteKeys","array-contains",id]
+            ["firebaseDocId","==",id]
           ]){
             try{
               const q=query(collection(db,colName),where(...lookup));
@@ -11880,6 +11913,15 @@ async function loadHistory(siteId){
               snap.forEach(addDocSnap);
             }catch(e){
               console.warn("Historie dotaz selhal",colName,lookup[0],e);
+            }
+          }
+          if(!siteKeysBatchOk){
+            try{
+              const q=query(collection(db,colName),where("siteKeys","array-contains",id));
+              const snap=await getDocs(q);
+              snap.forEach(addDocSnap);
+            }catch(e){
+              console.warn("Historie dotaz selhal",colName,"siteKeys",e);
             }
           }
         }
@@ -13974,16 +14016,33 @@ async function getLastProtocol(site=selectedSite){
         items.push({...refItem,_id:id});
       }
     }
-    const addSnap=snap=>snap.forEach(docSnap=>{
+    const addProtocolDocSnap=docSnap=>{
       if(items.some(item=>item._id===docSnap.id)) return;
       items.push({...docSnap.data(),_id:docSnap.id});
-    });
+    };
+    const addSnap=snap=>snap.forEach(addProtocolDocSnap);
+    const siteKeysBatchOk=await readFirestoreArrayContainsAny(
+      fb.fsMod,
+      db,
+      "protocols",
+      "siteKeys",
+      keys,
+      addProtocolDocSnap,
+      "Poslední protokol dávkový dotaz selhal"
+    );
     for(const id of keys){
-      for(const lookup of [["siteId","==",id],["siteKey","==",id],["firebaseDocId","==",id],["siteKeys","array-contains",id]]){
+      for(const lookup of [["siteId","==",id],["siteKey","==",id],["firebaseDocId","==",id]]){
         try{
           addSnap(await getDocs(query(collection(db,"protocols"),where(...lookup))));
         }catch(e){
           console.warn("Poslední protokol dotaz selhal",lookup[0],e);
+        }
+      }
+      if(!siteKeysBatchOk){
+        try{
+          addSnap(await getDocs(query(collection(db,"protocols"),where("siteKeys","array-contains",id))));
+        }catch(e){
+          console.warn("Poslední protokol dotaz selhal","siteKeys",e);
         }
       }
     }
@@ -17074,7 +17133,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v77-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v78-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17564,7 +17623,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase30-v77";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase31-v78";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

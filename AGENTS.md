@@ -80,4 +80,6 @@ Current performance phase 29 decision: replace repeated startup binding fallback
 
 Current performance phase 30 decision: add a short-lived per-site cache for `getLastProtocol()` using the same detail history cache key/invalidation path, so repeated detail/protocol rendering does not re-run the same Firestore protocol lookups while preserving fresh data after protocol mutations.
 
+Current performance phase 31 decision: batch Firestore `siteKeys` lookups for detail history and latest-protocol reads with `array-contains-any` chunks, falling back to the original per-key `array-contains` queries if batching fails so older data remains reachable.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
