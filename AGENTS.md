@@ -88,4 +88,6 @@ Current performance phase 33 decision: keep Firebase SDK loading in the app unch
 
 Current performance phase 34 decision: merge IndexedDB offline protocol queue items into both the per-site detail history and the main protocol history alongside legacy localStorage items, deduped by `_id`, so protocol history remains visible even when localStorage is incomplete while moving large offline state toward IndexedDB.
 
+Current performance phase 35 decision: have `getLastProtocol()` reuse the merged local protocol history helper, so latest-protocol/date prefill logic can see IndexedDB-backed offline protocol records in addition to legacy localStorage records.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
