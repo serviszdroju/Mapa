@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase27-v74";
-const APP_SHELL_CACHE_NAME="astip-szz-v74-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase28-v75";
+const APP_SHELL_CACHE_NAME="astip-szz-v75-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6420,7 +6420,7 @@ function openAddSourceForSite(site=selectedSite){
   },120);
 }
 function openAddSourceForSiteByKey(key){
-  const row=rows.find(r=>detailKey(r)===String(key || "") || r.id===String(key || "") || r.firebaseDocId===String(key || ""));
+  const row=findRowByAnyId(key);
   if(row) openAddSourceForSite(row);
 }
 function sourceChooserRenderSignature(site,siblings,activeKey){
@@ -6579,6 +6579,26 @@ function syncRowIndexes(){
   indexedRowsRef=rows;
   indexedRowsLength=rows.length;
 }
+function rowMatchesAnyLookupKey(row,key){
+  const wanted=String(key || "").trim();
+  if(!row || !wanted) return false;
+  return rowLookupKeys(row).includes(wanted);
+}
+function rowIndexForRow(row){
+  if(!row) return -1;
+  if(Number.isFinite(row.i) && rows[row.i]===row) return row.i;
+  return rows.indexOf(row);
+}
+function findRowByAnyId(key,pool=rows){
+  const wanted=String(key || "").trim();
+  if(!wanted) return null;
+  if(pool===rows){
+    syncRowIndexes();
+    const direct=siteRowsByAnyId && siteRowsByAnyId.get(wanted);
+    if(direct) return direct;
+  }
+  return (Array.isArray(pool) ? pool : []).find(row=>rowMatchesAnyLookupKey(row,wanted)) || null;
+}
 function detailKey(r){
   return editCacheKeyForRow(r);
 }
@@ -6681,10 +6701,8 @@ Object.assign(window,{
   setRegionFieldValue
 });
 window.openDetailById=function(id){
-  const key=String(id || "");
-  const direct=siteRowsByAnyId && siteRowsByAnyId.get(key);
-  if(direct) return window.openDetail(direct.i);
-  const idx=rows.findIndex(r=>detailKey(r)===key || r.id===key || r.firebaseDocId===key || String(r.raw?.["Firebase_doc_id"] || "")===key);
+  const row=findRowByAnyId(id);
+  const idx=rowIndexForRow(row);
   if(idx>=0) return window.openDetail(idx);
 };
 let mapMarkerCache=new Map();
@@ -7174,9 +7192,8 @@ window.setFirebaseSiteRows = function(firebaseRows, openDocId=null){
   filters();
   render();
   if(openDocId){
-    const idx=rows.findIndex(r=>r.firebaseDocId===openDocId);
-    if(idx>=0){
-      const r=rows[idx];
+    const r=findRowByAnyId(openDocId);
+    if(r){
       if(Number.isFinite(r.lat)&&Number.isFinite(r.lon)) map.setView([r.lat,r.lon],14);
       setTimeout(()=>window.openDetailById(openDocId),150);
     }
@@ -7431,7 +7448,7 @@ async function saveSelectedSiteGpsPosition(lat,lon,found={},address=""){
     if(firebaseDocId) raw["Firebase_doc_id"]=firebaseDocId;
     return applyEditToRow({...r, raw, firebaseDocId:firebaseDocId || r.firebaseDocId});
   });
-  selectedSite=rows.find(matches) || applyEditToRow({...selectedSite, raw:{...(selectedSite.raw||{}), ...editedRaw}, firebaseDocId:firebaseDocId || selectedSite.firebaseDocId});
+  selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || applyEditToRow({...selectedSite, raw:{...(selectedSite.raw||{}), ...editedRaw}, firebaseDocId:firebaseDocId || selectedSite.firebaseDocId});
   window.rows=rows;
   if(typeof window.saveFirebaseMapRowsCache==="function"){
     try{
@@ -7967,7 +7984,7 @@ async function saveAllDataEdits(){
       if(firebaseDocId) raw["Firebase_doc_id"]=firebaseDocId;
       return applyEditToRow({...r, raw, firebaseDocId:firebaseDocId || r.firebaseDocId});
     });
-    selectedSite = rows.find(matchesSelectedEditRow) || applyEditToRow({...selectedSite, raw:{...(selectedSite.raw||{}), ...editedRaw}});
+    selectedSite = findRowByAnyId(firebaseDocId || selectedKey) || applyEditToRow({...selectedSite, raw:{...(selectedSite.raw||{}), ...editedRaw}});
     if(typeof window.saveFirebaseMapRowsCache==="function"){
       try{
         window.saveFirebaseMapRowsCache(rows.filter(r=>r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]))));
@@ -8042,7 +8059,7 @@ async function toggleRepairFromDetail(){
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
     rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=rows.find(r=>detailKey(r)===selectedKey) || {...selectedSite, repairOrdered};
+    selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || {...selectedSite, repairOrdered};
     if(st) st.textContent=repairOrdered ? "Oprava označena jako objednaná." : "Objednání opravy zrušeno.";
     showSaveConfirmation(repairOrdered ? "Oprava objednána." : "Objednání opravy zrušeno.");
     render();
@@ -8093,7 +8110,7 @@ async function toggleOrderedFromDetail(){
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
     rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=rows.find(r=>detailKey(r)===selectedKey) || {...selectedSite, ordered};
+    selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || {...selectedSite, ordered};
     if(st) st.textContent=ordered ? "Kontrola označena jako objednaná." : "Objednání kontroly zrušeno.";
     showSaveConfirmation(ordered ? "Kontrola objednána." : "Objednání zrušeno.");
     render();
@@ -8137,7 +8154,7 @@ async function toggleStopFromDetail(){
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
     rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=rows.find(r=>detailKey(r)===selectedKey) || {...selectedSite, stopped};
+    selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || {...selectedSite, stopped};
     if(st) st.textContent=stopped ? "Zdroj je označený jako Stop Stav." : "Stop Stav byl zrušen.";
     showSaveConfirmation(stopped ? "Stop Stav uložen." : "Stop Stav zrušen.");
     render();
@@ -11460,7 +11477,7 @@ function clearManualStatusLocalState(site=selectedSite){
     };
   };
   rows=rows.map(row=>manualStatusSiteMatches(row,site,selectedKey,docId) ? applyClear(row) : row);
-  selectedSite=rows.find(row=>manualStatusSiteMatches(row,site,selectedKey,docId)) || applyClear(site);
+  selectedSite=findRowByAnyId(docId || selectedKey) || applyClear(site);
 }
 
 function refreshSelectedDetailDataView(){
@@ -12352,7 +12369,7 @@ document.getElementById("saveEditBtn").onclick=async()=>{
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...(editCache[selectedKey]||editCache[selectedSite.id]||{}),...edit};
     rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=rows.find(r=>detailKey(r)===selectedKey) || selectedSite;
+    selectedSite=findRowByAnyId(selectedSiteDocId(selectedSite) || selectedKey) || selectedSite;
     render(); window.openDetailById(selectedKey);
     st.textContent="Úpravy uloženy.";
     showSaveConfirmation("Úpravy uloženy.");
@@ -16396,7 +16413,7 @@ setTimeout(()=>{
       const quiet=options.openDetail===false && options.focusMap===false;
       const loadedRows=window.upsertFirebaseSiteRow(row,quiet ? false : id);
       if(Array.isArray(loadedRows) && loadedRows.length) saveMapRowsCache(loadedRows);
-      const found=(loadedRows || []).find(r=>String(r.firebaseDocId || r.raw?.["Firebase_doc_id"] || r.id || "")===id);
+      const found=findRowByAnyId(id,loadedRows);
       const target=found || row;
       if(options.focusMap!==false && Number.isFinite(target.lat)&&Number.isFinite(target.lon) && window.map) window.map.setView([target.lat,target.lon],14);
       if(options.openDetail!==false && typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(id),150);
@@ -16411,7 +16428,7 @@ setTimeout(()=>{
     const id=String(docId || "");
     if(savedRow && upsertSavedFirebaseRowAfterSave(savedRow,id)) return true;
     const loadedRows=await loadFirebaseSites();
-    const found=(loadedRows || []).find(r=>String(r.firebaseDocId || "")===id);
+    const found=findRowByAnyId(id,loadedRows);
     if(found){
       if(Number.isFinite(found.lat)&&Number.isFinite(found.lon)) map.setView([found.lat,found.lon],14);
       setTimeout(()=>window.openDetailById(id),150);
@@ -17019,7 +17036,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v74-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v75-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17509,7 +17526,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase27-v74";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase28-v75";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
