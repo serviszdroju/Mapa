@@ -48,4 +48,6 @@ Current performance phase 13 decision: offline site/source synchronization shoul
 
 Current performance phase 14 decision: duplicate checks before saving a Firebase site/source should first use loaded rows and targeted Firestore `dedupKeys` queries, falling back to the previous full collection scan only when the fast path is unavailable or not certain.
 
+Current performance phase 15 decision: cache `sitesUnified/{site}/photos`, `protocols`, and `serviceRecords` reads briefly per site/user, and invalidate that cache after child saves/deletes so Galerie and Protokol do not repeat identical short-interval Firestore reads.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
