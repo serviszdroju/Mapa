@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase15-v62";
-const APP_SHELL_CACHE_NAME="astip-szz-v62-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase16-v63";
+const APP_SHELL_CACHE_NAME="astip-szz-v63-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8313,6 +8313,8 @@ let protocolEditState=null;
 const DETAIL_HISTORY_CACHE_MS=45000;
 const DETAIL_HISTORY_MUTATION_KINDS=new Set(["protocolHistory","serviceHistory","protocols","serviceRecords"]);
 const detailHistoryCache=new Map();
+const MAIN_PROTOCOL_HISTORY_CACHE_MS=45000;
+let mainProtocolHistoryCache={key:"",savedAt:0,items:null};
 
 function detailHistoryCacheKey(site=selectedSite){
   if(!site) return "";
@@ -8358,8 +8360,37 @@ function clearDetailHistoryCache(site=selectedSite){
 }
 window.clearDetailHistoryCache=clearDetailHistoryCache;
 
+function mainProtocolHistoryCacheKey(){
+  return currentUserEmail() || "anonymous";
+}
+
+function readMainProtocolHistoryCache(){
+  const key=mainProtocolHistoryCacheKey();
+  if(!mainProtocolHistoryCache.items || mainProtocolHistoryCache.key!==key) return null;
+  if(Date.now()-mainProtocolHistoryCache.savedAt>MAIN_PROTOCOL_HISTORY_CACHE_MS){
+    mainProtocolHistoryCache={key:"",savedAt:0,items:null};
+    return null;
+  }
+  return mainProtocolHistoryCache.items.map(cloneDetailHistoryItem);
+}
+
+function writeMainProtocolHistoryCache(items=[]){
+  mainProtocolHistoryCache={
+    key:mainProtocolHistoryCacheKey(),
+    savedAt:Date.now(),
+    items:Array.isArray(items) ? items.map(cloneDetailHistoryItem) : []
+  };
+}
+
+function clearMainProtocolHistoryCache(){
+  mainProtocolHistoryCache={key:"",savedAt:0,items:null};
+}
+window.clearMainProtocolHistoryCache=clearMainProtocolHistoryCache;
+
 function clearDetailHistoryCacheForKind(kind,site=selectedSite){
-  if(DETAIL_HISTORY_MUTATION_KINDS.has(String(kind || ""))) clearDetailHistoryCache(site);
+  const cleanKind=String(kind || "");
+  if(DETAIL_HISTORY_MUTATION_KINDS.has(cleanKind)) clearDetailHistoryCache(site);
+  if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearMainProtocolHistoryCache();
 }
 
 function setInputValue(id,value){
@@ -11749,6 +11780,8 @@ function readAllLocalProtocolHistoryItems(){
 
 async function loadMainProtocolHistoryItems(){
   if(!canViewMainProtocolHistory()) return [];
+  const cached=readMainProtocolHistoryCache();
+  if(cached) return cached;
   const items=[];
   const addItem=item=>{
     if(!item) return;
@@ -11774,10 +11807,12 @@ async function loadMainProtocolHistoryItems(){
       console.warn("Hlavní historie protokolů nejde načíst",e);
     }
   }
-  return items
+  const finalItems=items
     .filter(isProtocolHistoryItem)
     .sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a))
     .slice(0,80);
+  writeMainProtocolHistoryCache(finalItems);
+  return finalItems.map(cloneDetailHistoryItem);
 }
 
 async function openMainProtocolHistoryPanel(){
@@ -16712,7 +16747,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v62-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v63-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17202,7 +17237,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase15-v62";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase16-v63";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
