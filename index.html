@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase28-v75";
-const APP_SHELL_CACHE_NAME="astip-szz-v75-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase29-v76";
+const APP_SHELL_CACHE_NAME="astip-szz-v76-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -14839,10 +14839,20 @@ setTimeout(()=>{
     }
   }
 
-  document.addEventListener("DOMContentLoaded",bindOnlyNew);
-  setTimeout(bindOnlyNew,300);
-  setTimeout(bindOnlyNew,1000);
-  setTimeout(bindOnlyNew,2500);
+  window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={}){
+    if(typeof fn!=="function") return;
+    const run=()=>{
+      try{ fn(); }
+      catch(e){ console.warn("Inicializace ovládání selhala",e); }
+    };
+    if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",run,{once:true});
+    else run();
+    if(options && options.onLoad){
+      if(document.readyState==="complete") run();
+      else window.addEventListener("load",run,{once:true});
+    }
+  };
+  window.runSzzDomReadyInit(bindOnlyNew);
 })();
 </script>
 <style>
@@ -15184,10 +15194,7 @@ setTimeout(()=>{
     };
   }
 
-  document.addEventListener("DOMContentLoaded",bindAddOnly);
-  setTimeout(bindAddOnly,300);
-  setTimeout(bindAddOnly,1200);
-  setTimeout(bindAddOnly,2500);
+  window.runSzzDomReadyInit(bindAddOnly);
 })();
 </script>
 <style>
@@ -15233,14 +15240,11 @@ setTimeout(()=>{
     const detailLike=e.target.closest && e.target.closest(".item, .leaflet-marker-icon, .leaflet-interactive, .leaflet-popup");
     if(detailLike){
       closeAddFormIfOpen();
-      setTimeout(patchOpenDetail,0);
+      patchOpenDetail();
     }
   }, true);
 
-  document.addEventListener("DOMContentLoaded", patchOpenDetail);
-  setTimeout(patchOpenDetail,200);
-  setTimeout(patchOpenDetail,800);
-  setTimeout(patchOpenDetail,2000);
+  window.runSzzDomReadyInit(patchOpenDetail,{onLoad:true});
 })();
 </script>
 
@@ -15311,11 +15315,7 @@ setTimeout(()=>{
     bindAddButtonFinal();
   }
 
-  document.addEventListener("DOMContentLoaded", initFinalFix);
-  setTimeout(initFinalFix, 100);
-  setTimeout(initFinalFix, 500);
-  setTimeout(initFinalFix, 1500);
-  setTimeout(initFinalFix, 3000);
+  window.runSzzDomReadyInit(initFinalFix,{onLoad:true});
 
   // Když klikneš na položku nebo marker, vždy obnov normální detail před spuštěním handleru.
   document.addEventListener("click", function(e){
@@ -16544,9 +16544,7 @@ setTimeout(()=>{
     },true);
     document.__firebaseUnifiedAddCaptureBound=true;
   }
-  document.addEventListener("DOMContentLoaded",bind,{once:true});
-  setTimeout(bind,100);
-  setTimeout(bind,800);
+  window.runSzzDomReadyInit(bind,{onLoad:true});
   try{
     const compat=ensureCompatFirebase();
     if(compat && compat.auth){
@@ -17036,7 +17034,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v75-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v76-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17526,7 +17524,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase28-v75";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase29-v76";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

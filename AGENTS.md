@@ -76,4 +76,6 @@ Current performance phase 27 decision: publish GitHub Pages from the production 
 
 Current performance phase 28 decision: use the existing `siteRowsByAnyId` lookup for frequent row retrieval paths such as opening details, adding sources, post-load focus, post-save upsert focus, GPS saves, and manual status toggles instead of repeated full `rows.find()`/`rows.findIndex()` scans; keep intentional dedupe scans unchanged.
 
+Current performance phase 29 decision: replace repeated startup binding fallback timers for add-site/detail/Firebase controls with a shared idempotent DOM/load lifecycle initializer; preserve the final Firebase add-site panel as the active handler while removing idle timeout retries.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
