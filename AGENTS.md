@@ -56,4 +56,6 @@ Current performance phase 17 decision: coalesce Firebase background refreshes af
 
 Current performance phase 18 decision: keep critical service-worker precache focused on same-origin app shell files and warm external CDN libraries in the background, so service-worker install/update is not blocked by Leaflet/Firebase CDN fetches while manual offline preparation can still cache those libraries explicitly.
 
+Current performance phase 19 decision: cache the representative row for each freshly built place group so marker coloring and sidebar ordering do not repeatedly sort the same source rows during one render cycle.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
