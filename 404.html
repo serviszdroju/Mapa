@@ -2510,7 +2510,7 @@ button:active{transform:translateY(0)}
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-Bhei_zZZ.js"></script>
+  <script type="module" crossorigin src="./assets/index-zeatqZZo.js"></script>
 </head>
 <body>
 
@@ -5034,7 +5034,7 @@ Cena FZ: ..."></textarea>
       const quiet=options.openDetail===false && options.focusMap===false;
       const loadedRows=window.upsertFirebaseSiteRow(row,quiet ? false : id);
       if(Array.isArray(loadedRows) && loadedRows.length) saveMapRowsCache(loadedRows);
-      const found=(loadedRows || []).find(r=>String(r.firebaseDocId || r.raw?.["Firebase_doc_id"] || r.id || "")===id);
+      const found=findRowByAnyId(id,loadedRows);
       const target=found || row;
       if(options.focusMap!==false && Number.isFinite(target.lat)&&Number.isFinite(target.lon) && window.map) window.map.setView([target.lat,target.lon],14);
       if(options.openDetail!==false && typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(id),150);
@@ -5049,7 +5049,7 @@ Cena FZ: ..."></textarea>
     const id=String(docId || "");
     if(savedRow && upsertSavedFirebaseRowAfterSave(savedRow,id)) return true;
     const loadedRows=await loadFirebaseSites();
-    const found=(loadedRows || []).find(r=>String(r.firebaseDocId || "")===id);
+    const found=findRowByAnyId(id,loadedRows);
     if(found){
       if(Number.isFinite(found.lat)&&Number.isFinite(found.lon)) map.setView([found.lat,found.lon],14);
       setTimeout(()=>window.openDetailById(id),150);
@@ -5657,7 +5657,7 @@ Cena FZ: ..."></textarea>
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v74-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v75-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -6147,7 +6147,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase27-v74";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase28-v75";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
