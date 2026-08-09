@@ -50,4 +50,6 @@ Current performance phase 14 decision: duplicate checks before saving a Firebase
 
 Current performance phase 15 decision: cache `sitesUnified/{site}/photos`, `protocols`, and `serviceRecords` reads briefly per site/user, and invalidate that cache after child saves/deletes so Galerie and Protokol do not repeat identical short-interval Firestore reads.
 
+Current performance phase 16 decision: cache the main cross-site protocol history briefly per user and invalidate it on protocol saves/deletes so repeated openings of “Historie protokolů” do not rescan localStorage and Firestore.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
