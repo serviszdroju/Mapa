@@ -84,4 +84,6 @@ Current performance phase 31 decision: batch Firestore `siteKeys` lookups for de
 
 Current performance phase 32 decision: run the remaining keyed/text Firestore fallback queries for detail history and latest-protocol reads through a bounded concurrent scheduler, and fetch `serviceRecords` plus `protocols` in parallel; keep all old matching fallbacks so legacy text-only protocol data remains visible.
 
+Current performance phase 33 decision: keep Firebase SDK loading in the app unchanged, but remove compat/modular Firebase SDK URLs from manual app-shell and service-worker external precache lists; cache only the local shell assets and Leaflet up front, while Firebase scripts remain runtime/network loaded and can still be runtime-cached after use.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

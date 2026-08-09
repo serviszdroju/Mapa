@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v79";
+const CACHE_VERSION = "astip-szz-v80";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -21,13 +21,7 @@ const PRECACHE_URLS = [
 
 const EXTERNAL_PRECACHE_URLS = [
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
 
 self.addEventListener("install", (event) => {
