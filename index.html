@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-09-performance-phase37-v84";
-const APP_SHELL_CACHE_NAME="astip-szz-v84-static";
+const APP_BUILD_VERSION="2026-08-09-performance-phase38-v85";
+const APP_SHELL_CACHE_NAME="astip-szz-v85-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10719,6 +10719,28 @@ function siteLocalCacheKey(kind,site=selectedSite){
   const key=selectedSiteDocId(site) || detailKey(site) || site?.id || "unknown";
   return `astipMap:${kind}:${key}`;
 }
+const LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS=1800;
+const localStorageArrayEntriesCache=new Map();
+function cloneLocalStorageArrayEntries(entries=[]){
+  return (entries || []).map(entry=>({
+    key:entry.key,
+    suffix:entry.suffix,
+    items:Array.isArray(entry.items) ? entry.items.slice() : []
+  }));
+}
+function clearLocalStorageArrayEntriesCache(prefixOrKey=""){
+  const clean=String(prefixOrKey || "");
+  if(!clean){
+    localStorageArrayEntriesCache.clear();
+    return;
+  }
+  for(const prefix of localStorageArrayEntriesCache.keys()){
+    if(prefix===clean || clean.startsWith(prefix) || prefix.startsWith(clean)){
+      localStorageArrayEntriesCache.delete(prefix);
+    }
+  }
+}
+window.addEventListener("storage",()=>clearLocalStorageArrayEntriesCache());
 function readSiteLocalArray(kind,site=selectedSite){
   try{
     const raw=localStorage.getItem(siteLocalCacheKey(kind,site));
@@ -10734,7 +10756,9 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
     const id=safe(item && item._id);
     let next=(id ? arr.filter(x=>safe(x && x._id)!==id) : arr).concat([{...item}]);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
-    localStorage.setItem(siteLocalCacheKey(kind,site),JSON.stringify(next));
+    const key=siteLocalCacheKey(kind,site);
+    localStorage.setItem(key,JSON.stringify(next));
+    clearLocalStorageArrayEntriesCache(key);
     clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
@@ -10745,7 +10769,9 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
     const cleanId=safe(id);
     if(!cleanId) return;
     const next=readSiteLocalArray(kind,site).filter(item=>safe(item && item._id)!==cleanId);
-    localStorage.setItem(siteLocalCacheKey(kind,site),JSON.stringify(next));
+    const key=siteLocalCacheKey(kind,site);
+    localStorage.setItem(key,JSON.stringify(next));
+    clearLocalStorageArrayEntriesCache(key);
     clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila upravit",kind,e);
@@ -11022,19 +11048,25 @@ function restoreProtocolDraftIfAny(site=selectedSite){
 let offlineProtocolSyncRunning=false;
 
 function localStorageArrayEntries(prefix){
+  const cleanPrefix=String(prefix || "");
+  const cached=localStorageArrayEntriesCache.get(cleanPrefix);
+  if(cached && cached.length===localStorage.length && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
+    return cloneLocalStorageArrayEntries(cached.entries);
+  }
   const entries=[];
   try{
     for(let i=0;i<localStorage.length;i++){
       const key=localStorage.key(i);
-      if(!key || !key.startsWith(prefix)) continue;
+      if(!key || !key.startsWith(cleanPrefix)) continue;
       const arr=JSON.parse(localStorage.getItem(key) || "[]");
       if(Array.isArray(arr)){
-        entries.push({key,suffix:key.slice(prefix.length),items:arr});
+        entries.push({key,suffix:key.slice(cleanPrefix.length),items:arr});
       }
     }
   }catch(e){
     console.warn("Lokální frontu se nepodařilo načíst",e);
   }
+  localStorageArrayEntriesCache.set(cleanPrefix,{savedAt:Date.now(),length:localStorage.length,entries:cloneLocalStorageArrayEntries(entries)});
   return entries;
 }
 
@@ -11046,6 +11078,7 @@ function removeLocalStorageArrayItemByKey(key,id){
     if(!Array.isArray(arr)) return;
     const next=arr.filter(item=>safe(item && item._id)!==cleanId);
     localStorage.setItem(key,JSON.stringify(next));
+    clearLocalStorageArrayEntriesCache(key);
   }catch(e){}
 }
 
@@ -17250,7 +17283,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v84-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v85-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17737,7 +17770,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-09-performance-phase37-v84";
+  const serviceWorkerBuildVersion="2026-08-09-performance-phase38-v85";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
