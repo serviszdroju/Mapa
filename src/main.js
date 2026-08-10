@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase102-v149";
+const APP_BUILD_VERSION="2026-08-10-performance-phase103-v150";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10266,22 +10266,6 @@ function cloudinaryTransformUrl(url,transformation){
   return rememberCloudinaryTransformUrl(cacheKey,transformed);
 }
 
-function loadImageFileForResize(file){
-  return new Promise((resolve,reject)=>{
-    const url=URL.createObjectURL(file);
-    const img=new Image();
-    img.onload=()=>{
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror=()=>{
-      URL.revokeObjectURL(url);
-      reject(new Error("Fotografii se nepodařilo načíst pro zmenšení."));
-    };
-    img.src=url;
-  });
-}
-
 let photoUploadModulePromise=null;
 function photoUploadModule(){
   if(!photoUploadModulePromise) photoUploadModulePromise=import("./photo-upload.js");
@@ -10293,48 +10277,9 @@ async function prepareCloudinaryUploadFile(file){
   return mod.prepareCloudinaryUploadFile(file);
 }
 
-function blobToDataUrl(blob){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve(String(reader.result || ""));
-    reader.onerror=()=>reject(reader.error || new Error("Fotografii se nepodařilo načíst."));
-    reader.readAsDataURL(blob);
-  });
-}
-
 async function prepareOfflinePhotoData(file){
-  if(!file) throw new Error("Fotografie není vybraná.");
-  let blob=file;
-  if(/^image\//i.test(file.type || "") && !/gif/i.test(file.type || "")){
-    try{
-      const img=await loadImageFileForResize(file);
-      const maxEdge=1600;
-      const quality=.78;
-      const width=img.naturalWidth || img.width;
-      const height=img.naturalHeight || img.height;
-      if(width && height){
-        const scale=Math.min(1,maxEdge/Math.max(width,height));
-        const canvas=document.createElement("canvas");
-        canvas.width=Math.max(1,Math.round(width*scale));
-        canvas.height=Math.max(1,Math.round(height*scale));
-        const ctx=canvas.getContext("2d");
-        if(ctx){
-          ctx.fillStyle="#fff";
-          ctx.fillRect(0,0,canvas.width,canvas.height);
-          ctx.drawImage(img,0,0,canvas.width,canvas.height);
-          blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality)) || file;
-        }
-      }
-    }catch(e){
-      console.warn("Offline fotku se nepodařilo zmenšit, ukládám původní verzi",e);
-    }
-  }
-  const dataUrl=await blobToDataUrl(blob);
-  return {
-    dataUrl,
-    size:blob.size || file.size || dataUrl.length,
-    type:blob.type || file.type || "image/jpeg"
-  };
+  const mod=await photoUploadModule();
+  return mod.prepareOfflinePhotoData(file);
 }
 
 async function uploadPhotoToCloudinary(photoId,file,site=selectedSite,folderName=""){

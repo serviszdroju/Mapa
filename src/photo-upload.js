@@ -61,6 +61,50 @@ export async function prepareCloudinaryUploadFile(file){
   }
 }
 
+function blobToDataUrl(blob){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result || ""));
+    reader.onerror=()=>reject(reader.error || new Error("Fotografii se nepodařilo načíst."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function prepareOfflinePhotoData(file){
+  if(!file) throw new Error("Fotografie není vybraná.");
+  let blob=file;
+  if(/^image\//i.test(file.type || "") && !/gif/i.test(file.type || "")){
+    try{
+      const img=await loadImageFileForResize(file);
+      const maxEdge=1600;
+      const quality=.78;
+      const width=img.naturalWidth || img.width;
+      const height=img.naturalHeight || img.height;
+      if(width && height){
+        const scale=Math.min(1,maxEdge/Math.max(width,height));
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.max(1,Math.round(width*scale));
+        canvas.height=Math.max(1,Math.round(height*scale));
+        const ctx=canvas.getContext("2d");
+        if(ctx){
+          ctx.fillStyle="#fff";
+          ctx.fillRect(0,0,canvas.width,canvas.height);
+          ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality)) || file;
+        }
+      }
+    }catch(e){
+      console.warn("Offline fotku se nepodařilo zmenšit, ukládám původní verzi",e);
+    }
+  }
+  const dataUrl=await blobToDataUrl(blob);
+  return {
+    dataUrl,
+    size:blob.size || file.size || dataUrl.length,
+    type:blob.type || file.type || "image/jpeg"
+  };
+}
+
 function cloudinaryTransformUrl(url,transformation){
   const s=safe(url);
   const t=safe(transformation);
