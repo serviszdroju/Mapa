@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase117-v165";
+const APP_BUILD_VERSION="2026-08-10-performance-phase118-v166";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -649,30 +649,27 @@ if(firebaseReady){
     return authMod.browserPopupRedirectResolver || undefined;
   }
   function signInWithGooglePopup(provider){
+    if(auth && authMod.signInWithPopup){
+      const resolver=redirectResolver();
+      if(resolver) return authMod.signInWithPopup(auth,provider,resolver);
+      return authMod.signInWithPopup(auth,provider);
+    }
     const compatClient=getCompatAuthClient();
     if(compatClient && provider && compatClient.signInWithPopup) return compatClient.signInWithPopup(provider);
-    const resolver=redirectResolver();
-    if(resolver) return authMod.signInWithPopup(auth,provider,resolver);
-    return authMod.signInWithPopup(auth,provider);
+    return Promise.reject(new Error("Firebase Auth není dostupný."));
   }
   function signInWithGoogleRedirect(provider){
+    if(auth && authMod.signInWithRedirect){
+      const resolver=redirectResolver();
+      if(resolver) return authMod.signInWithRedirect(auth,provider,resolver);
+      return authMod.signInWithRedirect(auth,provider);
+    }
     const compatClient=getCompatAuthClient();
     if(compatClient && provider && compatClient.signInWithRedirect) return compatClient.signInWithRedirect(provider);
-    const resolver=redirectResolver();
-    if(resolver) return authMod.signInWithRedirect(auth,provider,resolver);
-    return authMod.signInWithRedirect(auth,provider);
+    return Promise.reject(new Error("Firebase Auth není dostupný."));
   }
   async function googleRedirectResultUser(){
     await primeCompatAuthPersistence();
-    const compatClient=getCompatAuthClient();
-    if(compatClient && compatClient.getRedirectResult){
-      try{
-        const result=await compatClient.getRedirectResult();
-        if(result && result.user) return result.user;
-      }catch(e){
-        console.warn("Compat redirect výsledek přihlášení se nepodařilo načíst",e);
-      }
-    }
     if(authMod.getRedirectResult && auth){
       try{
         const resolver=redirectResolver();
@@ -680,6 +677,15 @@ if(firebaseReady){
         if(result && result.user) return result.user;
       }catch(e){
         console.warn("Redirect výsledek přihlášení se nepodařilo načíst",e);
+      }
+    }
+    const compatClient=getCompatAuthClient();
+    if(compatClient && compatClient.getRedirectResult){
+      try{
+        const result=await compatClient.getRedirectResult();
+        if(result && result.user) return result.user;
+      }catch(e){
+        console.warn("Compat redirect výsledek přihlášení se nepodařilo načíst",e);
       }
     }
     return currentAuthCandidate();
@@ -698,13 +704,16 @@ if(firebaseReady){
     }
   }
   function googleRedirectProvider(){
+    if(authMod && authMod.GoogleAuthProvider){
+      const provider=new authMod.GoogleAuthProvider();
+      provider.addScope("email");
+      provider.addScope("profile");
+      provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
+      return provider;
+    }
     const compatProvider=compatGoogleProvider();
     if(compatProvider) return compatProvider;
-    const provider=new authMod.GoogleAuthProvider();
-    provider.addScope("email");
-    provider.addScope("profile");
-    provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
-    return provider;
+    return null;
   }
   function setSignedUser(user){
     currentUser=user;
@@ -1066,24 +1075,23 @@ if(firebaseReady){
     setStartupStatus("Chyba kontroly přihlášení: " + authErrorText(e));
   }
 
-  const compatAuthForListener=await primeCompatAuthPersistence();
   let modularAuthListenerBound=false;
-  if(compatAuthForListener && compatAuthForListener.onAuthStateChanged){
-    compatAuthForListener.onAuthStateChanged(user=>{
-      if(user) handleAuthorizedUser(user);
-      else handleSignedOut();
-    });
-  }else{
+  if(auth && authMod.onAuthStateChanged){
     authMod.onAuthStateChanged(auth,user=>{
       if(user) handleAuthorizedUser(user);
       else handleSignedOut();
     });
     modularAuthListenerBound=true;
   }
-  if(!modularAuthListenerBound){
-    authMod.onAuthStateChanged(auth,user=>{
+  const compatAuthForListener=await primeCompatAuthPersistence();
+  if(compatAuthForListener && compatAuthForListener.onAuthStateChanged){
+    compatAuthForListener.onAuthStateChanged(user=>{
       if(user) handleAuthorizedUser(user);
+      else if(!modularAuthListenerBound) handleSignedOut();
     });
+  }
+  if(!modularAuthListenerBound){
+    console.warn("Modulární Firebase Auth listener není dostupný; používám pouze záložní compat listener.");
   }
   }
 }
