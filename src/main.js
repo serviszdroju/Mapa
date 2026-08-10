@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase125-v173";
+const APP_BUILD_VERSION="2026-08-10-performance-phase126-v174";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -9840,13 +9840,34 @@ if(typeof window.bindLoginButtons==="function"){
 
 document.getElementById("closeDrawer").onclick=()=>document.getElementById("drawer").classList.remove("open");
 let filterRenderTimer=0;
+let lastFilterInputSignature="";
+function filterInputSignature(){
+  const search=document.getElementById("search");
+  const status=document.getElementById("statusFilter");
+  const region=document.getElementById("regionFilter");
+  return [
+    search ? search.value : "",
+    status ? status.value : "",
+    region ? region.value : ""
+  ].join("\u001f");
+}
 function scheduleFilterRender(delay=220){
+  const signature=filterInputSignature();
+  if(signature===lastFilterInputSignature) return;
+  lastFilterInputSignature=signature;
   clearTimeout(filterRenderTimer);
   filterRenderTimer=setTimeout(requestRender,delay);
 }
+function requestFilterRenderNow(){
+  const signature=filterInputSignature();
+  if(signature===lastFilterInputSignature) return;
+  lastFilterInputSignature=signature;
+  requestRender();
+}
+lastFilterInputSignature=filterInputSignature();
 document.getElementById("search").addEventListener("input",()=>scheduleFilterRender());
-document.getElementById("statusFilter").addEventListener("change",()=>{updateStatusFilterColor();requestRender();});
-document.getElementById("regionFilter").addEventListener("change",requestRender);
+document.getElementById("statusFilter").addEventListener("change",()=>{updateStatusFilterColor();requestFilterRenderNow();});
+document.getElementById("regionFilter").addEventListener("change",requestFilterRenderNow);
 document.getElementById("fitBtn").addEventListener("click",fit);
 const mapBackBtn=document.getElementById("mapBackBtn");
 if(mapBackBtn) mapBackBtn.onclick=returnFromMapFocus;
