@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase86-v133";
-const APP_SHELL_CACHE_NAME="astip-szz-v133-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase87-v134";
+const APP_SHELL_CACHE_NAME="astip-szz-v134-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8054,9 +8054,10 @@ function makeLocalRecordId(prefix="local"){
 }
 
 const SZZ_OFFLINE_QUEUE_DB_NAME="astipMapOfflineQueues";
-const SZZ_OFFLINE_QUEUE_DB_VERSION=1;
+const SZZ_OFFLINE_QUEUE_DB_VERSION=2;
 const SZZ_OFFLINE_SITE_QUEUE_STORE="siteQueue";
 const SZZ_OFFLINE_PROTOCOL_QUEUE_STORE="protocolQueue";
+const SZZ_PROTOCOL_DRAFT_STORE="protocolDrafts";
 
 function openSzzOfflineQueueDb(){
   return new Promise((resolve,reject)=>{
@@ -8073,6 +8074,9 @@ function openSzzOfflineQueueDb(){
       if(!database.objectStoreNames.contains(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE)){
         const protocolStore=database.createObjectStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,{keyPath:"_id"});
         protocolStore.createIndex("siteCacheKey","siteCacheKey",{unique:false});
+      }
+      if(!database.objectStoreNames.contains(SZZ_PROTOCOL_DRAFT_STORE)){
+        database.createObjectStore(SZZ_PROTOCOL_DRAFT_STORE,{keyPath:"siteCacheKey"});
       }
     };
     req.onsuccess=()=>resolve(req.result);
@@ -8243,8 +8247,45 @@ function protocolDraftKey(site=selectedSite){
   return siteLocalCacheKey("protocolDraft",site);
 }
 
+async function saveProtocolDraftToIndexedDb(site,draft){
+  const siteCacheKey=protocolDraftKey(site);
+  if(!siteCacheKey || !draft || !draft.payload) return null;
+  try{
+    const item={...draft,siteCacheKey};
+    await withSzzOfflineQueueStore(SZZ_PROTOCOL_DRAFT_STORE,"readwrite",(store)=>{store.put(item);});
+    return item;
+  }catch(e){
+    console.warn("IndexedDB koncept protokolu se nepodařilo uložit",e);
+    return null;
+  }
+}
+
+async function readProtocolDraftFromIndexedDb(site=selectedSite){
+  const siteCacheKey=protocolDraftKey(site);
+  if(!siteCacheKey) return null;
+  try{
+    const item=await withSzzOfflineQueueStore(SZZ_PROTOCOL_DRAFT_STORE,"readonly",(store,setResult)=>{
+      const req=store.get(siteCacheKey);
+      req.onsuccess=()=>setResult(req.result || null);
+      req.onerror=()=>setResult(null);
+    });
+    return item && item.payload ? item : null;
+  }catch(e){
+    return null;
+  }
+}
+
+async function deleteProtocolDraftFromIndexedDb(site=selectedSite){
+  const siteCacheKey=protocolDraftKey(site);
+  if(!siteCacheKey) return;
+  try{
+    await withSzzOfflineQueueStore(SZZ_PROTOCOL_DRAFT_STORE,"readwrite",(store)=>{store.delete(siteCacheKey);});
+  }catch(e){}
+}
+
 function clearProtocolDraft(site=selectedSite){
   try{localStorage.removeItem(protocolDraftKey(site));}catch(e){}
+  deleteProtocolDraftFromIndexedDb(site);
   clearProtocolDraftCountCache();
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
@@ -8253,7 +8294,7 @@ function readProtocolDraft(site=selectedSite){
   try{
     const raw=localStorage.getItem(protocolDraftKey(site));
     const parsed=raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed==="object" ? parsed : null;
+    return parsed && typeof parsed==="object" && parsed.payload ? parsed : null;
   }catch(e){
     return null;
   }
@@ -8265,11 +8306,23 @@ function saveProtocolDraftNow(){
   if(!form || form.style.display==="none") return;
   try{
     const payload=protocolPayload();
-    localStorage.setItem(protocolDraftKey(selectedSite),JSON.stringify({
+    const draft={
       savedAt:new Date().toISOString(),
       siteKey:siteRecordKeys(selectedSite)[0] || selectedSite.id || "",
       payload
-    }));
+    };
+    const key=protocolDraftKey(selectedSite);
+    localStorage.setItem(key,JSON.stringify(draft));
+    saveProtocolDraftToIndexedDb(selectedSite,draft).then(saved=>{
+      if(!saved) return;
+      try{
+        localStorage.setItem(key,JSON.stringify({
+          savedAt:draft.savedAt,
+          siteKey:draft.siteKey,
+          storage:"indexedDB"
+        }));
+      }catch(e){}
+    });
     clearProtocolDraftCountCache();
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(250);
     const st=document.getElementById("protocolStatus");
@@ -8295,8 +8348,7 @@ function bindProtocolDraftAutosave(){
   form.addEventListener("change",scheduleProtocolDraftSave);
 }
 
-function restoreProtocolDraftIfAny(site=selectedSite){
-  const draft=readProtocolDraft(site);
+function applyProtocolDraftToForm(draft){
   if(!draft || !draft.payload) return false;
   protocolDraftRestoreInProgress=true;
   try{
@@ -8311,6 +8363,18 @@ function restoreProtocolDraftIfAny(site=selectedSite){
   }finally{
     protocolDraftRestoreInProgress=false;
   }
+}
+
+function restoreProtocolDraftIfAny(site=selectedSite){
+  const draft=readProtocolDraft(site);
+  if(draft && draft.payload) return applyProtocolDraftToForm(draft);
+  const key=protocolDraftKey(site);
+  readProtocolDraftFromIndexedDb(site).then(indexedDraft=>{
+    if(!indexedDraft || !indexedDraft.payload) return false;
+    if(key!==protocolDraftKey(selectedSite) || protocolEditState) return false;
+    return applyProtocolDraftToForm(indexedDraft);
+  }).catch(e=>console.warn("IndexedDB koncept protokolu se nepodařilo obnovit",e));
+  return false;
 }
 
 let offlineProtocolSyncRunning=false;
