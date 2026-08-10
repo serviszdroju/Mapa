@@ -192,3 +192,19 @@ export async function uploadPhotoToCloudinary(options={}){
   }
   throw new Error(cloudinaryUploadErrorMessage(errors));
 }
+
+export async function deleteCloudinaryUpload(options={}){
+  const token=safe(options.token);
+  const config=options.config || {};
+  if(!token || !config.cloudName) return;
+  try{
+    const form=new FormData();
+    form.append("token",token);
+    await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(config.cloudName)}/delete_by_token`,{
+      method:"POST",
+      body:form
+    });
+  }catch(e){
+    console.warn("Cloudinary fotku se nepodařilo smazat přes delete token",e);
+  }
+}

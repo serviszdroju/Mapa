@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase103-v150";
+const APP_BUILD_VERSION="2026-08-10-performance-phase104-v151";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10290,16 +10290,8 @@ async function uploadPhotoToCloudinary(photoId,file,site=selectedSite,folderName
 async function deleteCloudinaryUpload(item){
   const token=safe((item && item.cloudinaryDeleteToken) || sitePhotoDeleteTokens.get(safe(item && item._id)));
   if(!token || !CLOUDINARY_PHOTOS.cloudName) return;
-  try{
-    const form=new FormData();
-    form.append("token",token);
-    await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_PHOTOS.cloudName)}/delete_by_token`,{
-      method:"POST",
-      body:form
-    });
-  }catch(e){
-    console.warn("Cloudinary fotku se nepodařilo smazat přes delete token",e);
-  }
+  const mod=await photoUploadModule();
+  await mod.deleteCloudinaryUpload({token,config:CLOUDINARY_PHOTOS});
 }
 
 let sitePhotoPreviewUrls=[];
