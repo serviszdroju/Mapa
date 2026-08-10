@@ -2556,7 +2556,7 @@ function renderSzzInstallGuide(){
     else if(!env.secure) state.textContent="Instalace funguje jen přes zabezpečený web HTTPS. Otevři publikovanou adresu aplikace, ne lokální soubor.";
     else if(!env.serviceWorker) state.textContent="Tento prohlížeč nepodporuje offline instalaci. Použij Android Chrome.";
     else if(env.hasPrompt) state.textContent="Tablet je připravený. Klepni na Stáhnout aplikaci, potvrď otázku a ikona se po instalaci objeví mezi aplikacemi.";
-    else if(env.android && (env.chrome || env.samsung)) state.textContent="Tablet zatím neposlal stránce instalační okno. Zkus stránku obnovit a klepnout znovu. Po úspěšné instalaci bude ikona mezi aplikacemi v tabletu.";
+    else if(env.android && (env.chrome || env.samsung)) state.textContent="Tablet zatím neposlal stránce instalační okno. Bez systémového okna Android aplikaci do menu nepřidá; obnov stránku a klepni znovu.";
     else if(env.android) state.textContent="Otevři tuto adresu v Android Chromu. Některé prohlížeče přímé stažení aplikace nenabízejí.";
     else state.textContent="Na Androidu otevři stejnou adresu v Chromu. Odkaz si můžeš zkopírovat tlačítkem níže.";
   }
@@ -2578,9 +2578,9 @@ function androidInstallHelpText(){
     return "Firefox na Androidu neumí spustit přímou instalaci tímto tlačítkem. Otevři stránku v Android Chromu a klikni znovu; po instalaci bude ikona mezi aplikacemi v tabletu.";
   }
   if(/android/i.test(ua)){
-    return "Tablet zatím nepřipravil instalační okno pro toto tlačítko. Obnov stránku v Android Chromu a klikni znovu; po instalaci bude ikona mezi aplikacemi v tabletu.";
+    return "Tablet zatím nepřipravil instalační okno pro toto tlačítko. Bez toho se aplikace v menu tabletu neobjeví. Obnov stránku v Android Chromu a klikni znovu.";
   }
-  return "Instalační okno je dostupné hlavně v Android Chromu. Na tabletu otevři tuto adresu v Chromu; po instalaci bude ikona mezi aplikacemi.";
+  return "Instalační okno je dostupné hlavně v Android Chromu. Bez systémového instalačního okna se ikona v menu tabletu nevytvoří.";
 }
 
 async function copySzzInstallUrl(){
@@ -2828,7 +2828,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-tablet-install-copy-v183";
+  const serviceWorkerBuildVersion="2026-08-10-installability-apk-v184";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

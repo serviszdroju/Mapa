@@ -6,7 +6,7 @@ Je to docasny mezikrok k plnohodnotne offline aplikaci: podrobny navrh nativni v
 
 ## Co to dela
 
-- spousti web `https://karolopejlo.github.io/Mapa/` jako Android aplikaci,
+- spousti web `https://serviszdroju.github.io/Mapa/` jako Android aplikaci,
 - pouziva Chrome/Custom Tabs engine, takze Google prihlaseni funguje lepe nez v obycejnem WebView,
 - po overeni Digital Asset Links se otevira bez horni listy prohlizece jako plna aplikace,
 - zachova offline logiku webu, fotky, Firebase a Cloudinary,
@@ -20,6 +20,8 @@ Je to docasny mezikrok k plnohodnotne offline aplikaci: podrobny navrh nativni v
 4. Gradle 9.5+ nebo Android Studio sync, ktery Gradle obstara
 
 Na tomto Macu zatim neni dostupny Android SDK ani funkcni Java runtime, proto tady APK nejde rovnou sestavit.
+Po sestaveni a instalaci APK se aplikace zobrazi v menu tabletu jako bezna Android aplikace
+pod nazvem `SZZ mapa`. Webova PWA instalace pres Chrome to na nekterych tabletech negarantuje.
 
 ## Dulezite: Digital Asset Links
 
@@ -27,17 +29,17 @@ Trusted Web Activity se overuje pres soubor:
 
 `https://domena/.well-known/assetlinks.json`
 
-Pro aktualni adresu `https://karolopejlo.github.io/Mapa/` je domena `karolopejlo.github.io`, takze overovaci soubor musi byt dostupny presne tady:
+Pro aktualni adresu `https://serviszdroju.github.io/Mapa/` je domena `serviszdroju.github.io`, takze overovaci soubor musi byt dostupny presne tady:
 
-`https://karolopejlo.github.io/.well-known/assetlinks.json`
+`https://serviszdroju.github.io/.well-known/assetlinks.json`
 
 Projektova GitHub Pages stranka `/Mapa/` sama o sobe obvykle umi publikovat jen:
 
-`https://karolopejlo.github.io/Mapa/.well-known/assetlinks.json`
+`https://serviszdroju.github.io/Mapa/.well-known/assetlinks.json`
 
 To pro TWA nestaci. Produkcni reseni je jedno z techto:
 
-1. Pridat `assetlinks.json` do root webu `karolopejlo.github.io`.
+1. Pridat `assetlinks.json` do root webu `serviszdroju.github.io`.
 2. Nastavit vlastni domenu pro tento projekt, napr. `mapa.astip.cz`, a upravit Android projekt na tuhle domenu.
 
 Ukazka obsahu je pripravena v `../.well-known/assetlinks.example.json`. Pred nasazenim se v ni musi nahradit hodnota `DOPLNIT:SHA256:OTISK:PODPISOVEHO:CERTIFIKATU` skutecnym SHA-256 otiskem release klice.

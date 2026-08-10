@@ -14,12 +14,12 @@ android {
         versionName "1.0.0"
 
         manifestPlaceholders = [
-            webHost: "karolopejlo.github.io",
+            webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://karolopejlo.github.io/Mapa/\""
-        buildConfigField "String", "WEB_ORIGIN", "\"https://karolopejlo.github.io\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/\""
+        buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
     }
 
     buildFeatures {

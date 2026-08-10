@@ -150,6 +150,8 @@ Current performance phase 64 decision: extract the inline CSS style blocks into 
 
 Current install UX decision: the Android/PWA install area should be a polished guided flow, not just a bare button. Keep a clear readiness check for Chrome/HTTPS/offline/service-worker/install dialog state, show a custom "Opravdu chcete nainstalovat aplikaci?" confirmation before attempting installation, call the browser install prompt immediately after confirmation, make all success/fallback copy clear that a completed install creates an icon among tablet apps or in the tablet app menu, avoid telling the user that the installed app is in the browser menu, and keep the existing offline data preparation and sync behavior intact.
 
+Current Android packaging decision: for a guaranteed launcher/menu icon on tablets, maintain the `android/` Trusted Web Activity project against the current public web URL `https://serviszdroju.github.io/Mapa/`. PWA install remains best-effort because some Android/launcher/browser combinations create only a web shortcut; an APK install is the reliable path for appearing in the tablet app menu.
+
 Current detail/history styling decision: the read-only Detail tab rows must use the same `history-item` and `history-detail-row` visual treatment as "Historie záznamů", including font, text size, colors, spacing, borders, and background. Do not apply special red/important-note styling to read-only detail rows.
 
 Current gallery folder display decision: gallery folders must be stacked vertically as full-width sections and must not block vertical drawer scrolling. Do not show a horizontal folder chip row; each folder header should show only the stored folder name, without a separate formatted date label or photo count.
