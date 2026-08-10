@@ -6,9 +6,9 @@
     ],
     "target": {
       "namespace": "android_app",
-      "package_name": "cz.astip.serviszdroju.debug",
+      "package_name": "cz.astip.serviszdroju",
       "sha256_cert_fingerprints": [
-        "A9:0D:CB:29:F6:EF:8D:6B:9C:92:3D:6E:68:AD:9B:C5:F4:1B:4D:E6:8A:90:84:E3:36:21:50:62:E5:F7:9D:D3"
+        "20:83:2E:A4:AC:3C:06:33:6B:BF:91:00:20:6A:B6:64:02:88:37:B1:A4:81:F3:AD:FA:CE:02:49:23:2F:F1:F5"
       ]
     }
   }
