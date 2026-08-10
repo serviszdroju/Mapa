@@ -128,4 +128,6 @@ Current performance phase 53 decision: batch Firestore equality fallback reads f
 
 Current performance phase 54 decision: compute gallery point-info rows once per photo render and reuse them for both the render signature and visible detail cards, preserving the existing gallery markup and behavior.
 
+Current performance phase 55 decision: after deleting/skipping a Firebase-first site, remove the row locally and update the map cache instead of reloading the full Firebase map; keep the full reload path as a fallback when the local row cannot be matched.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

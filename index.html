@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase54-v101";
-const APP_SHELL_CACHE_NAME="astip-szz-v101-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase55-v102";
+const APP_SHELL_CACHE_NAME="astip-szz-v102-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6064,10 +6064,21 @@ async function deleteSelectedSite(){
 
     st.textContent="Místo bylo smazáno/skryto.";
     document.getElementById("drawer").classList.remove("open");
-    await loadDeletedSites();
     if(firebaseUnifiedPrimary && typeof window.loadFirebaseSitesUnified==="function"){
-      await window.loadFirebaseSitesUnified();
+      const deletedId=safe(selectedSite && selectedSite.id);
+      if(deletedId) deletedSiteIds.add(deletedId);
+      const removedRows=typeof window.removeFirebaseSiteRow==="function" ? window.removeFirebaseSiteRow(selectedSite) : null;
+      if(removedRows){
+        selectedSite=null;
+        if(typeof window.saveFirebaseMapRowsCache==="function"){
+          try{ window.saveFirebaseMapRowsCache(removedRows.filter(r=>r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"])))); }catch(e){}
+        }
+      }else{
+        await loadDeletedSites();
+        await window.loadFirebaseSitesUnified();
+      }
     }else{
+      await loadDeletedSites();
       await loadExtraSites();
       render();
     }
@@ -7247,6 +7258,26 @@ window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
 
   const targetOpenDocId=openDocId===false ? null : (openDocId || firebaseRow.firebaseDocId || firebaseRow.id);
   return window.setFirebaseSiteRows(nextRows, targetOpenDocId);
+};
+window.removeFirebaseSiteRow = function(site){
+  if(!site) return null;
+  const raw=(site && site.raw) || {};
+  const targetDetailKey=detailKey(site);
+  const targetDocId=safe(site.firebaseDocId || raw["Firebase_doc_id"]);
+  const targetId=safe(site.id);
+  const hasPreciseTarget=!!(targetDetailKey || targetDocId);
+  const matchesTarget=row=>{
+    const rowRaw=(row && row.raw) || {};
+    const rowDetailKey=detailKey(row);
+    const rowDocId=safe(row && (row.firebaseDocId || rowRaw["Firebase_doc_id"]));
+    const rowId=safe(row && row.id);
+    return (targetDetailKey && rowDetailKey===targetDetailKey)
+      || (targetDocId && rowDocId===targetDocId)
+      || (!hasPreciseTarget && targetId && rowId===targetId);
+  };
+  const nextRows=(csvRows || []).filter(row=>!matchesTarget(row));
+  if(nextRows.length===(csvRows || []).length) return null;
+  return window.setFirebaseSiteRows(nextRows,false);
 };
 window.getCurrentCsvRows = function(){
   return originalCsvRows.length ? originalCsvRows : csvRows;
@@ -17469,7 +17500,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v101-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v102-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17962,7 +17993,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase54-v101";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase55-v102";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
