@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase87-v134";
-const APP_SHELL_CACHE_NAME="astip-szz-v134-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase88-v135";
+const APP_SHELL_CACHE_NAME="astip-szz-v135-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10853,10 +10853,11 @@ window.noteSzzSyncState=noteSzzSyncState;
 
 async function readPendingOfflineSitesCount(){
   try{
+    const indexedItems=await readOfflineSiteQueueItems();
+    if(indexedItems.length) return uniqueByOfflineId(indexedItems,"docId").length;
     const items=JSON.parse(localStorage.getItem("astipMap:offlineSites:v1") || "[]");
     const localItems=Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
-    const indexedItems=await readOfflineSiteQueueItems();
-    return uniqueByOfflineId([...localItems,...indexedItems],"docId").length;
+    return uniqueByOfflineId(localItems,"docId").length;
   }catch(e){
     return 0;
   }
