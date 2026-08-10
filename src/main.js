@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase79-v126";
-const APP_SHELL_CACHE_NAME="astip-szz-v126-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase80-v127";
+const APP_SHELL_CACHE_NAME="astip-szz-v127-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -9488,6 +9488,38 @@ async function loadMainProtocolHistoryItems(){
   return finalItems.map(cloneDetailHistoryItem);
 }
 
+function renderMainProtocolHistoryShell(drawer){
+  const head=document.createElement("div");
+  head.className="drawer-head";
+  const titleWrap=document.createElement("div");
+  const title=document.createElement("h2");
+  title.textContent="Historie protokolů";
+  const subtitle=document.createElement("p");
+  subtitle.className="small";
+  subtitle.textContent="Poslední uložené protokoly napříč mapou.";
+  titleWrap.append(title,subtitle);
+  const close=document.createElement("button");
+  close.className="secondary x";
+  close.type="button";
+  close.id="closeDrawer";
+  close.textContent="Zavřít";
+  head.append(titleWrap,close);
+
+  const card=document.createElement("div");
+  card.className="card";
+  card.id="mainProtocolHistoryCard";
+  const heading=document.createElement("h3");
+  heading.textContent="Poslední protokoly";
+  const list=document.createElement("div");
+  list.id="mainProtocolHistoryList";
+  list.className="main-history-list small";
+  list.textContent="Načítám historii...";
+  card.append(heading,list);
+
+  drawer.replaceChildren(head,card);
+  return {close,list};
+}
+
 async function openMainProtocolHistoryPanel(){
   if(!canViewMainProtocolHistory()){
     showSaveConfirmation("Hlavní historii protokolů může zobrazit jen správce nebo Iva.");
@@ -9501,21 +9533,8 @@ async function openMainProtocolHistoryPanel(){
   drawer.classList.add("open");
   drawer.classList.remove("adding-new-site");
   drawer.scrollTop=0;
-  drawer.innerHTML=`
-    <div class="drawer-head">
-      <div>
-        <h2>Historie protokolů</h2>
-        <p class="small">Poslední uložené protokoly napříč mapou.</p>
-      </div>
-      <button class="secondary x" type="button" id="closeDrawer">Zavřít</button>
-    </div>
-    <div class="card" id="mainProtocolHistoryCard">
-      <h3>Poslední protokoly</h3>
-      <div id="mainProtocolHistoryList" class="main-history-list small">Načítám historii...</div>
-    </div>`;
-  const close=document.getElementById("closeDrawer");
+  const {close,list}=renderMainProtocolHistoryShell(drawer);
   if(close) close.onclick=()=>drawer.classList.remove("open");
-  const list=document.getElementById("mainProtocolHistoryList");
   const items=await loadMainProtocolHistoryItems();
   if(!list) return;
   if(!items.length){
