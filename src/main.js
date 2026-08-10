@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-installability-apk-v184";
+const APP_BUILD_VERSION="2026-08-10-apk-download-v185";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -5873,11 +5873,11 @@ function renderDetailTable(table,r){
   }
   const fragment=document.createDocumentFragment();
   rowsForDetail.forEach(({spec,value})=>{
-    const row=document.createElement("tr");
+    const row=document.createElement("div");
     row.className="history-detail-row";
-    const label=document.createElement("td");
+    const label=document.createElement("span");
     label.textContent=spec.label;
-    const valueCell=document.createElement("td");
+    const valueCell=document.createElement("span");
     valueCell.textContent=userSiteDisplayText(spec,value);
     row.append(label,valueCell);
     fragment.appendChild(row);

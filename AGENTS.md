@@ -152,6 +152,8 @@ Current install UX decision: the Android/PWA install area should be a polished g
 
 Current Android packaging decision: for a guaranteed launcher/menu icon on tablets, maintain the `android/` Trusted Web Activity project against the current public web URL `https://serviszdroju.github.io/Mapa/`. PWA install remains best-effort because some Android/launcher/browser combinations create only a web shortcut; an APK install is the reliable path for appearing in the tablet app menu.
 
+Current APK delivery decision: keep the public Pages `downloads/` folder during web deployments and expose `downloads/szz-mapa-tablet.apk` from the install panel as the reliable tablet-menu installation path. Build the APK from the `android/` TWA project and ship it inside the public web build until a CI token with workflow scope is available.
+
 Current detail/history styling decision: the read-only Detail tab rows must use the same `history-item` and `history-detail-row` visual treatment as "Historie záznamů", including font, text size, colors, spacing, borders, and background. Do not apply special red/important-note styling to read-only detail rows.
 
 Current gallery folder display decision: gallery folders must be stacked vertically as full-width sections and must not block vertical drawer scrolling. Do not show a horizontal folder chip row; each folder header should show only the stored folder name, without a separate formatted date label or photo count.

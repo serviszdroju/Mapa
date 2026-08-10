@@ -35,3 +35,11 @@ Nasazená adresa:
 ```text
 https://serviszdroju.github.io/Mapa/
 ```
+
+## Android APK
+
+APK instalator pro tablety je soucasti verejneho weboveho buildu a publikuje se sem:
+
+```text
+https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk
+```
