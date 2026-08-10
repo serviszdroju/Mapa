@@ -1011,7 +1011,7 @@
       const gps=document.getElementById("gpsBox");
       if(gps){el=document.createElement("div");el.id="firebaseUnifiedStatus";gps.parentNode.insertBefore(el,gps.nextSibling);}
     }
-    if(el){el.className="notice err";el.innerHTML=msg;}
+    if(el){el.className="notice err";el.textContent=msg;}
   }
   function ensureCompatFirebase(){
     if(!window.firebase) return null;
@@ -2010,7 +2010,7 @@
       else document.body.prepend(el);
     }
     el.className = "notice err";
-    el.innerHTML = msg;
+    el.textContent = msg;
   }
 
   function db(){
@@ -2458,7 +2458,7 @@
   }, true);
 })();
 ;
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v127-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v128-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -2962,7 +2962,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase80-v127";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase81-v128";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
