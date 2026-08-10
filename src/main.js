@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase114-v162";
+const APP_BUILD_VERSION="2026-08-10-performance-phase115-v163";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -12191,11 +12191,12 @@ async function refreshFirebaseUnifiedPrimary(){
   return false;
 }
 let firebaseUnifiedPrimaryLoadPromise=null;
+let firebaseUnifiedPrimaryLoadRetryTimer=0;
 async function runFirebaseUnifiedPrimaryLoad(){
   if(firebaseUnifiedPrimaryLoadPromise) return firebaseUnifiedPrimaryLoadPromise;
   firebaseUnifiedPrimaryLoadPromise=(async()=>{
     const loaded=await refreshFirebaseUnifiedPrimary();
-    if(!loaded) setTimeout(refreshFirebaseUnifiedPrimary,1200);
+    if(!loaded) scheduleFirebaseUnifiedPrimaryLoad(1200);
     if(firebaseUnifiedPrimary && typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(12000);
   })().finally(()=>{ firebaseUnifiedPrimaryLoadPromise=null; });
   return firebaseUnifiedPrimaryLoadPromise;
@@ -12203,8 +12204,16 @@ async function runFirebaseUnifiedPrimaryLoad(){
 function scheduleFirebaseUnifiedPrimaryLoad(delay=0){
   const run=()=>runFirebaseUnifiedPrimaryLoad().catch(e=>console.warn("Primární načtení Firebase selhalo",e));
   if(delay>0){
-    setTimeout(()=>runWhenIdle(run,900),delay);
+    clearTimeout(firebaseUnifiedPrimaryLoadRetryTimer);
+    firebaseUnifiedPrimaryLoadRetryTimer=setTimeout(()=>{
+      firebaseUnifiedPrimaryLoadRetryTimer=0;
+      runWhenIdle(run,900);
+    },delay);
     return;
+  }
+  if(firebaseUnifiedPrimaryLoadRetryTimer){
+    clearTimeout(firebaseUnifiedPrimaryLoadRetryTimer);
+    firebaseUnifiedPrimaryLoadRetryTimer=0;
   }
   runWhenIdle(run,900);
 }

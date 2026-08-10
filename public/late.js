@@ -2560,18 +2560,19 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase114-v162";
-  const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase115-v163";
+  const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
     navigator.serviceWorker.addEventListener("controllerchange",()=>{
       try{
-        if(sessionStorage.getItem(reloadKey)==="1") return;
-        sessionStorage.setItem(reloadKey,"1");
-        location.reload();
+        if(sessionStorage.getItem(activatedKey)==="1") return;
+        sessionStorage.setItem(activatedKey,"1");
       }catch(e){
-        location.reload();
+        // sessionStorage can be blocked in private modes; the new worker is still active.
       }
+      window.__szzServiceWorkerActivated=true;
+      if(typeof window.scheduleSzzOfflineAppStatus==="function") window.scheduleSzzOfflineAppStatus(250);
     });
   }
   window.__szzServiceWorkerRegistrationPromise=navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"})
