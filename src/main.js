@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase111-v159";
+const APP_BUILD_VERSION="2026-08-10-performance-phase112-v160";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -9364,6 +9364,53 @@ async function loadHistory(siteId){
           items.push({...d,_type:typeLabel,_collection:colName,_id:docSnap.id});
         };
         const hasMatchingType=()=>items.some(item=>item._type===typeLabel && recordMatchesSite(item,selectedSite));
+        const buildTextQueryTasks=()=>{
+          const textQueryTasks=[];
+          const textKeys=siteRecordTextKeys(selectedSite).slice(0,8);
+          for(const value of textKeys){
+            for(const field of ["siteName","siteAddress","place"]){
+              textQueryTasks.push(async()=>{
+                try{
+                  const q=query(collection(db,colName),where(field,"==",value));
+                  const snap=await getDocs(q);
+                  snap.forEach(addDocSnap);
+                }catch(e){
+                  console.warn("Historie textový dotaz selhal",colName,field,e);
+                }
+              });
+            }
+          }
+          return textQueryTasks;
+        };
+        const renderLegacyTextMatches=()=>{
+          if(!stillSameSite()) return;
+          const finalItems=items.filter(item=>recordMatchesSite(item,selectedSite));
+          if(finalItems.length<=detailHistoryItems.length) return;
+          finalItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
+          const latestProtocol=finalItems.find(item=>item._type==="Protokol");
+          if(latestProtocol && selectedSite){
+            applyLatestProtocolToSite(latestProtocol,selectedSite);
+            showControlDateDisplay(selectedSite);
+            render();
+          }
+          detailHistoryItems=finalItems;
+          detailHistoryIndex=Math.min(detailHistoryIndex,Math.max(0,detailHistoryItems.length-1));
+          writeDetailHistoryCache(selectedSite,finalItems);
+          renderHistory();
+        };
+        const runTextFallback=async(background=false)=>{
+          const textQueryTasks=buildTextQueryTasks();
+          if(!textQueryTasks.length) return;
+          if(!background){
+            await runBoundedFirestoreTasks(textQueryTasks,6);
+            return;
+          }
+          runWhenIdle(async()=>{
+            const before=items.length;
+            await runBoundedFirestoreTasks(textQueryTasks,3);
+            if(items.length>before) renderLegacyTextMatches();
+          },1600);
+        };
         const siteKeysBatchOk=await readFirestoreArrayContainsAny(
           fb.fsMod,
           db,
@@ -9399,24 +9446,11 @@ async function loadHistory(siteId){
           }
         }
         await runBoundedFirestoreTasks(queryTasks,6);
-        if(hasMatchingType()) return;
-
-        const textQueryTasks=[];
-        const textKeys=siteRecordTextKeys(selectedSite).slice(0,8);
-        for(const value of textKeys){
-          for(const field of ["siteName","siteAddress","place"]){
-            textQueryTasks.push(async()=>{
-              try{
-                const q=query(collection(db,colName),where(field,"==",value));
-                const snap=await getDocs(q);
-                snap.forEach(addDocSnap);
-              }catch(e){
-                console.warn("Historie textový dotaz selhal",colName,field,e);
-              }
-            });
-          }
+        if(hasMatchingType()){
+          await runTextFallback(true);
+          return;
         }
-        await runBoundedFirestoreTasks(textQueryTasks,6);
+        await runTextFallback(false);
       }catch(e){
         console.warn("Historie kolekce nejde načíst",colName,e);
       }
