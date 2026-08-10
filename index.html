@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase48-v95";
-const APP_SHELL_CACHE_NAME="astip-szz-v95-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase49-v96";
+const APP_SHELL_CACHE_NAME="astip-szz-v96-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -4470,6 +4470,22 @@ function simpleNorm(v){
     .replace(/\s+/g," ")
     .trim();
 }
+const rowSimpleKeyLookupCache=new WeakMap();
+function simpleRowKeyLookup(r){
+  if(!r || (typeof r!=="object" && typeof r!=="function")) return null;
+  const keys=Object.keys(r);
+  const signature=keys.join("\u001f");
+  const cached=rowSimpleKeyLookupCache.get(r);
+  if(cached && cached.signature===signature) return cached.map;
+  const map=new Map();
+  for(const k of keys){
+    const normalized=simpleNorm(k);
+    if(!map.has(normalized)) map.set(normalized,[]);
+    map.get(normalized).push(k);
+  }
+  rowSimpleKeyLookupCache.set(r,{signature,map});
+  return map;
+}
 function yesNoBool(v){
   const n=simpleNorm(v);
   if(["ano","yes","true","1","aktivni"].includes(n)) return true;
@@ -4512,8 +4528,10 @@ function watchRawValue(raw,key){
   const direct=get(source,key);
   if(safe(direct)) return direct;
   const wanted=simpleNorm(key);
-  for(const existingKey of Object.keys(source)){
-    if(simpleNorm(existingKey)===wanted && safe(source[existingKey])) return source[existingKey];
+  const lookup=simpleRowKeyLookup(source);
+  const keys=lookup ? (lookup.get(wanted) || []) : [];
+  for(const existingKey of keys){
+    if(safe(source[existingKey])) return source[existingKey];
   }
   return "";
 }
@@ -17406,7 +17424,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v95-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v96-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17899,7 +17917,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase48-v95";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase49-v96";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

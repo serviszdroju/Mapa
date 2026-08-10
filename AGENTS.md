@@ -116,4 +116,6 @@ Current performance phase 47 decision: keep service-worker precache behavior and
 
 Current performance phase 48 decision: cache normalized row-key lookups in a WeakMap for the shared `get(row,key)` helper so repeated fallback column-name reads no longer rescan and renormalize every object key during render/search/detail work.
 
+Current performance phase 49 decision: cache `simpleNorm()` row-key candidates in a WeakMap for watch/self-maintained status field lookups, preserving first non-empty matching key behavior while avoiding repeated full key normalization.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
