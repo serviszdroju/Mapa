@@ -96,4 +96,6 @@ Current performance phase 37 decision: render the main cross-site protocol histo
 
 Current performance phase 38 decision: cache `localStorageArrayEntries(prefix)` scans briefly and invalidate that cache when the app writes/removes matching per-site local arrays, reducing repeated full localStorage scans for offline status, protocol history, and offline photo fallbacks while preserving legacy storage compatibility.
 
+Current performance phase 39 decision: skip unchanged Galerie tab rerenders with a per-site/photo/user render signature, and cache repeated Cloudinary transform URLs in memory so thumbnail/full-image URL generation does not repeat during refreshes or thumbnail navigation. Preserve the existing gallery markup, upload/delete/offline behavior, and visual layout.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
