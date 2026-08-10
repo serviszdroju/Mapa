@@ -836,12 +836,13 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
   const FIREBASE_BACKGROUND_REFRESH_MIN_MS = 45000;
   let previewMarker = null;
   let firebaseSitesLoading = false;
+  let firebaseSitesLoadingPromise = null;
+  let firebaseSitesLoadingResolve = null;
   let firebaseSitesLastNetworkLoadAt = 0;
   let firebaseSitesBackgroundRefreshTimer = null;
   let firebaseSitesBackgroundRefreshPromise = null;
 
   const val = v => String(v ?? "").trim();
-  const sleep = ms => new Promise(resolve=>setTimeout(resolve,ms));
   const num = v => { const n = parseFloat(String(v ?? "").replace(",", ".")); return Number.isFinite(n) ? n : NaN; };
   const esc = v => String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 
@@ -1791,12 +1792,25 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
     }
     const lockLoad=!openDocId && !opts.retryAuth && !opts.retryPermission && !opts.force;
     if(lockLoad && firebaseSitesLoading){
-      const started=Date.now();
-      while(firebaseSitesLoading && Date.now()-started<7000) await sleep(120);
+      if(firebaseSitesLoadingPromise){
+        try{ await firebaseSitesLoadingPromise; }catch(e){}
+      }
       return Array.isArray(window.rows) ? window.rows : [];
     }
-    if(lockLoad) firebaseSitesLoading=true;
-    const database=db(); if(!database){sideStatus("Firebase není dostupný.",true); if(lockLoad) firebaseSitesLoading=false; return [];}
+    if(lockLoad){
+      firebaseSitesLoading=true;
+      firebaseSitesLoadingPromise=new Promise(resolve=>{firebaseSitesLoadingResolve=resolve;});
+    }
+    const database=db(); if(!database){
+      sideStatus("Firebase není dostupný.",true);
+      if(lockLoad){
+        firebaseSitesLoading=false;
+        if(firebaseSitesLoadingResolve) firebaseSitesLoadingResolve();
+        firebaseSitesLoadingPromise=null;
+        firebaseSitesLoadingResolve=null;
+      }
+      return [];
+    }
     try{
       const signedUser=await waitCompatUser();
       if(!signedUser){
@@ -1842,7 +1856,12 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
       sideStatus("Chyba načtení z Firebase: "+message,true);
       return [];
     }finally{
-      if(lockLoad) firebaseSitesLoading=false;
+      if(lockLoad){
+        firebaseSitesLoading=false;
+        if(firebaseSitesLoadingResolve) firebaseSitesLoadingResolve();
+        firebaseSitesLoadingPromise=null;
+        firebaseSitesLoadingResolve=null;
+      }
     }
   }
   function upsertSavedFirebaseRowAfterSave(row, docId=null, options={}){
@@ -2973,7 +2992,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase95-v142";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase96-v143";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
