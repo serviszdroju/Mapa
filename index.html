@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase47-v94";
-const APP_SHELL_CACHE_NAME="astip-szz-v94-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase48-v95";
+const APP_SHELL_CACHE_NAME="astip-szz-v95-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -4445,7 +4445,23 @@ window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 function safe(v){return String(v??"").trim()}
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function num(v){if(v===null||v===undefined||v==="")return null;const n=Number(String(v).trim().replace(",","."));return Number.isFinite(n)?n:null}
-function get(r,n){if(!r)return"";if(r[n]!==undefined)return r[n];const w=String(n).replace(/^\uFEFF/,"").trim().toLowerCase();for(const k of Object.keys(r)){if(String(k).replace(/^\uFEFF/,"").trim().toLowerCase()===w)return r[k]}return""}
+const rowKeyLookupCache=new WeakMap();
+function normalizedRowKeyName(n){return String(n).replace(/^\uFEFF/,"").trim().toLowerCase()}
+function normalizedRowKeyLookup(r){
+  if(!r || (typeof r!=="object" && typeof r!=="function")) return null;
+  const keys=Object.keys(r);
+  const signature=keys.join("\u001f");
+  const cached=rowKeyLookupCache.get(r);
+  if(cached && cached.signature===signature) return cached.map;
+  const map=new Map();
+  for(const k of keys){
+    const normalized=normalizedRowKeyName(k);
+    if(!map.has(normalized)) map.set(normalized,k);
+  }
+  rowKeyLookupCache.set(r,{signature,map});
+  return map;
+}
+function get(r,n){if(!r)return"";if(r[n]!==undefined)return r[n];const lookup=normalizedRowKeyLookup(r);if(!lookup)return"";const k=lookup.get(normalizedRowKeyName(n));return k!==undefined?r[k]:""}
 function first(r,a){for(const n of a){const v=safe(get(r,n));if(v)return v}return""}
 function simpleNorm(v){
   return String(v||"").trim().toLowerCase()
@@ -17390,7 +17406,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v94-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v95-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17883,7 +17899,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase47-v94";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase48-v95";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
