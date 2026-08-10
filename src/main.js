@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase101-v148";
+const APP_BUILD_VERSION="2026-08-10-performance-phase102-v149";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10949,7 +10949,10 @@ function bindSzzOfflineAppControls(){
     refreshBtn.__szzRefreshBound=true;
     refreshBtn.addEventListener("click",()=>updateSzzOfflineAppStatus());
   }
-  scheduleSzzOfflineAppStatus(80);
+  if(!bindSzzOfflineAppControls.__initialStatusScheduled){
+    bindSzzOfflineAppControls.__initialStatusScheduled=true;
+    scheduleSzzOfflineAppStatus(1200);
+  }
 }
 document.addEventListener("DOMContentLoaded",bindSzzOfflineAppControls);
 bindSzzOfflineAppControls();
