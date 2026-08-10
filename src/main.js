@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase83-v130";
-const APP_SHELL_CACHE_NAME="astip-szz-v130-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase84-v131";
+const APP_SHELL_CACHE_NAME="astip-szz-v131-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3299,13 +3299,13 @@ function openAddSourceForSite(site=selectedSite){
   copyPlaceFieldsToNewSource(site);
   const st=document.getElementById("newSiteStatus");
   if(st) st.textContent="Adresa a GPS jsou převzaté z aktuálního místa. Doplň typ zdroje nebo výrobní číslo.";
-  setTimeout(()=>{
+  runAfterPaint(()=>{
     const source=document.getElementById("newSource") || document.querySelector('#newAllFieldsBox [data-new-key="Popis_zdroje"]');
     if(source){
       source.focus();
       source.scrollIntoView({behavior:"smooth",block:"center"});
     }
-  },120);
+  });
 }
 function openAddSourceForSiteByKey(key){
   const row=findRowByAnyId(key);
@@ -4005,10 +4005,10 @@ function beginManualGpsPick(options={}){
     const reopen=typeof options.reopen==="function" ? options.reopen : null;
     mapFocusReturnHandler=null;
     setMapFocusMode(false);
-    setTimeout(()=>{
+    runAfterTwoPaints(()=>{
       try{map.invalidateSize(true);}catch(_e){}
       if(reopen) reopen();
-    },180);
+    });
   };
   map.on("click",manualGpsPickHandler);
 }
@@ -4019,7 +4019,7 @@ function showMapFocusLocation(lat,lon,title,subtitle,returnHandler){
   mapFocusReturnHandler=typeof returnHandler==="function" ? returnHandler : null;
   setMapFocusMode(true);
   const latlng=[lat,lon];
-  setTimeout(()=>{
+  runAfterTwoPaints(()=>{
     try{
       map.setView(latlng, Math.max(map.getZoom() || 0, 16));
       L.popup({closeButton:false,autoClose:true})
@@ -4027,7 +4027,7 @@ function showMapFocusLocation(lat,lon,title,subtitle,returnHandler){
         .setContent(`<b>${esc(title || "Bod na mapě")}</b>${subtitle ? `<br>${esc(subtitle)}` : ""}`)
         .openOn(map);
     }catch(e){}
-  },120);
+  });
 }
 function showSelectedSiteOnMap(){
   if(!selectedSite) return;
@@ -4050,11 +4050,11 @@ function returnFromMapFocus(){
   }
   mapFocusReturnHandler=null;
   setMapFocusMode(false);
-  setTimeout(()=>{
+  runAfterTwoPaints(()=>{
     try{map.invalidateSize(true);}catch(e){}
     if(handler) handler();
     else if(key) window.openDetailById(key);
-  },180);
+  });
 }
 window.showSelectedSiteOnMap=showSelectedSiteOnMap;
 window.showMapFocusLocation=showMapFocusLocation;
@@ -5144,7 +5144,7 @@ async function saveAllDataEdits(){
     const reopenKey=(selectedSite && (detailKey(selectedSite) || selectedSite.firebaseDocId || selectedKey)) || selectedKey;
     render();
     if(selectedSite && Number.isFinite(selectedSite.lat) && Number.isFinite(selectedSite.lon)){
-      setTimeout(()=>{try{window.map.setView([selectedSite.lat,selectedSite.lon],15);}catch(e){}},120);
+      runAfterPaint(()=>{try{window.map.setView([selectedSite.lat,selectedSite.lon],15);}catch(e){}});
     }
     window.openDetailById(reopenKey);
   }catch(e){
@@ -9629,13 +9629,13 @@ document.getElementById("addSiteBtn").onclick=()=>{
     form.style.display="block";
     form.scrollIntoView({behavior:"smooth",block:"start"});
   }
-  setTimeout(()=>{
+  runAfterPaint(()=>{
     const first=document.getElementById("newName");
     if(first){
       first.focus();
       first.click();
     }
-  },120);
+  });
 };
 document.getElementById("cancelNewSiteBtn").onclick=()=>{
   const baseKey=addSourceBaseSite ? detailKey(addSourceBaseSite) : "";
@@ -12119,7 +12119,7 @@ function scheduleFixMapView(delay=180){
 window.addEventListener("resize",()=>scheduleFixMapView());
 window.addEventListener("orientationchange",()=>scheduleFixMapView(240));
 window.addEventListener("DOMContentLoaded",()=>{
-  scheduleFixMapView(800);
+  runAfterTwoPaints(()=>{ if(typeof fixMapView==="function") fixMapView(); });
 });
 async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();
