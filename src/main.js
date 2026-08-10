@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase115-v163";
+const APP_BUILD_VERSION="2026-08-10-performance-phase116-v164";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -9384,7 +9384,7 @@ async function loadHistory(siteId){
           if(latestProtocol && selectedSite){
             applyLatestProtocolToSite(latestProtocol,selectedSite);
             showControlDateDisplay(selectedSite);
-            render();
+            requestRender();
           }
           detailHistoryItems=finalItems;
           detailHistoryIndex=Math.min(detailHistoryIndex,Math.max(0,detailHistoryItems.length-1));
@@ -9470,7 +9470,7 @@ async function loadHistory(siteId){
     if(latestProtocol && selectedSite){
       applyLatestProtocolToSite(latestProtocol,selectedSite);
       showControlDateDisplay(selectedSite);
-      render();
+      requestRender();
     }
     detailHistoryItems=finalItems;
     detailHistoryIndex=0;
