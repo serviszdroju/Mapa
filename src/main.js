@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase98-v145";
+const APP_BUILD_VERSION="2026-08-10-performance-phase99-v146";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -998,6 +998,7 @@ if(firebaseReady){
   }
 
   const compatAuthForListener=await primeCompatAuthPersistence();
+  let modularAuthListenerBound=false;
   if(compatAuthForListener && compatAuthForListener.onAuthStateChanged){
     compatAuthForListener.onAuthStateChanged(user=>{
       if(user) handleAuthorizedUser(user);
@@ -1008,10 +1009,13 @@ if(firebaseReady){
       if(user) handleAuthorizedUser(user);
       else handleSignedOut();
     });
+    modularAuthListenerBound=true;
   }
-  authMod.onAuthStateChanged(auth,user=>{
-    if(user) handleAuthorizedUser(user);
-  });
+  if(!modularAuthListenerBound){
+    authMod.onAuthStateChanged(auth,user=>{
+      if(user) handleAuthorizedUser(user);
+    });
+  }
   }
 }
 
