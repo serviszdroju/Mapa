@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v93";
+const CACHE_VERSION = "astip-szz-v94";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -66,26 +66,31 @@ async function notifyClientsToSync(reason) {
 }
 
 async function cacheUrls(cache, urls) {
-  await Promise.allSettled(urls.map(async (url) => {
-    try {
-      const request = new Request(url, {cache: "reload"});
-      let response = null;
+  let index = 0;
+  const worker = async () => {
+    while (index < urls.length) {
+      const url = urls[index++];
       try {
-        response = await fetch(request);
+        const request = new Request(url, {cache: "reload"});
+        let response = null;
+        try {
+          response = await fetch(request);
+        } catch (error) {
+          response = await fetch(new Request(url, {
+            cache: "reload",
+            mode: isSameOriginUrl(url) ? "same-origin" : "no-cors",
+            credentials: isSameOriginUrl(url) ? "same-origin" : "omit"
+          }));
+        }
+        if (response && (response.ok || response.type === "opaque")) {
+          await cache.put(request, response.clone());
+        }
       } catch (error) {
-        response = await fetch(new Request(url, {
-          cache: "reload",
-          mode: isSameOriginUrl(url) ? "same-origin" : "no-cors",
-          credentials: isSameOriginUrl(url) ? "same-origin" : "omit"
-        }));
+        console.warn("Offline cache: soubor se nepodařilo uložit", url, error);
       }
-      if (response && (response.ok || response.type === "opaque")) {
-        await cache.put(request, response.clone());
-      }
-    } catch (error) {
-      console.warn("Offline cache: soubor se nepodařilo uložit", url, error);
     }
-  }));
+  };
+  await Promise.allSettled(Array.from({length: Math.min(4, urls.length)}, () => worker()));
 }
 
 async function cacheExternalShellUrls() {

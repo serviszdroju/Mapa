@@ -112,4 +112,6 @@ Current performance phase 45 decision: lazy-read local per-site protocol history
 
 Current performance phase 46 decision: cache app-shell files for offline preparation with a small bounded parallel worker pool instead of sequential fetch/cache steps, both in the main helper and install fallback helper, preserving the same shell URL lists and saved-count behavior.
 
+Current performance phase 47 decision: keep service-worker precache behavior and URL lists unchanged, but run shell fetch/cache work through the same small bounded worker pool to avoid unbounded install-time network bursts on slower devices.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
