@@ -2545,7 +2545,7 @@ function renderSzzInstallGuide(){
         ? "Připraveno"
         : readiness==="error"
           ? "Blokováno"
-          : "Ruční krok";
+          : "Čeká na tablet";
   }
   szzInstallCheck(document.getElementById("installCheckChrome"),env.chrome || env.samsung,env.android);
   szzInstallCheck(document.getElementById("installCheckSecure"),env.secure,false);
@@ -2555,8 +2555,8 @@ function renderSzzInstallGuide(){
     if(env.installed) state.textContent="Aplikace už běží jako nainstalovaná. Offline data připravíš tlačítkem níže.";
     else if(!env.secure) state.textContent="Instalace funguje jen přes zabezpečený web HTTPS. Otevři publikovanou adresu aplikace, ne lokální soubor.";
     else if(!env.serviceWorker) state.textContent="Tento prohlížeč nepodporuje offline instalaci. Použij Android Chrome.";
-    else if(env.hasPrompt) state.textContent="Telefon je připravený. Klepni na Stáhnout aplikaci, potvrď otázku a instalace se spustí.";
-    else if(env.android && (env.chrome || env.samsung)) state.textContent="Telefon zatím nedal stránce instalační dialog. Zkus obnovit stránku; když ho prohlížeč nenabídne, zbývá ruční instalace z menu.";
+    else if(env.hasPrompt) state.textContent="Tablet je připravený. Klepni na Stáhnout aplikaci, potvrď otázku a ikona se po instalaci objeví mezi aplikacemi.";
+    else if(env.android && (env.chrome || env.samsung)) state.textContent="Tablet zatím neposlal stránce instalační okno. Zkus stránku obnovit a klepnout znovu. Po úspěšné instalaci bude ikona mezi aplikacemi v tabletu.";
     else if(env.android) state.textContent="Otevři tuto adresu v Android Chromu. Některé prohlížeče přímé stažení aplikace nenabízejí.";
     else state.textContent="Na Androidu otevři stejnou adresu v Chromu. Odkaz si můžeš zkopírovat tlačítkem níže.";
   }
@@ -2566,7 +2566,7 @@ function androidInstallHelpText(){
   const env=szzInstallEnvironment();
   const ua=navigator.userAgent || "";
   if(env.installed){
-    return "Aplikace už je nainstalovaná. Otevři ji ikonou v telefonu.";
+    return "Aplikace už je nainstalovaná. Otevři ji ikonou mezi aplikacemi v tabletu.";
   }
   if(!env.secure){
     return "Instalace je dostupná jen přes HTTPS. Otevři publikovanou webovou adresu aplikace.";
@@ -2575,12 +2575,12 @@ function androidInstallHelpText(){
     return "Tento prohlížeč neumí offline instalaci aplikace. Otevři stránku v Android Chromu.";
   }
   if(/firefox/i.test(ua)){
-    return "Firefox na Androidu neumí spustit přímou instalaci tímto tlačítkem. Otevři stránku v Chromu a klikni znovu, nebo ve Firefox menu zvol Přidat na domovskou obrazovku.";
+    return "Firefox na Androidu neumí spustit přímou instalaci tímto tlačítkem. Otevři stránku v Android Chromu a klikni znovu; po instalaci bude ikona mezi aplikacemi v tabletu.";
   }
   if(/android/i.test(ua)){
-    return "Prohlížeč zatím nepřipravil instalační dialog. V Chromu otevři menu ⋮ a zvol Instalovat aplikaci nebo Přidat na plochu.";
+    return "Tablet zatím nepřipravil instalační okno pro toto tlačítko. Obnov stránku v Android Chromu a klikni znovu; po instalaci bude ikona mezi aplikacemi v tabletu.";
   }
-  return "Instalaci teď nabízí prohlížeč v menu. V Android Chromu použij menu ⋮ a Instalovat aplikaci.";
+  return "Instalační okno je dostupné hlavně v Android Chromu. Na tabletu otevři tuto adresu v Chromu; po instalaci bude ikona mezi aplikacemi.";
 }
 
 async function copySzzInstallUrl(){
@@ -2665,11 +2665,11 @@ async function performSzzInstallFromPage(){
     setSzzInstallStatus("Otevírám instalační okno telefonu...","ok");
     const choice=await runSzzBrowserInstallPrompt();
     if(choice?.outcome==="accepted"){
-      setSzzInstallStatus("Instalace aplikace spuštěna. Připravuji ještě offline soubory...","ok");
+      setSzzInstallStatus("Instalace aplikace spuštěna. Po dokončení bude ikona mezi aplikacemi v tabletu. Připravuji ještě offline soubory...","ok");
       if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace aplikace spuštěna.");
       try{
         const count=await prepareSzzInstallOfflineShell();
-        setSzzInstallStatus(`Instalace spuštěna a offline soubory jsou připravené (${count} souborů).`,"ok");
+        setSzzInstallStatus(`Instalace spuštěna a offline soubory jsou připravené (${count} souborů). Ikonu pak otevři mezi aplikacemi v tabletu.`,"ok");
       }catch(e){
         console.warn("Příprava aplikace pro offline režim selhala",e);
         setSzzInstallStatus("Instalace byla spuštěna, ale offline příprava se nepovedla: " + (e?.message || e),"error");
@@ -2700,7 +2700,7 @@ async function performSzzInstallFromPage(){
   const help=androidInstallHelpText();
   renderSzzInstallGuide();
   setSzzInstallStatus(help,szzInstallReadiness()==="error" ? "error" : "info");
-  if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci najdeš v menu prohlížeče.");
+  if(window.showSaveConfirmation) window.showSaveConfirmation("Po instalaci bude ikona v menu tabletu.");
 }
 
 function installSzzAppFromPage(){
@@ -2733,8 +2733,8 @@ window.addEventListener("appinstalled",()=>{
   deferredSzzInstallPrompt=null;
   window.__szzDeferredInstallPrompt=null;
   updateSzzInstallButtons();
-  setSzzInstallStatus("Aplikace nainstalována. Teď ji otevři ikonou v telefonu a připrav offline data.","ok");
-  if(window.showSaveConfirmation) window.showSaveConfirmation("Aplikace nainstalována.");
+  setSzzInstallStatus("Aplikace nainstalována. Ikonu najdeš mezi aplikacemi v tabletu; potom připrav offline data.","ok");
+  if(window.showSaveConfirmation) window.showSaveConfirmation("Ikona je v menu tabletu.");
 });
 
 function bindSzzInstallControls(){
@@ -2828,7 +2828,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-gallery-scroll-v182";
+  const serviceWorkerBuildVersion="2026-08-10-tablet-install-copy-v183";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
