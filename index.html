@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase61-v108";
-const APP_SHELL_CACHE_NAME="astip-szz-v108-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase62-v109";
+const APP_SHELL_CACHE_NAME="astip-szz-v109-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6112,11 +6112,16 @@ function filtered(){
   const kn=regionTextNorm(k);
   const signature=`${rowsIndexVersion}\u001f${qn}\u001f${s}\u001f${kn}`;
   if(filteredRowsCache.signature===signature) return filteredRowsCache.rows;
+  if(!qn && !s && !kn){
+    filteredRowsCache={signature,rows};
+    return rows;
+  }
+  const compactQuery=qn ? qn.replace(/\s+/g,"") : "";
 
   const result=rows.filter(r=>{
     const st=r._statusText || statusText(r);
 
-    const okQ = !qn || rowMatchesSearch(r,qn);
+    const okQ = !qn || rowMatchesSearch(r,qn,compactQuery);
     const okK = !kn || (r._regionNorm || regionTextNorm(rowRegion(r))) === kn;
 
     // Růžová je nezávislý příznak z původního Excelu.
@@ -6157,13 +6162,13 @@ function rowSearchText(r){
     ...Object.values(raw)
   ].join(" ");
 }
-function rowMatchesSearch(r,normalizedQuery){
+function rowMatchesSearch(r,normalizedQuery,compactQuery=null){
   if(r && (r._searchRawRef!==r.raw || !r._searchText)) ensureRowFastIndexes(r,Number.isFinite(r.i) ? r.i : 0);
   const hay=(r && r._searchText) || searchNorm(rowSearchText(r));
   if(hay.includes(normalizedQuery)) return true;
   const compactHay=(r && r._compactSearchText) || hay.replace(/\s+/g,"");
-  const compactQuery=normalizedQuery.replace(/\s+/g,"");
-  return compactQuery.length>=3 && compactHay.includes(compactQuery);
+  const compact=compactQuery==null ? normalizedQuery.replace(/\s+/g,"") : compactQuery;
+  return compact.length>=3 && compactHay.includes(compact);
 }
 const PLACE_LABEL_RAW_KEYS=["Adresa / umístění","Adresa_GPS","Umístění","Umístění zdroje","Původní adresa / umístění"];
 const SOURCE_TYPE_RAW_KEYS=[
@@ -17614,7 +17619,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v108-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v109-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -18107,7 +18112,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase61-v108";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase62-v109";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

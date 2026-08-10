@@ -142,4 +142,6 @@ Current performance phase 60 decision: route hashed local assets, icons, logos, 
 
 Current performance phase 61 decision: build sidebar result items with DOM nodes and textContent instead of per-item innerHTML, keeping the same classes and visual structure while reducing HTML parsing work.
 
+Current performance phase 62 decision: add a fast no-filter path in filtered() that returns the current rows array directly, and compute compact search query text once per filter pass instead of once per row.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
