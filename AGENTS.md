@@ -148,4 +148,6 @@ Current performance phase 63 decision: include currently loaded script, styleshe
 
 Current performance phase 64 decision: extract the inline CSS style blocks into app.css so Vite can emit CSS as a separate hashed asset, reducing the HTML app-shell size while preserving selector order and visual appearance.
 
+Current install UX decision: the Android/PWA install area should be a polished guided flow, not just a bare button. Keep a clear readiness check for Chrome/HTTPS/offline/service-worker/install dialog state, show manual Chrome menu fallback steps when the browser does not expose the install prompt, and keep the existing offline data preparation and sync behavior intact.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

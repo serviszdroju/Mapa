@@ -2460,7 +2460,7 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
   }
 };
 
-let deferredSzzInstallPrompt=null;
+let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
 
 function isSzzAppInstalledView(){
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
@@ -2475,6 +2475,7 @@ function updateSzzInstallButtons(){
   document.querySelectorAll(".install-app-btn").forEach(button=>{
     button.style.display=show ? "" : "none";
   });
+  renderSzzInstallGuide();
 }
 
 function setSzzInstallStatus(message="",state="info"){
@@ -2487,10 +2488,88 @@ function setSzzInstallStatus(message="",state="info"){
   const startup=document.getElementById("startupStatus");
   const startupVisible=!!(startup && document.getElementById("startupScreen")?.style.display!=="none");
   if(startupVisible && message) startup.textContent=message;
+  renderSzzInstallGuide();
+}
+
+function szzInstallEnvironment(){
+  const ua=navigator.userAgent || "";
+  const android=/android/i.test(ua);
+  const firefox=/firefox|fxios/i.test(ua);
+  const samsung=/samsungbrowser/i.test(ua);
+  const chrome=/chrome|crios/i.test(ua) && !/edg|opr|opera|samsungbrowser|firefox|fxios/i.test(ua);
+  const secure=location.protocol==="https:" || location.hostname==="localhost" || location.hostname==="127.0.0.1";
+  return {
+    android,
+    chrome,
+    samsung,
+    firefox,
+    secure,
+    installed:isSzzAppInstalledView(),
+    serviceWorker:"serviceWorker" in navigator,
+    hasPrompt:!!deferredSzzInstallPrompt,
+    online:navigator.onLine!==false
+  };
+}
+
+function szzInstallReadiness(env=szzInstallEnvironment()){
+  if(env.installed) return "ready";
+  if(!env.secure || !env.serviceWorker) return "error";
+  if(env.hasPrompt) return "ready";
+  if(env.android && (env.chrome || env.samsung)) return "warn";
+  return "warn";
+}
+
+function szzInstallCheck(el,ok,warn=false){
+  if(!el) return;
+  el.classList.toggle("ok",!!ok);
+  el.classList.toggle("warn",!ok && !!warn);
+  el.classList.toggle("err",!ok && !warn);
+}
+
+function renderSzzInstallGuide(){
+  const card=document.getElementById("installGuideCard");
+  if(!card) return;
+  const env=szzInstallEnvironment();
+  const readiness=szzInstallReadiness(env);
+  const badge=document.getElementById("installGuideBadge");
+  const state=document.getElementById("installGuideState");
+  card.dataset.state=readiness;
+  if(badge){
+    badge.textContent=env.installed
+      ? "Hotovo"
+      : readiness==="ready"
+        ? "Připraveno"
+        : readiness==="error"
+          ? "Blokováno"
+          : "Ruční krok";
+  }
+  szzInstallCheck(document.getElementById("installCheckChrome"),env.chrome || env.samsung,env.android);
+  szzInstallCheck(document.getElementById("installCheckSecure"),env.secure,false);
+  szzInstallCheck(document.getElementById("installCheckWorker"),env.serviceWorker,false);
+  szzInstallCheck(document.getElementById("installCheckPrompt"),env.hasPrompt,env.android && (env.chrome || env.samsung));
+  if(state){
+    if(env.installed) state.textContent="Aplikace už běží jako nainstalovaná. Offline data připravíš tlačítkem níže.";
+    else if(!env.secure) state.textContent="Instalace funguje jen přes zabezpečený web HTTPS. Otevři publikovanou adresu aplikace, ne lokální soubor.";
+    else if(!env.serviceWorker) state.textContent="Tento prohlížeč nepodporuje offline instalaci. Použij Android Chrome.";
+    else if(env.hasPrompt) state.textContent="Telefon je připravený. Klepni na Stáhnout aplikaci a potvrď instalaci.";
+    else if(env.android && (env.chrome || env.samsung)) state.textContent="Když se dialog neukáže, otevři menu prohlížeče a zvol Instalovat aplikaci nebo Přidat na plochu.";
+    else if(env.android) state.textContent="Otevři tuto adresu v Android Chromu. Některé prohlížeče přímé stažení aplikace nenabízejí.";
+    else state.textContent="Na Androidu otevři stejnou adresu v Chromu. Odkaz si můžeš zkopírovat tlačítkem níže.";
+  }
 }
 
 function androidInstallHelpText(){
+  const env=szzInstallEnvironment();
   const ua=navigator.userAgent || "";
+  if(env.installed){
+    return "Aplikace už je nainstalovaná. Otevři ji ikonou v telefonu.";
+  }
+  if(!env.secure){
+    return "Instalace je dostupná jen přes HTTPS. Otevři publikovanou webovou adresu aplikace.";
+  }
+  if(!env.serviceWorker){
+    return "Tento prohlížeč neumí offline instalaci aplikace. Otevři stránku v Android Chromu.";
+  }
   if(/firefox/i.test(ua)){
     return "Firefox na Androidu neumí spustit přímou instalaci tímto tlačítkem. Otevři stránku v Chromu a klikni znovu, nebo ve Firefox menu zvol Přidat na domovskou obrazovku.";
   }
@@ -2498,6 +2577,17 @@ function androidInstallHelpText(){
     return "Prohlížeč zatím nepřipravil instalační dialog. V Chromu otevři menu ⋮ a zvol Instalovat aplikaci nebo Přidat na plochu.";
   }
   return "Instalaci teď nabízí prohlížeč v menu. V Android Chromu použij menu ⋮ a Instalovat aplikaci.";
+}
+
+async function copySzzInstallUrl(){
+  const url=location.href.split("#")[0];
+  try{
+    await navigator.clipboard.writeText(url);
+    setSzzInstallStatus("Odkaz na aplikaci zkopírován. Pošli ho do telefonu a otevři v Android Chromu.","ok");
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Odkaz zkopírován.");
+  }catch(e){
+    setSzzInstallStatus("Odkaz pro telefon: " + url,"info");
+  }
 }
 
 function openAppToolsPanel(){
@@ -2542,9 +2632,10 @@ async function installSzzAppFromPage(){
   }
   if(!deferredSzzInstallPrompt){
     const help=androidInstallHelpText();
-    setSzzInstallStatus(help,"error");
+    renderSzzInstallGuide();
+    setSzzInstallStatus(help,szzInstallReadiness()==="error" ? "error" : "info");
     setSzzInstallBusy(false);
-    if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci musí potvrdit prohlížeč.");
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci najdeš v menu prohlížeče.");
     return;
   }
   const promptEvent=deferredSzzInstallPrompt;
@@ -2575,12 +2666,21 @@ window.installSzzAppFromPage=installSzzAppFromPage;
 window.addEventListener("beforeinstallprompt",event=>{
   event.preventDefault();
   deferredSzzInstallPrompt=event;
+  window.__szzDeferredInstallPrompt=event;
+  updateSzzInstallButtons();
+  setSzzInstallStatus("Telefon je připravený k instalaci. Klepni na Stáhnout aplikaci.","ok");
+});
+
+window.addEventListener("szzinstallpromptready",()=>{
+  deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || deferredSzzInstallPrompt;
   updateSzzInstallButtons();
 });
 
 window.addEventListener("appinstalled",()=>{
   deferredSzzInstallPrompt=null;
+  window.__szzDeferredInstallPrompt=null;
   updateSzzInstallButtons();
+  setSzzInstallStatus("Aplikace nainstalována. Teď ji otevři ikonou v telefonu a připrav offline data.","ok");
   if(window.showSaveConfirmation) window.showSaveConfirmation("Aplikace nainstalována.");
 });
 
@@ -2593,6 +2693,7 @@ function bindSzzInstallControls(){
       const open=!appToolsPanel.classList.contains("open");
       appToolsPanel.classList.toggle("open",open);
       appToolsToggle.setAttribute("aria-expanded",open ? "true" : "false");
+      if(open) renderSzzInstallGuide();
     });
   }
   document.querySelectorAll(".install-app-btn").forEach(button=>{
@@ -2608,7 +2709,21 @@ function bindSzzInstallControls(){
       console.warn("Offline příprava selhala",e);
     }));
   }
+  const copyInstallUrlBtn=document.getElementById("copyInstallUrlBtn");
+  if(copyInstallUrlBtn && !copyInstallUrlBtn.__szzInstallCopyBound){
+    copyInstallUrlBtn.__szzInstallCopyBound=true;
+    copyInstallUrlBtn.addEventListener("click",copySzzInstallUrl);
+  }
+  const refreshInstallGuideBtn=document.getElementById("refreshInstallGuideBtn");
+  if(refreshInstallGuideBtn && !refreshInstallGuideBtn.__szzInstallRefreshBound){
+    refreshInstallGuideBtn.__szzInstallRefreshBound=true;
+    refreshInstallGuideBtn.addEventListener("click",()=>{
+      renderSzzInstallGuide();
+      setSzzInstallStatus(androidInstallHelpText(),szzInstallReadiness()==="error" ? "error" : "info");
+    });
+  }
   updateSzzInstallButtons();
+  renderSzzInstallGuide();
 }
 document.addEventListener("DOMContentLoaded",bindSzzInstallControls);
 bindSzzInstallControls();
@@ -2624,7 +2739,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase127-v175";
+  const serviceWorkerBuildVersion="2026-08-10-install-flow-v176";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase127-v175";
+const APP_BUILD_VERSION="2026-08-10-install-flow-v176";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11270,13 +11270,6 @@ function photoFolderName(item){
   return explicit
     ? normalizePhotoFolderDateName(explicit,item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item))
     : photoFolderNameForDate(item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item));
-}
-
-function photoFolderLabel(folderName){
-  const folder=safe(folderName);
-  const d=parseDateValue(folder);
-  if(!d || isNaN(d.getTime())) return folder || "Bez data";
-  return `${folder} (${formatDateCz(d)})`;
 }
 
 function photoFolderShortDate(folderName){
