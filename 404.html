@@ -66,14 +66,6 @@ window.addEventListener("DOMContentLoaded",()=>{
 });
 
 
-setTimeout(()=>{
-  const st=document.getElementById("startupStatus");
-  if(st && window.firebaseReady && (!window.auth || !window.fb || !window.fb.authMod)){
-    st.textContent="Firebase se nenačetl. Zkontroluj internet / blokování skriptů.";
-  }
-},2000);
-
-
 let mobileFixMapTimer=0;
 function runMobileFixMap(){
   try{
