@@ -23,6 +23,14 @@ try{
 }catch(e){}
 </script>
 <script>
+window.__szzDeferredInstallPrompt=null;
+window.addEventListener("beforeinstallprompt",event=>{
+  event.preventDefault();
+  window.__szzDeferredInstallPrompt=event;
+  window.dispatchEvent(new Event("szzinstallpromptready"));
+});
+</script>
+<script>
 const SZZ_LOGO_URL="./szz-logo-display.png";
 const SZZ_APP_ICON_URL="./szz-app-icon-192.png";
 function installSzzLogoAssets(){
@@ -90,8 +98,8 @@ window.addEventListener("pageshow", mobileFixMap);
 
 </script>
 
-  <script type="module" crossorigin src="./assets/index-B1jaHRJ8.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-B05zffKu.css">
+  <script type="module" crossorigin src="./assets/index-CWGeSTYF.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BVsxb5oJ.css">
 </head>
 <body>
 
@@ -111,7 +119,28 @@ window.addEventListener("pageshow", mobileFixMap);
   <button class="secondary app-tools-toggle" id="appToolsToggle" type="button" aria-expanded="false">Aplikace</button>
   <div class="app-tools-panel" id="appToolsPanel">
     <button class="secondary install-app-btn" id="installAppBtn" type="button">Stáhnout aplikaci</button>
-    <p class="android-install-help">Android: otevři web v Chromu a klepni na Stáhnout aplikaci. Když se dialog neukáže, otevři menu prohlížeče a zvol Instalovat aplikaci. Po instalaci otevři ikonu v telefonu a dej Připravit offline data.</p>
+    <div class="install-guide-card" id="installGuideCard" data-state="checking">
+      <div class="install-guide-top">
+        <strong>Instalace do Androidu</strong>
+        <span id="installGuideBadge">Kontroluji</span>
+      </div>
+      <div class="install-checks" aria-label="Kontrola instalace">
+        <span id="installCheckChrome">Chrome</span>
+        <span id="installCheckSecure">HTTPS</span>
+        <span id="installCheckWorker">Offline</span>
+        <span id="installCheckPrompt">Dialog</span>
+      </div>
+      <ol class="install-guide-steps">
+        <li>Otevři tento web v Android Chromu.</li>
+        <li>Klepni na Stáhnout aplikaci nebo v menu prohlížeče zvol Instalovat aplikaci.</li>
+        <li>Po instalaci otevři ikonu v telefonu a dej Připravit offline data.</li>
+      </ol>
+      <div class="install-guide-actions">
+        <button class="secondary" id="copyInstallUrlBtn" type="button">Zkopírovat odkaz</button>
+        <button class="secondary" id="refreshInstallGuideBtn" type="button">Zkontrolovat</button>
+      </div>
+      <p class="small" id="installGuideState">Kontroluji, jestli telefon může aplikaci nainstalovat.</p>
+    </div>
     <div id="appInstallStatus" class="notice offline-map-status"></div>
     <button class="secondary" id="cacheMapTilesBtn" type="button">Stáhnout mapové podklady do telefonu</button>
     <div id="offlineMapStatus" class="notice offline-map-status"></div>
