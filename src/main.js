@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase100-v147";
+const APP_BUILD_VERSION="2026-08-10-performance-phase101-v148";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10266,21 +10266,6 @@ function cloudinaryTransformUrl(url,transformation){
   return rememberCloudinaryTransformUrl(cacheKey,transformed);
 }
 
-function cloudinaryUploadPresets(){
-  return [CLOUDINARY_PHOTOS.uploadPreset,...(CLOUDINARY_PHOTOS.fallbackUploadPresets || [])]
-    .map(p=>safe(p))
-    .filter((p,idx,arr)=>p && arr.indexOf(p)===idx);
-}
-
-function cloudinaryUploadErrorMessage(errors){
-  const messages=(errors || []).map(e=>safe(e && e.message)).filter(Boolean);
-  const joined=messages.join(" | ");
-  if(/whitelist|unsigned|upload preset/i.test(joined)){
-    return "Cloudinary odmítlo nahrání: preset astip_mapy není nastavený jako Unsigned. Otevři Cloudinary > Settings > Upload > Upload presets > astip_mapy a přepni Signing mode na Unsigned.";
-  }
-  return messages[0] || "Cloudinary upload selhal.";
-}
-
 function loadImageFileForResize(file){
   return new Promise((resolve,reject)=>{
     const url=URL.createObjectURL(file);
@@ -10297,35 +10282,15 @@ function loadImageFileForResize(file){
   });
 }
 
+let photoUploadModulePromise=null;
+function photoUploadModule(){
+  if(!photoUploadModulePromise) photoUploadModulePromise=import("./photo-upload.js");
+  return photoUploadModulePromise;
+}
+
 async function prepareCloudinaryUploadFile(file){
-  if(!file || !/^image\//i.test(file.type || "")) return file;
-  if(/gif/i.test(file.type || "")) return file;
-  try{
-    const img=await loadImageFileForResize(file);
-    const maxEdge=2200;
-    const quality=.86;
-    const width=img.naturalWidth || img.width;
-    const height=img.naturalHeight || img.height;
-    if(!width || !height) return file;
-    const scale=Math.min(1,maxEdge/Math.max(width,height));
-    if(scale>=1 && file.size<900*1024 && /jpe?g|webp/i.test(file.type || "")) return file;
-    const canvas=document.createElement("canvas");
-    canvas.width=Math.max(1,Math.round(width*scale));
-    canvas.height=Math.max(1,Math.round(height*scale));
-    const ctx=canvas.getContext("2d");
-    if(!ctx) return file;
-    ctx.fillStyle="#fff";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality));
-    if(!blob) return file;
-    if(blob.size>=file.size && scale>=1) return file;
-    const fileName=photoFileName({fileName:file.name || "fotografie"},0);
-    return new File([blob],fileName,{type:"image/jpeg",lastModified:Date.now()});
-  }catch(e){
-    console.warn("Fotku se nepodařilo před uploadem zmenšit, nahrávám původní soubor",e);
-    return file;
-  }
+  const mod=await photoUploadModule();
+  return mod.prepareCloudinaryUploadFile(file);
 }
 
 function blobToDataUrl(blob){
@@ -10372,51 +10337,9 @@ async function prepareOfflinePhotoData(file){
   };
 }
 
-async function uploadPhotoToCloudinaryPreset(photoId,file,preset,folderName=""){
-  if(!CLOUDINARY_PHOTOS.cloudName || !preset){
-    throw new Error("Cloudinary není nastavené.");
-  }
-  const endpoint=`https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_PHOTOS.cloudName)}/image/upload`;
-  const form=new FormData();
-  form.append("file",file,photoFileName({fileName:file?.name},0));
-  form.append("upload_preset",preset);
-  const folderPath=cloudinaryPhotoFolderPath(folderName);
-  if(folderPath) form.append("folder",folderPath);
-
-  const response=await fetch(endpoint,{method:"POST",body:form});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok || !data.secure_url){
-    const msg=data?.error?.message || `Cloudinary upload selhal (${response.status}).`;
-    throw new Error(msg);
-  }
-  const fullUrl=data.secure_url;
-  return {
-    url:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_1600,c_limit"),
-    displayUrl:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_1600,c_limit"),
-    thumbUrl:cloudinaryTransformUrl(fullUrl,"f_auto,q_auto,w_240,c_limit"),
-    fullUrl,
-    storagePath:folderPath,
-    cloudinaryFolder:folderPath,
-    cloudinaryPublicId:data.public_id || "",
-    cloudinaryAssetId:data.asset_id || "",
-    cloudinaryVersion:data.version || "",
-    cloudinaryUploadPreset:preset,
-    cloudinaryDeleteToken:""
-  };
-}
-
 async function uploadPhotoToCloudinary(photoId,file,site=selectedSite,folderName=""){
-  const presets=cloudinaryUploadPresets();
-  if(!presets.length) throw new Error("Cloudinary není nastavené.");
-  const errors=[];
-  for(const preset of presets){
-    try{
-      return await uploadPhotoToCloudinaryPreset(photoId,file,preset,folderName);
-    }catch(e){
-      errors.push(e);
-    }
-  }
-  throw new Error(cloudinaryUploadErrorMessage(errors));
+  const mod=await photoUploadModule();
+  return mod.uploadPhotoToCloudinary({photoId,file,site,folderName,config:CLOUDINARY_PHOTOS});
 }
 
 async function deleteCloudinaryUpload(item){
