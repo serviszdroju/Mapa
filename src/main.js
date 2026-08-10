@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase123-v171";
+const APP_BUILD_VERSION="2026-08-10-performance-phase124-v172";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -2235,6 +2235,7 @@ const NEW_SITE_FIELD_SPECS=[
   {label:"Poznámky",key:"Poznámky",full:true},
   {label:"Rok výroby",key:"Rok výroby"},
   {label:"Serviska",key:"Serviska",type:"select",options:[["",""],["ano","ano"],["ne","ne"]]},
+  {label:"Smlouva",key:"Smlouva ano/ne",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne"},
   {label:"Cena FZ",key:"Cena FZ"},
   {label:"Perioda kontrol",key:"Perioda kontrol",type:"select",options:[["6","6 měsíců"],["12","12 měsíců"]],value:"12"},
   {label:"Hlídáme kontroly sami",key:"Hlídáme kontroly sami",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne",full:true,special:"watch-self"},
@@ -3362,8 +3363,11 @@ function copyPlaceFieldsToNewSource(site){
   setNewDataFieldValue("Jistič UPS","");
   setNewDataFieldValue("Popis_zdroje","");
   setNewDataFieldValue("Zdroj","");
-  setNewDataFieldValue("Poznámky","");
-  setNewDataFieldValue("Důležitá poznámka","");
+  setNewDataFieldValue("Perioda kontrol",userSiteSharedFieldValue(site,"Perioda kontrol") || "12");
+  setNewDataFieldValue("Hlídáme kontroly sami",userSiteSharedFieldValue(site,"Hlídáme sami termín") || "ne");
+  setNewDataFieldValue("Smlouva ano/ne",userSiteSharedFieldValue(site,"Smlouva ano/ne") || "ne");
+  setNewDataFieldValue("Poznámky",userSiteSharedFieldValue(site,"Poznámky"));
+  setNewDataFieldValue("Důležitá poznámka",userSiteSharedFieldValue(site,"Důležitá poznámka"));
 }
 function openAddSourceForSite(site=selectedSite){
   if(!site) return;
@@ -4511,6 +4515,13 @@ function selectedSiteMatchForSave(row, selectedKey, firebaseDocId){
   return detailKey(row)===selectedKey || row.id===selectedKey || (firebaseDocId && rowDocId===firebaseDocId);
 }
 
+function copySharedDetailEdit(editedRaw,out,keys=[]){
+  const sourceKey=(keys || []).find(key=>Object.prototype.hasOwnProperty.call(editedRaw,key));
+  if(!sourceKey) return;
+  const value=editedRaw[sourceKey];
+  (keys || []).forEach(key=>{out[key]=value;});
+}
+
 function sharedPlaceEditsFromRaw(editedRaw={}){
   const out={};
   const copy=(from,to=from)=>{
@@ -4524,6 +4535,17 @@ function sharedPlaceEditsFromRaw(editedRaw={}){
   copy("GPS_lat");
   copy("GPS_lon");
   copy("Kraj");
+  copySharedDetailEdit(editedRaw,out,["Název"]);
+  copySharedDetailEdit(editedRaw,out,["Kontakt","Kontakt_mapy","Hlavní kontakt","Upravený kontakt"]);
+  copySharedDetailEdit(editedRaw,out,["Perioda kontrol","Perioda zkoušky","Perioda zkoušek","Perioda kontroly","Perioda","Četnost","Cetnost","Interval"]);
+  copySharedDetailEdit(editedRaw,out,["Hlídáme sami termín","Hlídáme termín sami","Hlídat termín sami","Hlidat termin sami","Hlídáme kontroly sami","Hlidame kontroly sami","Jezdit hlídáme termín sami","Bez objednávky"]);
+  copySharedDetailEdit(editedRaw,out,["Smlouva ano/ne","Smlouva (ano/ne)","Smlouva ano ne","Smlouva ano","Smlouva"]);
+  copySharedDetailEdit(editedRaw,out,["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky"]);
+  copySharedDetailEdit(editedRaw,out,["Poznámky","Poznámky_mapy","Upravené poznámky"]);
+  const watchValue=out["Hlídáme sami termín"] || out["Hlídáme kontroly sami"] || out["Hlídat termín sami"];
+  if(Object.keys(out).some(key=>dataNormFixed(key).includes("hlidame") || dataNormFixed(key).includes("hlidat"))){
+    applyWatchSelfAliases(out,watchValue || "ne");
+  }
   return out;
 }
 
@@ -4905,6 +4927,36 @@ const USER_SITE_DATA_FIELDS = [
   {label:"Důležité poznámky", key:"Důležitá poznámka", keys:["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky"], type:"textarea", important:true}
 ];
 window.userSiteDataFields = USER_SITE_DATA_FIELDS.map(f=>({label:f.label,key:f.key,type:f.type||"text"}));
+
+function userSiteFieldSpecByKey(key){
+  const target=dataNormFixed(key);
+  return USER_SITE_DATA_FIELDS.find(spec=>dataNormFixed(spec.key)===target || dataNormFixed(spec.label)===target);
+}
+
+function userSiteSharedFieldValue(site,key){
+  const spec=userSiteFieldSpecByKey(key);
+  if(!spec) return "";
+  return userSiteFieldValue(site,spec,rawForSiteFieldLookup(site));
+}
+
+function siteContactForProtocol(site=selectedSite){
+  const raw=rawForSiteFieldLookup(site);
+  return safe((site && site.kontakt) || firstSiteField(raw,["Kontakt","Kontakt_mapy","Hlavní kontakt","Upravený kontakt"]));
+}
+
+function syncOpenProtocolContactFromDetail(site=selectedSite,options={}){
+  const el=document.getElementById("protoContacts");
+  const form=document.getElementById("protocolForm");
+  if(!el || !form || form.style.display==="none") return;
+  const next=siteContactForProtocol(site);
+  if(!next) return;
+  const current=safe(el.value);
+  const previous=safe(options.previousContact);
+  if(options.force || !current || (previous && dataNormFixed(current)===dataNormFixed(previous))){
+    el.value=next;
+    if(options.saveDraft) scheduleProtocolDraftSave();
+  }
+}
 
 const rowDataNormKeyLookupCache=new WeakMap();
 function dataNormRowKeyEntries(raw){
@@ -5310,9 +5362,9 @@ async function saveAllDataEdits(){
       }catch(e){}
     }
 
-    const siblingText=siblingAddressUpdates ? ` Adresa propsána i do dalších zdrojů: ${siblingAddressUpdates}.` : "";
+    const siblingText=siblingAddressUpdates ? ` Sdílené řádky propsány i do dalších zdrojů: ${siblingAddressUpdates}.` : "";
     if(st) st.textContent=cancelOrderedByDateChange ? `Data uložena. Objednaná kontrola byla zrušena kvůli změně termínu.${siblingText}` : `Data uložena.${siblingText}`;
-    showSaveConfirmation(cancelOrderedByDateChange ? "Data uložena, objednání kontroly zrušeno." : (siblingAddressUpdates ? "Data a společná adresa uloženy." : "Data uložena."));
+    showSaveConfirmation(cancelOrderedByDateChange ? "Data uložena, objednání kontroly zrušeno." : (siblingAddressUpdates ? "Sdílené řádky uloženy pro celé místo." : "Data uložena."));
     const reopenKey=(selectedSite && (detailKey(selectedSite) || selectedSite.firebaseDocId || selectedKey)) || selectedKey;
     render();
     if(selectedSite && Number.isFinite(selectedSite.lat) && Number.isFinite(selectedSite.lon)){
@@ -8841,6 +8893,7 @@ function applyProtocolFieldsToRaw(raw,protocol={}){
   const location=safe(protocol.pbzLocation);
   const breakers=safe(protocol.breakersLocation);
   const testProcedure=safe(protocol.testProcedure);
+  const contacts=safe(protocol.contacts);
   if(device){
     out["Popis_zdroje"]=device;
     out["Kontrolované zařízení"]=device;
@@ -8863,6 +8916,12 @@ function applyProtocolFieldsToRaw(raw,protocol={}){
   if(testProcedure){
     out["Postup testování"]=testProcedure;
     out["Postup testovani"]=testProcedure;
+  }
+  if(contacts){
+    out["Kontakt"]=contacts;
+    out["Kontakt_mapy"]=contacts;
+    out["Hlavní kontakt"]=contacts;
+    out["Upravený kontakt"]=contacts;
   }
   appendProtocolNoteToRepairHistory(out,protocol);
   return out;
@@ -8955,6 +9014,7 @@ function refreshSelectedDetailDataView(){
   showControlDateDisplay(selectedSite);
   const sub=document.getElementById("detailSub");
   if(sub) sub.textContent=siteSourceLabel(selectedSite) || "";
+  syncOpenProtocolContactFromDetail(selectedSite);
 }
 
 async function refreshSiteDataFromFirebase(site=selectedSite){
@@ -10626,6 +10686,10 @@ async function syncOfflinePhotos(options={}){
           syncedAt,
           syncedBy:signedUser.email || currentUserEmail(),
           uploadedBy:item.uploadedBy || signedUser.email || currentUserEmail(),
+          photoFolder:folderName,
+          folderName,
+          folder:folderName,
+          cloudinaryFolderDate:folderName,
           cloudinaryPublicId:cloudinaryResult.cloudinaryPublicId,
           cloudinaryAssetId:cloudinaryResult.cloudinaryAssetId,
           cloudinaryVersion:cloudinaryResult.cloudinaryVersion,
@@ -11145,9 +11209,22 @@ function photoFolderNameForDate(value=new Date()){
   return `${y}-${m}-${day}`;
 }
 
+function normalizePhotoFolderDateName(value="",fallback=new Date()){
+  const raw=safe(value);
+  const last=raw.split(/[\\/]/).map(part=>safe(part)).filter(Boolean).pop() || raw;
+  const candidates=[last,raw,fallback].map(item=>safe(item)).filter(Boolean);
+  for(const candidate of candidates){
+    const d=parseDateValue(candidate);
+    if(d && !isNaN(d.getTime())) return photoFolderNameForDate(d);
+  }
+  return photoFolderNameForDate(new Date());
+}
+
 function photoFolderName(item){
-  return safe(item && (item.photoFolder || item.folderName || item.folder || item.cloudinaryFolderDate))
-    || photoFolderNameForDate(item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item));
+  const explicit=safe(item && (item.photoFolder || item.folderName || item.folder || item.cloudinaryFolderDate || item.cloudinaryFolder));
+  return explicit
+    ? normalizePhotoFolderDateName(explicit,item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item))
+    : photoFolderNameForDate(item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item));
 }
 
 function photoFolderLabel(folderName){
@@ -11307,19 +11384,30 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const thumbs=document.createElement("div");
   thumbs.className="site-photo-thumbs";
   const thumbsFragment=document.createDocumentFragment();
-  sitePhotoItems.forEach((photo,idx)=>{
-    const button=document.createElement("button");
-    button.className=`site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}`.trim();
-    button.type="button";
-    button.dataset.photoIdx=String(idx);
-    button.setAttribute("aria-label",`Zobrazit fotografii ${idx+1}`);
-    const thumbImg=document.createElement("img");
-    thumbImg.src=photoThumbUrl(photo);
-    thumbImg.alt=`Náhled ${idx+1}`;
-    thumbImg.loading="lazy";
-    thumbImg.decoding="async";
-    button.appendChild(thumbImg);
-    thumbsFragment.appendChild(button);
+  sitePhotoFolderGroups(sitePhotoItems).forEach(group=>{
+    const groupEl=document.createElement("div");
+    groupEl.className="site-photo-folder-group";
+    const label=document.createElement("div");
+    label.className="site-photo-folder-label";
+    label.textContent=photoFolderLabel(group.folder);
+    const row=document.createElement("div");
+    row.className="site-photo-folder-thumbs";
+    group.photos.forEach(({photo,idx})=>{
+      const button=document.createElement("button");
+      button.className=`site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}`.trim();
+      button.type="button";
+      button.dataset.photoIdx=String(idx);
+      button.setAttribute("aria-label",`Zobrazit fotografii ${idx+1}`);
+      const thumbImg=document.createElement("img");
+      thumbImg.src=photoThumbUrl(photo);
+      thumbImg.alt=`Náhled ${idx+1}`;
+      thumbImg.loading="lazy";
+      thumbImg.decoding="async";
+      button.appendChild(thumbImg);
+      row.appendChild(button);
+    });
+    groupEl.append(label,row);
+    thumbsFragment.appendChild(groupEl);
   });
   thumbs.appendChild(thumbsFragment);
   viewer.appendChild(thumbs);
@@ -11514,6 +11602,9 @@ async function uploadSitePhotos(){
       fileName:file.name || "",
       uploadedBy:userEmail || "nepřihlášený uživatel",
       photoFolder:uploadFolderName,
+      folderName:uploadFolderName,
+      folder:uploadFolderName,
+      cloudinaryFolderDate:uploadFolderName,
       cloudinaryFolder:cloudinaryPhotoFolderPath(uploadFolderName),
       createdAt,
       takenAt:file.lastModified ? new Date(file.lastModified).toISOString() : createdAt
@@ -11742,7 +11833,7 @@ async function prefillProtocol(){
   // základ z aktuálního místa
   populateProtocolDeviceSelect();
   const address=selectedSite.adresa || pickRawValue(raw,["Název","Adresa / umístění","Adresa_GPS","Umístění"]);
-  const contacts=selectedSite.kontakt || pickRawValue(raw,["Kontakt_mapy","Kontakt","Hlavní kontakt"]);
+  const contacts=siteContactForProtocol(selectedSite);
   const period=periodMonths(selectedSite) === 12 ? "12 měsíců" : "6 měsíců";
   const deviceType=protocolDeviceTypeFromSite(selectedSite);
   const serial=protocolSerialFromSite(selectedSite);

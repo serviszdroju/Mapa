@@ -497,24 +497,33 @@ button:active{transform:translateY(0)}
   line-height:1.1;
 }
 #detailDataCard #detailTable:not(.data-edit-table){
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:5px;
+  display:block;
+  width:100%;
   border-spacing:0;
 }
 #detailDataCard #detailTable:not(.data-edit-table) tbody{
-  display:contents;
+  display:block;
 }
 #detailDataCard #detailTable:not(.data-edit-table) tr{
-  display:block;
-  width:auto;
+  display:grid;
+  grid-template-columns:145px minmax(0,1fr);
+  gap:8px;
+  width:100%;
   min-width:0;
   margin:0;
-  padding:6px 8px;
-  border:1px solid #e2e8f0;
-  border-radius:8px;
-  background:#fff;
+  padding:5px 0;
+  border:0;
+  border-bottom:1px solid #e2e8f0;
+  border-radius:0;
+  background:transparent;
   box-shadow:none;
+}
+#detailDataCard #detailTable:not(.data-edit-table) tr.notes-red-row{
+  border-top:0 !important;
+  border-right:0 !important;
+  border-left:0 !important;
+  border-bottom:1px solid #e2e8f0 !important;
+  background:transparent !important;
 }
 #detailDataCard #detailTable:not(.data-edit-table) tr::before{
   display:none;
@@ -526,19 +535,29 @@ button:active{transform:translateY(0)}
   padding:0;
 }
 #detailDataCard #detailTable:not(.data-edit-table) td:first-child{
-  margin:0 0 2px;
-  color:#64748b;
-  font-size:10px;
-  line-height:1.15;
+  margin:0;
+  color:#475569;
+  font-size:12px;
+  line-height:1.25;
   font-weight:800;
   text-transform:none;
 }
 #detailDataCard #detailTable:not(.data-edit-table) td:nth-child(2){
   color:#0f172a;
   font-size:12px;
-  font-weight:800;
-  line-height:1.2;
+  font-weight:500;
+  line-height:1.25;
   overflow-wrap:anywhere;
+}
+#detailDataCard #detailTable:not(.data-edit-table) tr.notes-red-row td:first-child,
+#detailDataCard #detailTable:not(.data-edit-table) tr.notes-red-row td:nth-child(2){
+  color:inherit !important;
+}
+#detailDataCard #detailTable:not(.data-edit-table) tr.notes-red-row td:first-child{
+  color:#475569 !important;
+}
+#detailDataCard #detailTable:not(.data-edit-table) tr.notes-red-row td:nth-child(2){
+  color:#0f172a !important;
 }
 .important-note-row{box-shadow:0 10px 24px rgba(220,38,38,.10) !important}
 .data-edit-actions{
@@ -574,7 +593,7 @@ button:active{transform:translateY(0)}
 @media(max-width:1024px){
   aside{box-shadow:0 -10px 30px rgba(15,23,42,.08)}
   .detail-tabs{top:auto}
-  #detailTable tr{display:block}
+  #detailTable.data-edit-table tr{display:block}
 }
 @media(max-width:640px){
   .control-dates-strong{grid-template-columns:1fr}
@@ -584,7 +603,10 @@ button:active{transform:translateY(0)}
     min-height:42px;
   }
   #detailDataCard #detailTable:not(.data-edit-table){
+    display:block;
+  }
+  #detailDataCard #detailTable:not(.data-edit-table) tr{
     grid-template-columns:1fr;
+    gap:2px;
   }
 }
-

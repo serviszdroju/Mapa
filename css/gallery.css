@@ -179,6 +179,23 @@
   padding:2px 1px 4px;
   scroll-snap-type:x proximity;
 }
+.site-photo-folder-group{
+  flex:0 0 auto;
+  display:grid;
+  gap:4px;
+  min-width:0;
+}
+.site-photo-folder-label{
+  color:#475569;
+  font-size:10px;
+  font-weight:900;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.site-photo-folder-thumbs{
+  display:flex;
+  gap:8px;
+}
 .site-photo-thumb{
   flex:0 0 70px;
   border:2px solid transparent;
@@ -336,5 +353,4 @@
   background:white;
   font-size:14px;
 }
-
 
