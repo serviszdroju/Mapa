@@ -2469,9 +2469,10 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
-const SZZ_INSTALL_QUEUE_DB_VERSION=1;
+const SZZ_INSTALL_QUEUE_DB_VERSION=2;
 const SZZ_INSTALL_SITE_QUEUE_STORE="siteQueue";
 const SZZ_INSTALL_PROTOCOL_QUEUE_STORE="protocolQueue";
+const SZZ_INSTALL_PROTOCOL_DRAFT_STORE="protocolDrafts";
 const SZZ_INSTALL_SHELL_URLS=[
   "./",
   "./index.html",
@@ -2532,6 +2533,9 @@ function openSzzInstallQueueDb(){
       if(!database.objectStoreNames.contains(SZZ_INSTALL_PROTOCOL_QUEUE_STORE)){
         const protocolStore=database.createObjectStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,{keyPath:"_id"});
         protocolStore.createIndex("siteCacheKey","siteCacheKey",{unique:false});
+      }
+      if(!database.objectStoreNames.contains(SZZ_INSTALL_PROTOCOL_DRAFT_STORE)){
+        database.createObjectStore(SZZ_INSTALL_PROTOCOL_DRAFT_STORE,{keyPath:"siteCacheKey"});
       }
     };
     req.onsuccess=()=>resolve(req.result);
@@ -2663,14 +2667,23 @@ async function szzInstallOfflineCounts(){
   }catch(e){}
   let drafts=0;
   try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i);
-      if(key && key.startsWith("astipMap:protocolDraft:")){
-        const parsed=JSON.parse(localStorage.getItem(key) || "null");
-        if(parsed && parsed.payload) drafts++;
-      }
-    }
+    drafts=await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_DRAFT_STORE,"readonly",(store,setResult)=>{
+      const req=store.count();
+      req.onsuccess=()=>setResult(Number(req.result) || 0);
+      req.onerror=()=>setResult(0);
+    });
   }catch(e){}
+  if(!drafts){
+    try{
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(key && key.startsWith("astipMap:protocolDraft:")){
+          const parsed=JSON.parse(localStorage.getItem(key) || "null");
+          if(parsed && parsed.payload) drafts++;
+        }
+      }
+    }catch(e){}
+  }
   return {
     sites:szzInstallUniqueById([...localSites,...indexedSites],"docId").length,
     protocols:szzInstallUniqueById([...localProtocols,...indexedProtocols]).length,
@@ -2960,7 +2973,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase94-v141";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase95-v142";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
