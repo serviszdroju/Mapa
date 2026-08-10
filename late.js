@@ -2461,6 +2461,8 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
 };
 
 let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
+const SZZ_ANDROID_APK_URL="https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk";
+let szzApkAvailabilityPromise=null;
 
 function currentSzzInstallPrompt(){
   return deferredSzzInstallPrompt || window.__szzDeferredInstallPrompt || null;
@@ -2608,6 +2610,39 @@ function setSzzInstallBusy(busy=false,text="Stáhnout aplikaci"){
   });
 }
 
+async function isSzzAndroidApkAvailable(force=false){
+  if(force) szzApkAvailabilityPromise=null;
+  if(!szzApkAvailabilityPromise){
+    szzApkAvailabilityPromise=fetch(SZZ_ANDROID_APK_URL,{method:"HEAD",cache:"no-store"})
+      .then(response=>response && response.ok)
+      .catch(()=>false);
+  }
+  return await szzApkAvailabilityPromise;
+}
+
+async function updateSzzApkLinkState(force=false){
+  const link=document.getElementById("downloadApkLink");
+  if(!link) return false;
+  link.href=SZZ_ANDROID_APK_URL;
+  const available=await isSzzAndroidApkAvailable(force);
+  link.setAttribute("aria-disabled",available ? "false" : "true");
+  link.textContent=available ? "Stáhnout APK" : "APK se připravuje";
+  return available;
+}
+
+async function downloadSzzAndroidApk(){
+  const available=await updateSzzApkLinkState(true);
+  if(!available){
+    setSzzInstallStatus("APK instalátor se ještě připravuje. Zkus to za pár minut tlačítkem Stáhnout APK.","info");
+    if(window.showSaveConfirmation) window.showSaveConfirmation("APK se ještě připravuje.");
+    return false;
+  }
+  setSzzInstallStatus("Stahuji APK instalátor. Po stažení ho v tabletu otevři a potvrď instalaci.","ok");
+  if(window.showSaveConfirmation) window.showSaveConfirmation("Stahuji APK instalátor.");
+  window.location.href=SZZ_ANDROID_APK_URL;
+  return true;
+}
+
 function closeSzzInstallConfirm(){
   const dialog=document.getElementById("installConfirmDialog");
   if(dialog) dialog.hidden=true;
@@ -2700,7 +2735,11 @@ async function performSzzInstallFromPage(){
   const help=androidInstallHelpText();
   renderSzzInstallGuide();
   setSzzInstallStatus(help,szzInstallReadiness()==="error" ? "error" : "info");
-  if(window.showSaveConfirmation) window.showSaveConfirmation("Po instalaci bude ikona v menu tabletu.");
+  if(/android/i.test(navigator.userAgent || "")){
+    await downloadSzzAndroidApk();
+  }else if(window.showSaveConfirmation){
+    window.showSaveConfirmation("Po instalaci bude ikona v menu tabletu.");
+  }
 }
 
 function installSzzAppFromPage(){
@@ -2809,10 +2848,20 @@ function bindSzzInstallControls(){
     refreshInstallGuideBtn.addEventListener("click",()=>{
       renderSzzInstallGuide();
       setSzzInstallStatus(androidInstallHelpText(),szzInstallReadiness()==="error" ? "error" : "info");
+      updateSzzApkLinkState(true);
+    });
+  }
+  const downloadApkLink=document.getElementById("downloadApkLink");
+  if(downloadApkLink && !downloadApkLink.__szzApkBound){
+    downloadApkLink.__szzApkBound=true;
+    downloadApkLink.addEventListener("click",event=>{
+      event.preventDefault();
+      downloadSzzAndroidApk();
     });
   }
   updateSzzInstallButtons();
   renderSzzInstallGuide();
+  updateSzzApkLinkState();
 }
 document.addEventListener("DOMContentLoaded",bindSzzInstallControls);
 bindSzzInstallControls();
@@ -2828,7 +2877,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-installability-apk-v184";
+  const serviceWorkerBuildVersion="2026-08-10-apk-download-v185";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
