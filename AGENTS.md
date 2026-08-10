@@ -120,4 +120,6 @@ Current performance phase 49 decision: cache `simpleNorm()` row-key candidates i
 
 Current performance phase 50 decision: keep filter, place-group, and sidebar cache invalidation inputs unchanged, but build their render cache signatures with simple stable strings instead of `JSON.stringify()` arrays during render scheduling.
 
+Current performance phase 51 decision: cache `dataNormFixed()` raw-key entries for detail field fallback lookup while preserving original object-key order, and build read-only detail table signatures with length-prefixed strings instead of `JSON.stringify()`.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

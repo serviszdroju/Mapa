@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase50-v97";
-const APP_SHELL_CACHE_NAME="astip-szz-v97-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase51-v98";
+const APP_SHELL_CACHE_NAME="astip-szz-v98-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -7725,6 +7725,18 @@ const USER_SITE_DATA_FIELDS = [
 ];
 window.userSiteDataFields = USER_SITE_DATA_FIELDS.map(f=>({label:f.label,key:f.key,type:f.type||"text"}));
 
+const rowDataNormKeyLookupCache=new WeakMap();
+function dataNormRowKeyEntries(raw){
+  if(!raw || (typeof raw!=="object" && typeof raw!=="function")) return [];
+  const keys=Object.keys(raw);
+  const signature=keys.join("\u001f");
+  const cached=rowDataNormKeyLookupCache.get(raw);
+  if(cached && cached.signature===signature) return cached.entries;
+  const entries=keys.map(k=>[k,dataNormFixed(k)]);
+  rowDataNormKeyLookupCache.set(raw,{signature,entries});
+  return entries;
+}
+
 function firstSiteField(raw, keys){
   const source=raw || {};
   for(const k of keys || []){
@@ -7733,8 +7745,9 @@ function firstSiteField(raw, keys){
   }
   const wanted=(keys || []).map(k=>dataNormFixed(k)).filter(Boolean);
   if(!wanted.length) return "";
-  for(const k of Object.keys(source)){
-    if(wanted.includes(dataNormFixed(k))){
+  const wantedSet=new Set(wanted);
+  for(const [k,n] of dataNormRowKeyEntries(source)){
+    if(wantedSet.has(n)){
       const v=safe(source[k]);
       if(v) return v;
     }
@@ -8474,7 +8487,7 @@ function detailTableRows(r){
 
 function detailTable(r){
   const rowsForDetail=detailTableRows(r);
-  const signature=JSON.stringify(rowsForDetail.map(({spec,value})=>[spec.key,value]));
+  const signature=rowsForDetail.map(({spec,value})=>`${String(spec.key).length}:${spec.key}\u001e${String(value).length}:${value}`).join("\u001f");
   if(r && typeof r==="object" && r._detailTableSignature===signature && r._detailTableHtml){
     return r._detailTableHtml;
   }
@@ -17424,7 +17437,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v97-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v98-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17917,7 +17930,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase50-v97";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase51-v98";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
