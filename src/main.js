@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase75-v122";
-const APP_SHELL_CACHE_NAME="astip-szz-v122-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase76-v123";
+const APP_SHELL_CACHE_NAME="astip-szz-v123-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -2135,7 +2135,7 @@ function clearNewSiteMode(){
   const chooser=document.getElementById("sourceChooser");
   if(chooser){
     chooser.style.display="none";
-    chooser.innerHTML="";
+    chooser.replaceChildren();
     chooser.dataset.renderSignature="";
   }
 }
@@ -2426,13 +2426,18 @@ function populateNewRegionOptions(){
   if(!el) return;
   const current=el.value;
   const regions=typeof window.appRegionOptions==="function" ? window.appRegionOptions() : APP_REGION_OPTIONS.slice();
-  el.innerHTML='<option value="">Vyber kraj</option>';
+  const fragment=document.createDocumentFragment();
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Vyber kraj";
+  fragment.appendChild(placeholder);
   regions.forEach(v=>{
     const o=document.createElement("option");
     o.value=v;
     o.textContent=v;
-    el.appendChild(o);
+    fragment.appendChild(o);
   });
+  el.replaceChildren(fragment);
   if(current && regions.includes(current)) el.value=current;
 }
 
@@ -2440,7 +2445,7 @@ function openNewSiteForm(){
   selectedSite=null;
   addSourceBaseSite=null;
   const chooser=document.getElementById("sourceChooser");
-  if(chooser){chooser.style.display="none";chooser.innerHTML="";chooser.dataset.renderSignature="";}
+  if(chooser){chooser.style.display="none";chooser.replaceChildren();chooser.dataset.renderSignature="";}
   populateNewRegionOptions();
   document.getElementById("drawer").classList.add("open"); document.getElementById("drawer").scrollTop=0;
   document.getElementById("newSiteCard").style.display="block";
@@ -3432,7 +3437,7 @@ function renderSourceChooser(site=selectedSite){
   const siblings=siteSiblingRows(site);
   if(!site){
     box.style.display="none";
-    box.innerHTML="";
+    box.replaceChildren();
     box.dataset.renderSignature="";
     return;
   }
@@ -3444,19 +3449,32 @@ function renderSourceChooser(site=selectedSite){
   }
   box.style.display="block";
   box.dataset.renderSignature=signature;
-  box.innerHTML=`
-    <div class="source-chooser-title">Zdroje na tomto místě</div>
-    <div class="source-chooser-buttons">
-      ${siblings.map(row=>`
-        <button class="source-chooser-button ${detailKey(row)===activeKey ? "active" : ""}" type="button" data-source-key="${esc(detailKey(row))}">
-          ${esc(siteSourceLabel(row))}
-          <small>${esc(statusText(row))}</small>
-        </button>`).join("")}
-      <button class="source-chooser-button" type="button" data-add-source="${esc(activeKey)}">
-        + Přidat další zdroj
-        <small>${esc(sitePlaceLabel(site) || site.adresa || "")}</small>
-      </button>
-    </div>`;
+  const title=document.createElement("div");
+  title.className="source-chooser-title";
+  title.textContent="Zdroje na tomto místě";
+  const buttons=document.createElement("div");
+  buttons.className="source-chooser-buttons";
+  siblings.forEach(row=>{
+    const btn=document.createElement("button");
+    btn.className=`source-chooser-button ${detailKey(row)===activeKey ? "active" : ""}`.trim();
+    btn.type="button";
+    btn.dataset.sourceKey=safe(detailKey(row));
+    btn.appendChild(document.createTextNode(siteSourceLabel(row)));
+    const meta=document.createElement("small");
+    meta.textContent=statusText(row);
+    btn.appendChild(meta);
+    buttons.appendChild(btn);
+  });
+  const addBtn=document.createElement("button");
+  addBtn.className="source-chooser-button";
+  addBtn.type="button";
+  addBtn.dataset.addSource=safe(activeKey);
+  addBtn.appendChild(document.createTextNode("+ Přidat další zdroj"));
+  const addMeta=document.createElement("small");
+  addMeta.textContent=sitePlaceLabel(site) || site.adresa || "";
+  addBtn.appendChild(addMeta);
+  buttons.appendChild(addBtn);
+  box.replaceChildren(title,buttons);
   box.querySelectorAll("[data-source-key]").forEach(btn=>{
     btn.onclick=()=>window.openDetailById(btn.getAttribute("data-source-key"));
   });
@@ -3991,7 +4009,11 @@ function filters(){
   const st=document.getElementById("statusFilter"), kr=document.getElementById("regionFilter");
   const currentStatus=st.value;
   const currentRegion=kr.value;
-  st.innerHTML='<option value="">Vše</option>'; kr.innerHTML='<option value="">Vše</option>';
+  const statusFragment=document.createDocumentFragment();
+  const statusAll=document.createElement("option");
+  statusAll.value="";
+  statusAll.textContent="Vše";
+  statusFragment.appendChild(statusAll);
   ["Propadlá kontrola","Kontrola objednaná","Objednaná oprava","1–30 dní k termínu","Stop Stav","OK / ostatní","Hlídáme termín sami"].forEach(v=>{
     const o=document.createElement("option");
     o.value=v;
@@ -4005,9 +4027,16 @@ function filters(){
     if(cls==="status-green"){o.style.backgroundColor="#dcfce7";o.style.color="#166534";}
     if(cls==="status-gray"){o.style.backgroundColor="#f1f5f9";o.style.color="#334155";}
     if(cls==="status-pink"){o.style.backgroundColor="#fdf2f8";o.style.color="#9d174d";}
-    st.appendChild(o);
+    statusFragment.appendChild(o);
   });
-  APP_REGION_OPTIONS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;kr.appendChild(o)});
+  const regionFragment=document.createDocumentFragment();
+  const regionAll=document.createElement("option");
+  regionAll.value="";
+  regionAll.textContent="Vše";
+  regionFragment.appendChild(regionAll);
+  APP_REGION_OPTIONS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;regionFragment.appendChild(o)});
+  st.replaceChildren(statusFragment);
+  kr.replaceChildren(regionFragment);
   if([...st.options].some(o=>o.value===currentStatus)) st.value=currentStatus;
   if([...kr.options].some(o=>o.value===currentRegion)) kr.value=currentRegion;
   updateStatusFilterColor();
@@ -4954,8 +4983,20 @@ function showControlDateDisplay(r){
 function showControlDateInputs(r){
   const lastBox=document.getElementById("detailLastCheck");
   const nextBox=document.getElementById("detailNextCheck");
-  if(lastBox) lastBox.innerHTML=`<input id="detailLastCheckInput" type="date" value="${esc(dateInputValueFromAny(r.posledni))}">`;
-  if(nextBox) nextBox.innerHTML=`<input id="detailNextCheckInput" type="date" value="${esc(dateInputValueFromAny(computedNextDate(r)))}">`;
+  if(lastBox){
+    const input=document.createElement("input");
+    input.id="detailLastCheckInput";
+    input.type="date";
+    input.value=dateInputValueFromAny(r.posledni);
+    lastBox.replaceChildren(input);
+  }
+  if(nextBox){
+    const input=document.createElement("input");
+    input.id="detailNextCheckInput";
+    input.type="date";
+    input.value=dateInputValueFromAny(computedNextDate(r));
+    nextBox.replaceChildren(input);
+  }
   const lastInput=document.getElementById("detailLastCheckInput");
   const nextInput=document.getElementById("detailNextCheckInput");
   const periodInput=document.querySelector('#detailTable [data-key="Perioda kontrol"]');
@@ -4994,7 +5035,14 @@ function addNewDataRowToTable(){
 
   const row = document.createElement("tr");
   row.className = isNoteUser(key) ? "notes-red-row" : "";
-  row.innerHTML = `<td>${esc(key)}</td><td><input data-key="${esc(key)}" value="${esc(val)}"></td>`;
+  const keyCell=document.createElement("td");
+  keyCell.textContent=key;
+  const valueCell=document.createElement("td");
+  const input=document.createElement("input");
+  input.dataset.key=key;
+  input.value=val;
+  valueCell.appendChild(input);
+  row.append(keyCell,valueCell);
 
   if(isNoteUser(key)){
     table.appendChild(row);
@@ -6069,7 +6117,12 @@ function resetDetailLazyLoadState(site){
   const history=document.getElementById("history");
   if(history) history.textContent="Zatím nenačteno.";
   const photoList=document.getElementById("sitePhotosList");
-  if(photoList) photoList.innerHTML='<div class="site-photos-empty">Fotografie se načtou po otevření Galerie.</div>';
+  if(photoList){
+    const placeholder=document.createElement("div");
+    placeholder.className="site-photos-empty";
+    placeholder.textContent="Fotografie se načtou po otevření Galerie.";
+    photoList.replaceChildren(placeholder);
+  }
   const photoStatus=document.getElementById("sitePhotosStatus");
   if(photoStatus) photoStatus.textContent="";
   updateOfficialProtocolSourceInfo();
