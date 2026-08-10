@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase52-v99";
-const APP_SHELL_CACHE_NAME="astip-szz-v99-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase53-v100";
+const APP_SHELL_CACHE_NAME="astip-szz-v100-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8746,6 +8746,38 @@ async function readFirestoreArrayContainsAny(fsMod,database,colName,field,values
   return true;
 }
 
+async function readFirestoreEqualsAny(fsMod,database,colName,field,values,addDocSnap,warnLabel="Firestore rovnostní dotaz"){
+  const cleanValues=uniqueNonEmptyStrings(values);
+  if(!cleanValues.length || !fsMod || !database || typeof addDocSnap!=="function") return true;
+  const {collection,query,where,getDocs}=fsMod;
+  if(!collection || !query || !where || !getDocs) return false;
+  let batchOk=true;
+  for(let i=0;i<cleanValues.length;i+=10){
+    const chunk=cleanValues.slice(i,i+10);
+    try{
+      const q=query(collection(database,colName),where(field,"in",chunk));
+      const snap=await getDocs(q);
+      snap.forEach(addDocSnap);
+    }catch(e){
+      batchOk=false;
+      console.warn(warnLabel,field,e);
+      break;
+    }
+  }
+  if(batchOk) return true;
+  const fallbackTasks=cleanValues.map(value=>async()=>{
+    try{
+      const q=query(collection(database,colName),where(field,"==",value));
+      const snap=await getDocs(q);
+      snap.forEach(addDocSnap);
+    }catch(e){
+      console.warn(warnLabel,field,"fallback",e);
+    }
+  });
+  await runBoundedFirestoreTasks(fallbackTasks,6);
+  return false;
+}
+
 async function runBoundedFirestoreTasks(tasks=[],concurrency=6){
   const queue=(Array.isArray(tasks) ? tasks : []).filter(task=>typeof task==="function");
   if(!queue.length) return;
@@ -12074,22 +12106,18 @@ async function loadHistory(siteId){
           `Historie dávkový dotaz selhal ${colName}`
         );
         const queryTasks=[];
+        for(const field of ["siteId","siteKey","firebaseDocId"]){
+          queryTasks.push(()=>readFirestoreEqualsAny(
+            fb.fsMod,
+            db,
+            colName,
+            field,
+            historySiteIds,
+            addDocSnap,
+            `Historie rovnostní dávkový dotaz selhal ${colName}`
+          ));
+        }
         for(const id of historySiteIds){
-          for(const lookup of [
-            ["siteId","==",id],
-            ["siteKey","==",id],
-            ["firebaseDocId","==",id]
-          ]){
-            queryTasks.push(async()=>{
-              try{
-                const q=query(collection(db,colName),where(...lookup));
-                const snap=await getDocs(q);
-                snap.forEach(addDocSnap);
-              }catch(e){
-                console.warn("Historie dotaz selhal",colName,lookup[0],e);
-              }
-            });
-          }
           if(!siteKeysBatchOk){
             queryTasks.push(async()=>{
               try{
@@ -14329,16 +14357,18 @@ async function getLastProtocol(site=selectedSite){
       "Poslední protokol dávkový dotaz selhal"
     );
     const protocolQueryTasks=[];
+    for(const field of ["siteId","siteKey","firebaseDocId"]){
+      protocolQueryTasks.push(()=>readFirestoreEqualsAny(
+        fb.fsMod,
+        db,
+        "protocols",
+        field,
+        keys,
+        addProtocolDocSnap,
+        "Poslední protokol rovnostní dávkový dotaz selhal"
+      ));
+    }
     for(const id of keys){
-      for(const lookup of [["siteId","==",id],["siteKey","==",id],["firebaseDocId","==",id]]){
-        protocolQueryTasks.push(async()=>{
-          try{
-            addSnap(await getDocs(query(collection(db,"protocols"),where(...lookup))));
-          }catch(e){
-            console.warn("Poslední protokol dotaz selhal",lookup[0],e);
-          }
-        });
-      }
       if(!siteKeysBatchOk){
         protocolQueryTasks.push(async()=>{
           try{
@@ -17439,7 +17469,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v99-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v100-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17932,7 +17962,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase52-v99";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase53-v100";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

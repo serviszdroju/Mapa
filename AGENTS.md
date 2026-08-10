@@ -124,4 +124,6 @@ Current performance phase 51 decision: cache `dataNormFixed()` raw-key entries f
 
 Current performance phase 52 decision: build the merged raw/edit field object once per detail/edit table render and pass it through `userSiteFieldValue()`, avoiding repeated object spreads and enabling the detail field-key cache to be reused within a render.
 
+Current performance phase 53 decision: batch Firestore equality fallback reads for `siteId`, `siteKey`, and `firebaseDocId` using `in` chunks before falling back to the old per-id `==` queries, reducing request bursts for detail history and latest-protocol reads while preserving legacy fallback coverage.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
