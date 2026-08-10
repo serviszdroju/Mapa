@@ -1,0 +1,207 @@
+/* UPRAVY PROTOKOLU A DAT 3 */
+.proto-device-select-wrap.hidden,.proto-device-input-wrap.hidden{display:none!important}
+#protocolForm .protocol-point{margin-top:12px!important;padding-top:0!important;border-top:0!important}
+#protocolForm input,#protocolForm select{min-height:34px!important;padding:6px 8px!important}
+#protocolForm textarea{min-height:50px!important;padding:6px 8px!important}
+.data-edit-table input,.data-edit-table select,.data-edit-table textarea{min-height:32px!important;padding:6px 8px!important;font-size:13px!important}
+.data-edit-table textarea{min-height:48px!important}
+.address-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 10px}
+.address-tools button{min-height:38px}
+@media(max-width:600px){.address-tools{grid-template-columns:1fr}}
+
+
+.important-note-row{
+  background:#fee2e2 !important;
+  border:1px solid #fecaca !important;
+}
+.important-note-row td:first-child,
+.important-note-row td:nth-child(2){
+  color:#991b1b !important;
+}
+.data-edit-table input,
+.data-edit-table select,
+.data-edit-table textarea{
+  min-height:32px !important;
+  padding:6px 8px !important;
+  font-size:13px !important;
+}
+.data-edit-table textarea{
+  min-height:48px !important;
+}
+.data-edit-table input[readonly],
+.fbUnifiedGrid input[readonly]{
+  background:#f1f5f9 !important;
+  color:#475569;
+  cursor:not-allowed;
+}
+
+
+.data-add-row{
+  display:grid;
+  grid-template-columns:1fr 1fr auto;
+  gap:8px;
+  margin:10px 0;
+  align-items:end;
+}
+.data-add-row input{min-height:38px}
+.notes-red-row{
+  background:#fee2e2 !important;
+  border:1px solid #fecaca !important;
+}
+.notes-red-row td:first-child,
+.notes-red-row td:nth-child(2){
+  color:#991b1b !important;
+  font-weight:800;
+}
+.fbUnifiedGrid .fbImportant{
+  background:#fee2e2;
+  border:1px solid #fecaca;
+  border-radius:12px;
+  padding:9px;
+}
+.fbUnifiedGrid .fbImportant label{
+  color:#991b1b;
+}
+@media(max-width:700px){
+  .data-add-row{grid-template-columns:1fr}
+}
+
+
+.data-edit-table select[data-special="watch-self"]{
+  border-color:#ec4899;
+  background:#fdf2f8;
+}
+
+
+.new-data-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:8px;
+}
+.new-data-grid .full{
+  grid-column:1 / -1;
+}
+.new-data-grid label{
+  font-size:12px;
+  font-weight:800;
+  color:#475569;
+}
+.new-data-grid input,
+.new-data-grid select,
+.new-data-grid textarea{
+  min-height:36px;
+  padding:7px 9px;
+  font-size:14px;
+}
+@media(max-width:700px){
+  .new-data-grid{
+    grid-template-columns:1fr;
+  }
+  .new-data-grid .full{
+    grid-column:auto;
+  }
+}
+
+
+#newSiteCard > .row,
+#newSiteCard > label,
+#newSiteCard > input,
+#newSiteCard > textarea,
+#newSiteCard > select{
+}
+
+#newSiteCard .legacy-newsite-fields{
+  display:none!important;
+}
+
+
+
+/* schovat jen staré původní bloky */
+.legacy-newsite-fields{
+  display:none !important;
+}
+
+/* nové formuláře ponechat */
+#newAllFieldsBox{display:grid!important}
+
+
+/* REŽIM PŘIDÁNÍ NOVÉHO BODU – zobrazit jen formulář nového místa */
+.drawer.adding-new-site > .card:not(#newSiteCard){
+  display:none !important;
+}
+.drawer.adding-new-site #newSiteCard{
+  display:block !important;
+  order:-999;
+}
+.drawer.adding-new-site .drawer-head h2::after{
+  content:"";
+}
+.detail-tabs{
+  position:sticky;
+  top:0;
+  z-index:12;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+  margin:10px 0 12px;
+  padding:6px;
+  background:#f8fafc;
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.08);
+}
+.detail-tab{
+  min-height:34px;
+  padding:7px 8px;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:#475569;
+  font-weight:800;
+  font-size:13px;
+  cursor:pointer;
+}
+.detail-tab:hover{
+  background:#e2e8f0;
+  color:#0f172a;
+}
+.detail-tab.active{
+  background:#2563eb;
+  color:#fff;
+  box-shadow:0 5px 14px rgba(37,99,235,.22);
+}
+.detail-tab-hidden{
+  display:none !important;
+}
+.drawer.adding-new-site .detail-tabs,
+.drawer.adding-new-site [data-detail-panel]{
+  display:none !important;
+}
+@media(max-width:600px){
+  .detail-tabs{
+    position:relative;
+    top:auto;
+    gap:4px;
+    margin:8px;
+    border-radius:12px;
+  }
+  .detail-tab{
+    min-height:38px;
+    padding:7px 5px;
+    font-size:12px;
+  }
+}
+
+
+#newSiteCard h4{
+  margin-top:14px;
+}
+#newAllFieldsBox{
+  margin-top:8px;
+}
+#newSiteCard .new-data-grid{
+  border-top:1px solid #e2e8f0;
+  padding-top:10px;
+}
+
