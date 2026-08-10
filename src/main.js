@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase76-v123";
-const APP_SHELL_CACHE_NAME="astip-szz-v123-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase77-v124";
+const APP_SHELL_CACHE_NAME="astip-szz-v124-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -2465,7 +2465,18 @@ setTimeout(()=>{const n=document.getElementById("newName"); if(n){n.focus(); n.s
   document.getElementById("editCard").style.display="none";
   document.getElementById("detailTitle").textContent="Přidat nové místo";
   document.getElementById("detailSub").textContent="Vyplň údaje a ulož místo.";
-  document.getElementById("detailTable").innerHTML="<tr><td>Nové místo</td><td>Po uložení se zobrazí v mapě.</td></tr>";
+  const detailTable=document.getElementById("detailTable");
+  if(detailTable){
+    detailTable.dataset.detailTableMode="new";
+    delete detailTable.dataset.detailSignature;
+    const row=document.createElement("tr");
+    const label=document.createElement("td");
+    label.textContent="Nové místo";
+    const value=document.createElement("td");
+    value.textContent="Po uložení se zobrazí v mapě.";
+    row.append(label,value);
+    detailTable.replaceChildren(row);
+  }
   document.getElementById("newSiteStatus").textContent="";
 }
 
@@ -4956,9 +4967,13 @@ function editableDataTable(r){
 }
 
 function userSiteDisplayValue(spec, value){
-  if(spec.type==="period") return value ? `${esc(value)} měsíců` : "";
+  return esc(userSiteDisplayText(spec,value));
+}
+
+function userSiteDisplayText(spec, value){
+  if(spec.type==="period") return value ? `${safe(value)} měsíců` : "";
   if(spec.type==="yesno") return yesNoFixed(value, "ne");
-  return esc(value);
+  return safe(value);
 }
 
 function dateInputValueFromAny(v){
@@ -5620,21 +5635,31 @@ function detailTableRows(r){
   return USER_SITE_DATA_FIELDS.map(spec=>({spec,value:userSiteFieldValue(r,spec,raw)}));
 }
 
-function detailTable(r){
+function detailTableSignature(rowsForDetail){
+  return rowsForDetail.map(({spec,value})=>`${String(spec.key).length}:${spec.key}\u001e${String(value).length}:${value}`).join("\u001f");
+}
+
+function renderDetailTable(table,r){
+  if(!table) return;
   const rowsForDetail=detailTableRows(r);
-  const signature=rowsForDetail.map(({spec,value})=>`${String(spec.key).length}:${spec.key}\u001e${String(value).length}:${value}`).join("\u001f");
-  if(r && typeof r==="object" && r._detailTableSignature===signature && r._detailTableHtml){
-    return r._detailTableHtml;
+  const signature=detailTableSignature(rowsForDetail);
+  if(table.dataset.detailTableMode==="display" && table.dataset.detailSignature===signature && table.childElementCount){
+    return;
   }
-  const html=rowsForDetail.map(({spec,value})=>{
-    const cls=spec.important ? "notes-red-row" : "";
-    return `<tr class="${cls}"><td>${esc(spec.label)}</td><td>${userSiteDisplayValue(spec,value)}</td></tr>`;
-  }).join("");
-  if(r && typeof r==="object"){
-    r._detailTableSignature=signature;
-    r._detailTableHtml=html;
-  }
-  return html;
+  const fragment=document.createDocumentFragment();
+  rowsForDetail.forEach(({spec,value})=>{
+    const row=document.createElement("tr");
+    if(spec.important) row.className="notes-red-row";
+    const label=document.createElement("td");
+    label.textContent=spec.label;
+    const valueCell=document.createElement("td");
+    valueCell.textContent=userSiteDisplayText(spec,value);
+    row.append(label,valueCell);
+    fragment.appendChild(row);
+  });
+  table.replaceChildren(fragment);
+  table.dataset.detailTableMode="display";
+  table.dataset.detailSignature=signature;
 }
 
 window.openDetail=function(i){
@@ -5649,8 +5674,9 @@ window.openDetail=function(i){
   renderSourceChooser(r);
   resetOfficialProtocolSection(r);
   if(window.setDetailTab) window.setDetailTab("data");
-  document.getElementById("detailTable").classList.remove("data-edit-table");
-  document.getElementById("detailTable").innerHTML=detailTable(r);
+  const detailTableEl=document.getElementById("detailTable");
+  detailTableEl.classList.remove("data-edit-table");
+  renderDetailTable(detailTableEl,r);
   showControlDateDisplay(r);
   const addDataRowBox=document.getElementById("addDataRowBox"); if(addDataRowBox) addDataRowBox.style.display="none";
   const editDataToggleBtn=document.getElementById("editDataToggleBtn");
@@ -5692,6 +5718,8 @@ window.openDetail=function(i){
     editDataToggleBtn.onclick=()=>{
       const table=document.getElementById("detailTable");
       table.classList.add("data-edit-table");
+      table.dataset.detailTableMode="edit";
+      delete table.dataset.detailSignature;
       table.innerHTML=editableDataTable(selectedSite);
       const inlineGpsBtn=document.getElementById("detailGpsCalcInline");
       if(inlineGpsBtn) inlineGpsBtn.onclick=dataAddressToGps;
@@ -8828,7 +8856,7 @@ function refreshSelectedDetailDataView(){
   if(!selectedSite) return;
   const table=document.getElementById("detailTable");
   if(table && !table.classList.contains("data-edit-table")){
-    table.innerHTML=detailTable(selectedSite);
+    renderDetailTable(table,selectedSite);
   }
   showControlDateDisplay(selectedSite);
   const sub=document.getElementById("detailSub");
@@ -8911,12 +8939,20 @@ function isHistoryAdmin(){
   return isAppAdmin();
 }
 
+function prependHistoryNotice(message){
+  const history=document.getElementById("history");
+  if(!history) return;
+  const note=document.createElement("p");
+  note.className="small";
+  note.textContent=message;
+  history.prepend(note);
+}
+
 async function deleteCurrentHistoryProtocol(){
   const item=detailHistoryItems[detailHistoryIndex];
-  const history=document.getElementById("history");
   if(!item || item._type!=="Protokol" || !item._id) return;
   if(!isHistoryAdmin()){
-    if(history) history.insertAdjacentHTML("afterbegin",'<p class="small">Mazat protokoly může jen správce.</p>');
+    prependHistoryNotice("Mazat protokoly může jen správce.");
     return;
   }
   if(!confirm("Opravdu smazat tento uložený protokol z historie?")) return;
@@ -8940,7 +8976,7 @@ async function deleteCurrentHistoryProtocol(){
     showSaveConfirmation("Protokol smazán.");
     await loadHistory(selectedSite?.id || item.siteId);
   }catch(e){
-    if(history) history.insertAdjacentHTML("afterbegin",`<p class="small">Chyba mazání protokolu: ${esc(e.message)}</p>`);
+    prependHistoryNotice(`Chyba mazání protokolu: ${e.message}`);
   }
 }
 
@@ -10036,8 +10072,13 @@ function populateProtocolDeviceSelect(){
   ].filter(Boolean).join(" ");
   const hasPlus=rawSource.includes("+");
   const devices=hasPlus ? rawSource.split("+").map(x=>x.trim()).filter(Boolean) : sourceOptionsFromSite(selectedSite);
-  select.innerHTML='<option value="">Vyber zařízení</option>';
-  devices.forEach((d,idx)=>{const o=document.createElement("option");o.value=d;o.textContent=d||`Zařízení ${idx+1}`;select.appendChild(o);});
+  const fragment=document.createDocumentFragment();
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Vyber zařízení";
+  fragment.appendChild(placeholder);
+  devices.forEach((d,idx)=>{const o=document.createElement("option");o.value=d;o.textContent=d||`Zařízení ${idx+1}`;fragment.appendChild(o);});
+  select.replaceChildren(fragment);
   if(hasPlus && devices.length>1){
     if(inputWrap) inputWrap.classList.add("hidden");
     if(selectWrap) selectWrap.classList.remove("hidden");
