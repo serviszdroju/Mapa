@@ -148,7 +148,7 @@ Current performance phase 63 decision: include currently loaded script, styleshe
 
 Current performance phase 64 decision: extract the inline CSS style blocks into app.css so Vite can emit CSS as a separate hashed asset, reducing the HTML app-shell size while preserving selector order and visual appearance.
 
-Current install UX decision: the Android/PWA install area should be a polished guided flow, not just a bare button. Keep a clear readiness check for Chrome/HTTPS/offline/service-worker/install dialog state, show manual Chrome menu fallback steps when the browser does not expose the install prompt, and keep the existing offline data preparation and sync behavior intact.
+Current install UX decision: the Android/PWA install area should be a polished guided flow, not just a bare button. Keep a clear readiness check for Chrome/HTTPS/offline/service-worker/install dialog state, show a custom "Opravdu chcete nainstalovat aplikaci?" confirmation before attempting installation, call the browser install prompt immediately after confirmation, show manual Chrome menu fallback steps only when the browser does not expose the install prompt, and keep the existing offline data preparation and sync behavior intact.
 
 Current gallery folder display decision: gallery folders must be stacked vertically as full-width sections. Do not show a horizontal folder chip row; each folder header should show only the stored folder name, without a separate formatted date label or photo count.
 
