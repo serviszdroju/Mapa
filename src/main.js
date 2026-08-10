@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-install-confirm-v179";
+const APP_BUILD_VERSION="2026-08-10-draft-cache-v180";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -8086,11 +8086,19 @@ function siteLocalCacheKey(kind,site=selectedSite){
 }
 const LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS=1800;
 const localStorageArrayEntriesCache=new Map();
+const localStorageObjectEntriesCache=new Map();
 function cloneLocalStorageArrayEntries(entries=[]){
   return (entries || []).map(entry=>({
     key:entry.key,
     suffix:entry.suffix,
     items:Array.isArray(entry.items) ? entry.items.slice() : []
+  }));
+}
+function cloneLocalStorageObjectEntries(entries=[]){
+  return (entries || []).map(entry=>({
+    key:entry.key,
+    suffix:entry.suffix,
+    item:entry.item && typeof entry.item==="object" ? {...entry.item} : entry.item
   }));
 }
 function clearLocalStorageArrayEntriesCache(prefixOrKey=""){
@@ -8105,7 +8113,22 @@ function clearLocalStorageArrayEntriesCache(prefixOrKey=""){
     }
   }
 }
-window.addEventListener("storage",()=>clearLocalStorageArrayEntriesCache());
+function clearLocalStorageObjectEntriesCache(prefixOrKey=""){
+  const clean=String(prefixOrKey || "");
+  if(!clean){
+    localStorageObjectEntriesCache.clear();
+    return;
+  }
+  for(const prefix of localStorageObjectEntriesCache.keys()){
+    if(prefix===clean || clean.startsWith(prefix) || prefix.startsWith(clean)){
+      localStorageObjectEntriesCache.delete(prefix);
+    }
+  }
+}
+window.addEventListener("storage",()=>{
+  clearLocalStorageArrayEntriesCache();
+  clearLocalStorageObjectEntriesCache();
+});
 function readSiteLocalArray(kind,site=selectedSite){
   try{
     const raw=localStorage.getItem(siteLocalCacheKey(kind,site));
@@ -8397,7 +8420,9 @@ async function deleteProtocolDraftFromIndexedDb(site=selectedSite){
 }
 
 function clearProtocolDraft(site=selectedSite){
-  try{localStorage.removeItem(protocolDraftKey(site));}catch(e){}
+  const key=protocolDraftKey(site);
+  try{localStorage.removeItem(key);}catch(e){}
+  clearLocalStorageObjectEntriesCache(key);
   deleteProtocolDraftFromIndexedDb(site);
   clearProtocolDraftCountCache();
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
@@ -8426,6 +8451,7 @@ function saveProtocolDraftNow(){
     };
     const key=protocolDraftKey(selectedSite);
     localStorage.setItem(key,JSON.stringify(draft));
+    clearLocalStorageObjectEntriesCache(key);
     saveProtocolDraftToIndexedDb(selectedSite,draft).then(saved=>{
       if(!saved) return;
       try{
@@ -8434,6 +8460,7 @@ function saveProtocolDraftNow(){
           siteKey:draft.siteKey,
           storage:"indexedDB"
         }));
+        clearLocalStorageObjectEntriesCache(key);
       }catch(e){}
     });
     clearProtocolDraftCountCache();
@@ -8512,6 +8539,29 @@ function localStorageArrayEntries(prefix){
     console.warn("Lokální frontu se nepodařilo načíst",e);
   }
   localStorageArrayEntriesCache.set(cleanPrefix,{savedAt:Date.now(),length:localStorage.length,entries:cloneLocalStorageArrayEntries(entries)});
+  return entries;
+}
+
+function localStorageObjectEntries(prefix){
+  const cleanPrefix=String(prefix || "");
+  const cached=localStorageObjectEntriesCache.get(cleanPrefix);
+  if(cached && cached.length===localStorage.length && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
+    return cloneLocalStorageObjectEntries(cached.entries);
+  }
+  const entries=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith(cleanPrefix)) continue;
+      const item=JSON.parse(localStorage.getItem(key) || "null");
+      if(item && typeof item==="object"){
+        entries.push({key,suffix:key.slice(cleanPrefix.length),item});
+      }
+    }
+  }catch(e){
+    console.warn("Lokální položky se nepodařilo načíst",e);
+  }
+  localStorageObjectEntriesCache.set(cleanPrefix,{savedAt:Date.now(),length:localStorage.length,entries:cloneLocalStorageObjectEntries(entries)});
   return entries;
 }
 
@@ -10945,12 +10995,9 @@ async function readProtocolDraftCount(){
   }catch(e){}
   let count=0;
   try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i);
-      if(!key || !key.startsWith("astipMap:protocolDraft:")) continue;
-      const parsed=JSON.parse(localStorage.getItem(key) || "null");
-      if(parsed && parsed.payload) count++;
-    }
+    localStorageObjectEntries("astipMap:protocolDraft:").forEach(entry=>{
+      if(entry && entry.item && entry.item.payload) count++;
+    });
   }catch(e){}
   protocolDraftCountCache=count;
   protocolDraftCountCacheAt=Date.now();
