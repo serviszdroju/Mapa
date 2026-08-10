@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase73-v120";
-const APP_SHELL_CACHE_NAME="astip-szz-v120-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase74-v121";
+const APP_SHELL_CACHE_NAME="astip-szz-v121-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10975,20 +10975,37 @@ function renderSitePhotoPreview(){
   sitePhotoPreviewUrls=[];
   const files=selectedSitePhotoFiles();
   if(!files.length){
-    box.innerHTML="";
+    box.replaceChildren();
     return;
   }
-  const thumbs=files.map((file,idx)=>{
+  const head=document.createElement("div");
+  head.className="photo-preview-head";
+  const title=document.createElement("span");
+  title.textContent="Vybrané fotografie";
+  const count=document.createElement("span");
+  count.textContent=`${files.length} ks`;
+  head.append(title,count);
+
+  const grid=document.createElement("div");
+  grid.className="photo-preview-grid";
+  const fragment=document.createDocumentFragment();
+  files.forEach((file,idx)=>{
     const url=URL.createObjectURL(file);
     sitePhotoPreviewUrls.push(url);
-    return `<div class="photo-preview-item"><img src="${esc(url)}" alt="Nová fotografie ${idx+1}" decoding="async"><span class="photo-preview-index">${idx+1}</span></div>`;
-  }).join("");
-  box.innerHTML=`
-    <div class="photo-preview-head">
-      <span>Vybrané fotografie</span>
-      <span>${files.length} ks</span>
-    </div>
-    <div class="photo-preview-grid">${thumbs}</div>`;
+    const item=document.createElement("div");
+    item.className="photo-preview-item";
+    const img=document.createElement("img");
+    img.src=url;
+    img.alt=`Nová fotografie ${idx+1}`;
+    img.decoding="async";
+    const index=document.createElement("span");
+    index.className="photo-preview-index";
+    index.textContent=String(idx+1);
+    item.append(img,index);
+    fragment.appendChild(item);
+  });
+  grid.appendChild(fragment);
+  box.replaceChildren(head,grid);
 }
 
 function sitePhotoKeys(site=selectedSite){
