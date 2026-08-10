@@ -87,8 +87,11 @@ function runMobileFixMap(){
   }catch(e){}
 }
 function mobileFixMap(){
-  clearTimeout(mobileFixMapTimer);
-  mobileFixMapTimer=setTimeout(runMobileFixMap,160);
+  if(mobileFixMapTimer) cancelAnimationFrame(mobileFixMapTimer);
+  mobileFixMapTimer=requestAnimationFrame(()=>{
+    mobileFixMapTimer=0;
+    runMobileFixMap();
+  });
 }
 window.addEventListener("resize", mobileFixMap);
 window.addEventListener("orientationchange", mobileFixMap);
@@ -96,7 +99,7 @@ window.addEventListener("pageshow", mobileFixMap);
 
 </script>
 
-  <script type="module" crossorigin src="./assets/index-HYsE-sL_.js"></script>
+  <script type="module" crossorigin src="./assets/index-C3Yld4uk.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-D4f9vt1l.css">
 </head>
 <body>
