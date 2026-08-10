@@ -140,4 +140,6 @@ Current performance phase 59 decision: normalize gallery display URLs through a 
 
 Current performance phase 60 decision: route hashed local assets, icons, logos, manifest, signatures, and Leaflet CSS/JS through a service-worker cache-first strategy while preserving stale-while-revalidate for HTML/map tiles and network-only Firebase/Auth requests.
 
+Current performance phase 61 decision: build sidebar result items with DOM nodes and textContent instead of per-item innerHTML, keeping the same classes and visual structure while reducing HTML parsing work.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
