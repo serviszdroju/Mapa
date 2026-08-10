@@ -1,5 +1,5 @@
 #sitePhotosCard{
-  overflow:hidden;
+  overflow:visible;
 }
 #sitePhotosCard > h3,
 #sitePhotosCard .photo-folder-hint{
@@ -173,7 +173,7 @@
 .site-photo-thumbs{
   display:grid;
   gap:8px;
-  overflow:hidden;
+  overflow:visible;
   max-height:none;
   padding:1px 1px 4px;
   grid-template-columns:1fr;
@@ -183,6 +183,7 @@
   gap:6px;
   min-width:0;
   width:100%;
+  box-sizing:border-box;
   padding:7px;
   border:1px solid #e2e8f0;
   border-radius:9px;
@@ -234,7 +235,7 @@
   display:flex;
   gap:8px;
   overflow-x:auto;
-  overflow-y:hidden;
+  overflow-y:visible;
   padding:1px 1px 3px;
   scroll-snap-type:x proximity;
 }

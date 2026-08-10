@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-storage-meta-cache-v181";
+const APP_BUILD_VERSION="2026-08-10-gallery-scroll-v182";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -5874,7 +5874,7 @@ function renderDetailTable(table,r){
   const fragment=document.createDocumentFragment();
   rowsForDetail.forEach(({spec,value})=>{
     const row=document.createElement("tr");
-    row.className=spec.important ? "history-detail-row notes-red-row important-note-row" : "history-detail-row";
+    row.className="history-detail-row";
     const label=document.createElement("td");
     label.textContent=spec.label;
     const valueCell=document.createElement("td");
