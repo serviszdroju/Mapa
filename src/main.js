@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-draft-cache-v180";
+const APP_BUILD_VERSION="2026-08-10-storage-meta-cache-v181";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -319,6 +319,11 @@ const APP_SHELL_URLS=[
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
+const SZZ_STORAGE_META_CACHE_MS=5000;
+let szzStorageEstimateCache=null;
+let szzStorageEstimateCacheAt=0;
+let szzPersistentStorageCache=null;
+let szzPersistentStorageCacheAt=0;
 
 function currentAppShellUrls(baseUrls=APP_SHELL_URLS){
   const urls=[...(baseUrls || [])];
@@ -1165,18 +1170,30 @@ function szzBytesLabel(value){
 
 async function szzStorageEstimate(){
   if(!navigator.storage || typeof navigator.storage.estimate!=="function") return null;
+  const now=Date.now();
+  if(szzStorageEstimateCache && now-szzStorageEstimateCacheAt<SZZ_STORAGE_META_CACHE_MS){
+    return {...szzStorageEstimateCache};
+  }
   try{
     const estimate=await navigator.storage.estimate();
-    return {
+    const next={
       usage:Number(estimate && estimate.usage) || 0,
       quota:Number(estimate && estimate.quota) || 0
     };
+    szzStorageEstimateCache=next;
+    szzStorageEstimateCacheAt=Date.now();
+    return {...next};
   }catch(e){
     return null;
   }
 }
 
 async function requestSzzPersistentStorage(options={}){
+  const request=!!(options && options.request);
+  const now=Date.now();
+  if(!request && szzPersistentStorageCache && now-szzPersistentStorageCacheAt<SZZ_STORAGE_META_CACHE_MS){
+    return {...szzPersistentStorageCache};
+  }
   const result={supported:false,persisted:false,requested:false,granted:false};
   if(!navigator.storage) return result;
   result.supported=typeof navigator.storage.persisted==="function" || typeof navigator.storage.persist==="function";
@@ -1192,6 +1209,8 @@ async function requestSzzPersistentStorage(options={}){
   }catch(e){
     result.error=e && (e.message || e.code) || String(e);
   }
+  szzPersistentStorageCache={...result};
+  szzPersistentStorageCacheAt=Date.now();
   return result;
 }
 window.requestSzzPersistentStorage=requestSzzPersistentStorage;
