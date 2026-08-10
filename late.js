@@ -2229,17 +2229,59 @@ window.removeOfflineProtocolQueueItem=window.removeOfflineProtocolQueueItem || a
   }catch(e){}
 };
 
+const SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS=5000;
+const szzInstallLocalArrayCache=new Map();
+let szzInstallDraftCountCache=null;
+let szzInstallDraftCountCacheAt=0;
+let szzInstallDraftCountStorageLength=-1;
+
+function szzInstallCloneItems(items=[]){
+  return items.map(item=>item && typeof item==="object" ? {...item} : item);
+}
+
 function szzInstallLocalArrayEntries(prefix){
+  const cleanPrefix=String(prefix || "");
+  const now=Date.now();
+  const cached=szzInstallLocalArrayCache.get(cleanPrefix);
+  if(cached && cached.length===localStorage.length && now-cached.savedAt<SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS){
+    return szzInstallCloneItems(cached.items);
+  }
   const entries=[];
   try{
     for(let i=0;i<localStorage.length;i++){
       const key=localStorage.key(i);
-      if(!key || !key.startsWith(prefix)) continue;
+      if(!key || !key.startsWith(cleanPrefix)) continue;
       const arr=JSON.parse(localStorage.getItem(key) || "[]");
       if(Array.isArray(arr)) entries.push(...arr);
     }
   }catch(e){}
+  szzInstallLocalArrayCache.set(cleanPrefix,{savedAt:now,length:localStorage.length,items:szzInstallCloneItems(entries)});
   return entries;
+}
+
+function szzInstallLocalProtocolDraftCount(){
+  const now=Date.now();
+  if(
+    szzInstallDraftCountCache!==null
+    && szzInstallDraftCountStorageLength===localStorage.length
+    && now-szzInstallDraftCountCacheAt<SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS
+  ){
+    return szzInstallDraftCountCache;
+  }
+  let drafts=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key && key.startsWith("astipMap:protocolDraft:")){
+        const parsed=JSON.parse(localStorage.getItem(key) || "null");
+        if(parsed && parsed.payload) drafts++;
+      }
+    }
+  }catch(e){}
+  szzInstallDraftCountCache=drafts;
+  szzInstallDraftCountCacheAt=now;
+  szzInstallDraftCountStorageLength=localStorage.length;
+  return drafts;
 }
 
 async function szzInstallOfflineCounts(){
@@ -2268,15 +2310,7 @@ async function szzInstallOfflineCounts(){
     });
   }catch(e){}
   if(!drafts){
-    try{
-      for(let i=0;i<localStorage.length;i++){
-        const key=localStorage.key(i);
-        if(key && key.startsWith("astipMap:protocolDraft:")){
-          const parsed=JSON.parse(localStorage.getItem(key) || "null");
-          if(parsed && parsed.payload) drafts++;
-        }
-      }
-    }catch(e){}
+    drafts=szzInstallLocalProtocolDraftCount();
   }
   return {
     sites:szzInstallUniqueById([...localSites,...indexedSites],"docId").length,
@@ -2569,7 +2603,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase124-v172";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase125-v173";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
