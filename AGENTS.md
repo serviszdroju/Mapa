@@ -130,4 +130,6 @@ Current performance phase 54 decision: compute gallery point-info rows once per 
 
 Current performance phase 55 decision: after deleting/skipping a Firebase-first site, remove the row locally and update the map cache instead of reloading the full Firebase map; keep the full reload path as a fallback when the local row cannot be matched.
 
+Current performance phase 56 decision: maintain a lookup index for Firebase source rows and use it for single-row upserts after saving, falling back to the original scan only when the index has no match.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

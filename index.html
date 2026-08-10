@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase55-v102";
-const APP_SHELL_CACHE_NAME="astip-szz-v102-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase56-v103";
+const APP_SHELL_CACHE_NAME="astip-szz-v103-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6523,6 +6523,7 @@ function rowRegion(r){
   return canonicalRegionValue(r && r.kraj) || inferRegionFromAddressText(rowSearchText(r));
 }
 let siteRowsByAnyId=new Map();
+let csvRowsByAnyId=new Map();
 let rowsGpsCountCache=0;
 let lastVisiblePlaceGroups=[];
 let renderRequested=false;
@@ -6530,6 +6531,8 @@ let mapMoveRenderTimer=0;
 let rowsIndexVersion=0;
 let indexedRowsRef=null;
 let indexedRowsLength=-1;
+let indexedCsvRowsRef=null;
+let indexedCsvRowsLength=-1;
 let filteredRowsCache={signature:"",rows:[]};
 let placeGroupsCache={sourceRows:null,signature:"",groups:[]};
 let siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
@@ -6597,6 +6600,24 @@ function rebuildRowLookupCache(){
   window.siteRowsByAnyId=siteRowsByAnyId;
 }
 
+function rebuildCsvRowLookupCache(){
+  const lookup=new Map();
+  (csvRows || []).forEach((r,i)=>{
+    rowLookupKeys(r).forEach(key=>{
+      if(!lookup.has(key)) lookup.set(key,i);
+    });
+  });
+  csvRowsByAnyId=lookup;
+  indexedCsvRowsRef=csvRows;
+  indexedCsvRowsLength=csvRows.length;
+  window.csvRowsByAnyId=csvRowsByAnyId;
+}
+
+function syncCsvRowLookupCache(){
+  if(indexedCsvRowsRef===csvRows && indexedCsvRowsLength===csvRows.length && csvRowsByAnyId.size) return;
+  rebuildCsvRowLookupCache();
+}
+
 function syncRowIndexes(){
   const rowsRefChanged=indexedRowsRef!==rows;
   const rowsLengthChanged=indexedRowsLength!==rows.length;
@@ -6633,6 +6654,16 @@ function rowIndexForRow(row){
   if(!row) return -1;
   if(Number.isFinite(row.i) && rows[row.i]===row) return row.i;
   return rows.indexOf(row);
+}
+function csvRowIndexForRow(row){
+  if(!row) return -1;
+  syncCsvRowLookupCache();
+  const keys=rowLookupKeys(row);
+  for(const key of keys){
+    const idx=csvRowsByAnyId.get(key);
+    if(Number.isInteger(idx) && rowMatchesAnyLookupKey(csvRows[idx],key)) return idx;
+  }
+  return -1;
 }
 function findRowByAnyId(key,pool=rows){
   const wanted=String(key || "").trim();
@@ -7211,6 +7242,7 @@ window.setFirebaseSiteRows = function(firebaseRows, openDocId=null){
   const deduped=dedupeSiteRows(firebaseRows, openDocId);
   const openedDocId=openDocId ? String(openDocId) : "";
   csvRows = deduped.rows;
+  rebuildCsvRowLookupCache();
   const hiddenRows=[];
   rows = csvRows
     .map((r,i)=>{r.i=i; return applyEditToRow(r);})
@@ -7248,10 +7280,13 @@ window.setFirebaseSiteRows = function(firebaseRows, openDocId=null){
 window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
   if(!firebaseRow) return rows;
   const nextRows = csvRows.slice();
-  const existingIndex = nextRows.findIndex(r=>{
-    if(firebaseRow.firebaseDocId && r.firebaseDocId===firebaseRow.firebaseDocId) return true;
-    return r.id && firebaseRow.id && r.id===firebaseRow.id;
-  });
+  let existingIndex = csvRowIndexForRow(firebaseRow);
+  if(existingIndex<0){
+    existingIndex = nextRows.findIndex(r=>{
+      if(firebaseRow.firebaseDocId && r.firebaseDocId===firebaseRow.firebaseDocId) return true;
+      return r.id && firebaseRow.id && r.id===firebaseRow.id;
+    });
+  }
 
   if(existingIndex>=0) nextRows[existingIndex]=firebaseRow;
   else nextRows.push(firebaseRow);
@@ -17500,7 +17535,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v102-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v103-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17993,7 +18028,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase55-v102";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase56-v103";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
