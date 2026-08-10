@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase58-v105";
-const APP_SHELL_CACHE_NAME="astip-szz-v105-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase59-v106";
+const APP_SHELL_CACHE_NAME="astip-szz-v106-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -13132,7 +13132,11 @@ function photoFileName(item,idx=0){
 }
 
 function photoDisplayUrl(item){
-  return safe(item && (item.displayUrl || item.url || item.fullUrl || item.downloadUrl || item.dataUrl));
+  const explicit=safe(item && (item.displayUrl || item.url));
+  if(explicit) return cloudinaryTransformUrl(explicit,"f_auto,q_auto,w_1600,c_limit");
+  const original=safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl));
+  if(original) return cloudinaryTransformUrl(original,"f_auto,q_auto,w_1600,c_limit");
+  return safe(item && item.dataUrl);
 }
 
 function photoFullUrl(item){
@@ -13177,6 +13181,7 @@ function cloudinaryTransformUrl(url,transformation){
   const s=safe(url);
   const t=safe(transformation);
   if(!s || !t || !s.includes("/image/upload/")) return s;
+  if(s.includes(`/image/upload/${t}/`)) return s;
   const cacheKey=`${t}|${s}`;
   const cached=cloudinaryTransformUrlCache.get(cacheKey);
   if(cached) return cached;
@@ -17573,7 +17578,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v105-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v106-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -18066,7 +18071,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase58-v105";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase59-v106";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
