@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase72-v119";
-const APP_SHELL_CACHE_NAME="astip-szz-v119-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase73-v120";
+const APP_SHELL_CACHE_NAME="astip-szz-v120-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1618,7 +1618,7 @@ window.canViewProtocolHistory=canViewProtocolHistory;
 window.canViewMainProtocolHistory=canViewMainProtocolHistory;
 window.updateAdminAppControls=updateAdminAppControls;
 document.addEventListener("DOMContentLoaded",updateAdminAppControls);
-setTimeout(updateAdminAppControls,0);
+(window.queueMicrotask || (fn=>Promise.resolve().then(fn)))(updateAdminAppControls);
 function waitForFirebaseUser(timeoutMs=8000){
   if(!firebaseReady || (!auth && !getCompatAuthClient())) return Promise.resolve(currentUser || window.currentUser || null);
   const existing=currentUser || window.currentUser || window.__authReadyUser || syncCurrentUserFromCompat();
@@ -11395,7 +11395,7 @@ async function uploadSitePhotos(){
       setTimeout(()=>syncOfflineChanges({reason:"photo-offline-save",silent:true}),2500);
     }
     resetSitePhotoInput();
-    setTimeout(()=>{ try{ loadSitePhotos(selectedSite); }catch(e){} },500);
+    try{ refreshDetailTabLoad("gallery",selectedSite); }catch(e){}
   }catch(e){
     st.textContent="Chyba uložení fotografií: "+e.message;
   }
