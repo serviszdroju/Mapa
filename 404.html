@@ -2510,7 +2510,7 @@ button:active{transform:translateY(0)}
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-BmBC3PWq.js"></script>
+  <script type="module" crossorigin src="./assets/index-BGMnhGgF.js"></script>
 </head>
 <body>
 
@@ -5655,7 +5655,7 @@ Cena FZ: ..."></textarea>
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v109-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v110-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -5675,6 +5675,17 @@ const SZZ_INSTALL_SHELL_URLS=[
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
+
+function szzInstallCurrentShellUrls(baseUrls=SZZ_INSTALL_SHELL_URLS){
+  const urls=[...(baseUrls || [])];
+  try{
+    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+      const url=el.src || el.href;
+      if(url) urls.push(url);
+    });
+  }catch(e){}
+  return urls.filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+}
 
 function szzInstallSafe(value){
   return String(value ?? "").trim();
@@ -5884,7 +5895,7 @@ window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(
   if(!("caches" in window)) return 0;
   const cache=await caches.open(SZZ_INSTALL_SHELL_CACHE_NAME);
   let saved=0;
-  const urls=SZZ_INSTALL_SHELL_URLS.slice();
+  const urls=szzInstallCurrentShellUrls();
   let index=0;
   const worker=async()=>{
     while(index<urls.length){
@@ -6148,7 +6159,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase62-v109";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase63-v110";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
