@@ -299,8 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase90-v137";
-const APP_SHELL_CACHE_NAME="astip-szz-v137-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase91-v138";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1039,32 +1038,16 @@ function setOfflineMapButtonState(busy=false,text="Stáhnout mapu do telefonu"){
 }
 
 async function cacheAppShellForOffline(){
-  if(!("caches" in window)) return 0;
-  const cache=await caches.open(APP_SHELL_CACHE_NAME);
-  let saved=0;
-  const urls=currentAppShellUrls();
-  let index=0;
-  const worker=async()=>{
-    while(index<urls.length){
-      const url=urls[index++];
-      try{
-        let response=null;
-        try{
-          response=await fetch(new Request(url,{cache:"reload"}));
-        }catch(e){
-          response=await fetch(new Request(url,{mode:"no-cors",credentials:"omit",cache:"reload"}));
-        }
-        if(response && (response.ok || response.type==="opaque")){
-          await cache.put(new Request(url),response.clone());
-          saved++;
-        }
-      }catch(e){
-        console.warn("Soubor pro offline aplikaci se nepodařilo uložit",url,e);
-      }
-    }
-  };
-  await Promise.all(Array.from({length:Math.min(4,urls.length)},worker));
-  return saved;
+  if(!("serviceWorker" in navigator)) return 0;
+  try{
+    if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
+    else await navigator.serviceWorker.register("./sw.js");
+    await navigator.serviceWorker.ready;
+    return currentAppShellUrls().length;
+  }catch(e){
+    console.warn("Service worker pro offline aplikaci se nepodařilo připravit",e);
+    return 0;
+  }
 }
 window.cacheAppShellForOffline=cacheAppShellForOffline;
 
