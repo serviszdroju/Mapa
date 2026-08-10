@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-gallery-folders-v177";
+const APP_BUILD_VERSION="2026-08-10-row-index-v178";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3482,6 +3482,7 @@ function rowRegion(r){
   return canonicalRegionValue(r && r.kraj) || inferRegionFromAddressText(rowSearchText(r));
 }
 let siteRowsByAnyId=new Map();
+let siteRowIndexByRef=new WeakMap();
 let csvRowsByAnyId=new Map();
 let rowsGpsCountCache=0;
 let lastVisiblePlaceGroups=[];
@@ -3584,14 +3585,17 @@ function ensureRowFastIndexes(r,index){
 
 function rebuildRowLookupCache(){
   const lookup=new Map();
+  const indexByRef=new WeakMap();
   let gpsCount=0;
-  rows.forEach(r=>{
+  rows.forEach((r,i)=>{
+    if(r && (typeof r==="object" || typeof r==="function")) indexByRef.set(r,i);
     if(inCzSk(r)) gpsCount++;
     rowLookupKeys(r).forEach(key=>{
       if(!lookup.has(key)) lookup.set(key,r);
     });
   });
   siteRowsByAnyId=lookup;
+  siteRowIndexByRef=indexByRef;
   rowsGpsCountCache=gpsCount;
   window.siteRowsByAnyId=siteRowsByAnyId;
 }
@@ -3658,6 +3662,9 @@ function rowMatchesAnyLookupKey(row,key){
 function rowIndexForRow(row){
   if(!row) return -1;
   if(Number.isFinite(row.i) && rows[row.i]===row) return row.i;
+  syncRowIndexes();
+  const cached=siteRowIndexByRef.get(row);
+  if(Number.isInteger(cached) && rows[cached]===row) return cached;
   return rows.indexOf(row);
 }
 function csvRowIndexForRow(row){
