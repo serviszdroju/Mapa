@@ -108,4 +108,6 @@ Current performance phase 43 decision: load the root Firebase site document in p
 
 Current performance phase 44 decision: load direct `protocolRefs` and `serviceRefs` through the bounded Firestore task scheduler instead of sequential `getDoc()` loops in detail history and latest-protocol reads, preserving the same fallback records, dedupe behavior, and final time-based sorting.
 
+Current performance phase 45 decision: lazy-read local per-site protocol history inside `loadHistory()` only when offline/no-login fallback is needed or the detail-history cache is missing, so reopening cached Protokol views avoids unnecessary IndexedDB/localStorage work while preserving local fallback behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

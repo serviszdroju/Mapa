@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase44-v91";
-const APP_SHELL_CACHE_NAME="astip-szz-v91-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase45-v92";
+const APP_SHELL_CACHE_NAME="astip-szz-v92-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11883,11 +11883,17 @@ async function loadHistory(siteId){
     updateOfficialProtocolSourceInfo();
     return;
   }
-  let localHistoryItems=await readSiteLocalProtocolHistoryItems(selectedSite);
-  const showLocalHistoryOnly=message=>{
-    if(localHistoryItems.length){
-      localHistoryItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
-      detailHistoryItems=localHistoryItems.slice();
+  let localHistoryItems=null;
+  const readLocalHistoryItemsOnce=async()=>{
+    if(localHistoryItems) return localHistoryItems;
+    localHistoryItems=await readSiteLocalProtocolHistoryItems(selectedSite);
+    return localHistoryItems;
+  };
+  const showLocalHistoryOnly=async message=>{
+    const localItems=await readLocalHistoryItemsOnce();
+    if(localItems.length){
+      localItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
+      detailHistoryItems=localItems.slice();
       detailHistoryIndex=0;
       renderHistory();
       return true;
@@ -11899,19 +11905,17 @@ async function loadHistory(siteId){
     return false;
   };
   if(!firebaseReady){
-    showLocalHistoryOnly("Firebase není nastavený, historie se nenačte.");
+    await showLocalHistoryOnly("Firebase není nastavený, historie se nenačte.");
     return;
   }
   history.textContent="Načítám historii…";
   const signedUser=await waitForFirebaseUser();
   if(!stillSameSite()) return;
   if(!signedUser){
-    showLocalHistoryOnly("Čekám na přihlášení, historie se načte po přihlášení.");
+    await showLocalHistoryOnly("Čekám na přihlášení, historie se načte po přihlášení.");
     return;
   }
   await syncOfflineProtocolsForSite(selectedSite,{silent:true});
-  if(!stillSameSite()) return;
-  localHistoryItems=await readSiteLocalProtocolHistoryItems(selectedSite);
   if(!stillSameSite()) return;
   const cachedHistoryItems=readDetailHistoryCache(selectedSite);
   if(cachedHistoryItems){
@@ -11920,6 +11924,8 @@ async function loadHistory(siteId){
     renderHistory();
     return;
   }
+  localHistoryItems=await readLocalHistoryItemsOnce();
+  if(!stillSameSite()) return;
 
   try{
     const [,childProtocols,childRecords]=await Promise.all([
@@ -17378,7 +17384,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v91-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v92-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17865,7 +17871,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase44-v91";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase45-v92";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
