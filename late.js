@@ -286,6 +286,7 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
       row.raw["Název"] = row.nazev || row.raw["Název"] || "";
       row.raw["Adresa_GPS"] = row.adresa || row.raw["Adresa_GPS"] || "";
       window.rows.push(row);
+      if(window.markRowsDirty) window.markRowsDirty();
     }
 
     if(st) st.textContent="Nové místo uloženo a zobrazeno na mapě.";
@@ -644,6 +645,7 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
     if(!savedUnified && !savedOffline && Array.isArray(window.rows)){
       row.i=window.rows.length;
       window.rows.push(row);
+      if(window.markRowsDirty) window.markRowsDirty();
     }
 
     if(st) st.textContent="Nové místo uloženo.";
@@ -1658,6 +1660,7 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
     else{
       rows=nextRows;
       window.rows=rows;
+      if(window.markRowsDirty) window.markRowsDirty();
       if(typeof render==="function") render();
     }
     saveMapRowsCache(nextRows);
@@ -2388,6 +2391,7 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
       return rowDoc !== cleanId && rowKey !== localKey;
     }).concat([normalized]);
     selectedSite = normalized;
+    if(window.markRowsDirty) window.markRowsDirty();
     if(typeof filters === "function") filters();
     if(typeof render === "function") render();
     return normalized;
@@ -3055,7 +3059,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase106-v154";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase107-v155";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
