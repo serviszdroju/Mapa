@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v114";
+const CACHE_VERSION = "astip-szz-v115";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -7,6 +7,7 @@ const OFFLINE_SYNC_TAG = "astip-szz-offline-sync";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
+  "./late.js",
   "./manifest.webmanifest",
   "./szz-icon.svg",
   "./szz-icon-192.png",
@@ -233,7 +234,7 @@ function isStaticAssetRequest(request) {
     if (url.origin === self.location.origin) {
       return request.destination !== "document" && (
         url.pathname.includes("/assets/") ||
-        /\/(manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname)
+        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname)
       );
     }
     return url.hostname === "unpkg.com" &&
