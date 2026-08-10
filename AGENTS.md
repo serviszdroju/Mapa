@@ -102,4 +102,6 @@ Current performance phase 40 decision: reuse the cached `localStorageArrayEntrie
 
 Current performance phase 41 decision: collect independent offline status inputs in parallel (`sites`, `protocols`, `photos`, storage persistence, and storage estimate) while keeping draft counting synchronous, so app sync status refreshes complete faster without changing displayed values or offline queue behavior.
 
+Current performance phase 42 decision: cache the protocol draft count briefly and invalidate it on draft save, draft clear, and cross-tab storage changes, reducing repeated localStorage scans during sync status refreshes while preserving local draft autosave/restore behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

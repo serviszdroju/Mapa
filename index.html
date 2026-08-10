@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase41-v88";
-const APP_SHELL_CACHE_NAME="astip-szz-v88-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase42-v89";
+const APP_SHELL_CACHE_NAME="astip-szz-v89-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10973,6 +10973,20 @@ function saveProtocolLocally(payload,site=selectedSite,reason=""){
 
 let protocolDraftTimer=null;
 let protocolDraftRestoreInProgress=false;
+const PROTOCOL_DRAFT_COUNT_CACHE_MS=1800;
+let protocolDraftCountCache=null;
+let protocolDraftCountCacheAt=0;
+let protocolDraftCountStorageLength=0;
+
+function clearProtocolDraftCountCache(){
+  protocolDraftCountCache=null;
+  protocolDraftCountCacheAt=0;
+  protocolDraftCountStorageLength=0;
+}
+window.clearProtocolDraftCountCache=clearProtocolDraftCountCache;
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key.startsWith("astipMap:protocolDraft:")) clearProtocolDraftCountCache();
+});
 
 function protocolDraftKey(site=selectedSite){
   return siteLocalCacheKey("protocolDraft",site);
@@ -10980,6 +10994,7 @@ function protocolDraftKey(site=selectedSite){
 
 function clearProtocolDraft(site=selectedSite){
   try{localStorage.removeItem(protocolDraftKey(site));}catch(e){}
+  clearProtocolDraftCountCache();
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
 
@@ -11004,6 +11019,7 @@ function saveProtocolDraftNow(){
       siteKey:siteRecordKeys(selectedSite)[0] || selectedSite.id || "",
       payload
     }));
+    clearProtocolDraftCountCache();
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(250);
     const st=document.getElementById("protocolStatus");
     if(st && !/uložen|upravuješ/i.test(st.textContent || "")){
@@ -13483,6 +13499,14 @@ async function readPendingOfflineProtocolCount(){
 }
 
 function readProtocolDraftCount(){
+  const now=Date.now();
+  if(
+    protocolDraftCountCache!==null
+    && protocolDraftCountStorageLength===localStorage.length
+    && now-protocolDraftCountCacheAt<PROTOCOL_DRAFT_COUNT_CACHE_MS
+  ){
+    return protocolDraftCountCache;
+  }
   let count=0;
   try{
     for(let i=0;i<localStorage.length;i++){
@@ -13492,6 +13516,9 @@ function readProtocolDraftCount(){
       if(parsed && parsed.payload) count++;
     }
   }catch(e){}
+  protocolDraftCountCache=count;
+  protocolDraftCountCacheAt=Date.now();
+  protocolDraftCountStorageLength=localStorage.length;
   return count;
 }
 
@@ -17336,7 +17363,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v88-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v89-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17823,7 +17850,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase41-v88";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase42-v89";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
