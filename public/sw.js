@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v164";
+const CACHE_VERSION = "astip-szz-v165";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -213,8 +213,12 @@ async function staleWhileRevalidate(request) {
   return cached || network;
 }
 
+function timeoutResponse(ms, response) {
+  return new Promise((resolve) => setTimeout(() => resolve(response), ms));
+}
+
 async function appShellStaleWhileRevalidate(request, options = {}) {
-  const {fallbackToShell = false} = options;
+  const {fallbackToShell = false, preferFreshNetwork = false, networkTimeoutMs = 700} = options;
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = (await cache.match(request)) || (fallbackToShell ? await shellFallbackResponse() : null);
   const network = fetch(new Request(request, {cache: "reload"}))
@@ -223,6 +227,9 @@ async function appShellStaleWhileRevalidate(request, options = {}) {
       return response;
     })
     .catch(() => cached);
+  if (preferFreshNetwork && cached) {
+    return (await Promise.race([network, timeoutResponse(networkTimeoutMs, cached)])) || cached || Response.error();
+  }
   return cached || network || Response.error();
 }
 
@@ -309,7 +316,11 @@ self.addEventListener("fetch", (event) => {
   const {request} = event;
   if (request.method !== "GET") return;
   if (request.mode === "navigate") {
-    event.respondWith(appShellStaleWhileRevalidate(request, {fallbackToShell: true}));
+    event.respondWith(appShellStaleWhileRevalidate(request, {
+      fallbackToShell: true,
+      preferFreshNetwork: true,
+      networkTimeoutMs: 700
+    }));
     return;
   }
   if (isStaticAssetRequest(request)) {
