@@ -2462,6 +2462,10 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
 
 let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
 
+function currentSzzInstallPrompt(){
+  return deferredSzzInstallPrompt || window.__szzDeferredInstallPrompt || null;
+}
+
 function isSzzAppInstalledView(){
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
 }
@@ -2506,7 +2510,7 @@ function szzInstallEnvironment(){
     secure,
     installed:isSzzAppInstalledView(),
     serviceWorker:"serviceWorker" in navigator,
-    hasPrompt:!!deferredSzzInstallPrompt,
+    hasPrompt:!!currentSzzInstallPrompt(),
     online:navigator.onLine!==false
   };
 }
@@ -2551,8 +2555,8 @@ function renderSzzInstallGuide(){
     if(env.installed) state.textContent="Aplikace už běží jako nainstalovaná. Offline data připravíš tlačítkem níže.";
     else if(!env.secure) state.textContent="Instalace funguje jen přes zabezpečený web HTTPS. Otevři publikovanou adresu aplikace, ne lokální soubor.";
     else if(!env.serviceWorker) state.textContent="Tento prohlížeč nepodporuje offline instalaci. Použij Android Chrome.";
-    else if(env.hasPrompt) state.textContent="Telefon je připravený. Klepni na Stáhnout aplikaci a potvrď instalaci.";
-    else if(env.android && (env.chrome || env.samsung)) state.textContent="Když se dialog neukáže, otevři menu prohlížeče a zvol Instalovat aplikaci nebo Přidat na plochu.";
+    else if(env.hasPrompt) state.textContent="Telefon je připravený. Klepni na Stáhnout aplikaci, potvrď otázku a instalace se spustí.";
+    else if(env.android && (env.chrome || env.samsung)) state.textContent="Telefon zatím nedal stránce instalační dialog. Zkus obnovit stránku; když ho prohlížeč nenabídne, zbývá ruční instalace z menu.";
     else if(env.android) state.textContent="Otevři tuto adresu v Android Chromu. Některé prohlížeče přímé stažení aplikace nenabízejí.";
     else state.textContent="Na Androidu otevři stejnou adresu v Chromu. Odkaz si můžeš zkopírovat tlačítkem níže.";
   }
@@ -2604,60 +2608,109 @@ function setSzzInstallBusy(busy=false,text="Stáhnout aplikaci"){
   });
 }
 
-async function installSzzAppFromPage(){
+function closeSzzInstallConfirm(){
+  const dialog=document.getElementById("installConfirmDialog");
+  if(dialog) dialog.hidden=true;
+}
+
+function showSzzInstallConfirm(){
+  const dialog=document.getElementById("installConfirmDialog");
+  if(!dialog){
+    performSzzInstallFromPage().catch(error=>{
+      console.warn("Instalaci aplikace se nepodařilo spustit",error);
+      setSzzInstallStatus("Instalaci se nepodařilo spustit: " + (error?.message || error),"error");
+    });
+    return;
+  }
+  dialog.hidden=false;
+  setSzzInstallStatus("Potvrď instalaci aplikace v okně na obrazovce.","info");
+  setTimeout(()=>document.getElementById("confirmInstallBtn")?.focus(),0);
+}
+
+async function prepareSzzInstallOfflineShell(){
+  if(window.prepareSzzOfflineAppData){
+    const ready=await window.prepareSzzOfflineAppData({reason:"install"});
+    return Number(ready && ready.shellCount) || 0;
+  }
+  if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
+  if(window.requestSzzPersistentStorage) await window.requestSzzPersistentStorage({request:true});
+  if(window.cacheAppShellForOffline) return await window.cacheAppShellForOffline();
+  return 0;
+}
+
+async function runSzzBrowserInstallPrompt(){
+  const promptEvent=currentSzzInstallPrompt();
+  if(!promptEvent) return null;
+  deferredSzzInstallPrompt=null;
+  window.__szzDeferredInstallPrompt=null;
+  updateSzzInstallButtons();
+  promptEvent.prompt();
+  try{
+    return await promptEvent.userChoice;
+  }catch(error){
+    console.warn("Instalační volba nebyla dostupná",error);
+    return null;
+  }
+}
+
+async function performSzzInstallFromPage(){
   openAppToolsPanel();
   if(isSzzAppInstalledView()){
     setSzzInstallStatus("Aplikace už běží jako nainstalovaná.","ok");
     if(window.showSaveConfirmation) window.showSaveConfirmation("Aplikace už je nainstalovaná.");
     return;
   }
-  setSzzInstallBusy(true,"Připravuji instalaci...");
+  setSzzInstallBusy(true,"Instaluji...");
+  if(currentSzzInstallPrompt()){
+    setSzzInstallStatus("Otevírám instalační okno telefonu...","ok");
+    const choice=await runSzzBrowserInstallPrompt();
+    if(choice?.outcome==="accepted"){
+      setSzzInstallStatus("Instalace aplikace spuštěna. Připravuji ještě offline soubory...","ok");
+      if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace aplikace spuštěna.");
+      try{
+        const count=await prepareSzzInstallOfflineShell();
+        setSzzInstallStatus(`Instalace spuštěna a offline soubory jsou připravené (${count} souborů).`,"ok");
+      }catch(e){
+        console.warn("Příprava aplikace pro offline režim selhala",e);
+        setSzzInstallStatus("Instalace byla spuštěna, ale offline příprava se nepovedla: " + (e?.message || e),"error");
+      }
+    }else{
+      setSzzInstallStatus("Instalace byla zrušena nebo ji telefon nedokončil. Zkus tlačítko Stáhnout aplikaci znovu.","error");
+      if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace zrušena.");
+    }
+    setSzzInstallBusy(false);
+    return;
+  }
   setSzzInstallStatus("Připravuji aplikaci pro offline otevření...");
   try{
-    if(window.prepareSzzOfflineAppData){
-      const ready=await window.prepareSzzOfflineAppData({reason:"install"});
-      const count=Number(ready && ready.shellCount) || 0;
-      setSzzInstallStatus(`Aplikace připravena pro offline otevření (${count} souborů). Spouštím instalaci...`,"ok");
-    }else{
-      if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
-      if(window.requestSzzPersistentStorage) await window.requestSzzPersistentStorage({request:true});
-      if(window.cacheAppShellForOffline){
-        const count=await window.cacheAppShellForOffline();
-        setSzzInstallStatus(`Aplikace připravena pro offline otevření (${count} souborů). Spouštím instalaci...`,"ok");
-      }
-    }
+    const count=await prepareSzzInstallOfflineShell();
+    setSzzInstallStatus(`Aplikace připravena pro offline otevření (${count} souborů).`,"ok");
   }catch(e){
     console.warn("Příprava aplikace pro instalaci selhala",e);
     setSzzInstallStatus("Aplikaci se nepodařilo připravit pro offline režim: " + (e?.message || e),"error");
-  }
-  if(!deferredSzzInstallPrompt){
-    const help=androidInstallHelpText();
-    renderSzzInstallGuide();
-    setSzzInstallStatus(help,szzInstallReadiness()==="error" ? "error" : "info");
-    setSzzInstallBusy(false);
-    if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci najdeš v menu prohlížeče.");
-    return;
-  }
-  const promptEvent=deferredSzzInstallPrompt;
-  deferredSzzInstallPrompt=null;
-  updateSzzInstallButtons();
-  try{
-    promptEvent.prompt();
-    const choice=await promptEvent.userChoice;
-    if(choice?.outcome==="accepted"){
-      setSzzInstallStatus("Instalace aplikace spuštěna. Po dokončení ji najdeš mezi aplikacemi / na ploše.","ok");
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace aplikace spuštěna.");
-    }else{
-      setSzzInstallStatus("Instalace byla zrušena. Můžeš ji spustit znovu tlačítkem Stáhnout aplikaci.","error");
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace zrušena.");
-    }
-  }catch(error){
-    console.warn("Instalaci aplikace se nepodařilo spustit",error);
-    setSzzInstallStatus("Instalaci se nepodařilo spustit: " + (error?.message || error),"error");
-    if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci se nepodařilo spustit.");
   }finally{
     setSzzInstallBusy(false);
   }
+  if(currentSzzInstallPrompt()){
+    renderSzzInstallGuide();
+    setSzzInstallStatus("Telefon teď instalační dialog připravil. Klepni znovu na Stáhnout aplikaci a potvrď instalaci.","ok");
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace je připravená.");
+    return;
+  }
+  const help=androidInstallHelpText();
+  renderSzzInstallGuide();
+  setSzzInstallStatus(help,szzInstallReadiness()==="error" ? "error" : "info");
+  if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci najdeš v menu prohlížeče.");
+}
+
+function installSzzAppFromPage(){
+  openAppToolsPanel();
+  if(isSzzAppInstalledView()){
+    setSzzInstallStatus("Aplikace už běží jako nainstalovaná.","ok");
+    if(window.showSaveConfirmation) window.showSaveConfirmation("Aplikace už je nainstalovaná.");
+    return;
+  }
+  showSzzInstallConfirm();
 }
 
 window.updateSzzInstallButtons=updateSzzInstallButtons;
@@ -2701,6 +2754,42 @@ function bindSzzInstallControls(){
     button.__szzInstallBound=true;
     button.addEventListener("click",installSzzAppFromPage);
   });
+  const installConfirmDialog=document.getElementById("installConfirmDialog");
+  const confirmInstallBtn=document.getElementById("confirmInstallBtn");
+  const cancelInstallConfirmBtn=document.getElementById("cancelInstallConfirmBtn");
+  if(confirmInstallBtn && !confirmInstallBtn.__szzInstallConfirmBound){
+    confirmInstallBtn.__szzInstallConfirmBound=true;
+    confirmInstallBtn.addEventListener("click",()=>{
+      closeSzzInstallConfirm();
+      performSzzInstallFromPage().catch(error=>{
+        console.warn("Instalaci aplikace se nepodařilo spustit",error);
+        setSzzInstallBusy(false);
+        setSzzInstallStatus("Instalaci se nepodařilo spustit: " + (error?.message || error),"error");
+      });
+    });
+  }
+  if(cancelInstallConfirmBtn && !cancelInstallConfirmBtn.__szzInstallCancelBound){
+    cancelInstallConfirmBtn.__szzInstallCancelBound=true;
+    cancelInstallConfirmBtn.addEventListener("click",()=>{
+      closeSzzInstallConfirm();
+      setSzzInstallStatus("Instalace zrušena. Tlačítkem Stáhnout aplikaci ji můžeš spustit znovu.","info");
+    });
+  }
+  if(installConfirmDialog && !installConfirmDialog.__szzInstallDialogBound){
+    installConfirmDialog.__szzInstallDialogBound=true;
+    installConfirmDialog.addEventListener("click",event=>{
+      if(event.target===installConfirmDialog){
+        closeSzzInstallConfirm();
+        setSzzInstallStatus("Instalace zrušena. Tlačítkem Stáhnout aplikaci ji můžeš spustit znovu.","info");
+      }
+    });
+    document.addEventListener("keydown",event=>{
+      if(event.key==="Escape" && !installConfirmDialog.hidden){
+        closeSzzInstallConfirm();
+        setSzzInstallStatus("Instalace zrušena. Tlačítkem Stáhnout aplikaci ji můžeš spustit znovu.","info");
+      }
+    });
+  }
   const prepareOfflineBtn=document.getElementById("prepareOfflineAppBtn");
   if(prepareOfflineBtn && !prepareOfflineBtn.__szzInstallPrepareBound){
     prepareOfflineBtn.__szzInstallPrepareBound=true;
@@ -2739,7 +2828,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-row-index-v178";
+  const serviceWorkerBuildVersion="2026-08-10-install-confirm-v179";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

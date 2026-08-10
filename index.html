@@ -98,8 +98,8 @@ window.addEventListener("pageshow", mobileFixMap);
 
 </script>
 
-  <script type="module" crossorigin src="./assets/index-DkI5Gjbt.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CfgjmnHO.css">
+  <script type="module" crossorigin src="./assets/index-Cte5ggSN.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-SAwWoWEC.css">
 </head>
 <body>
 
@@ -111,6 +111,17 @@ window.addEventListener("pageshow", mobileFixMap);
     <button class="primary" id="startupLoginBtn" onclick="window.loginPopup()">Přihlásit přes Google</button>
     <button class="secondary install-app-btn" id="startupInstallAppBtn" type="button" style="display:none;margin-top:10px">Stáhnout aplikaci</button>
     <p id="startupStatus" class="small"></p>
+  </div>
+</div>
+
+<div class="install-confirm-backdrop" id="installConfirmDialog" hidden>
+  <div class="install-confirm-box" role="dialog" aria-modal="true" aria-labelledby="installConfirmTitle" aria-describedby="installConfirmText">
+    <h3 id="installConfirmTitle">Opravdu chcete nainstalovat aplikaci?</h3>
+    <p id="installConfirmText">Po potvrzení se otevře instalační okno telefonu. Android ještě může chtít poslední systémové potvrzení.</p>
+    <div class="install-confirm-actions">
+      <button class="secondary" id="cancelInstallConfirmBtn" type="button">Zrušit</button>
+      <button class="primary" id="confirmInstallBtn" type="button">Ano, nainstalovat</button>
+    </div>
   </div>
 </div>
 
@@ -132,7 +143,7 @@ window.addEventListener("pageshow", mobileFixMap);
       </div>
       <ol class="install-guide-steps">
         <li>Otevři tento web v Android Chromu.</li>
-        <li>Klepni na Stáhnout aplikaci nebo v menu prohlížeče zvol Instalovat aplikaci.</li>
+        <li>Klepni na Stáhnout aplikaci a potvrď instalaci telefonu.</li>
         <li>Po instalaci otevři ikonu v telefonu a dej Připravit offline data.</li>
       </ol>
       <div class="install-guide-actions">
