@@ -528,11 +528,13 @@
   padding:5px 0;
   border-bottom:1px solid #e2e8f0;
 }
-.history-detail-row span:first-child{
+.history-detail-row span:first-child,
+.history-detail-row td:first-child{
   font-weight:800;
   color:#475569;
 }
-.history-detail-row span:last-child{
+.history-detail-row span:last-child,
+.history-detail-row td:last-child{
   overflow-wrap:anywhere;
 }
 .history-photos{

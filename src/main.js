@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase126-v174";
+const APP_BUILD_VERSION="2026-08-10-performance-phase127-v175";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -390,6 +390,27 @@ function postAppShellUrlsToServiceWorker(registration,urls){
       resolve(urls.length);
     }
   });
+}
+
+const APP_SHELL_POST_CACHE_MS=30000;
+let appShellPostCache={signature:"",savedAt:0,count:null,promise:null};
+function cachedPostAppShellUrlsToServiceWorker(registration,urls){
+  const signature=(urls || []).join("\n");
+  const now=Date.now();
+  if(
+    signature
+    && appShellPostCache.signature===signature
+    && now-appShellPostCache.savedAt<APP_SHELL_POST_CACHE_MS
+  ){
+    if(appShellPostCache.promise) return appShellPostCache.promise;
+    if(Number.isFinite(appShellPostCache.count)) return Promise.resolve(appShellPostCache.count);
+  }
+  const promise=postAppShellUrlsToServiceWorker(registration,urls).then(count=>{
+    appShellPostCache={signature,savedAt:Date.now(),count:Number(count) || 0,promise:null};
+    return appShellPostCache.count;
+  });
+  appShellPostCache={signature,savedAt:now,count:null,promise};
+  return promise;
 }
 
 function showAppShellFast(message=""){
@@ -1126,7 +1147,7 @@ async function cacheAppShellForOffline(){
       : await navigator.serviceWorker.register("./sw.js");
     await navigator.serviceWorker.ready;
     const urls=currentAppShellUrls();
-    return await postAppShellUrlsToServiceWorker(registration,urls);
+    return await cachedPostAppShellUrlsToServiceWorker(registration,urls);
   }catch(e){
     console.warn("Service worker pro offline aplikaci se nepodařilo připravit",e);
     return 0;
@@ -5123,6 +5144,7 @@ function userSiteInput(spec, value, site=null){
 
 function renderEditableDataTable(table,r){
   if(!table) return;
+  table.classList.remove("history-item","small","detail-history-table");
   const raw=rawForSiteFieldLookup(r);
   const fragment=document.createDocumentFragment();
   USER_SITE_DATA_FIELDS.forEach(spec=>{
@@ -5816,6 +5838,8 @@ function detailTableSignature(rowsForDetail){
 
 function renderDetailTable(table,r){
   if(!table) return;
+  table.classList.remove("data-edit-table");
+  table.classList.add("history-item","small","detail-history-table");
   const rowsForDetail=detailTableRows(r);
   const signature=detailTableSignature(rowsForDetail);
   if(table.dataset.detailTableMode==="display" && table.dataset.detailSignature===signature && table.childElementCount){
@@ -5824,7 +5848,7 @@ function renderDetailTable(table,r){
   const fragment=document.createDocumentFragment();
   rowsForDetail.forEach(({spec,value})=>{
     const row=document.createElement("tr");
-    if(spec.important) row.className="notes-red-row";
+    row.className=spec.important ? "history-detail-row notes-red-row important-note-row" : "history-detail-row";
     const label=document.createElement("td");
     label.textContent=spec.label;
     const valueCell=document.createElement("td");
@@ -11255,6 +11279,12 @@ function photoFolderLabel(folderName){
   return `${folder} (${formatDateCz(d)})`;
 }
 
+function photoFolderShortDate(folderName){
+  const folder=safe(folderName);
+  const d=parseDateValue(folder);
+  return d && !isNaN(d.getTime()) ? formatDateCz(d) : (folder || "Bez data");
+}
+
 function cloudinaryPhotoFolderPath(folderName){
   const base=safe(CLOUDINARY_PHOTOS.folder);
   const folder=safe(folderName);
@@ -11404,13 +11434,42 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
 
   const thumbs=document.createElement("div");
   thumbs.className="site-photo-thumbs";
+  const folderGroups=sitePhotoFolderGroups(sitePhotoItems);
+  const activeFolder=currentFolder || (folderGroups[0] && folderGroups[0].folder) || "";
+  if(folderGroups.length>1){
+    const folderNav=document.createElement("div");
+    folderNav.className="site-photo-folder-nav";
+    folderGroups.forEach(group=>{
+      const first=group.photos[0];
+      const firstIdx=first ? first.idx : 0;
+      const folderBtn=document.createElement("button");
+      folderBtn.className=`site-photo-folder-chip ${group.folder===activeFolder ? "active" : ""}`.trim();
+      folderBtn.type="button";
+      folderBtn.dataset.photoIdx=String(firstIdx);
+      folderBtn.setAttribute("aria-label",`Zobrazit složku ${photoFolderShortDate(group.folder)}`);
+      const dateEl=document.createElement("b");
+      dateEl.textContent=photoFolderShortDate(group.folder);
+      const countEl=document.createElement("span");
+      countEl.textContent=`${group.photos.length} foto`;
+      folderBtn.append(dateEl,countEl);
+      folderNav.appendChild(folderBtn);
+    });
+    thumbs.appendChild(folderNav);
+  }
   const thumbsFragment=document.createDocumentFragment();
-  sitePhotoFolderGroups(sitePhotoItems).forEach(group=>{
+  folderGroups.forEach(group=>{
     const groupEl=document.createElement("div");
-    groupEl.className="site-photo-folder-group";
-    const label=document.createElement("div");
+    groupEl.className=`site-photo-folder-group ${group.folder===activeFolder ? "active" : ""}`.trim();
+    const label=document.createElement("button");
     label.className="site-photo-folder-label";
-    label.textContent=photoFolderLabel(group.folder);
+    label.type="button";
+    label.dataset.photoIdx=String((group.photos[0] && group.photos[0].idx) || 0);
+    label.setAttribute("aria-label",`Zobrazit složku ${photoFolderShortDate(group.folder)}`);
+    const labelDate=document.createElement("b");
+    labelDate.textContent=photoFolderShortDate(group.folder);
+    const labelCount=document.createElement("span");
+    labelCount.textContent=`${group.photos.length} foto`;
+    label.append(labelDate,labelCount);
     const row=document.createElement("div");
     row.className="site-photo-folder-thumbs";
     group.photos.forEach(({photo,idx})=>{
