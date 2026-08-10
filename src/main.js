@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase82-v129";
-const APP_SHELL_CACHE_NAME="astip-szz-v129-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase83-v130";
+const APP_SHELL_CACHE_NAME="astip-szz-v130-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -349,6 +349,21 @@ function showAppShellFast(message=""){
   if(progress && message) progress.textContent=message;
 }
 
+function runAfterPaint(fn){
+  requestAnimationFrame(()=>{
+    try{ fn(); }catch(e){}
+  });
+}
+
+function runAfterTwoPaints(fn){
+  requestAnimationFrame(()=>runAfterPaint(fn));
+}
+
+function invalidateMapAfterPaint(){
+  runAfterPaint(()=>{ if(window.map) window.map.invalidateSize(true); });
+  runAfterTwoPaints(()=>{ if(window.map) window.map.invalidateSize(true); });
+}
+
 function initMapShell(){
   if(window.map && window.map.invalidateSize && window.L){
     map=window.map;
@@ -356,7 +371,7 @@ function initMapShell(){
     return map;
   }
   if(!window.L){
-    setTimeout(initMapShell,50);
+    runAfterPaint(initMapShell);
     return null;
   }
   showAppShellFast("Připravuji mapu. Servisní data se načtou po přihlášení.");
@@ -364,7 +379,7 @@ function initMapShell(){
   map=window.map;
   L.tileLayer(MAP_TILE_URL_TEMPLATE,{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
   layer=L.layerGroup().addTo(map);
-  requestAnimationFrame(()=>{try{map.invalidateSize(true);}catch(e){}});
+  invalidateMapAfterPaint();
   return map;
 }
 
@@ -2328,7 +2343,7 @@ function openNewSiteForm(){
   if(el) el.value="";
 });
 
-setTimeout(()=>{const n=document.getElementById("newName"); if(n){n.focus(); n.scrollIntoView({behavior:"smooth",block:"start"});}},100);
+runAfterPaint(()=>{const n=document.getElementById("newName"); if(n){n.focus(); n.scrollIntoView({behavior:"smooth",block:"start"});}});
   document.getElementById("editCard").style.display="none";
   document.getElementById("detailTitle").textContent="Přidat nové místo";
   document.getElementById("detailSub").textContent="Vyplň údaje a ulož místo.";
@@ -3948,8 +3963,7 @@ let manualGpsPickHandler=null;
 let manualGpsPickMarker=null;
 function setMapFocusMode(active){
   document.body.classList.toggle("map-focus-mode", !!active);
-  setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},60);
-  setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},300);
+  invalidateMapAfterPaint();
 }
 function setInputValueIfExists(selector,value){
   const el=document.querySelector(selector);
@@ -3963,7 +3977,7 @@ function beginManualGpsPick(options={}){
   mapFocusReturnHandler=typeof options.reopen==="function" ? options.reopen : null;
   setMapFocusMode(true);
   const center=map.getCenter();
-  setTimeout(()=>{
+  runAfterTwoPaints(()=>{
     try{
       L.popup({closeButton:false,autoClose:true})
         .setLatLng(center)
@@ -9363,7 +9377,7 @@ function showApp(){
     const canTryLogin=hasUser || firebaseReady || window.__firebaseConfigured || !!(window.firebase && firebase.auth);
     topLogout.style.display=canTryLogin ? "block" : "none";
   }
-  setTimeout(()=>{try{ if(window.mobileFixMap) window.mobileFixMap(); if(window.map) window.map.invalidateSize(true); }catch(e){}},250);
+  runAfterTwoPaints(()=>{ if(window.mobileFixMap) window.mobileFixMap(); if(window.map) window.map.invalidateSize(true); });
 }
 function showLogin(){
   if(window.setStartupAuthChecking) window.setStartupAuthChecking(false);

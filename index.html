@@ -87,8 +87,11 @@ function runMobileFixMap(){
   }catch(e){}
 }
 function mobileFixMap(){
-  clearTimeout(mobileFixMapTimer);
-  mobileFixMapTimer=setTimeout(runMobileFixMap,160);
+  if(mobileFixMapTimer) cancelAnimationFrame(mobileFixMapTimer);
+  mobileFixMapTimer=requestAnimationFrame(()=>{
+    mobileFixMapTimer=0;
+    runMobileFixMap();
+  });
 }
 window.addEventListener("resize", mobileFixMap);
 window.addEventListener("orientationchange", mobileFixMap);
