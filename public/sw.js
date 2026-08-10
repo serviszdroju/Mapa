@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v151";
+const CACHE_VERSION = "astip-szz-v152";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -50,6 +50,9 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  if (event.data && event.data.type === "SZZ_CACHE_APP_SHELL") {
+    event.waitUntil(cacheClientShellUrls(event.data.urls, event.ports && event.ports[0]));
+  }
 });
 
 self.addEventListener("sync", (event) => {
@@ -100,6 +103,50 @@ async function cacheExternalShellUrls() {
     await cacheUrls(cache, EXTERNAL_PRECACHE_URLS);
   } catch (error) {
     console.warn("Offline cache: externí knihovny se nepodařilo připravit", error);
+  }
+}
+
+async function cacheClientShellUrls(urls, replyPort) {
+  let count = 0;
+  try {
+    const safeUrls = normalizeClientShellUrls(urls);
+    if (safeUrls.length) {
+      const cache = await caches.open(STATIC_CACHE);
+      await cacheUrls(cache, safeUrls);
+      count = safeUrls.length;
+    }
+    if (replyPort) replyPort.postMessage({type: "SZZ_CACHE_APP_SHELL_DONE", count});
+  } catch (error) {
+    console.warn("Offline cache: shell aplikace se nepodařilo uložit", error);
+    if (replyPort) replyPort.postMessage({type: "SZZ_CACHE_APP_SHELL_DONE", count, error: String(error && error.message || error)});
+  }
+}
+
+function normalizeClientShellUrls(urls) {
+  const unique = [];
+  (Array.isArray(urls) ? urls : []).slice(0, 80).forEach((url) => {
+    try {
+      const parsed = new URL(url, self.registration.scope);
+      const normalized = parsed.href;
+      if (isClientShellUrl(parsed) && !unique.includes(normalized)) unique.push(normalized);
+    } catch (error) {}
+  });
+  return unique;
+}
+
+function isClientShellUrl(url) {
+  try {
+    const scope = new URL(self.registration.scope);
+    if (url.origin === self.location.origin && url.pathname.startsWith(scope.pathname)) {
+      return url.pathname.includes("/assets/") ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname) ||
+        url.pathname === scope.pathname ||
+        url.pathname === `${scope.pathname}index.html`;
+    }
+    return url.hostname === "unpkg.com" &&
+      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(url.pathname);
+  } catch (error) {
+    return false;
   }
 }
 

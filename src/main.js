@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase104-v151";
+const APP_BUILD_VERSION="2026-08-10-performance-phase105-v152";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -323,12 +323,73 @@ const APP_SHELL_URLS=[
 function currentAppShellUrls(baseUrls=APP_SHELL_URLS){
   const urls=[...(baseUrls || [])];
   try{
-    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="modulepreload"][href],link[rel="preload"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+      if(el.rel==="preload" && !["script","style","fetch"].includes(el.as || "")) return;
       const url=el.src || el.href;
       if(url) urls.push(url);
     });
   }catch(e){}
-  return urls.filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+  try{
+    if(performance && typeof performance.getEntriesByType==="function"){
+      performance.getEntriesByType("resource").forEach(entry=>{
+        const url=entry && entry.name;
+        if(isSzzAppShellResourceUrl(url)) urls.push(url);
+      });
+    }
+  }catch(e){}
+  return urls
+    .map(normalizeSzzAppShellUrl)
+    .filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+}
+
+function normalizeSzzAppShellUrl(url){
+  try{
+    const absolute=new URL(url,document.baseURI);
+    if(!/^https?:$/.test(absolute.protocol)) return "";
+    return absolute.href;
+  }catch(e){
+    return "";
+  }
+}
+
+function isSzzAppShellResourceUrl(url){
+  try{
+    const absolute=new URL(url,document.baseURI);
+    const path=absolute.pathname;
+    if(absolute.origin===location.origin){
+      return path.includes("/assets/") ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
+    }
+    return absolute.hostname==="unpkg.com" &&
+      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
+  }catch(e){
+    return false;
+  }
+}
+
+function postAppShellUrlsToServiceWorker(registration,urls){
+  const worker=(navigator.serviceWorker && navigator.serviceWorker.controller) ||
+    (registration && (registration.active || registration.waiting || registration.installing));
+  if(!worker || !urls.length) return Promise.resolve(urls.length);
+  if(typeof MessageChannel==="undefined"){
+    try{ worker.postMessage({type:"SZZ_CACHE_APP_SHELL",urls}); }catch(e){}
+    return Promise.resolve(urls.length);
+  }
+  return new Promise(resolve=>{
+    const channel=new MessageChannel();
+    const timer=setTimeout(()=>resolve(urls.length),3500);
+    channel.port1.onmessage=event=>{
+      clearTimeout(timer);
+      const count=Number(event && event.data && event.data.count);
+      resolve(Number.isFinite(count) && count>=0 ? count : urls.length);
+    };
+    try{
+      worker.postMessage({type:"SZZ_CACHE_APP_SHELL",urls},[channel.port2]);
+    }catch(e){
+      clearTimeout(timer);
+      resolve(urls.length);
+    }
+  });
 }
 
 function showAppShellFast(message=""){
@@ -384,6 +445,7 @@ function initMapShell(){
 
 showAppShellFast("Připravuji mapu. Servisní data se načtou po přihlášení.");
 initMapShell();
+window.cacheAppShellForOffline=cacheAppShellForOffline;
 
 async function ensureMailFunctions(){
   if(!firebaseReady || !app) return false;
@@ -1044,10 +1106,12 @@ function setOfflineMapButtonState(busy=false,text="Stáhnout mapu do telefonu"){
 async function cacheAppShellForOffline(){
   if(!("serviceWorker" in navigator)) return 0;
   try{
-    if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
-    else await navigator.serviceWorker.register("./sw.js");
+    const registration=window.registerSzzServiceWorker
+      ? await window.registerSzzServiceWorker()
+      : await navigator.serviceWorker.register("./sw.js");
     await navigator.serviceWorker.ready;
-    return currentAppShellUrls().length;
+    const urls=currentAppShellUrls();
+    return await postAppShellUrlsToServiceWorker(registration,urls);
   }catch(e){
     console.warn("Service worker pro offline aplikaci se nepodařilo připravit",e);
     return 0;

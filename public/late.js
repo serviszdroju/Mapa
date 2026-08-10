@@ -2509,12 +2509,73 @@ const SZZ_INSTALL_SHELL_URLS=[
 function szzInstallCurrentShellUrls(baseUrls=SZZ_INSTALL_SHELL_URLS){
   const urls=[...(baseUrls || [])];
   try{
-    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="modulepreload"][href],link[rel="preload"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+      if(el.rel==="preload" && !["script","style","fetch"].includes(el.as || "")) return;
       const url=el.src || el.href;
       if(url) urls.push(url);
     });
   }catch(e){}
-  return urls.filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+  try{
+    if(performance && typeof performance.getEntriesByType==="function"){
+      performance.getEntriesByType("resource").forEach(entry=>{
+        const url=entry && entry.name;
+        if(szzInstallIsShellResourceUrl(url)) urls.push(url);
+      });
+    }
+  }catch(e){}
+  return urls
+    .map(szzInstallNormalizeShellUrl)
+    .filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+}
+
+function szzInstallNormalizeShellUrl(url){
+  try{
+    const absolute=new URL(url,document.baseURI);
+    if(!/^https?:$/.test(absolute.protocol)) return "";
+    return absolute.href;
+  }catch(e){
+    return "";
+  }
+}
+
+function szzInstallIsShellResourceUrl(url){
+  try{
+    const absolute=new URL(url,document.baseURI);
+    const path=absolute.pathname;
+    if(absolute.origin===location.origin){
+      return path.includes("/assets/") ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
+    }
+    return absolute.hostname==="unpkg.com" &&
+      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
+  }catch(e){
+    return false;
+  }
+}
+
+function szzInstallPostShellUrlsToServiceWorker(registration,urls){
+  const worker=(navigator.serviceWorker && navigator.serviceWorker.controller) ||
+    (registration && (registration.active || registration.waiting || registration.installing));
+  if(!worker || !urls.length) return Promise.resolve(urls.length);
+  if(typeof MessageChannel==="undefined"){
+    try{ worker.postMessage({type:"SZZ_CACHE_APP_SHELL",urls}); }catch(e){}
+    return Promise.resolve(urls.length);
+  }
+  return new Promise(resolve=>{
+    const channel=new MessageChannel();
+    const timer=setTimeout(()=>resolve(urls.length),3500);
+    channel.port1.onmessage=event=>{
+      clearTimeout(timer);
+      const count=Number(event && event.data && event.data.count);
+      resolve(Number.isFinite(count) && count>=0 ? count : urls.length);
+    };
+    try{
+      worker.postMessage({type:"SZZ_CACHE_APP_SHELL",urls},[channel.port2]);
+    }catch(e){
+      clearTimeout(timer);
+      resolve(urls.length);
+    }
+  });
 }
 
 function szzInstallSafe(value){
@@ -2743,10 +2804,12 @@ window.scheduleSzzOfflineAppStatus=window.scheduleSzzOfflineAppStatus || functio
 window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(){
   if(!("serviceWorker" in navigator)) return 0;
   try{
-    if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
-    else await navigator.serviceWorker.register("./sw.js");
+    const registration=window.registerSzzServiceWorker
+      ? await window.registerSzzServiceWorker()
+      : await navigator.serviceWorker.register("./sw.js");
     await navigator.serviceWorker.ready;
-    return szzInstallCurrentShellUrls().length;
+    const urls=szzInstallCurrentShellUrls();
+    return await szzInstallPostShellUrlsToServiceWorker(registration,urls);
   }catch(e){
     console.warn("Offline shell fallback se nepodařilo připravit přes service worker",e);
     return 0;
@@ -2992,7 +3055,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase104-v151";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase105-v152";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
