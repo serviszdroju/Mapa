@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase57-v104";
-const APP_SHELL_CACHE_NAME="astip-szz-v104-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase58-v105";
+const APP_SHELL_CACHE_NAME="astip-szz-v105-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6538,6 +6538,7 @@ let placeGroupsCache={sourceRows:null,signature:"",groups:[]};
 let siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
 let mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
 let sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
+let renderCountersCache={shown:null,gps:null};
 const MAP_MARKER_RENDER_LIMIT=900;
 
 function rowLookupKeys(r){
@@ -6911,6 +6912,25 @@ function renderSidebarGroups(groups){
   list.replaceChildren(fragment);
   sidebarRenderCache={groups,signature,renderedEmpty};
 }
+function setCounterTextIfChanged(el,value){
+  if(el && el.textContent!==String(value)) el.textContent=String(value);
+}
+function renderCounters(visibleCount,gpsCount){
+  if(renderCountersCache.shown!==visibleCount){
+    setCounterTextIfChanged(document.getElementById("shownCount"),visibleCount);
+    renderCountersCache.shown=visibleCount;
+  }
+  if(renderCountersCache.gps!==gpsCount){
+    setCounterTextIfChanged(document.getElementById("gpsCount"),gpsCount);
+    renderCountersCache.gps=gpsCount;
+  }
+  const box=document.getElementById("gpsBox");
+  if(box && (box.style.display!=="none" || box.className!=="notice" || box.childNodes.length)){
+    if(box.style.display!=="none") box.style.display="none";
+    if(box.className!=="notice") box.className="notice";
+    if(box.childNodes.length) box.replaceChildren();
+  }
+}
 function render(){
   syncRowIndexes();
   window.rows=rows;
@@ -6921,14 +6941,7 @@ function render(){
   lastVisiblePlaceGroups=groups;
   renderMapGroups(groups);
   renderSidebarGroups(groups);
-  document.getElementById("shownCount").textContent=vis.length;
-  document.getElementById("gpsCount").textContent=rowsGpsCountCache;
-  const box=document.getElementById("gpsBox");
-  if(box){
-    box.style.display="none";
-    box.className="notice";
-    box.innerHTML="";
-  }
+  renderCounters(vis.length,rowsGpsCountCache);
 }
 function requestRender(){
   if(renderRequested) return;
@@ -17560,7 +17573,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v104-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v105-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -18053,7 +18066,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase57-v104";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase58-v105";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
