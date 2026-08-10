@@ -2092,6 +2092,27 @@ function szzInstallPostShellUrlsToServiceWorker(registration,urls){
   });
 }
 
+const SZZ_INSTALL_SHELL_POST_CACHE_MS=30000;
+let szzInstallShellPostCache={signature:"",savedAt:0,count:null,promise:null};
+function szzInstallCachedPostShellUrlsToServiceWorker(registration,urls){
+  const signature=(urls || []).join("\n");
+  const now=Date.now();
+  if(
+    signature
+    && szzInstallShellPostCache.signature===signature
+    && now-szzInstallShellPostCache.savedAt<SZZ_INSTALL_SHELL_POST_CACHE_MS
+  ){
+    if(szzInstallShellPostCache.promise) return szzInstallShellPostCache.promise;
+    if(Number.isFinite(szzInstallShellPostCache.count)) return Promise.resolve(szzInstallShellPostCache.count);
+  }
+  const promise=szzInstallPostShellUrlsToServiceWorker(registration,urls).then(count=>{
+    szzInstallShellPostCache={signature,savedAt:Date.now(),count:Number(count) || 0,promise:null};
+    return szzInstallShellPostCache.count;
+  });
+  szzInstallShellPostCache={signature,savedAt:now,count:null,promise};
+  return promise;
+}
+
 function szzInstallSafe(value){
   return String(value ?? "").trim();
 }
@@ -2357,7 +2378,7 @@ window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(
       : await navigator.serviceWorker.register("./sw.js");
     await navigator.serviceWorker.ready;
     const urls=szzInstallCurrentShellUrls();
-    return await szzInstallPostShellUrlsToServiceWorker(registration,urls);
+    return await szzInstallCachedPostShellUrlsToServiceWorker(registration,urls);
   }catch(e){
     console.warn("Offline shell fallback se nepodařilo připravit přes service worker",e);
     return 0;
@@ -2603,7 +2624,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase126-v174";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase127-v175";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
