@@ -246,8 +246,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase65-v112";
-const APP_SHELL_CACHE_NAME="astip-szz-v112-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase66-v113";
+const APP_SHELL_CACHE_NAME="astip-szz-v113-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10113,7 +10113,20 @@ function cloudinaryTransformUrl(url,transformation){
   const cacheKey=`${t}|${s}`;
   const cached=cloudinaryTransformUrlCache.get(cacheKey);
   if(cached) return cached;
-  return rememberCloudinaryTransformUrl(cacheKey,s.replace("/image/upload/",`/image/upload/${t}/`));
+  const marker="/image/upload/";
+  const markerIndex=s.indexOf(marker);
+  const prefix=s.slice(0,markerIndex+marker.length);
+  const rest=s.slice(markerIndex+marker.length);
+  const slashIndex=rest.indexOf("/");
+  if(slashIndex<0) return s;
+  const firstSegment=rest.slice(0,slashIndex);
+  const remaining=rest.slice(slashIndex+1);
+  const firstSegmentIsVersion=/^v\d+$/i.test(firstSegment);
+  const firstSegmentLooksTransform=/(^|,)(?:f_auto|q_auto|w_\d+|h_\d+|c_[a-z0-9_]+|dpr_|fl_|e_|g_|r_|ar_)/i.test(firstSegment);
+  const transformed=firstSegmentLooksTransform && !firstSegmentIsVersion
+    ? `${prefix}${t}/${remaining}`
+    : `${prefix}${t}/${rest}`;
+  return rememberCloudinaryTransformUrl(cacheKey,transformed);
 }
 
 function cloudinaryUploadPresets(){
