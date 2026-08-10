@@ -2461,7 +2461,7 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
 };
 
 let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
-const SZZ_ANDROID_APK_URL="https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk";
+const SZZ_ANDROID_APK_URL="https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk?v=release-1";
 let szzApkAvailabilityPromise=null;
 
 function currentSzzInstallPrompt(){
@@ -2877,7 +2877,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-apk-download-v185";
+  const serviceWorkerBuildVersion="2026-08-10-apk-release-v186";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

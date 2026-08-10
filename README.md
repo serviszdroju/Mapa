@@ -41,5 +41,5 @@ https://serviszdroju.github.io/Mapa/
 APK instalator pro tablety je soucasti verejneho weboveho buildu a publikuje se sem:
 
 ```text
-https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk
+https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk?v=release-1
 ```
