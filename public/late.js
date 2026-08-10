@@ -764,6 +764,8 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     try{return compat.firestore();}catch(e){return null;}
   }
   function user(){
+    const modernUser=window.__authReadyUser || window.currentUser || (window.auth && window.auth.currentUser) || null;
+    if(modernUser) return modernUser;
     const compat=ensureCompatFirebase();
     if(!compat) return null;
     try{return compat.auth().currentUser || window.__authReadyUser || window.currentUser || null;}catch(e){return window.__authReadyUser || window.currentUser || null;}
@@ -2567,7 +2569,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase121-v169";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase122-v170";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
