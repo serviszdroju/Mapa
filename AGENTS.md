@@ -110,4 +110,6 @@ Current performance phase 44 decision: load direct `protocolRefs` and `serviceRe
 
 Current performance phase 45 decision: lazy-read local per-site protocol history inside `loadHistory()` only when offline/no-login fallback is needed or the detail-history cache is missing, so reopening cached Protokol views avoids unnecessary IndexedDB/localStorage work while preserving local fallback behavior.
 
+Current performance phase 46 decision: cache app-shell files for offline preparation with a small bounded parallel worker pool instead of sequential fetch/cache steps, both in the main helper and install fallback helper, preserving the same shell URL lists and saved-count behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
