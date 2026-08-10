@@ -132,4 +132,6 @@ Current performance phase 55 decision: after deleting/skipping a Firebase-first 
 
 Current performance phase 56 decision: maintain a lookup index for Firebase source rows and use it for single-row upserts after saving, falling back to the original scan only when the index has no match.
 
+Current performance phase 57 decision: cache normalized Firebase deduplication keys by raw field signature so repeated local upserts and reload passes avoid recomputing the same name/address/source normalization.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

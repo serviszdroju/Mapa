@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase56-v103";
-const APP_SHELL_CACHE_NAME="astip-szz-v103-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase57-v104";
+const APP_SHELL_CACHE_NAME="astip-szz-v104-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -7142,6 +7142,7 @@ window.showSelectedSiteOnMap=showSelectedSiteOnMap;
 window.showMapFocusLocation=showMapFocusLocation;
 window.returnFromMapFocus=returnFromMapFocus;
 window.beginManualGpsPick=beginManualGpsPick;
+const siteDedupKeysCache=new WeakMap();
 function siteDedupValue(v){
   return safe(v)
     .toLowerCase()
@@ -7152,7 +7153,31 @@ function siteDedupValue(v){
     .replace(/\s+/g," ")
     .trim();
 }
+function siteDedupRawSignature(raw){
+  raw=raw || {};
+  return [
+    raw["Název"],
+    raw["Adresa / umístění"],
+    raw["Adresa_GPS"],
+    raw["Umístění"],
+    raw["Umístění zdroje"],
+    raw["Původní adresa / umístění"],
+    sourceTypeTextFromRaw(raw),
+    sourceSerialTextFromRaw(raw)
+  ].map(v=>String(v || "")).join("\u001f");
+}
 function siteDedupKeysFromRaw(raw){
+  if(raw && typeof raw==="object"){
+    const signature=siteDedupRawSignature(raw);
+    const cached=siteDedupKeysCache.get(raw);
+    if(cached && cached.signature===signature) return cached.keys.slice();
+    const keys=computeSiteDedupKeysFromRaw(raw);
+    siteDedupKeysCache.set(raw,{signature,keys:keys.slice()});
+    return keys;
+  }
+  return computeSiteDedupKeysFromRaw(raw);
+}
+function computeSiteDedupKeysFromRaw(raw){
   const keys=[];
   const seen=new Set();
   const source=siteDedupValue([
@@ -17535,7 +17560,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v103-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v104-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -18028,7 +18053,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase56-v103";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase57-v104";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
