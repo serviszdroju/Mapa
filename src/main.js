@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase106-v154";
+const APP_BUILD_VERSION="2026-08-10-performance-phase107-v155";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3462,6 +3462,7 @@ let lastVisiblePlaceGroups=[];
 let renderRequested=false;
 let mapMoveRenderTimer=0;
 let rowsIndexVersion=0;
+let rowsIndexDirty=true;
 let indexedRowsRef=null;
 let indexedRowsLength=-1;
 let indexedCsvRowsRef=null;
@@ -3473,6 +3474,41 @@ let mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
 let sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
 let renderCountersCache={shown:null,gps:null};
 const MAP_MARKER_RENDER_LIMIT=900;
+
+function markRowsDirty(){
+  rowsIndexDirty=true;
+  filteredRowsCache={signature:"",rows:[]};
+  placeGroupsCache={sourceRows:null,signature:"",groups:[]};
+  siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
+  mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
+  sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
+  renderCountersCache={shown:null,gps:null};
+}
+
+function installRowsWindowBridge(){
+  const existingRows=Array.isArray(window.rows) ? window.rows : rows;
+  if(existingRows!==rows && existingRows.length && !rows.length){
+    rows=existingRows;
+    rowsIndexDirty=true;
+  }
+  try{
+    Object.defineProperty(window,"rows",{
+      configurable:true,
+      get(){ return rows; },
+      set(nextRows){
+        const normalized=Array.isArray(nextRows) ? nextRows : [];
+        const changed=normalized!==indexedRowsRef || normalized.length!==indexedRowsLength || normalized!==rows;
+        rows=normalized;
+        if(changed) markRowsDirty();
+      }
+    });
+  }catch(e){
+    window.rows=rows;
+  }
+}
+
+window.markRowsDirty=markRowsDirty;
+installRowsWindowBridge();
 
 function rowLookupKeys(r){
   const raw=(r && r.raw) || {};
@@ -3555,6 +3591,9 @@ function syncCsvRowLookupCache(){
 function syncRowIndexes(){
   const rowsRefChanged=indexedRowsRef!==rows;
   const rowsLengthChanged=indexedRowsLength!==rows.length;
+  if(!rowsIndexDirty && !rowsRefChanged && !rowsLengthChanged && siteRowsByAnyId.size){
+    return;
+  }
   let indexesChanged=rowsRefChanged || rowsLengthChanged;
   rows.forEach((r,i)=>{
     const beforeIndex=r && r.i;
@@ -3572,12 +3611,18 @@ function syncRowIndexes(){
       indexesChanged=true;
     }
   });
-  if(!indexesChanged) return;
+  if(!indexesChanged){
+    indexedRowsRef=rows;
+    indexedRowsLength=rows.length;
+    rowsIndexDirty=false;
+    return;
+  }
   rebuildRowLookupCache();
   rowsIndexVersion++;
   siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
   indexedRowsRef=rows;
   indexedRowsLength=rows.length;
+  rowsIndexDirty=false;
 }
 function rowMatchesAnyLookupKey(row,key){
   const wanted=String(key || "").trim();
