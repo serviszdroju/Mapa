@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase43-v90";
-const APP_SHELL_CACHE_NAME="astip-szz-v90-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase44-v91";
+const APP_SHELL_CACHE_NAME="astip-szz-v91-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11958,32 +11958,40 @@ async function loadHistory(siteId){
       detailHistoryIndex=0;
       renderHistory();
     }
+    const refTasks=[];
     const protocolRefs=Array.isArray(selectedSite?.firebaseData?.protocolRefs) ? selectedSite.firebaseData.protocolRefs : [];
-    for(const refItem of protocolRefs){
+    protocolRefs.forEach(refItem=>{
       const id=safe(refItem && refItem._id);
-      if(!id || items.some(item=>String(item._id || "")===id)) continue;
-      try{
-        const snap=await getDoc(doc(db,"protocols",id));
-        if(snap.exists()) addHistoryItem({...snap.data(),_type:"Protokol",_collection:"protocols",_id:snap.id});
-        else addHistoryItem({...refItem,_type:"Protokol",_collection:"protocolRefs",_id:id});
-      }catch(e){
-        console.warn("Přímé načtení protokolu selhalo",id,e);
-        addHistoryItem({...refItem,_type:"Protokol",_collection:"protocolRefs",_id:id});
-      }
-    }
+      if(!id) return;
+      refTasks.push(async()=>{
+        if(items.some(item=>String(item._id || "")===id)) return;
+        try{
+          const snap=await getDoc(doc(db,"protocols",id));
+          if(snap.exists()) addHistoryItem({...snap.data(),_type:"Protokol",_collection:"protocols",_id:snap.id});
+          else addHistoryItem({...refItem,_type:"Protokol",_collection:"protocolRefs",_id:id});
+        }catch(e){
+          console.warn("Přímé načtení protokolu selhalo",id,e);
+          addHistoryItem({...refItem,_type:"Protokol",_collection:"protocolRefs",_id:id});
+        }
+      });
+    });
     const serviceRefs=Array.isArray(selectedSite?.firebaseData?.serviceRefs) ? selectedSite.firebaseData.serviceRefs : [];
-    for(const refItem of serviceRefs){
+    serviceRefs.forEach(refItem=>{
       const id=safe(refItem && refItem._id);
-      if(!id || items.some(item=>String(item._id || "")===id)) continue;
-      try{
-        const snap=await getDoc(doc(db,"serviceRecords",id));
-        if(snap.exists()) addHistoryItem({...snap.data(),_type:"Servisní záznam",_collection:"serviceRecords",_id:snap.id});
-        else addHistoryItem({...refItem,_type:"Servisní záznam",_collection:"serviceRefs",_id:id});
-      }catch(e){
-        console.warn("Přímé načtení servisního záznamu selhalo",id,e);
-        addHistoryItem({...refItem,_type:"Servisní záznam",_collection:"serviceRefs",_id:id});
-      }
-    }
+      if(!id) return;
+      refTasks.push(async()=>{
+        if(items.some(item=>String(item._id || "")===id)) return;
+        try{
+          const snap=await getDoc(doc(db,"serviceRecords",id));
+          if(snap.exists()) addHistoryItem({...snap.data(),_type:"Servisní záznam",_collection:"serviceRecords",_id:snap.id});
+          else addHistoryItem({...refItem,_type:"Servisní záznam",_collection:"serviceRefs",_id:id});
+        }catch(e){
+          console.warn("Přímé načtení servisního záznamu selhalo",id,e);
+          addHistoryItem({...refItem,_type:"Servisní záznam",_collection:"serviceRefs",_id:id});
+        }
+      });
+    });
+    await runBoundedFirestoreTasks(refTasks,6);
     const historySiteIds=[siteId, ...siteRecordKeys(selectedSite)]
       .map(x=>String(x || ""))
       .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
@@ -14233,9 +14241,9 @@ async function getLastProtocol(site=selectedSite){
       }
     });
     const protocolRefs=Array.isArray(site?.firebaseData?.protocolRefs) ? site.firebaseData.protocolRefs : [];
-    for(const refItem of protocolRefs){
+    const protocolRefTasks=protocolRefs.map(refItem=>async()=>{
       const id=safe(refItem && refItem._id);
-      if(!id || items.some(item=>String(item._id || "")===id)) continue;
+      if(!id || items.some(item=>String(item._id || "")===id)) return;
       try{
         const snap=await getDoc(doc(db,"protocols",id));
         if(snap.exists()) items.push({...snap.data(),_id:snap.id});
@@ -14243,7 +14251,8 @@ async function getLastProtocol(site=selectedSite){
       }catch(e){
         items.push({...refItem,_id:id});
       }
-    }
+    });
+    await runBoundedFirestoreTasks(protocolRefTasks,6);
     const addProtocolDocSnap=docSnap=>{
       if(items.some(item=>item._id===docSnap.id)) return;
       items.push({...docSnap.data(),_id:docSnap.id});
@@ -17369,7 +17378,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v90-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v91-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17856,7 +17865,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase43-v90";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase44-v91";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

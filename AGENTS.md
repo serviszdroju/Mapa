@@ -106,4 +106,6 @@ Current performance phase 42 decision: cache the protocol draft count briefly an
 
 Current performance phase 43 decision: load the root Firebase site document in parallel with per-site child collections for Galerie, Protokol history, and latest-protocol reads, reducing wait time while preserving embedded arrays, child subcollections, legacy standalone protocol/service fallbacks, and all existing matching behavior.
 
+Current performance phase 44 decision: load direct `protocolRefs` and `serviceRefs` through the bounded Firestore task scheduler instead of sequential `getDoc()` loops in detail history and latest-protocol reads, preserving the same fallback records, dedupe behavior, and final time-based sorting.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
