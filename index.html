@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase62-v109";
-const APP_SHELL_CACHE_NAME="astip-szz-v109-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase63-v110";
+const APP_SHELL_CACHE_NAME="astip-szz-v110-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3391,6 +3391,17 @@ const APP_SHELL_URLS=[
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
+
+function currentAppShellUrls(baseUrls=APP_SHELL_URLS){
+  const urls=[...(baseUrls || [])];
+  try{
+    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+      const url=el.src || el.href;
+      if(url) urls.push(url);
+    });
+  }catch(e){}
+  return urls.filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+}
 
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
@@ -4087,7 +4098,7 @@ async function cacheAppShellForOffline(){
   if(!("caches" in window)) return 0;
   const cache=await caches.open(APP_SHELL_CACHE_NAME);
   let saved=0;
-  const urls=APP_SHELL_URLS.slice();
+  const urls=currentAppShellUrls();
   let index=0;
   const worker=async()=>{
     while(index<urls.length){
@@ -17619,7 +17630,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v109-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v110-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17639,6 +17650,17 @@ const SZZ_INSTALL_SHELL_URLS=[
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
+
+function szzInstallCurrentShellUrls(baseUrls=SZZ_INSTALL_SHELL_URLS){
+  const urls=[...(baseUrls || [])];
+  try{
+    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
+      const url=el.src || el.href;
+      if(url) urls.push(url);
+    });
+  }catch(e){}
+  return urls.filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
+}
 
 function szzInstallSafe(value){
   return String(value ?? "").trim();
@@ -17848,7 +17870,7 @@ window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(
   if(!("caches" in window)) return 0;
   const cache=await caches.open(SZZ_INSTALL_SHELL_CACHE_NAME);
   let saved=0;
-  const urls=SZZ_INSTALL_SHELL_URLS.slice();
+  const urls=szzInstallCurrentShellUrls();
   let index=0;
   const worker=async()=>{
     while(index<urls.length){
@@ -18112,7 +18134,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase62-v109";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase63-v110";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
