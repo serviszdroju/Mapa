@@ -2510,7 +2510,7 @@ button:active{transform:translateY(0)}
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-FhAhu68V.js"></script>
+  <script type="module" crossorigin src="./assets/index-BF8J57_F.js"></script>
 </head>
 <body>
 
@@ -5655,7 +5655,7 @@ Cena FZ: ..."></textarea>
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v92-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v93-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -5884,22 +5884,28 @@ window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(
   if(!("caches" in window)) return 0;
   const cache=await caches.open(SZZ_INSTALL_SHELL_CACHE_NAME);
   let saved=0;
-  for(const url of SZZ_INSTALL_SHELL_URLS){
-    try{
-      let response=null;
+  const urls=SZZ_INSTALL_SHELL_URLS.slice();
+  let index=0;
+  const worker=async()=>{
+    while(index<urls.length){
+      const url=urls[index++];
       try{
-        response=await fetch(new Request(url,{cache:"reload"}));
+        let response=null;
+        try{
+          response=await fetch(new Request(url,{cache:"reload"}));
+        }catch(e){
+          response=await fetch(new Request(url,{mode:"no-cors",credentials:"omit",cache:"reload"}));
+        }
+        if(response && (response.ok || response.type==="opaque")){
+          await cache.put(new Request(url),response.clone());
+          saved++;
+        }
       }catch(e){
-        response=await fetch(new Request(url,{mode:"no-cors",credentials:"omit",cache:"reload"}));
+        console.warn("Offline shell fallback se nepodařilo uložit",url,e);
       }
-      if(response && (response.ok || response.type==="opaque")){
-        await cache.put(new Request(url),response.clone());
-        saved++;
-      }
-    }catch(e){
-      console.warn("Offline shell fallback se nepodařilo uložit",url,e);
     }
-  }
+  };
+  await Promise.all(Array.from({length:Math.min(4,urls.length)},worker));
   return saved;
 };
 
@@ -6142,7 +6148,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase45-v92";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase46-v93";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
