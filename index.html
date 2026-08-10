@@ -97,10 +97,6 @@ window.addEventListener("pageshow", mobileFixMap);
 </script>
 <link rel="stylesheet" href="./app.css">
 
-<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-
 </head>
 <body>
 
@@ -628,8 +624,58 @@ Cena FZ: ..."></textarea>
     status("Přihlášení ještě není připravené. Zkus tlačítko znovu za pár sekund.");
   };
 
-  window.__startCompatGoogleLoginFallback = function(){
+  const FIREBASE_COMPAT_SCRIPT_URLS = [
+    "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
+  ];
+
+  function firebaseCompatReady(){
+    return !!(window.firebase && firebase.initializeApp && firebase.auth && firebase.firestore);
+  }
+
+  function loadScriptOnce(src){
+    return new Promise((resolve,reject)=>{
+      const absolute=new URL(src,document.baseURI).href;
+      const existing=Array.from(document.scripts).find(script=>script.src===absolute);
+      if(existing){
+        if(existing.dataset.loaded==="1" || firebaseCompatReady()){
+          resolve();
+          return;
+        }
+        existing.addEventListener("load",()=>resolve(),{once:true});
+        existing.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
+        return;
+      }
+      const script=document.createElement("script");
+      script.src=src;
+      script.async=false;
+      script.defer=true;
+      script.dataset.firebaseCompatDynamic="1";
+      script.addEventListener("load",()=>{
+        script.dataset.loaded="1";
+        resolve();
+      },{once:true});
+      script.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
+      document.head.appendChild(script);
+    });
+  }
+
+  window.__loadFirebaseCompatScripts = window.__loadFirebaseCompatScripts || function(){
+    if(firebaseCompatReady()) return Promise.resolve(window.firebase);
+    if(window.__firebaseCompatLoadingPromise) return window.__firebaseCompatLoadingPromise;
+    window.__firebaseCompatLoadingPromise = FIREBASE_COMPAT_SCRIPT_URLS
+      .reduce((promise,src)=>promise.then(()=>loadScriptOnce(src)),Promise.resolve())
+      .then(()=>window.firebase);
+    return window.__firebaseCompatLoadingPromise;
+  };
+
+  window.__startCompatGoogleLoginFallback = async function(){
     try{
+      if((!window.firebase || !firebase.auth || !window.__firebaseConfig) && typeof window.__loadFirebaseCompatScripts==="function"){
+        status("Donačítám záložní Firebase přihlášení...");
+        await window.__loadFirebaseCompatScripts();
+      }
       if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
         status("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
         return;

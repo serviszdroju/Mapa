@@ -52,6 +52,54 @@ function clearExplicitSignOut(){
 }
 let compatAuthClient=null;
 let compatAuthPersistencePromise=null;
+const FIREBASE_COMPAT_SCRIPT_URLS=[
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
+];
+function compatFirebaseReady(){
+  return !!(window.firebase && firebase.initializeApp && firebase.auth && firebase.firestore);
+}
+function loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    const absolute=new URL(src,document.baseURI).href;
+    const existing=Array.from(document.scripts).find(script=>script.src===absolute);
+    if(existing){
+      if(existing.dataset.loaded==="1" || compatFirebaseReady()){
+        resolve();
+        return;
+      }
+      existing.addEventListener("load",()=>resolve(),{once:true});
+      existing.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
+      return;
+    }
+    const script=document.createElement("script");
+    script.src=src;
+    script.async=false;
+    script.defer=true;
+    script.dataset.firebaseCompatDynamic="1";
+    script.addEventListener("load",()=>{
+      script.dataset.loaded="1";
+      resolve();
+    },{once:true});
+    script.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
+    document.head.appendChild(script);
+  });
+}
+function loadCompatFirebaseScripts(){
+  if(compatFirebaseReady()) return Promise.resolve(window.firebase);
+  if(window.__firebaseCompatLoadingPromise) return window.__firebaseCompatLoadingPromise;
+  const htmlLoader=window.__loadFirebaseCompatScripts;
+  if(typeof htmlLoader==="function" && htmlLoader!==loadCompatFirebaseScripts){
+    window.__firebaseCompatLoadingPromise=Promise.resolve(htmlLoader()).then(()=>window.firebase);
+    return window.__firebaseCompatLoadingPromise;
+  }
+  window.__firebaseCompatLoadingPromise=FIREBASE_COMPAT_SCRIPT_URLS
+    .reduce((promise,src)=>promise.then(()=>loadScriptOnce(src)),Promise.resolve())
+    .then(()=>window.firebase);
+  return window.__firebaseCompatLoadingPromise;
+}
+window.__loadFirebaseCompatScripts=window.__loadFirebaseCompatScripts || loadCompatFirebaseScripts;
 function ensureCompatFirebaseApp(){
   if(!window.firebase || !firebase.initializeApp) return null;
   try{
@@ -76,7 +124,10 @@ function getCompatAuthClient(){
     return null;
   }
 }
-async function ensureCompatAuthPersistence(){
+async function ensureCompatAuthPersistence(options={}){
+  if(options.load && !compatFirebaseReady()){
+    try{ await loadCompatFirebaseScripts(); }catch(e){ console.warn("Firebase compat SDK se nepodařilo donačíst",e); }
+  }
   const client=getCompatAuthClient();
   if(!client || !window.firebase || !firebase.auth || !firebase.auth.Auth) return client;
   try{
@@ -86,9 +137,11 @@ async function ensureCompatAuthPersistence(){
   }
   return client;
 }
-function primeCompatAuthPersistence(){
-  if(!compatAuthPersistencePromise){
-    compatAuthPersistencePromise=ensureCompatAuthPersistence().catch(e=>{
+function primeCompatAuthPersistence(options={}){
+  const shouldLoad=!!options.load;
+  if(!shouldLoad && !compatFirebaseReady()) return Promise.resolve(getCompatAuthClient());
+  if(!compatAuthPersistencePromise || shouldLoad){
+    compatAuthPersistencePromise=ensureCompatAuthPersistence({load:shouldLoad}).catch(e=>{
       console.warn("Firebase compat persistence se nepodařila připravit",e);
       return getCompatAuthClient();
     });
@@ -246,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase71-v118";
-const APP_SHELL_CACHE_NAME="astip-szz-v118-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase72-v119";
+const APP_SHELL_CACHE_NAME="astip-szz-v119-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
