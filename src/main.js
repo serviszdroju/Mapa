@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase78-v125";
-const APP_SHELL_CACHE_NAME="astip-szz-v125-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase79-v126";
+const APP_SHELL_CACHE_NAME="astip-szz-v126-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -4772,7 +4772,7 @@ function regionOptionsFixed(current){
   add("");
   APP_REGION_OPTIONS.forEach(add);
   const currentKey=dataNormFixed(current);
-  return [...map.entries()].map(([key,v])=>`<option value="${esc(v)}" ${key===currentKey ? "selected" : ""}>${esc(v || "Vyber kraj")}</option>`).join("");
+  return [...map.entries()].map(([key,v])=>({key,value:v,label:v || "Vyber kraj",selected:key===currentKey}));
 }
 
 function userSiteFieldValue(r, spec, rawOverride=null){
@@ -4794,43 +4794,110 @@ function userSiteFieldValue(r, spec, rawOverride=null){
   return v;
 }
 
+function createUserSiteSelect(dataKey,options,selectedValue){
+  const select=document.createElement("select");
+  select.dataset.key=dataKey;
+  options.forEach(([value,label])=>{
+    const option=document.createElement("option");
+    option.value=value;
+    option.textContent=label;
+    select.appendChild(option);
+  });
+  select.value=selectedValue;
+  return select;
+}
+
 function userSiteInput(spec, value, site=null){
-  const dataKey=esc(spec.key);
-  const text=esc(value);
-  if(spec.type==="region") return `<select data-key="${dataKey}">${regionOptionsFixed(value)}</select>`;
+  if(spec.type==="region"){
+    const select=document.createElement("select");
+    select.dataset.key=spec.key;
+    regionOptionsFixed(value).forEach(item=>{
+      const option=document.createElement("option");
+      option.value=item.value;
+      option.textContent=item.label;
+      option.selected=item.selected;
+      select.appendChild(option);
+    });
+    return select;
+  }
   if(spec.type==="period"){
     const periodValue=String(value || "").includes("6") ? "6" : "12";
-    return `<select data-key="${dataKey}"><option value="6" ${periodValue==="6" ? "selected" : ""}>6 měsíců</option><option value="12" ${periodValue==="12" ? "selected" : ""}>12 měsíců</option></select>`;
+    return createUserSiteSelect(spec.key,[["6","6 měsíců"],["12","12 měsíců"]],periodValue);
   }
-  if(spec.type==="yesno") return `<select data-key="${dataKey}"><option value="ne" ${yesNoFixed(value)==="ne" ? "selected" : ""}>ne</option><option value="ano" ${yesNoFixed(value)==="ano" ? "selected" : ""}>ano</option></select>`;
-  if(spec.type==="textarea") return `<textarea data-key="${dataKey}">${text}</textarea>`;
+  if(spec.type==="yesno"){
+    return createUserSiteSelect(spec.key,[["ne","ne"],["ano","ano"]],yesNoFixed(value));
+  }
+  if(spec.type==="textarea"){
+    const textarea=document.createElement("textarea");
+    textarea.dataset.key=spec.key;
+    textarea.value=safe(value);
+    return textarea;
+  }
   if(spec.key==="Adresa_GPS"){
     const raw=rawForSiteFieldLookup(site);
     const gpsLat=Number.isFinite(site && site.lat) ? String(site.lat) : safe(raw["GPS_lat"]);
     const gpsLon=Number.isFinite(site && site.lon) ? String(site.lon) : safe(raw["GPS_lon"]);
-    return `
-      <div class="gps-coordinate-edit">
-        <input data-key="${dataKey}" value="${text}" readonly title="GPS souřadnice">
-        <button class="secondary" type="button" id="detailGpsCalcInline">Dopočítat GPS</button>
-        <button class="secondary" type="button" id="detailGpsPickMapInline">Vybrat na mapě</button>
-      </div>
-      <div class="gps-lat-lon-edit">
-        <input data-key="GPS_lat" value="${esc(gpsLat)}" placeholder="GPS lat">
-        <input data-key="GPS_lon" value="${esc(gpsLon)}" placeholder="GPS lon">
-      </div>`;
+    const fragment=document.createDocumentFragment();
+    const coordinate=document.createElement("div");
+    coordinate.className="gps-coordinate-edit";
+    const gpsInput=document.createElement("input");
+    gpsInput.dataset.key=spec.key;
+    gpsInput.value=safe(value);
+    gpsInput.readOnly=true;
+    gpsInput.title="GPS souřadnice";
+    const calcBtn=document.createElement("button");
+    calcBtn.className="secondary";
+    calcBtn.type="button";
+    calcBtn.id="detailGpsCalcInline";
+    calcBtn.textContent="Dopočítat GPS";
+    const pickBtn=document.createElement("button");
+    pickBtn.className="secondary";
+    pickBtn.type="button";
+    pickBtn.id="detailGpsPickMapInline";
+    pickBtn.textContent="Vybrat na mapě";
+    coordinate.append(gpsInput,calcBtn,pickBtn);
+    const latLon=document.createElement("div");
+    latLon.className="gps-lat-lon-edit";
+    const latInput=document.createElement("input");
+    latInput.dataset.key="GPS_lat";
+    latInput.value=gpsLat;
+    latInput.placeholder="GPS lat";
+    const lonInput=document.createElement("input");
+    lonInput.dataset.key="GPS_lon";
+    lonInput.value=gpsLon;
+    lonInput.placeholder="GPS lon";
+    latLon.append(latInput,lonInput);
+    fragment.append(coordinate,latLon);
+    return fragment;
   }
-  if(spec.readonly) return `<input data-key="${dataKey}" value="${text}" readonly title="Dopočítá se z adresy">`;
-  return `<input data-key="${dataKey}" value="${text}">`;
+  const input=document.createElement("input");
+  input.dataset.key=spec.key;
+  input.value=safe(value);
+  if(spec.readonly){
+    input.readOnly=true;
+    input.title="Dopočítá se z adresy";
+  }
+  return input;
 }
 
-function editableDataTable(r){
+function renderEditableDataTable(table,r){
+  if(!table) return;
   const raw=rawForSiteFieldLookup(r);
-  const visibleRows=USER_SITE_DATA_FIELDS.map(spec=>{
+  const fragment=document.createDocumentFragment();
+  USER_SITE_DATA_FIELDS.forEach(spec=>{
     const value=userSiteFieldValue(r,spec,raw);
-    const cls=spec.important ? "notes-red-row" : "";
-    return `<tr class="${cls}"><td>${esc(spec.key==="Adresa_GPS" ? "GPS souřadnice" : spec.label)}</td><td>${userSiteInput(spec,value,r)}</td></tr>`;
-  }).join("");
-  return visibleRows;
+    const row=document.createElement("tr");
+    if(spec.important) row.className="notes-red-row";
+    const label=document.createElement("td");
+    label.textContent=spec.key==="Adresa_GPS" ? "GPS souřadnice" : spec.label;
+    const valueCell=document.createElement("td");
+    valueCell.appendChild(userSiteInput(spec,value,r));
+    row.append(label,valueCell);
+    fragment.appendChild(row);
+  });
+  table.replaceChildren(fragment);
+  table.dataset.detailTableMode="edit";
+  delete table.dataset.detailSignature;
 }
 
 function userSiteDisplayValue(spec, value){
@@ -5585,9 +5652,7 @@ window.openDetail=function(i){
     editDataToggleBtn.onclick=()=>{
       const table=document.getElementById("detailTable");
       table.classList.add("data-edit-table");
-      table.dataset.detailTableMode="edit";
-      delete table.dataset.detailSignature;
-      table.innerHTML=editableDataTable(selectedSite);
+      renderEditableDataTable(table,selectedSite);
       const inlineGpsBtn=document.getElementById("detailGpsCalcInline");
       if(inlineGpsBtn) inlineGpsBtn.onclick=dataAddressToGps;
       const inlineGpsPickBtn=document.getElementById("detailGpsPickMapInline");
