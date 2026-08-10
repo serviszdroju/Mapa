@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase105-v152";
+const APP_BUILD_VERSION="2026-08-10-performance-phase106-v154";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -417,6 +417,19 @@ function runAfterPaint(fn){
 
 function runAfterTwoPaints(fn){
   requestAnimationFrame(()=>runAfterPaint(fn));
+}
+
+function runWhenIdle(fn,timeout=1000){
+  const run=()=>{
+    Promise.resolve()
+      .then(fn)
+      .catch(e=>console.warn("Odložená úloha selhala",e));
+  };
+  if(typeof requestIdleCallback==="function"){
+    requestIdleCallback(run,{timeout});
+  }else{
+    runAfterTwoPaints(run);
+  }
 }
 
 function invalidateMapAfterPaint(){
@@ -839,13 +852,13 @@ if(firebaseReady){
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     if(topLogoutBtn) topLogoutBtn.style.display="block";
     setProgressStatus(message || "Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
-    setTimeout(()=>{
+    runWhenIdle(()=>{
       try{
         if(typeof window.loadFirebaseSitesUnified==="function"){
           window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true});
         }
       }catch(e){}
-    },200);
+    },700);
     scheduleBackgroundAuthRetry();
     return true;
   }
@@ -951,12 +964,12 @@ if(firebaseReady){
     setProgressStatus("Přihlášení potvrzeno. Načítám body...");
     await loadFirebaseRowsAfterAuth("login");
     if(typeof window.syncOfflineChanges==="function"){
-      setTimeout(()=>window.syncOfflineChanges({reason:"login",silent:true}),1200);
+      runWhenIdle(()=>window.syncOfflineChanges({reason:"login",silent:true}),1800);
     }
     if(selectedSite){
-      setTimeout(()=>{
+      runWhenIdle(()=>{
         try{ window.refreshLoadedDetailTabs?.(selectedSite); }catch(e){}
-      },250);
+      },900);
     }
   }
   function handleSignedOut(){
@@ -12100,12 +12113,23 @@ async function refreshFirebaseUnifiedPrimary(){
   }
   return false;
 }
-function scheduleFirebaseUnifiedPrimaryLoad(delay=0){
-  setTimeout(async()=>{
+let firebaseUnifiedPrimaryLoadPromise=null;
+async function runFirebaseUnifiedPrimaryLoad(){
+  if(firebaseUnifiedPrimaryLoadPromise) return firebaseUnifiedPrimaryLoadPromise;
+  firebaseUnifiedPrimaryLoadPromise=(async()=>{
     const loaded=await refreshFirebaseUnifiedPrimary();
     if(!loaded) setTimeout(refreshFirebaseUnifiedPrimary,1200);
     if(firebaseUnifiedPrimary && typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(12000);
-  },delay);
+  })().finally(()=>{ firebaseUnifiedPrimaryLoadPromise=null; });
+  return firebaseUnifiedPrimaryLoadPromise;
+}
+function scheduleFirebaseUnifiedPrimaryLoad(delay=0){
+  const run=()=>runFirebaseUnifiedPrimaryLoad().catch(e=>console.warn("Primární načtení Firebase selhalo",e));
+  if(delay>0){
+    setTimeout(()=>runWhenIdle(run,900),delay);
+    return;
+  }
+  runWhenIdle(run,900);
 }
 let csvLoadPromise=null;
 window.loadCsvRowsForMigration=function(){
@@ -12160,11 +12184,3 @@ window.addEventListener("DOMContentLoaded",()=>{
     window.bindLoginButtons();
   }
 });
-
-
-setTimeout(()=>{
-  const st=document.getElementById("startupStatus");
-  if(st && firebaseReady && (!auth || !fb.authMod)){
-    st.textContent="Firebase se nenačetl. Zkontroluj internet / blokování skriptů.";
-  }
-},2000);
