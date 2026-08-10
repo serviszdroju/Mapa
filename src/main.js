@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase110-v158";
+const APP_BUILD_VERSION="2026-08-10-performance-phase111-v159";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -9363,6 +9363,7 @@ async function loadHistory(siteId){
           const d=docSnap.data();
           items.push({...d,_type:typeLabel,_collection:colName,_id:docSnap.id});
         };
+        const hasMatchingType=()=>items.some(item=>item._type===typeLabel && recordMatchesSite(item,selectedSite));
         const siteKeysBatchOk=await readFirestoreArrayContainsAny(
           fb.fsMod,
           db,
@@ -9397,10 +9398,14 @@ async function loadHistory(siteId){
             });
           }
         }
+        await runBoundedFirestoreTasks(queryTasks,6);
+        if(hasMatchingType()) return;
+
+        const textQueryTasks=[];
         const textKeys=siteRecordTextKeys(selectedSite).slice(0,8);
         for(const value of textKeys){
           for(const field of ["siteName","siteAddress","place"]){
-            queryTasks.push(async()=>{
+            textQueryTasks.push(async()=>{
               try{
                 const q=query(collection(db,colName),where(field,"==",value));
                 const snap=await getDocs(q);
@@ -9411,7 +9416,7 @@ async function loadHistory(siteId){
             });
           }
         }
-        await runBoundedFirestoreTasks(queryTasks,6);
+        await runBoundedFirestoreTasks(textQueryTasks,6);
       }catch(e){
         console.warn("Historie kolekce nejde načíst",colName,e);
       }
