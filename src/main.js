@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase77-v124";
-const APP_SHELL_CACHE_NAME="astip-szz-v124-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase78-v125";
+const APP_SHELL_CACHE_NAME="astip-szz-v125-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -2141,212 +2141,79 @@ function clearNewSiteMode(){
 }
 
 
+const NEW_SITE_FIELD_SPECS=[
+  {label:"Název",key:"Název"},
+  {label:"Adresa / umístění",key:"Adresa / umístění"},
+  {label:"Umístění zdroje",key:"Adresa_GPS",full:true},
+  {label:"Historie oprav",key:"Historie oprav",type:"textarea",full:true},
+  {label:"Postup testování",key:"Postup testování",type:"textarea",full:true},
+  {label:"Jistič UPS",key:"Jistič UPS",full:true},
+  {label:"Popis_zdroje",forceLabel:"Popis zdroje",key:"Popis_zdroje",full:true},
+  {label:"Výrobní číslo",key:"Zdroj",full:true},
+  {label:"Kontakt",key:"Kontakt"},
+  {label:"Kraj",key:"Kraj"},
+  {label:"Poznámky",key:"Poznámky",full:true},
+  {label:"Rok výroby",key:"Rok výroby"},
+  {label:"Serviska",key:"Serviska",type:"select",options:[["",""],["ano","ano"],["ne","ne"]]},
+  {label:"Cena FZ",key:"Cena FZ"},
+  {label:"Perioda kontrol",key:"Perioda kontrol",type:"select",options:[["6","6 měsíců"],["12","12 měsíců"]],value:"12"},
+  {label:"Hlídáme kontroly sami",key:"Hlídáme kontroly sami",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne",full:true,special:"watch-self"},
+  {label:"Důležité poznámky",key:"Důležitá poznámka",type:"textarea",full:true,className:"notes-red-row",style:"padding:10px;border-radius:12px;"}
+];
 
-function forceRenderNewSiteForm(){
+function createNewSiteFieldControl(spec){
+  if(spec.type==="textarea"){
+    return document.createElement("textarea");
+  }
+  if(spec.type==="select"){
+    const select=document.createElement("select");
+    (spec.options || []).forEach(([value,label])=>{
+      const option=document.createElement("option");
+      option.value=value;
+      option.textContent=label;
+      select.appendChild(option);
+    });
+    if(spec.value!==undefined) select.value=spec.value;
+    return select;
+  }
+  return document.createElement("input");
+}
+
+function createNewSiteField(spec,options={}){
+  const field=document.createElement("div");
+  if(spec.full) field.classList.add("full");
+  if(spec.className) field.classList.add(...spec.className.split(/\s+/).filter(Boolean));
+  if(spec.style) field.setAttribute("style",spec.style);
+  const label=document.createElement("label");
+  label.textContent=options.forceLabels && spec.forceLabel ? spec.forceLabel : spec.label;
+  const control=createNewSiteFieldControl(spec);
+  control.dataset.newKey=spec.key;
+  if(spec.special) control.dataset.special=spec.special;
+  field.append(label,control);
+  return field;
+}
+
+function renderNewSiteFields(options={}){
   const box=document.getElementById("newAllFieldsBox");
   if(!box) return;
+  const fragment=document.createDocumentFragment();
+  NEW_SITE_FIELD_SPECS.forEach(spec=>fragment.appendChild(createNewSiteField(spec,options)));
+  if(options.wrapGrid){
+    const grid=document.createElement("div");
+    grid.className="new-data-grid";
+    grid.appendChild(fragment);
+    box.replaceChildren(grid);
+    return;
+  }
+  box.replaceChildren(fragment);
+}
 
-  box.innerHTML = `
-  <div class="new-data-grid">
-
-    <div>
-      <label>Název</label>
-      <input data-new-key="Název">
-    </div>
-
-    <div>
-      <label>Adresa / umístění</label>
-      <input data-new-key="Adresa / umístění">
-    </div>
-
-    <div class="full">
-      <label>Umístění zdroje</label>
-      <input data-new-key="Adresa_GPS">
-    </div>
-
-    <div class="full">
-      <label>Historie oprav</label>
-      <textarea data-new-key="Historie oprav"></textarea>
-    </div>
-
-    <div class="full">
-      <label>Postup testování</label>
-      <textarea data-new-key="Postup testování"></textarea>
-    </div>
-
-    <div class="full">
-      <label>Jistič UPS</label>
-      <input data-new-key="Jistič UPS">
-    </div>
-
-    <div class="full">
-      <label>Popis zdroje</label>
-      <input data-new-key="Popis_zdroje">
-    </div>
-
-    <div class="full">
-      <label>Výrobní číslo</label>
-      <input data-new-key="Zdroj">
-    </div>
-
-    <div>
-      <label>Kontakt</label>
-      <input data-new-key="Kontakt">
-    </div>
-
-    <div>
-      <label>Kraj</label>
-      <input data-new-key="Kraj">
-    </div>
-
-    <div class="full">
-      <label>Poznámky</label>
-      <input data-new-key="Poznámky">
-    </div>
-
-    <div>
-      <label>Rok výroby</label>
-      <input data-new-key="Rok výroby">
-    </div>
-
-    <div>
-      <label>Serviska</label>
-      <select data-new-key="Serviska">
-        <option value=""></option>
-        <option value="ano">ano</option>
-        <option value="ne">ne</option>
-      </select>
-    </div>
-
-    <div>
-      <label>Cena FZ</label>
-      <input data-new-key="Cena FZ">
-    </div>
-
-    <div>
-      <label>Perioda kontrol</label>
-      <select data-new-key="Perioda kontrol">
-        <option value="6">6 měsíců</option>
-        <option value="12" selected>12 měsíců</option>
-      </select>
-    </div>
-
-    <div class="full">
-      <label>Hlídáme kontroly sami</label>
-      <select data-new-key="Hlídáme kontroly sami">
-        <option value="ne" selected>ne</option>
-        <option value="ano">ano</option>
-      </select>
-    </div>
-
-    <div class="full notes-red-row" style="padding:10px;border-radius:12px;">
-      <label>Důležité poznámky</label>
-      <textarea data-new-key="Důležitá poznámka"></textarea>
-    </div>
-
-  </div>`;
+function forceRenderNewSiteForm(){
+  renderNewSiteFields({wrapGrid:true,forceLabels:true});
 }
 
 function renderNewSiteAllFields(){
-  const box=document.getElementById("newAllFieldsBox");
-  if(!box) return;
-
-  box.innerHTML=`
-    <div>
-      <label>Název</label>
-      <input data-new-key="Název">
-    </div>
-
-    <div>
-      <label>Adresa / umístění</label>
-      <input data-new-key="Adresa / umístění">
-    </div>
-
-    <div class="full">
-      <label>Umístění zdroje</label>
-      <input data-new-key="Adresa_GPS">
-    </div>
-
-    <div class="full">
-      <label>Historie oprav</label>
-      <textarea data-new-key="Historie oprav"></textarea>
-    </div>
-
-    <div class="full">
-      <label>Postup testování</label>
-      <textarea data-new-key="Postup testování"></textarea>
-    </div>
-
-    <div class="full">
-      <label>Jistič UPS</label>
-      <input data-new-key="Jistič UPS">
-    </div>
-
-    <div class="full">
-      <label>Popis_zdroje</label>
-      <input data-new-key="Popis_zdroje">
-    </div>
-
-    <div class="full">
-      <label>Výrobní číslo</label>
-      <input data-new-key="Zdroj">
-    </div>
-
-    <div>
-      <label>Kontakt</label>
-      <input data-new-key="Kontakt">
-    </div>
-
-    <div>
-      <label>Kraj</label>
-      <input data-new-key="Kraj">
-    </div>
-
-    <div class="full">
-      <label>Poznámky</label>
-      <input data-new-key="Poznámky">
-    </div>
-
-    <div>
-      <label>Rok výroby</label>
-      <input data-new-key="Rok výroby">
-    </div>
-
-    <div>
-      <label>Serviska</label>
-      <select data-new-key="Serviska">
-        <option value=""></option>
-        <option value="ano">ano</option>
-        <option value="ne">ne</option>
-      </select>
-    </div>
-
-    <div>
-      <label>Cena FZ</label>
-      <input data-new-key="Cena FZ">
-    </div>
-
-    <div>
-      <label>Perioda kontrol</label>
-      <select data-new-key="Perioda kontrol">
-        <option value="6">6 měsíců</option>
-        <option value="12" selected>12 měsíců</option>
-      </select>
-    </div>
-
-    <div class="full">
-      <label>Hlídáme kontroly sami</label>
-      <select data-new-key="Hlídáme kontroly sami" data-special="watch-self">
-        <option value="ne" selected>ne</option>
-        <option value="ano">ano</option>
-      </select>
-    </div>
-
-    <div class="full notes-red-row" style="padding:10px;border-radius:12px;">
-      <label>Důležité poznámky</label>
-      <textarea data-new-key="Důležitá poznámka"></textarea>
-    </div>
-  `;
+  renderNewSiteFields();
 }
 
 
