@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase113-v161";
+const APP_BUILD_VERSION="2026-08-10-performance-phase114-v162";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -896,8 +896,8 @@ if(firebaseReady){
     const loaderReady=await waitForFirebaseRowsLoader();
     if(token!==postLoginLoadToken) return false;
     if(!loaderReady){
-      setProgressStatus("Firebase načítání bodů ještě není připravené, obnovuji stránku...");
-      setTimeout(()=>location.reload(),800);
+      setProgressStatus("Firebase načítání bodů ještě není připravené, zkusím to znovu bez obnovení stránky...");
+      if(typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(2500);
       return false;
     }
     for(let attempt=1; attempt<=4; attempt++){
@@ -926,14 +926,8 @@ if(firebaseReady){
       }
       await delay(350 + attempt*250);
     }
-    const reloads=firebaseAutoReloadCount()+1;
-    if(reloads<=8){
-      setFirebaseAutoReloadCount(reloads);
-      setProgressStatus(`Body se nenačetly, obnovuji stránku (${reloads}/8)...`);
-      setTimeout(()=>location.reload(),800);
-    }else{
-      setProgressStatus("Body se nepodařilo načíst ani po opakovaném obnovení. Zkontroluj oprávnění Firebase pro přihlášený účet.");
-    }
+    setProgressStatus("Body se zatím nenačetly. Zkouším další načtení na pozadí bez obnovení stránky.");
+    if(typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(2500);
     return false;
   }
   async function handleAuthorizedUser(user){
