@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase93-v140";
+const APP_BUILD_VERSION="2026-08-10-performance-phase94-v141";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10770,7 +10770,7 @@ async function readPendingOfflineProtocolCount(){
   return 0;
 }
 
-function readProtocolDraftCount(){
+async function readProtocolDraftCount(){
   const now=Date.now();
   if(
     protocolDraftCountCache!==null
@@ -10779,6 +10779,19 @@ function readProtocolDraftCount(){
   ){
     return protocolDraftCountCache;
   }
+  try{
+    const indexedCount=await withSzzOfflineQueueStore(SZZ_PROTOCOL_DRAFT_STORE,"readonly",(store,setResult)=>{
+      const req=store.count();
+      req.onsuccess=()=>setResult(Number(req.result) || 0);
+      req.onerror=()=>setResult(0);
+    });
+    if(indexedCount){
+      protocolDraftCountCache=indexedCount;
+      protocolDraftCountCacheAt=Date.now();
+      protocolDraftCountStorageLength=localStorage.length;
+      return indexedCount;
+    }
+  }catch(e){}
   let count=0;
   try{
     for(let i=0;i<localStorage.length;i++){
@@ -10812,12 +10825,12 @@ async function collectSzzOfflineCounts(){
   if(szzOfflineCountsCache && now-szzOfflineCountsCacheAt<SZZ_OFFLINE_COUNTS_CACHE_MS){
     return cloneSzzOfflineCounts(szzOfflineCountsCache);
   }
-  const drafts=readProtocolDraftCount();
   const ready=readSzzOfflineReadyState();
-  const [sites,protocols,photos,storage,estimate]=await Promise.all([
+  const [sites,protocols,photos,drafts,storage,estimate]=await Promise.all([
     readPendingOfflineSitesCount(),
     readPendingOfflineProtocolCount(),
     readPendingOfflinePhotoCount(),
+    readProtocolDraftCount(),
     requestSzzPersistentStorage({request:false}),
     szzStorageEstimate()
   ]);
