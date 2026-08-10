@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase96-v143";
+const APP_BUILD_VERSION="2026-08-10-performance-phase97-v144";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -3213,8 +3213,19 @@ function groupRowsByPlace(inputRows){
   });
   return [...mapByKey.values()].map(group=>{
     group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
+    const representative=groupRepresentative(group.rows) || group.rows[0] || null;
+    group._representativeRow=representative;
+    group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
     return group;
   });
+}
+function groupPrimaryRow(group){
+  return (group && group._representativeRow) || groupRepresentative(group && group.rows) || (group && group.rows && group.rows[0]) || null;
+}
+function groupNextSortValue(group){
+  if(group && Number.isFinite(group._nextSortValue)) return group._nextSortValue;
+  const representative=groupPrimaryRow(group);
+  return representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
 }
 function cachedPlaceGroups(inputRows){
   const signature=`${rowsIndexVersion}\u001f${filteredRowsCache.signature || ""}\u001f${inputRows ? inputRows.length : 0}`;
@@ -3737,10 +3748,10 @@ function renderSidebarGroups(groups){
   }
   const fragment=document.createDocumentFragment();
   groups.slice().sort((a,b)=>{
-    const ar=groupRepresentative(a.rows), br=groupRepresentative(b.rows);
-    return ((daysToComputedNext(ar)??999999)-(daysToComputedNext(br)??999999));
+    return groupNextSortValue(a)-groupNextSortValue(b);
   }).slice(0,160).forEach(group=>{
-    const r=groupRepresentative(group.rows) || group.rows[0];
+    const r=groupPrimaryRow(group);
+    if(!r) return;
     fragment.appendChild(createSidebarGroupItem(group,r));
   });
   const renderedEmpty=!fragment.childNodes.length;
