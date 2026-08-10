@@ -1,5 +1,13 @@
 /* Extracted from index.html. Loaded as a classic script to preserve the original inline execution order. */
 ;
+window.szzAfterPaint = window.szzAfterPaint || function(fn){
+  const run=()=>{try{fn();}catch(e){}};
+  if(typeof requestAnimationFrame==="function") requestAnimationFrame(run);
+  else setTimeout(run,0);
+};
+window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
+  window.szzAfterPaint(()=>window.szzAfterPaint(fn));
+};
 (function(){
   function openOnlyNewSite(fromAddButton){
     if(fromAddButton !== true) return;
@@ -58,7 +66,7 @@
     if(pickGpsBtn) pickGpsBtn.onclick=window.startOnlyNewManualGpsPick;
     const findGpsBtn=document.getElementById("findOnlyGpsBtn");
     if(findGpsBtn) findGpsBtn.onclick=findOnlyNewGpsOnMap;
-    setTimeout(()=>{const f=document.getElementById("onlyNewName"); if(f) f.focus();},100);
+    window.szzAfterPaint(()=>{const f=document.getElementById("onlyNewName"); if(f) f.focus();});
   }
 
   function collectOnlyNewRaw(){
@@ -314,12 +322,12 @@
         }
 
         if(window.map){
-          setTimeout(()=>{try{window.map.setView(latlng,14);}catch(e){}},150);
-          setTimeout(()=>{try{window.map.invalidateSize(true);}catch(e){}},300);
+          window.szzAfterPaint(()=>{try{window.map.setView(latlng,14);}catch(e){}});
+          window.szzAfterTwoPaints(()=>{try{window.map.invalidateSize(true);}catch(e){}});
         }
       }
 
-      if(visibleAfterReload && typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(savedUnified ? savedId : row.id),250);
+      if(visibleAfterReload && typeof window.openDetailById==="function") window.szzAfterTwoPaints(()=>window.openDetailById(savedUnified ? savedId : row.id));
     }catch(e){
       location.reload();
     }
@@ -555,7 +563,7 @@
     document.getElementById("pickOnlyGps").onclick=window.startOnlyNewManualGpsPick;
     document.getElementById("findOnlyGps").onclick=findAddOnMap;
     document.getElementById("saveOnlyNew").onclick=saveAddSite;
-    setTimeout(()=>document.getElementById("onlyNewName")?.focus(),100);
+    window.szzAfterPaint(()=>document.getElementById("onlyNewName")?.focus());
   }
 
   async function saveAddSite(){
@@ -653,13 +661,13 @@
 
       const latlng=[row.lat,row.lon];
       if(visibleAfterReload && window.map){
-        setTimeout(()=>window.map.setView(latlng,14),100);
-        setTimeout(()=>window.map.invalidateSize(true),250);
+        window.szzAfterPaint(()=>window.map.setView(latlng,14));
+        window.szzAfterTwoPaints(()=>window.map.invalidateSize(true));
       }
 
       // nový bod se chová jako ostatní: detail se otevře přes původní openDetail
       if(visibleAfterReload && typeof window.openDetailById==="function"){
-        setTimeout(()=>window.openDetailById(savedUnified ? savedId : row.id),250);
+        window.szzAfterTwoPaints(()=>window.openDetailById(savedUnified ? savedId : row.id));
       }
     }catch(e){
       location.reload();
@@ -1304,7 +1312,7 @@
     ensurePanel(); document.getElementById("fbUnifiedOverlay").classList.add("open"); document.getElementById("fbUnifiedPanel").classList.add("open");
     clearForm(true);
     status("Panel otevřen. Po uložení se bod hned otevře v detailu.");
-    setTimeout(()=>{const first=document.querySelector('#fbUnifiedPanel [data-fb-key="Název"]') || document.querySelector('#fbUnifiedPanel input'); if(first) first.focus();},80);
+    window.szzAfterPaint(()=>{const first=document.querySelector('#fbUnifiedPanel [data-fb-key="Název"]') || document.querySelector('#fbUnifiedPanel input'); if(first) first.focus();});
     return false;
   }
   window.openFirebaseUnifiedPanel=openPanel;
@@ -1457,7 +1465,7 @@
         ensurePanel();
         document.getElementById("fbUnifiedOverlay").classList.add("open");
         document.getElementById("fbUnifiedPanel").classList.add("open");
-        setTimeout(()=>{try{map.invalidateSize(true);}catch(e){}},80);
+        window.szzAfterPaint(()=>{try{map.invalidateSize(true);}catch(e){}});
       };
       if(typeof window.showMapFocusLocation==="function"){
         window.showMapFocusLocation(lat,lon,raw["Název"] || raw["Adresa / umístění"] || "Nový bod","náhled před uložením",reopen);
@@ -2458,7 +2466,7 @@
   }, true);
 })();
 ;
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v131-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v132-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -2962,7 +2970,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase84-v131";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase85-v132";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
