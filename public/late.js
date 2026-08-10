@@ -1284,12 +1284,19 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
       return [];
     }
   }
+  function compactOfflineSiteQueueAfterIndexedDbSave(items=[]){
+    if(!window.saveOfflineSiteQueueItem || !Array.isArray(items) || !items.length) return;
+    Promise.allSettled(items.map(item=>window.saveOfflineSiteQueueItem(item))).then(results=>{
+      const unsaved=items.filter((_item,idx)=>!(results[idx] && results[idx].status==="fulfilled" && results[idx].value));
+      try{
+        localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,JSON.stringify(unsaved));
+      }catch(e){}
+    }).catch(()=>{});
+  }
   function writeOfflineSiteQueue(items=[]){
     try{
       localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,JSON.stringify(items));
-      if(window.saveOfflineSiteQueueItem){
-        items.forEach(item=>window.saveOfflineSiteQueueItem(item).catch(()=>{}));
-      }
+      compactOfflineSiteQueueAfterIndexedDbSave(items);
     }catch(e){
       console.warn("Offline frontu nových bodů se nepodařilo uložit",e);
     }
@@ -1318,7 +1325,6 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     };
     queue.push(queuedItem);
     writeOfflineSiteQueue(queue);
-    if(window.saveOfflineSiteQueueItem) window.saveOfflineSiteQueueItem(queuedItem).catch(()=>{});
     const row=rowFromDoc(docId,{raw,createdAt:now,updatedAt:now,manualEntry:true,localOnly:true,offline:true});
     const nextRows=(Array.isArray(window.rows) ? window.rows : [])
       .filter(existing=>String(existing.firebaseDocId || existing.raw?.["Firebase_doc_id"] || existing.id || "")!==docId)
@@ -2561,7 +2567,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase120-v168";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase121-v169";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
