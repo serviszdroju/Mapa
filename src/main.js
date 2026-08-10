@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase91-v138";
+const APP_BUILD_VERSION="2026-08-10-performance-phase92-v139";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -7720,117 +7720,15 @@ function confirmProtocolMailSend(){
   return confirm("Opravdu chcete odeslat protokol na mail iva.glozova@astip.cz?");
 }
 
-function utf8Bytes(text){
-  return new TextEncoder().encode(text);
+let protocolWordZipModulePromise=null;
+function loadProtocolWordZipModule(){
+  if(!protocolWordZipModulePromise) protocolWordZipModulePromise=import("./zip-docx.js");
+  return protocolWordZipModulePromise;
 }
 
-let zipCrcTable=null;
-function zipCrc32(bytes){
-  if(!zipCrcTable){
-    zipCrcTable=new Uint32Array(256);
-    for(let i=0;i<256;i++){
-      let c=i;
-      for(let k=0;k<8;k++) c=(c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1);
-      zipCrcTable[i]=c>>>0;
-    }
-  }
-  let crc=0xFFFFFFFF;
-  for(const b of bytes) crc=zipCrcTable[(crc^b)&0xFF] ^ (crc>>>8);
-  return (crc^0xFFFFFFFF)>>>0;
-}
-
-function zipDosDateTime(date=new Date()){
-  const year=Math.max(1980,date.getFullYear());
-  return {
-    time:((date.getHours()&31)<<11)|((date.getMinutes()&63)<<5)|Math.floor((date.getSeconds()&63)/2),
-    date:((year-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate()
-  };
-}
-
-function zipHeader(size){
-  const bytes=new Uint8Array(size);
-  const view=new DataView(bytes.buffer);
-  return {
-    bytes,
-    u16(offset,value){view.setUint16(offset,value,true);},
-    u32(offset,value){view.setUint32(offset,value>>>0,true);}
-  };
-}
-
-function concatBytes(parts){
-  const total=parts.reduce((sum,part)=>sum+part.length,0);
-  const out=new Uint8Array(total);
-  let offset=0;
-  for(const part of parts){
-    out.set(part,offset);
-    offset+=part.length;
-  }
-  return out;
-}
-
-function buildStoredZip(entries){
-  const now=zipDosDateTime(new Date());
-  const prepared=entries.map(entry=>{
-    const data=typeof entry.data==="string" ? utf8Bytes(entry.data) : entry.data;
-    return {name:entry.name,nameBytes:utf8Bytes(entry.name),data,crc:zipCrc32(data)};
-  });
-  const localParts=[];
-  const centralParts=[];
-  let offset=0;
-  for(const file of prepared){
-    const local=zipHeader(30+file.nameBytes.length);
-    local.u32(0,0x04034b50);
-    local.u16(4,20);
-    local.u16(6,0x0800);
-    local.u16(8,0);
-    local.u16(10,now.time);
-    local.u16(12,now.date);
-    local.u32(14,file.crc);
-    local.u32(18,file.data.length);
-    local.u32(22,file.data.length);
-    local.u16(26,file.nameBytes.length);
-    local.u16(28,0);
-    local.bytes.set(file.nameBytes,30);
-    localParts.push(local.bytes,file.data);
-
-    const central=zipHeader(46+file.nameBytes.length);
-    central.u32(0,0x02014b50);
-    central.u16(4,20);
-    central.u16(6,20);
-    central.u16(8,0x0800);
-    central.u16(10,0);
-    central.u16(12,now.time);
-    central.u16(14,now.date);
-    central.u32(16,file.crc);
-    central.u32(20,file.data.length);
-    central.u32(24,file.data.length);
-    central.u16(28,file.nameBytes.length);
-    central.u16(30,0);
-    central.u16(32,0);
-    central.u16(34,0);
-    central.u16(36,0);
-    central.u32(38,0);
-    central.u32(42,offset);
-    central.bytes.set(file.nameBytes,46);
-    centralParts.push(central.bytes);
-    offset+=local.bytes.length+file.data.length;
-  }
-  const centralStart=offset;
-  const centralBytes=concatBytes(centralParts);
-  const end=zipHeader(22);
-  end.u32(0,0x06054b50);
-  end.u16(4,0);
-  end.u16(6,0);
-  end.u16(8,prepared.length);
-  end.u16(10,prepared.length);
-  end.u32(12,centralBytes.length);
-  end.u32(16,centralStart);
-  end.u16(20,0);
-  return concatBytes([...localParts,centralBytes,end.bytes]);
-}
-
-function buildProtocolWordBlob(protocol={}){
-  return new Blob([buildStoredZip(buildProtocolWordEntries(protocol))],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+async function buildProtocolWordBlob(protocol={}){
+  const {buildDocxBlob}=await loadProtocolWordZipModule();
+  return buildDocxBlob(buildProtocolWordEntries(protocol));
 }
 
 function downloadBlobFile(filename,blob){
@@ -7846,7 +7744,7 @@ function downloadBlobFile(filename,blob){
   },0);
 }
 
-function preparedProtocolExport(protocol){
+async function preparedProtocolExport(protocol){
   if(!protocol) return null;
   const filled={
     ...protocol,
@@ -7857,18 +7755,27 @@ function preparedProtocolExport(protocol){
   return {
     filled,
     fileName,
-    blob:buildProtocolWordBlob(filled)
+    blob:await buildProtocolWordBlob(filled)
   };
 }
 
-function exportProtocolToWord(protocol){
+async function exportProtocolToWord(protocol){
   if(!protocol){
     showSaveConfirmation("Není vybraný protokol k exportu.");
     return;
   }
-  const prepared=preparedProtocolExport(protocol);
-  downloadBlobFile(prepared.fileName,prepared.blob);
-  showSaveConfirmation("Protokol exportován do Wordu.");
+  const st=document.getElementById("protocolStatus");
+  try{
+    if(st) st.textContent="Připravuji Word export...";
+    const prepared=await preparedProtocolExport(protocol);
+    downloadBlobFile(prepared.fileName,prepared.blob);
+    if(st) st.textContent="Protokol exportován do Wordu.";
+    showSaveConfirmation("Protokol exportován do Wordu.");
+  }catch(e){
+    console.warn("Export protokolu do Wordu selhal",e);
+    if(st) st.textContent="Export do Wordu se nepodařil.";
+    showSaveConfirmation("Export do Wordu se nepodařil.");
+  }
 }
 
 function protocolMailSubject(protocol={}){
@@ -7916,7 +7823,7 @@ async function sendProtocolByMail(protocol){
   if(!firebaseReady || !mailReady || !fb.fnMod || !mailFunctions){
     throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
   }
-  const prepared=preparedProtocolExport(protocol);
+  const prepared=await preparedProtocolExport(protocol);
   const st=document.getElementById("protocolStatus");
   if(st) st.textContent="Odesílám protokol na mail...";
   const sendMail=fb.fnMod.httpsCallable(mailFunctions,"sendProtocolMail");
