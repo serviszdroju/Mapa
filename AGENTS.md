@@ -150,4 +150,6 @@ Current performance phase 64 decision: extract the inline CSS style blocks into 
 
 Current install UX decision: the Android/PWA install area should be a polished guided flow, not just a bare button. Keep a clear readiness check for Chrome/HTTPS/offline/service-worker/install dialog state, show manual Chrome menu fallback steps when the browser does not expose the install prompt, and keep the existing offline data preparation and sync behavior intact.
 
+Current gallery folder display decision: gallery folders must be stacked vertically as full-width sections. Do not show a horizontal folder chip row; each folder header should show only the stored folder name, without a separate formatted date label or photo count.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
