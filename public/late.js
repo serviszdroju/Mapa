@@ -2466,7 +2466,7 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
   }, true);
 })();
 ;
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v135-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v136-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -2654,9 +2654,14 @@ async function szzInstallOfflineCounts(){
       localSites=Array.isArray(parsed) ? parsed.filter(item=>item && item.docId && item.raw) : [];
     }
   }catch(e){}
-  const localProtocols=szzInstallLocalArrayEntries("astipMap:protocolHistory:")
-    .filter(item=>item && item._offline && item._syncStatus!=="online");
   const indexedProtocols=await window.readAllOfflineProtocolQueueItems();
+  let localProtocols=[];
+  try{
+    if(!indexedProtocols.length){
+      localProtocols=szzInstallLocalArrayEntries("astipMap:protocolHistory:")
+        .filter(item=>item && item._offline && item._syncStatus!=="online");
+    }
+  }catch(e){}
   let drafts=0;
   try{
     for(let i=0;i<localStorage.length;i++){
@@ -2972,7 +2977,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase88-v135";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase89-v136";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

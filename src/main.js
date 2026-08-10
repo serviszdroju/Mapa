@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase88-v135";
-const APP_SHELL_CACHE_NAME="astip-szz-v135-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase89-v136";
+const APP_SHELL_CACHE_NAME="astip-szz-v136-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -10864,16 +10864,18 @@ async function readPendingOfflineSitesCount(){
 }
 
 async function readPendingOfflineProtocolCount(){
-  const localItems=[];
   try{
+    const indexedItems=await readAllOfflineProtocolQueueItems();
+    if(indexedItems.length) return uniqueByOfflineId(indexedItems).length;
+    const localItems=[];
     localStorageArrayEntries("astipMap:protocolHistory:").forEach(entry=>{
       entry.items
         .filter(item=>item && item._offline && item._syncStatus!=="online")
         .forEach(item=>localItems.push(item));
     });
+    return uniqueByOfflineId(localItems).length;
   }catch(e){}
-  const indexedItems=await readAllOfflineProtocolQueueItems();
-  return uniqueByOfflineId([...localItems,...indexedItems]).length;
+  return 0;
 }
 
 function readProtocolDraftCount(){
