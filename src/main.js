@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase74-v121";
-const APP_SHELL_CACHE_NAME="astip-szz-v121-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase75-v122";
+const APP_SHELL_CACHE_NAME="astip-szz-v122-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11115,7 +11115,10 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     const emptySignature=`empty:${detailLazyKey(selectedSite) || sitePlaceGroupKey(selectedSite) || safe(selectedSite && selectedSite.id)}`;
     if(sitePhotoRenderSignature===emptySignature && list.childElementCount) return;
     sitePhotoRenderSignature=emptySignature;
-    list.innerHTML='<div class="site-photos-empty">Zatím nejsou uložené žádné fotografie.</div>';
+    const empty=document.createElement("div");
+    empty.className="site-photos-empty";
+    empty.textContent="Zatím nejsou uložené žádné fotografie.";
+    list.replaceChildren(empty);
     return;
   }
   sitePhotoIndex=Math.max(0,Math.min(sitePhotoIndex,sitePhotoItems.length-1));
@@ -11143,35 +11146,115 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   ];
   const downloadName=photoFileName(item,sitePhotoIndex);
   const deleteAllowed=canDeleteSitePhoto(item);
-  list.innerHTML=`
-    <div class="site-photo-viewer">
-      <div class="site-photo-stage">
-        <div class="site-photo-frame">
-          <a class="site-photo-main" href="${esc(fullUrl || mainUrl)}" target="_blank">
-            <img src="${esc(mainUrl)}" alt="Fotografie bodu ${sitePhotoIndex+1}" decoding="async">
-          </a>
-          <button class="secondary site-photo-arrow site-photo-arrow-prev" type="button" id="sitePhotoPrevBtn" ${thumbCount<=1 ? "disabled" : ""} aria-label="Předchozí fotografie">‹</button>
-          <button class="secondary site-photo-arrow site-photo-arrow-next" type="button" id="sitePhotoNextBtn" ${thumbCount<=1 ? "disabled" : ""} aria-label="Další fotografie">›</button>
-          <span class="site-photo-counter">${sitePhotoIndex+1} / ${thumbCount}</span>
-        </div>
-      </div>
-      <div class="site-photo-thumbs">
-        ${sitePhotoItems.map((photo,idx)=>`<button class="site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}" type="button" data-photo-idx="${idx}" aria-label="Zobrazit fotografii ${idx+1}"><img src="${esc(photoThumbUrl(photo))}" alt="Náhled ${idx+1}" loading="lazy" decoding="async"></button>`).join("")}
-      </div>
-      <div class="site-photo-info-strip">
-        ${photoInfoRows.map(([label,value])=>`<div class="site-photo-info-pill"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}
-      </div>
-      <div class="site-photo-detail-grid">
-        ${pointInfoRows.map(([label,value])=>`<div class="site-photo-detail-card"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}
-      </div>
-      ${meta ? `<div class="site-photo-meta">${esc(meta)}</div>` : ""}
-      <div class="site-photo-actions">
-        <a href="${esc(fullUrl || mainUrl)}" target="_blank" download="${esc(downloadName)}">Stáhnout fotku</a>
-        <button class="danger" type="button" id="deleteSitePhotoBtn" ${deleteAllowed ? "" : "disabled"}>Smazat fotku</button>
-      </div>
-    </div>`;
-  const prev=document.getElementById("sitePhotoPrevBtn");
-  const next=document.getElementById("sitePhotoNextBtn");
+  const viewer=document.createElement("div");
+  viewer.className="site-photo-viewer";
+
+  const stage=document.createElement("div");
+  stage.className="site-photo-stage";
+  const frame=document.createElement("div");
+  frame.className="site-photo-frame";
+  const mainLink=document.createElement("a");
+  mainLink.className="site-photo-main";
+  mainLink.href=fullUrl || mainUrl;
+  mainLink.target="_blank";
+  const mainImg=document.createElement("img");
+  mainImg.src=mainUrl;
+  mainImg.alt=`Fotografie bodu ${sitePhotoIndex+1}`;
+  mainImg.decoding="async";
+  mainLink.appendChild(mainImg);
+  const prev=document.createElement("button");
+  prev.className="secondary site-photo-arrow site-photo-arrow-prev";
+  prev.type="button";
+  prev.id="sitePhotoPrevBtn";
+  prev.disabled=thumbCount<=1;
+  prev.setAttribute("aria-label","Předchozí fotografie");
+  prev.textContent="‹";
+  const next=document.createElement("button");
+  next.className="secondary site-photo-arrow site-photo-arrow-next";
+  next.type="button";
+  next.id="sitePhotoNextBtn";
+  next.disabled=thumbCount<=1;
+  next.setAttribute("aria-label","Další fotografie");
+  next.textContent="›";
+  const counter=document.createElement("span");
+  counter.className="site-photo-counter";
+  counter.textContent=`${sitePhotoIndex+1} / ${thumbCount}`;
+  frame.append(mainLink,prev,next,counter);
+  stage.appendChild(frame);
+  viewer.appendChild(stage);
+
+  const thumbs=document.createElement("div");
+  thumbs.className="site-photo-thumbs";
+  const thumbsFragment=document.createDocumentFragment();
+  sitePhotoItems.forEach((photo,idx)=>{
+    const button=document.createElement("button");
+    button.className=`site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}`.trim();
+    button.type="button";
+    button.dataset.photoIdx=String(idx);
+    button.setAttribute("aria-label",`Zobrazit fotografii ${idx+1}`);
+    const thumbImg=document.createElement("img");
+    thumbImg.src=photoThumbUrl(photo);
+    thumbImg.alt=`Náhled ${idx+1}`;
+    thumbImg.loading="lazy";
+    thumbImg.decoding="async";
+    button.appendChild(thumbImg);
+    thumbsFragment.appendChild(button);
+  });
+  thumbs.appendChild(thumbsFragment);
+  viewer.appendChild(thumbs);
+
+  const infoStrip=document.createElement("div");
+  infoStrip.className="site-photo-info-strip";
+  photoInfoRows.forEach(([label,value])=>{
+    const pill=document.createElement("div");
+    pill.className="site-photo-info-pill";
+    const labelEl=document.createElement("span");
+    labelEl.textContent=safe(label);
+    const valueEl=document.createElement("b");
+    valueEl.textContent=safe(value);
+    pill.append(labelEl,valueEl);
+    infoStrip.appendChild(pill);
+  });
+  viewer.appendChild(infoStrip);
+
+  const detailGrid=document.createElement("div");
+  detailGrid.className="site-photo-detail-grid";
+  pointInfoRows.forEach(([label,value])=>{
+    const card=document.createElement("div");
+    card.className="site-photo-detail-card";
+    const labelEl=document.createElement("span");
+    labelEl.textContent=safe(label);
+    const valueEl=document.createElement("b");
+    valueEl.textContent=safe(value);
+    card.append(labelEl,valueEl);
+    detailGrid.appendChild(card);
+  });
+  viewer.appendChild(detailGrid);
+
+  if(meta){
+    const metaEl=document.createElement("div");
+    metaEl.className="site-photo-meta";
+    metaEl.textContent=meta;
+    viewer.appendChild(metaEl);
+  }
+
+  const actions=document.createElement("div");
+  actions.className="site-photo-actions";
+  const download=document.createElement("a");
+  download.href=fullUrl || mainUrl;
+  download.target="_blank";
+  download.download=downloadName;
+  download.textContent="Stáhnout fotku";
+  const del=document.createElement("button");
+  del.className="danger";
+  del.type="button";
+  del.id="deleteSitePhotoBtn";
+  del.disabled=!deleteAllowed;
+  del.textContent="Smazat fotku";
+  actions.append(download,del);
+  viewer.appendChild(actions);
+
+  list.replaceChildren(viewer);
   if(prev) prev.onclick=()=>{sitePhotoIndex=(sitePhotoIndex-1+sitePhotoItems.length)%sitePhotoItems.length;renderSitePhotos(sitePhotoItems,true);};
   if(next) next.onclick=()=>{sitePhotoIndex=(sitePhotoIndex+1)%sitePhotoItems.length;renderSitePhotos(sitePhotoItems,true);};
   list.querySelectorAll("[data-photo-idx]").forEach(btn=>{
@@ -11180,7 +11263,6 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
       renderSitePhotos(sitePhotoItems,true);
     });
   });
-  const del=document.getElementById("deleteSitePhotoBtn");
   if(del) del.onclick=deleteCurrentSitePhoto;
 }
 
