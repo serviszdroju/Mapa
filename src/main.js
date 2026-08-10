@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase92-v139";
+const APP_BUILD_VERSION="2026-08-10-performance-phase93-v140";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11651,20 +11651,25 @@ async function getLastProtocol(site=selectedSite){
         });
       }
     }
-    const textKeys=siteRecordTextKeys(site).slice(0,8);
-    for(const value of textKeys){
-      for(const field of ["siteName","siteAddress","place"]){
-        protocolQueryTasks.push(async()=>{
-          try{
-            addSnap(await getDocs(query(collection(db,"protocols"),where(field,"==",value))));
-          }catch(e){
-            console.warn("Poslední protokol textový dotaz selhal",field,e);
-          }
-        });
-      }
-    }
     await runBoundedFirestoreTasks(protocolQueryTasks,6);
-    const matchedItems=items.filter(item=>recordMatchesSite(item,site));
+    let matchedItems=items.filter(item=>recordMatchesSite(item,site));
+    if(!matchedItems.length){
+      const textQueryTasks=[];
+      const textKeys=siteRecordTextKeys(site).slice(0,8);
+      for(const value of textKeys){
+        for(const field of ["siteName","siteAddress","place"]){
+          textQueryTasks.push(async()=>{
+            try{
+              addSnap(await getDocs(query(collection(db,"protocols"),where(field,"==",value))));
+            }catch(e){
+              console.warn("Poslední protokol textový dotaz selhal",field,e);
+            }
+          });
+        }
+      }
+      await runBoundedFirestoreTasks(textQueryTasks,6);
+      matchedItems=items.filter(item=>recordMatchesSite(item,site));
+    }
     matchedItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
     const latest=matchedItems[0] || null;
     writeLastProtocolCache(site,latest);
