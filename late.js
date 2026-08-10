@@ -330,7 +330,12 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
 
       if(visibleAfterReload && typeof window.openDetailById==="function") window.szzAfterTwoPaints(()=>window.openDetailById(savedUnified ? savedId : row.id));
     }catch(e){
-      location.reload();
+      console.warn("Rychlé zobrazení nového místa selhalo",e);
+      if(savedUnified && typeof window.loadFirebaseSitesUnified==="function"){
+        window.loadFirebaseSitesUnified(savedId).catch(()=>{});
+      }else if(typeof render==="function"){
+        render();
+      }
     }
   }
 
@@ -672,7 +677,12 @@ window.szzAfterTwoPaints = window.szzAfterTwoPaints || function(fn){
         window.szzAfterTwoPaints(()=>window.openDetailById(savedUnified ? savedId : row.id));
       }
     }catch(e){
-      location.reload();
+      console.warn("Rychlé zobrazení nového místa selhalo",e);
+      if(savedUnified && typeof window.loadFirebaseSitesUnified==="function"){
+        window.loadFirebaseSitesUnified(savedId).catch(()=>{});
+      }else if(typeof render==="function"){
+        render();
+      }
     }
   }
 
@@ -3059,7 +3069,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase107-v155";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase108-v156";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
