@@ -299,8 +299,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase85-v132";
-const APP_SHELL_CACHE_NAME="astip-szz-v132-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase86-v133";
+const APP_SHELL_CACHE_NAME="astip-szz-v133-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -4178,6 +4178,35 @@ function clearFiltersForOpenedSite(){
   const region=document.getElementById("regionFilter");
   if(region) region.value="";
 }
+function isFirebaseRowHidden(row,openedDocId=""){
+  if(!row || !deletedSiteIds || !deletedSiteIds.has(row.id)) return false;
+  return !(openedDocId && String(row.firebaseDocId || "")===openedDocId);
+}
+function hiddenFirebaseRowInfo(row){
+  return {
+    id:String(row && row.id || ""),
+    docId:String(row && row.firebaseDocId || ""),
+    title:String((row && row.raw && (row.raw["Název"] || row.raw["Adresa / umístění"] || row.raw["Adresa_GPS"])) || (row && row.adresa) || "")
+  };
+}
+function updateFirebaseLoadReport(firebaseRows,dedupedRows,hiddenRows=[],duplicateRows=[]){
+  window.__lastFirebaseLoadReport={
+    docs:Array.isArray(firebaseRows)?firebaseRows.length:0,
+    afterDedupe:Array.isArray(dedupedRows)?dedupedRows.length:0,
+    shown:rows.length,
+    duplicateCount:Array.isArray(duplicateRows)?duplicateRows.length:0,
+    duplicateRows:Array.isArray(duplicateRows)?duplicateRows:[],
+    hiddenCount:Array.isArray(hiddenRows)?hiddenRows.length:0,
+    hiddenRows:Array.isArray(hiddenRows)?hiddenRows:[]
+  };
+}
+function openFirebaseRowAfterRender(openDocId){
+  if(!openDocId) return;
+  const r=findRowByAnyId(openDocId);
+  if(!r) return;
+  if(Number.isFinite(r.lat)&&Number.isFinite(r.lon)) runAfterPaint(()=>map.setView([r.lat,r.lon],14));
+  runAfterTwoPaints(()=>window.openDetailById(openDocId));
+}
 window.setFirebaseSiteRows = function(firebaseRows, openDocId=null){
   firebaseUnifiedPrimary = true;
   window.firebaseUnifiedPrimary = true;
@@ -4190,34 +4219,16 @@ window.setFirebaseSiteRows = function(firebaseRows, openDocId=null){
   rows = csvRows
     .map((r,i)=>{r.i=i; return applyEditToRow(r);})
     .filter(r=>{
-      const hidden=deletedSiteIds && deletedSiteIds.has(r.id) && !(openedDocId && String(r.firebaseDocId || "")===openedDocId);
-      if(hidden) hiddenRows.push({
-        id:String(r.id || ""),
-        docId:String(r.firebaseDocId || ""),
-        title:String((r.raw && (r.raw["Název"] || r.raw["Adresa / umístění"] || r.raw["Adresa_GPS"])) || r.adresa || "")
-      });
+      const hidden=isFirebaseRowHidden(r,openedDocId);
+      if(hidden) hiddenRows.push(hiddenFirebaseRowInfo(r));
       return !hidden;
     });
   window.rows = rows;
-  window.__lastFirebaseLoadReport={
-    docs:Array.isArray(firebaseRows)?firebaseRows.length:0,
-    afterDedupe:deduped.rows.length,
-    shown:rows.length,
-    duplicateCount:deduped.duplicateRows.length,
-    duplicateRows:deduped.duplicateRows,
-    hiddenCount:hiddenRows.length,
-    hiddenRows
-  };
+  updateFirebaseLoadReport(firebaseRows,deduped.rows,hiddenRows,deduped.duplicateRows);
   if(openDocId) clearFiltersForOpenedSite();
   filters();
   render();
-  if(openDocId){
-    const r=findRowByAnyId(openDocId);
-    if(r){
-      if(Number.isFinite(r.lat)&&Number.isFinite(r.lon)) map.setView([r.lat,r.lon],14);
-      setTimeout(()=>window.openDetailById(openDocId),150);
-    }
-  }
+  openFirebaseRowAfterRender(openDocId);
   return rows;
 };
 window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
@@ -4235,7 +4246,36 @@ window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
   else nextRows.push(firebaseRow);
 
   const targetOpenDocId=openDocId===false ? null : (openDocId || firebaseRow.firebaseDocId || firebaseRow.id);
-  return window.setFirebaseSiteRows(nextRows, targetOpenDocId);
+  const openedDocId=targetOpenDocId ? String(targetOpenDocId) : "";
+  const csvIndex=existingIndex>=0 ? existingIndex : nextRows.length-1;
+  csvRows=nextRows;
+  rebuildCsvRowLookupCache();
+  const indexedRow={...firebaseRow,i:csvIndex};
+  const nextVisibleRow=applyEditToRow(indexedRow);
+  const hiddenRows=[];
+  let nextVisibleRows=rows.slice();
+  const selectedKey=selectedSite ? (detailKey(selectedSite) || selectedSite.id || selectedSite.firebaseDocId) : "";
+  const visibleIndex=nextVisibleRows.findIndex(row=>Number.isFinite(row && row.i) && row.i===csvIndex);
+  if(isFirebaseRowHidden(nextVisibleRow,openedDocId)){
+    hiddenRows.push(hiddenFirebaseRowInfo(nextVisibleRow));
+    if(visibleIndex>=0) nextVisibleRows.splice(visibleIndex,1);
+  }else if(visibleIndex>=0){
+    nextVisibleRows[visibleIndex]=nextVisibleRow;
+  }else{
+    const previous=findRowByAnyId(firebaseRow.firebaseDocId || firebaseRow.id || detailKey(firebaseRow));
+    const previousIndex=rowIndexForRow(previous);
+    if(previousIndex>=0) nextVisibleRows[previousIndex]=nextVisibleRow;
+    else nextVisibleRows.push(nextVisibleRow);
+  }
+  if(selectedKey && rowMatchesAnyLookupKey(nextVisibleRow,selectedKey)) selectedSite=nextVisibleRow;
+  rows=nextVisibleRows;
+  window.rows=rows;
+  updateFirebaseLoadReport(csvRows,csvRows,hiddenRows,[]);
+  if(targetOpenDocId) clearFiltersForOpenedSite();
+  filters();
+  render();
+  openFirebaseRowAfterRender(targetOpenDocId);
+  return rows;
 };
 window.removeFirebaseSiteRow = function(site){
   if(!site) return null;
@@ -4253,9 +4293,18 @@ window.removeFirebaseSiteRow = function(site){
       || (targetDocId && rowDocId===targetDocId)
       || (!hasPreciseTarget && targetId && rowId===targetId);
   };
-  const nextRows=(csvRows || []).filter(row=>!matchesTarget(row));
-  if(nextRows.length===(csvRows || []).length) return null;
-  return window.setFirebaseSiteRows(nextRows,false);
+  const beforeRows=csvRows || [];
+  const nextRows=beforeRows.filter(row=>!matchesTarget(row));
+  if(nextRows.length===beforeRows.length) return null;
+  csvRows=nextRows;
+  rebuildCsvRowLookupCache();
+  rows=(rows || []).filter(row=>!matchesTarget(row));
+  if(selectedSite && matchesTarget(selectedSite)) selectedSite=null;
+  window.rows=rows;
+  updateFirebaseLoadReport(csvRows,csvRows,[],[]);
+  filters();
+  render();
+  return rows;
 };
 window.getCurrentCsvRows = function(){
   return originalCsvRows.length ? originalCsvRows : csvRows;
