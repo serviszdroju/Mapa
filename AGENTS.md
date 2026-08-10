@@ -100,4 +100,6 @@ Current performance phase 39 decision: skip unchanged Galerie tab rerenders with
 
 Current performance phase 40 decision: reuse the cached `localStorageArrayEntries(prefix)` scan for offline protocol and offline photo count fallbacks, so focus/storage/sync status refreshes do not run separate full localStorage loops while preserving IndexedDB queue merging and legacy localStorage compatibility.
 
+Current performance phase 41 decision: collect independent offline status inputs in parallel (`sites`, `protocols`, `photos`, storage persistence, and storage estimate) while keeping draft counting synchronous, so app sync status refreshes complete faster without changing displayed values or offline queue behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
