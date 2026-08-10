@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase53-v100";
-const APP_SHELL_CACHE_NAME="astip-szz-v100-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase54-v101";
+const APP_SHELL_CACHE_NAME="astip-szz-v101-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -13950,9 +13950,9 @@ function sitePhotoPointInfoRows(site=selectedSite){
     .filter(([label,value],idx,all)=>value!=="-" || idx<3 || all.length<=3);
 }
 
-function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite){
+function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite,pointInfoRows=null){
   const siteKey=detailLazyKey(site) || sitePlaceGroupKey(site) || safe(site && site.id);
-  const pointInfo=sitePhotoPointInfoRows(site)
+  const pointInfo=(pointInfoRows || sitePhotoPointInfoRows(site))
     .map(([label,value])=>`${safe(label)}:${safe(value)}`)
     .join("|");
   const photos=(items || []).map((photo,idx)=>[
@@ -13999,7 +13999,8 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     return;
   }
   sitePhotoIndex=Math.max(0,Math.min(sitePhotoIndex,sitePhotoItems.length-1));
-  const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite);
+  const pointInfoRows=sitePhotoPointInfoRows(selectedSite);
+  const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite,pointInfoRows);
   if(sitePhotoRenderSignature===renderSignature && list.childElementCount) return;
   sitePhotoRenderSignature=renderSignature;
   const item=sitePhotoItems[sitePhotoIndex];
@@ -14022,7 +14023,6 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   ];
   const downloadName=photoFileName(item,sitePhotoIndex);
   const deleteAllowed=canDeleteSitePhoto(item);
-  const pointInfoRows=sitePhotoPointInfoRows(selectedSite);
   list.innerHTML=`
     <div class="site-photo-viewer">
       <div class="site-photo-stage">
@@ -17469,7 +17469,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v100-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v101-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17962,7 +17962,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase53-v100";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase54-v101";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

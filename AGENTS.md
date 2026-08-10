@@ -126,4 +126,6 @@ Current performance phase 52 decision: build the merged raw/edit field object on
 
 Current performance phase 53 decision: batch Firestore equality fallback reads for `siteId`, `siteKey`, and `firebaseDocId` using `in` chunks before falling back to the old per-id `==` queries, reducing request bursts for detail history and latest-protocol reads while preserving legacy fallback coverage.
 
+Current performance phase 54 decision: compute gallery point-info rows once per photo render and reuse them for both the render signature and visible detail cards, preserving the existing gallery markup and behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
