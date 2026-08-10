@@ -118,4 +118,6 @@ Current performance phase 48 decision: cache normalized row-key lookups in a Wea
 
 Current performance phase 49 decision: cache `simpleNorm()` row-key candidates in a WeakMap for watch/self-maintained status field lookups, preserving first non-empty matching key behavior while avoiding repeated full key normalization.
 
+Current performance phase 50 decision: keep filter, place-group, and sidebar cache invalidation inputs unchanged, but build their render cache signatures with simple stable strings instead of `JSON.stringify()` arrays during render scheduling.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

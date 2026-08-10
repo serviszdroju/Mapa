@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase49-v96";
-const APP_SHELL_CACHE_NAME="astip-szz-v96-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase50-v97";
+const APP_SHELL_CACHE_NAME="astip-szz-v97-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -6099,7 +6099,7 @@ function filtered(){
   const k=safe(document.getElementById("regionFilter").value);
   const qn=searchNorm(q);
   const kn=regionTextNorm(k);
-  const signature=JSON.stringify([rowsIndexVersion,qn,s,kn]);
+  const signature=`${rowsIndexVersion}\u001f${qn}\u001f${s}\u001f${kn}`;
   if(filteredRowsCache.signature===signature) return filteredRowsCache.rows;
 
   const result=rows.filter(r=>{
@@ -6380,7 +6380,7 @@ function groupRowsByPlace(inputRows){
   });
 }
 function cachedPlaceGroups(inputRows){
-  const signature=JSON.stringify([rowsIndexVersion,filteredRowsCache.signature,inputRows ? inputRows.length : 0]);
+  const signature=`${rowsIndexVersion}\u001f${filteredRowsCache.signature || ""}\u001f${inputRows ? inputRows.length : 0}`;
   if(placeGroupsCache.sourceRows===inputRows && placeGroupsCache.signature===signature) return placeGroupsCache.groups;
   const groups=groupRowsByPlace(inputRows);
   placeGroupsCache={sourceRows:inputRows,signature,groups};
@@ -6846,7 +6846,7 @@ function updateMapMarkers(groups){
 function renderSidebarGroups(groups){
   const list=document.getElementById("list");
   if(!list) return;
-  const signature=JSON.stringify([rowsIndexVersion,filteredRowsCache.signature,groups ? groups.length : 0]);
+  const signature=`${rowsIndexVersion}\u001f${filteredRowsCache.signature || ""}\u001f${groups ? groups.length : 0}`;
   if(sidebarRenderCache.groups===groups && sidebarRenderCache.signature===signature && (list.childElementCount || sidebarRenderCache.renderedEmpty)){
     return;
   }
@@ -17424,7 +17424,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v96-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v97-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17917,7 +17917,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase49-v96";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase50-v97";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
