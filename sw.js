@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v106";
+const CACHE_VERSION = "astip-szz-v107";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -136,6 +136,21 @@ async function networkOnly(request) {
   }
 }
 
+async function cacheFirst(request, cacheName = STATIC_CACHE) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (response && (response.ok || response.type === "opaque")) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    return Response.error();
+  }
+}
+
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(isMapTileRequest(request) ? TILE_CACHE : RUNTIME_CACHE);
   const cached = await cache.match(request);
@@ -212,6 +227,22 @@ function isRuntimeCacheAllowed(request) {
   }
 }
 
+function isStaticAssetRequest(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.origin === self.location.origin) {
+      return request.destination !== "document" && (
+        url.pathname.includes("/assets/") ||
+        /\/(manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname)
+      );
+    }
+    return url.hostname === "unpkg.com" &&
+      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
 function isAppShellRequest(request) {
   try {
     const url = new URL(request.url);
@@ -231,6 +262,10 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (request.mode === "navigate") {
     event.respondWith(appShellStaleWhileRevalidate(request, {fallbackToShell: true}));
+    return;
+  }
+  if (isStaticAssetRequest(request)) {
+    event.respondWith(cacheFirst(request));
     return;
   }
   if (isAppShellRequest(request)) {

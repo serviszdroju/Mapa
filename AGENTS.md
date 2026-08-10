@@ -138,4 +138,6 @@ Current performance phase 58 decision: cache render counter DOM writes and only 
 
 Current performance phase 59 decision: normalize gallery display URLs through a 1600px Cloudinary transform when older photo records only provide an original/full URL, while preserving the full URL for opening and downloading.
 
+Current performance phase 60 decision: route hashed local assets, icons, logos, manifest, signatures, and Leaflet CSS/JS through a service-worker cache-first strategy while preserving stale-while-revalidate for HTML/map tiles and network-only Firebase/Auth requests.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
