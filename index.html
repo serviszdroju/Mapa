@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase42-v89";
-const APP_SHELL_CACHE_NAME="astip-szz-v89-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase43-v90";
+const APP_SHELL_CACHE_NAME="astip-szz-v90-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -11922,7 +11922,11 @@ async function loadHistory(siteId){
   }
 
   try{
-    await refreshSiteDataFromFirebase(selectedSite);
+    const [,childProtocols,childRecords]=await Promise.all([
+      refreshSiteDataFromFirebase(selectedSite),
+      loadSiteChildItems("protocols",selectedSite),
+      loadSiteChildItems("serviceRecords",selectedSite)
+    ]);
     if(!stillSameSite()) return;
     const {collection,query,where,getDocs,doc,getDoc}=fb.fsMod;
     const items=[];
@@ -11932,11 +11936,9 @@ async function loadHistory(siteId){
       if(id && items.some(existing=>String(existing._id || "")===id)) return;
       items.push(item);
     };
-    const childProtocols=await loadSiteChildItems("protocols",selectedSite);
     childProtocols.forEach((item,idx)=>{
       addHistoryItem({...item,_type:"Protokol",_collection:"siteProtocols",_id:item._id || `site_protocol_${idx}`});
     });
-    const childRecords=await loadSiteChildItems("serviceRecords",selectedSite);
     childRecords.forEach((item,idx)=>{
       addHistoryItem({...item,_type:"Servisní záznam",_collection:"siteServiceRecords",_id:item._id || `site_service_${idx}`});
     });
@@ -14007,13 +14009,15 @@ async function loadSitePhotos(site=selectedSite){
     return;
   }
   try{
-    await refreshSiteDataFromFirebase(site);
+    const [,childPhotos]=await Promise.all([
+      refreshSiteDataFromFirebase(site),
+      loadSiteChildItems("photos",site)
+    ]);
     if(!stillSameSite()) return;
     const embeddedPhotos=Array.isArray(site?.firebaseData?.photos) ? site.firebaseData.photos : [];
     embeddedPhotos.forEach((item,idx)=>{
       addPhoto({...item,_id:item._id || `embedded_photo_${idx}`});
     });
-    const childPhotos=await loadSiteChildItems("photos",site);
     childPhotos.forEach((item,idx)=>{
       addPhoto({...item,_id:item._id || `site_photo_${idx}`});
     });
@@ -14207,11 +14211,13 @@ async function getLastProtocol(site=selectedSite){
   const signedUser=await waitForFirebaseUser();
   if(!signedUser) return null;
   try{
-    await refreshSiteDataFromFirebase(site);
+    const [,childProtocols]=await Promise.all([
+      refreshSiteDataFromFirebase(site),
+      loadSiteChildItems("protocols",site)
+    ]);
     const {collection,query,where,getDocs,doc,getDoc}=fb.fsMod;
     const keys=siteRecordKeys(site);
     const items=[];
-    const childProtocols=await loadSiteChildItems("protocols",site);
     childProtocols.forEach((item,idx)=>{
       items.push({...item,_id:item._id || `site_protocol_${idx}`});
     });
@@ -17363,7 +17369,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v89-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v90-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17850,7 +17856,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase42-v89";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase43-v90";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;

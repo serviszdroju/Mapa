@@ -104,4 +104,6 @@ Current performance phase 41 decision: collect independent offline status inputs
 
 Current performance phase 42 decision: cache the protocol draft count briefly and invalidate it on draft save, draft clear, and cross-tab storage changes, reducing repeated localStorage scans during sync status refreshes while preserving local draft autosave/restore behavior.
 
+Current performance phase 43 decision: load the root Firebase site document in parallel with per-site child collections for Galerie, Protokol history, and latest-protocol reads, reducing wait time while preserving embedded arrays, child subcollections, legacy standalone protocol/service fallbacks, and all existing matching behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
