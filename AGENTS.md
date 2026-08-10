@@ -122,4 +122,6 @@ Current performance phase 50 decision: keep filter, place-group, and sidebar cac
 
 Current performance phase 51 decision: cache `dataNormFixed()` raw-key entries for detail field fallback lookup while preserving original object-key order, and build read-only detail table signatures with length-prefixed strings instead of `JSON.stringify()`.
 
+Current performance phase 52 decision: build the merged raw/edit field object once per detail/edit table render and pass it through `userSiteFieldValue()`, avoiding repeated object spreads and enabling the detail field-key cache to be reused within a render.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

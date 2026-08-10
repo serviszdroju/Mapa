@@ -3370,8 +3370,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-performance-phase51-v98";
-const APP_SHELL_CACHE_NAME="astip-szz-v98-static";
+const APP_BUILD_VERSION="2026-08-10-performance-phase52-v99";
+const APP_SHELL_CACHE_NAME="astip-szz-v99-static";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -7783,8 +7783,8 @@ function regionOptionsFixed(current){
   return [...map.entries()].map(([key,v])=>`<option value="${esc(v)}" ${key===currentKey ? "selected" : ""}>${esc(v || "Vyber kraj")}</option>`).join("");
 }
 
-function userSiteFieldValue(r, spec){
-  const raw=rawForSiteFieldLookup(r);
+function userSiteFieldValue(r, spec, rawOverride=null){
+  const raw=rawOverride || rawForSiteFieldLookup(r);
   if(spec.type==="period") return detectControlPeriod(raw);
   if(spec.key==="Hlídáme sami termín") return yesNoFixed(getWatchFixed(raw), "ne");
   if(spec.important) return getImportantNoteFixed(raw);
@@ -7832,8 +7832,9 @@ function userSiteInput(spec, value, site=null){
 }
 
 function editableDataTable(r){
+  const raw=rawForSiteFieldLookup(r);
   const visibleRows=USER_SITE_DATA_FIELDS.map(spec=>{
-    const value=userSiteFieldValue(r,spec);
+    const value=userSiteFieldValue(r,spec,raw);
     const cls=spec.important ? "notes-red-row" : "";
     return `<tr class="${cls}"><td>${esc(spec.key==="Adresa_GPS" ? "GPS souřadnice" : spec.label)}</td><td>${userSiteInput(spec,value,r)}</td></tr>`;
   }).join("");
@@ -8482,7 +8483,8 @@ function shouldWatchSelf(raw){
 }
 
 function detailTableRows(r){
-  return USER_SITE_DATA_FIELDS.map(spec=>({spec,value:userSiteFieldValue(r,spec)}));
+  const raw=rawForSiteFieldLookup(r);
+  return USER_SITE_DATA_FIELDS.map(spec=>({spec,value:userSiteFieldValue(r,spec,raw)}));
 }
 
 function detailTable(r){
@@ -17437,7 +17439,7 @@ setTimeout(()=>{
 </script>
 
 <script>
-const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v98-static";
+const SZZ_INSTALL_SHELL_CACHE_NAME="astip-szz-v99-static";
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
@@ -17930,7 +17932,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-performance-phase51-v98";
+  const serviceWorkerBuildVersion="2026-08-10-performance-phase52-v99";
   const reloadKey=`astipSzzSwReloaded:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
