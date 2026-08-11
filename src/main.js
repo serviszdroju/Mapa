@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-source-signature-v189";
+const APP_BUILD_VERSION="2026-08-11-place-group-cache-v190";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1238,7 +1238,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v189-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v190-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3533,7 +3533,7 @@ function cachedRowsByPlaceGroup(key,pool=rows){
     map.forEach((items,groupKey)=>map.set(groupKey,sortedRowsBySourceLabel(items)));
     siteRowsByPlaceGroupCache={rowsRef:rows,version:rowsIndexVersion,map};
   }
-  return (siteRowsByPlaceGroupCache.map.get(key) || []).slice();
+  return siteRowsByPlaceGroupCache.map.get(key) || [];
 }
 function siteSiblingRows(site,pool=rows){
   const key=sitePlaceGroupKey(site);

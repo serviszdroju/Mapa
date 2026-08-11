@@ -152,6 +152,8 @@ Current performance phase 65 decision: cache offline gallery media with the same
 
 Current performance phase 66 decision: build the detail source chooser render signature with length-prefixed stable strings instead of `JSON.stringify()`, preserving the same source buttons and add-source behavior while reducing repeated serialization during detail refreshes.
 
+Current performance phase 67 decision: return the cached place-group row array directly for normal `rows` lookups instead of cloning it on every detail/source read, preserving caller behavior because mutating paths already create their own filtered arrays.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
