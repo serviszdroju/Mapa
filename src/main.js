@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-gallery-delete-user-v244";
+const APP_BUILD_VERSION="2026-08-11-cache-photo-url-bundles-v245";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v244-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v245-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -11903,7 +11903,22 @@ function photoFileName(item,idx=0){
   return `${base}.jpg`;
 }
 
-function photoDisplayUrl(item){
+const photoUrlBundleCache=new WeakMap();
+function photoUrlFingerprint(item){
+  if(!item || (typeof item!=="object" && typeof item!=="function")) return "";
+  return [
+    item.displayUrl,
+    item.url,
+    item.fullUrl,
+    item.originalUrl,
+    item.downloadUrl,
+    item.dataUrl,
+    item.thumbUrl,
+    item.previewUrl,
+    item.thumbnailUrl
+  ].map(safe).join("\u001f");
+}
+function computePhotoDisplayUrl(item){
   const explicit=safe(item && (item.displayUrl || item.url));
   if(explicit) return cloudinaryTransformUrl(explicit,"f_auto,q_auto,w_1600,c_limit");
   const original=safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl));
@@ -11911,16 +11926,43 @@ function photoDisplayUrl(item){
   return safe(item && item.dataUrl);
 }
 
-function photoFullUrl(item){
+function computePhotoFullUrl(item){
   return safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl || item.url || item.displayUrl || item.dataUrl));
 }
 
-function photoThumbUrl(item){
+function computePhotoThumbUrl(item,displayUrl=""){
   const original=safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl));
   if(original) return cloudinaryTransformUrl(original,"f_auto,q_auto,w_240,c_limit");
   const explicit=safe(item && (item.thumbUrl || item.previewUrl || item.thumbnailUrl));
-  const fallback=photoDisplayUrl(item);
+  const fallback=displayUrl || computePhotoDisplayUrl(item);
   return cloudinaryTransformUrl(explicit || fallback,"f_auto,q_auto,w_240,c_limit");
+}
+
+function photoUrlBundle(item){
+  const canCache=!!(item && (typeof item==="object" || typeof item==="function"));
+  const fingerprint=canCache ? photoUrlFingerprint(item) : "";
+  if(canCache && fingerprint){
+    const cached=photoUrlBundleCache.get(item);
+    if(cached && cached.fingerprint===fingerprint) return cached.urls;
+  }
+  const display=computePhotoDisplayUrl(item);
+  const full=computePhotoFullUrl(item);
+  const thumb=computePhotoThumbUrl(item,display);
+  const urls={display,full,thumb};
+  if(canCache && fingerprint) photoUrlBundleCache.set(item,{fingerprint,urls});
+  return urls;
+}
+
+function photoDisplayUrl(item){
+  return photoUrlBundle(item).display;
+}
+
+function photoFullUrl(item){
+  return photoUrlBundle(item).full;
+}
+
+function photoThumbUrl(item){
+  return photoUrlBundle(item).thumb;
 }
 
 function bytesLabel(bytes){

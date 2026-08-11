@@ -260,6 +260,8 @@ Current performance phase 118 decision: reuse the indexed single-row update help
 
 Current performance phase 119 decision: compute the current gallery user/admin delete context once per gallery render signature and reuse it for each photo, preserving the same delete permissions while avoiding repeated auth/admin lookups across large galleries.
 
+Current performance phase 120 decision: cache gallery photo display/full/thumb URL bundles per photo URL fingerprint so gallery render signatures, thumbnail rows, and viewer updates reuse identical Cloudinary transforms and URL fallback decisions.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
