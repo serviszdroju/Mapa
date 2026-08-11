@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-text-field-cache-v204";
+const APP_BUILD_VERSION="2026-08-11-record-source-field-cache-v205";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v204-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v205-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3923,11 +3923,38 @@ function recordSourceIdentity(record){
     record.vyrobniCislo
   ];
   if(record && (typeof record==="object" || typeof record==="function")){
-    const fingerprint=stableSignature(values);
     const cached=recordSourceIdentityCache.get(record);
-    if(cached && cached.fingerprint===fingerprint) return cached.identity;
+    if(
+      cached &&
+      cached.siteSource===record.siteSource &&
+      cached.siteSourceIdentity===record.siteSourceIdentity &&
+      cached.sourceIdentity===record.sourceIdentity &&
+      cached.deviceType===record.deviceType &&
+      cached.source===record.source &&
+      cached.zdroj===record.zdroj &&
+      cached.device===record.device &&
+      cached.deviceName===record.deviceName &&
+      cached.serial===record.serial &&
+      cached.serialNumber===record.serialNumber &&
+      cached.vyrobniCislo===record.vyrobniCislo
+    ){
+      return cached.identity;
+    }
     const identity=searchNorm(values.filter(Boolean).join(" "));
-    recordSourceIdentityCache.set(record,{fingerprint,identity});
+    recordSourceIdentityCache.set(record,{
+      siteSource:record.siteSource,
+      siteSourceIdentity:record.siteSourceIdentity,
+      sourceIdentity:record.sourceIdentity,
+      deviceType:record.deviceType,
+      source:record.source,
+      zdroj:record.zdroj,
+      device:record.device,
+      deviceName:record.deviceName,
+      serial:record.serial,
+      serialNumber:record.serialNumber,
+      vyrobniCislo:record.vyrobniCislo,
+      identity
+    });
     return identity;
   }
   return searchNorm(values.filter(Boolean).join(" "));
