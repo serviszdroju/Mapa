@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-gallery-photo-meta-v247";
+const APP_BUILD_VERSION="2026-08-12-indexed-clear-manual-status-v248";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v247-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v248-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -10469,8 +10469,21 @@ function clearManualStatusLocalState(site=selectedSite){
       firebaseData:{...(target.firebaseData || {}),raw}
     };
   };
+  const lookupKey=safe(docId || selectedKey);
+  const indexedRow=(lookupKey && findRowByAnyId(lookupKey)) || site;
+  const index=rowIndexForRow(indexedRow);
+  if(indexedRow && index>=0){
+    const nextRows=rows.slice();
+    const updated=applyClear(indexedRow);
+    nextRows[index]=updated;
+    rows=nextRows;
+    window.rows=rows;
+    selectedSite=updated;
+    return;
+  }
   rows=rows.map(row=>manualStatusSiteMatches(row,site,selectedKey,docId) ? applyClear(row) : row);
-  selectedSite=findRowByAnyId(docId || selectedKey) || applyClear(site);
+  window.rows=rows;
+  selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyClear(site);
 }
 
 function refreshSelectedDetailDataView(){
