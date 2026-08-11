@@ -176,6 +176,8 @@ Current performance phase 76 decision: cache the sorted, capped sidebar place-gr
 
 Current performance phase 77 decision: cache per-site record-key Sets and normalized text match arrays by the already-cached key-array reference instead of rebuilding stable signatures on every legacy `recordMatchesSite()` call, preserving the same identifier and text matching coverage.
 
+Current performance phase 78 decision: avoid building stable-signature strings before reading `siteRecordKeys()` and `siteRecordTextKeys()` caches; compare the tracked row/raw field values directly and keep the same cache invalidation coverage for detail/history matching.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

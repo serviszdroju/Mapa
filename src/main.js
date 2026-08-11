@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-key-ref-cache-v202";
+const APP_BUILD_VERSION="2026-08-11-site-key-field-cache-v203";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v202-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v203-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4361,23 +4361,31 @@ function detailKey(r){
 function siteRecordKeys(site=selectedSite){
   const raw=(site && site.raw) || {};
   const docId=safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
-  const fingerprint=stableSignature([
-    site ? detailKey(site) : "",
-    site && site.id,
-    site && site.firebaseDocId,
-    raw["Firebase_doc_id"],
-    raw["Klíč_adresy"],
-    raw["ID_mista"]
-  ]);
-  if(site && typeof site==="object" && site._recordKeysRawRef===raw && site._recordKeysFingerprint===fingerprint && Array.isArray(site._recordKeysCache)){
+  const siteDetailKey=site ? detailKey(site) : "";
+  const siteIdValue=site && site.id;
+  const siteFirebaseDocId=site && site.firebaseDocId;
+  const rawFirebaseDocId=raw["Firebase_doc_id"];
+  const rawAddressKey=raw["Klíč_adresy"];
+  const rawPlaceId=raw["ID_mista"];
+  if(
+    site && typeof site==="object" &&
+    site._recordKeysRawRef===raw &&
+    site._recordKeysDetailKey===siteDetailKey &&
+    site._recordKeysSiteId===siteIdValue &&
+    site._recordKeysSiteFirebaseDocId===siteFirebaseDocId &&
+    site._recordKeysRawFirebaseDocId===rawFirebaseDocId &&
+    site._recordKeysRawAddressKey===rawAddressKey &&
+    site._recordKeysRawPlaceId===rawPlaceId &&
+    Array.isArray(site._recordKeysCache)
+  ){
     return site._recordKeysCache;
   }
   const values=[
-    site ? detailKey(site) : "",
-    site && site.id,
+    siteDetailKey,
+    siteIdValue,
     docId,
-    raw["Firebase_doc_id"],
-    raw["Klíč_adresy"],
+    rawFirebaseDocId,
+    rawAddressKey,
     docId ? `firebase_${docId}` : "",
     docId ? `firebase_site_${docId}` : ""
   ];
@@ -4386,7 +4394,12 @@ function siteRecordKeys(site=selectedSite){
     .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
   if(site && typeof site==="object"){
     site._recordKeysRawRef=raw;
-    site._recordKeysFingerprint=fingerprint;
+    site._recordKeysDetailKey=siteDetailKey;
+    site._recordKeysSiteId=siteIdValue;
+    site._recordKeysSiteFirebaseDocId=siteFirebaseDocId;
+    site._recordKeysRawFirebaseDocId=rawFirebaseDocId;
+    site._recordKeysRawAddressKey=rawAddressKey;
+    site._recordKeysRawPlaceId=rawPlaceId;
     site._recordKeysCache=keys;
   }
   return keys;
@@ -4468,32 +4481,47 @@ function recordMatchesSite(record,site=selectedSite){
 function siteRecordTextKeys(site=selectedSite){
   if(!site) return [];
   const raw=site.raw || {};
-  const fingerprint=stableSignature([
-    site.adresa,
-    site.gpsAddress,
-    raw["Název"],
-    raw["Adresa / umístění"],
-    raw["Adresa_GPS"],
-    raw["Umístění"],
-    raw["Umístění zdroje"]
-  ]);
-  if(site && typeof site==="object" && site._recordTextRawRef===raw && site._recordTextFingerprint===fingerprint && Array.isArray(site._recordTextKeysCache)){
+  const siteAddress=site.adresa;
+  const siteGpsAddress=site.gpsAddress;
+  const rawName=raw["Název"];
+  const rawAddress=raw["Adresa / umístění"];
+  const rawGpsAddress=raw["Adresa_GPS"];
+  const rawPlace=raw["Umístění"];
+  const rawSourcePlace=raw["Umístění zdroje"];
+  if(
+    site && typeof site==="object" &&
+    site._recordTextRawRef===raw &&
+    site._recordTextSiteAddress===siteAddress &&
+    site._recordTextSiteGpsAddress===siteGpsAddress &&
+    site._recordTextRawName===rawName &&
+    site._recordTextRawAddress===rawAddress &&
+    site._recordTextRawGpsAddress===rawGpsAddress &&
+    site._recordTextRawPlace===rawPlace &&
+    site._recordTextRawSourcePlace===rawSourcePlace &&
+    Array.isArray(site._recordTextKeysCache)
+  ){
     return site._recordTextKeysCache;
   }
   const keys=[
-    site.adresa,
-    site.gpsAddress,
-    raw["Název"],
-    raw["Adresa / umístění"],
-    raw["Adresa_GPS"],
-    raw["Umístění"],
-    raw["Umístění zdroje"]
+    siteAddress,
+    siteGpsAddress,
+    rawName,
+    rawAddress,
+    rawGpsAddress,
+    rawPlace,
+    rawSourcePlace
   ]
     .map(x=>String(x || "").trim())
     .filter((x,idx,arr)=>x.length>=4 && arr.indexOf(x)===idx);
   if(site && typeof site==="object"){
     site._recordTextRawRef=raw;
-    site._recordTextFingerprint=fingerprint;
+    site._recordTextSiteAddress=siteAddress;
+    site._recordTextSiteGpsAddress=siteGpsAddress;
+    site._recordTextRawName=rawName;
+    site._recordTextRawAddress=rawAddress;
+    site._recordTextRawGpsAddress=rawGpsAddress;
+    site._recordTextRawPlace=rawPlace;
+    site._recordTextRawSourcePlace=rawSourcePlace;
     site._recordTextKeysCache=keys;
   }
   return keys;
