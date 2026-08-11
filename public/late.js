@@ -752,10 +752,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     }catch(e){}
     return new Date().toISOString();
   }
+  let modularDatabaseCache={fs:null,firestore:null,value:null};
   function modularDatabase(){
     const fs=window.fb && window.fb.fsMod;
     const firestore=window.db;
     if(!fs || !firestore || !fs.collection || !fs.doc || !fs.getDocs || !fs.setDoc) return null;
+    if(modularDatabaseCache.fs===fs && modularDatabaseCache.firestore===firestore && modularDatabaseCache.value){
+      return modularDatabaseCache.value;
+    }
     const wrapDoc=ref=>({
       _ref:ref,
       id:ref.id,
@@ -782,7 +786,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         };
       }
     });
-    return {
+    const value={
       mode:"modular",
       collection:wrapCollection,
       batch:()=>{
@@ -795,6 +799,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         };
       }
     };
+    modularDatabaseCache={fs,firestore,value};
+    return value;
   }
   function db(){
     const modern=modularDatabase();
@@ -2079,7 +2085,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-detail-normalizers-v261";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-late-firestore-wrapper-v262";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
