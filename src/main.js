@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-throttle-auto-offline-sync-v240";
+const APP_BUILD_VERSION="2026-08-11-cache-photo-folder-names-v241";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v240-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v241-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -12701,11 +12701,36 @@ function normalizePhotoFolderDateName(value="",fallback=new Date()){
   return photoFolderNameForDate(new Date());
 }
 
+const photoFolderNameCache=new WeakMap();
+function photoFolderDateFingerprint(value){
+  if(value && typeof value.toDate==="function"){
+    try{return `ts:${value.toDate().getTime()}`;}catch(e){}
+  }
+  if(value instanceof Date) return `date:${value.getTime()}`;
+  return safe(value);
+}
+function photoFolderNameFingerprint(item){
+  if(!item || (typeof item!=="object" && typeof item!=="function")) return "";
+  const explicit=safe(item.photoFolder || item.folderName || item.folder || item.cloudinaryFolderDate || item.cloudinaryFolder);
+  const fallbackDate=item.createdAt || item.uploadedAt || item.date || "";
+  const version=safe(item.cloudinaryVersion || item.version);
+  const fallback=photoFolderDateFingerprint(fallbackDate);
+  if(!explicit && !fallback && !version) return "";
+  return [explicit,fallback,version].join("\u001f");
+}
 function photoFolderName(item){
+  const canCache=!!(item && (typeof item==="object" || typeof item==="function"));
+  const fingerprint=canCache ? photoFolderNameFingerprint(item) : "";
+  if(canCache && fingerprint){
+    const cached=photoFolderNameCache.get(item);
+    if(cached && cached.fingerprint===fingerprint) return cached.value;
+  }
   const explicit=safe(item && (item.photoFolder || item.folderName || item.folder || item.cloudinaryFolderDate || item.cloudinaryFolder));
-  return explicit
+  const value=explicit
     ? normalizePhotoFolderDateName(explicit,item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item))
     : photoFolderNameForDate(item?.createdAt || item?.uploadedAt || item?.date || photoCloudinaryVersionDate(item));
+  if(canCache && fingerprint) photoFolderNameCache.set(item,{fingerprint,value});
+  return value;
 }
 
 function cloudinaryPhotoFolderPath(folderName){
