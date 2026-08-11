@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-logo-icon-cache-v200";
+const APP_BUILD_VERSION="2026-08-11-sidebar-sort-cache-v201";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v200-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v201-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4165,6 +4165,7 @@ let placeGroupsCache={sourceRows:null,signature:"",groups:[]};
 let siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
 let mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
 let sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
+let sidebarSortedGroupsCache={groups:null,signature:"",visibleGroups:[]};
 let renderCountersCache={shown:null,gps:null};
 const MAP_MARKER_RENDER_LIMIT=900;
 
@@ -4175,6 +4176,7 @@ function markRowsDirty(){
   siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
   mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
   sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
+  sidebarSortedGroupsCache={groups:null,signature:"",visibleGroups:[]};
   renderCountersCache={shown:null,gps:null};
 }
 
@@ -4668,6 +4670,16 @@ function updateMapMarkers(groups){
     mapMarkerCache.delete(key);
   });
 }
+function sidebarVisibleGroups(groups,signature){
+  if(sidebarSortedGroupsCache.groups===groups && sidebarSortedGroupsCache.signature===signature){
+    return sidebarSortedGroupsCache.visibleGroups;
+  }
+  const visibleGroups=(groups || []).slice().sort((a,b)=>{
+    return groupNextSortValue(a)-groupNextSortValue(b);
+  }).slice(0,160);
+  sidebarSortedGroupsCache={groups,signature,visibleGroups};
+  return visibleGroups;
+}
 function renderSidebarGroups(groups){
   const list=document.getElementById("list");
   if(!list) return;
@@ -4676,9 +4688,7 @@ function renderSidebarGroups(groups){
     return;
   }
   const fragment=document.createDocumentFragment();
-  groups.slice().sort((a,b)=>{
-    return groupNextSortValue(a)-groupNextSortValue(b);
-  }).slice(0,160).forEach(group=>{
+  sidebarVisibleGroups(groups,signature).forEach(group=>{
     const r=groupPrimaryRow(group);
     if(!r) return;
     fragment.appendChild(createSidebarGroupItem(group,r));
