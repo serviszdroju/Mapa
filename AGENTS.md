@@ -184,6 +184,8 @@ Current performance phase 80 decision: cache normalized record source identity b
 
 Current performance phase 81 decision: cache record identifier keys by direct scalar id fields plus a shallow copy of `siteKeys`, avoiding stable-signature rebuilds in `recordIdKeys()` and reusing that cache for offline-record site matching while preserving the same id matching coverage.
 
+Current performance phase 82 decision: cache each row's marker signature from `detailKey`, source label, and status text so group and marker reconciliation can reuse the same row-level signature during map moves/rerenders while preserving marker color, popup, grouping, and status behavior.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

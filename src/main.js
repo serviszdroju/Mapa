@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-id-field-cache-v206";
+const APP_BUILD_VERSION="2026-08-11-marker-row-signature-cache-v207";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v206-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v207-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3998,6 +3998,26 @@ function groupColor(groupRows){
   const rep=groupRepresentative(groupRows);
   return rep ? color(rep) : "#16a34a";
 }
+function markerRowSignature(row){
+  if(!row) return "";
+  const detail=detailKey(row);
+  const source=siteSourceLabel(row);
+  const status=statusText(row);
+  if(
+    row._markerSignatureDetail===detail &&
+    row._markerSignatureSource===source &&
+    row._markerSignatureStatus===status &&
+    row._markerSignatureValue
+  ){
+    return row._markerSignatureValue;
+  }
+  const value=stableSignature([detail,source,status]);
+  row._markerSignatureDetail=detail;
+  row._markerSignatureSource=source;
+  row._markerSignatureStatus=status;
+  row._markerSignatureValue=value;
+  return value;
+}
 function groupRowsByPlace(inputRows){
   const mapByKey=new Map();
   (inputRows || []).forEach(r=>{
@@ -4015,11 +4035,7 @@ function groupRowsByPlace(inputRows){
   });
   return [...mapByKey.values()].map(group=>{
     group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
-    group._markerRowsSignature=group.rows.map(row=>stableSignature([
-      detailKey(row),
-      siteSourceLabel(row),
-      statusText(row)
-    ])).join("\u001e");
+    group._markerRowsSignature=group.rows.map(markerRowSignature).join("\u001e");
     const representative=groupRepresentative(group.rows) || group.rows[0] || null;
     group._representativeRow=representative;
     group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
@@ -4660,11 +4676,7 @@ function mapMarkerSignature(group,fill){
     Number(group.lon).toFixed(6),
     fill,
     group.label || "",
-    group._markerRowsSignature || (group.rows || []).map(row=>stableSignature([
-      detailKey(row),
-      siteSourceLabel(row),
-      statusText(row)
-    ])).join("\u001e")
+    group._markerRowsSignature || (group.rows || []).map(markerRowSignature).join("\u001e")
   ].join("||");
 }
 function attachLazyMarkerPopup(marker,group){
