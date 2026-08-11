@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-date-parsing-v239";
+const APP_BUILD_VERSION="2026-08-11-throttle-auto-offline-sync-v240";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v239-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v240-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -11003,9 +11003,17 @@ async function loadHistory(siteId){
 window.loadHistory=loadHistory;
 
 let offlineSyncInFlight=null;
+let lastAutomaticOfflineSyncAt=0;
+const AUTOMATIC_OFFLINE_SYNC_MIN_MS=5000;
 function runOfflineSync(reason="manual",silent=false){
   if(navigator.onLine===false) return Promise.resolve(0);
   if(offlineSyncInFlight) return offlineSyncInFlight;
+  const isAutomatic=reason!=="manual" && silent;
+  if(isAutomatic){
+    const now=Date.now();
+    if(now-lastAutomaticOfflineSyncAt<AUTOMATIC_OFFLINE_SYNC_MIN_MS) return Promise.resolve(0);
+    lastAutomaticOfflineSyncAt=now;
+  }
   if(typeof syncOfflineChanges==="function"){
     offlineSyncInFlight=syncOfflineChanges({reason,silent}).finally(()=>{offlineSyncInFlight=null;});
     return offlineSyncInFlight;
