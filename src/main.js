@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-drawer-dom-snapshot-v236";
+const APP_BUILD_VERSION="2026-08-11-cache-region-aliases-v237";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v236-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v237-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3290,36 +3290,55 @@ function regionTextNorm(v){
     .trim();
 }
 
+const REGION_ALIAS_SPECS=[
+  ["Hlavní město Praha",["praha","hlavni mesto praha","prague"]],
+  ["Středočeský kraj",["stredocesky","stredocesky kraj","central bohemian"]],
+  ["Jihočeský kraj",["jihocesky","jihocesky kraj","south bohemian"]],
+  ["Plzeňský kraj",["plzensky","plzensky kraj","pilsen"]],
+  ["Karlovarský kraj",["karlovarsky","karlovarsky kraj"]],
+  ["Ústecký kraj",["ustecky","ustecky kraj"]],
+  ["Liberecký kraj",["liberecky","liberecky kraj"]],
+  ["Královéhradecký kraj",["kralovehradecky","kralovehradecky kraj"]],
+  ["Pardubický kraj",["pardubicky","pardubicky kraj"]],
+  ["Kraj Vysočina",["vysocina","kraj vysocina"]],
+  ["Jihomoravský kraj",["jihomoravsky","jihomoravsky kraj","south moravian"]],
+  ["Olomoucký kraj",["olomoucky","olomoucky kraj"]],
+  ["Moravskoslezský kraj",["moravskoslezsky","moravskoslezsky kraj"]],
+  ["Zlínský kraj",["zlinsky","zlinsky kraj"]],
+  ["Slovensko",["slovensko","slovakia","sk","slovenska republika"]]
+];
+let normalizedRegionOptionsCache=null;
+let normalizedRegionAliasesCache=null;
+function normalizedRegionOptions(){
+  if(!normalizedRegionOptionsCache){
+    normalizedRegionOptionsCache=APP_REGION_OPTIONS.map(region=>({region,norm:regionTextNorm(region)}));
+  }
+  return normalizedRegionOptionsCache;
+}
+function normalizedRegionAliases(){
+  if(!normalizedRegionAliasesCache){
+    normalizedRegionAliasesCache=REGION_ALIAS_SPECS.map(([region,words])=>({
+      region,
+      words:words
+        .map(word=>regionTextNorm(word))
+        .filter(Boolean)
+        .map(norm=>({norm,boundary:norm.length<=2 ? new RegExp(`(^|\\s)${norm}(\\s|$)`) : null}))
+    }));
+  }
+  return normalizedRegionAliasesCache;
+}
+
 function canonicalRegionValue(value){
   const n=regionTextNorm(value);
   if(!n) return "";
-  const aliases=[
-    ["Hlavní město Praha",["praha","hlavni mesto praha","prague"]],
-    ["Středočeský kraj",["stredocesky","stredocesky kraj","central bohemian"]],
-    ["Jihočeský kraj",["jihocesky","jihocesky kraj","south bohemian"]],
-    ["Plzeňský kraj",["plzensky","plzensky kraj","pilsen"]],
-    ["Karlovarský kraj",["karlovarsky","karlovarsky kraj"]],
-    ["Ústecký kraj",["ustecky","ustecky kraj"]],
-    ["Liberecký kraj",["liberecky","liberecky kraj"]],
-    ["Královéhradecký kraj",["kralovehradecky","kralovehradecky kraj"]],
-    ["Pardubický kraj",["pardubicky","pardubicky kraj"]],
-    ["Kraj Vysočina",["vysocina","kraj vysocina"]],
-    ["Jihomoravský kraj",["jihomoravsky","jihomoravsky kraj","south moravian"]],
-    ["Olomoucký kraj",["olomoucky","olomoucky kraj"]],
-    ["Moravskoslezský kraj",["moravskoslezsky","moravskoslezsky kraj"]],
-    ["Zlínský kraj",["zlinsky","zlinsky kraj"]],
-    ["Slovensko",["slovensko","slovakia","sk","slovenska republika"]]
-  ];
-  for(const region of APP_REGION_OPTIONS){
-    if(n===regionTextNorm(region) || n.includes(regionTextNorm(region))) return region;
+  for(const {region,norm} of normalizedRegionOptions()){
+    if(n===norm || n.includes(norm)) return region;
   }
-  for(const [region,words] of aliases){
-    if(words.some(word=>{
-      const wn=regionTextNorm(word);
-      if(!wn) return false;
-      if(n===wn) return true;
-      if(wn.length<=2) return new RegExp(`(^|\\s)${wn}(\\s|$)`).test(n);
-      return n.includes(wn);
+  for(const {region,words} of normalizedRegionAliases()){
+    if(words.some(({norm,boundary})=>{
+      if(n===norm) return true;
+      if(boundary) return boundary.test(n);
+      return n.includes(norm);
     })) return region;
   }
   return "";

@@ -244,6 +244,8 @@ Current performance phase 110 decision: cache the fallback `late.js` legacy offl
 
 Current performance phase 111 decision: restore the normal detail drawer from cached DOM nodes/clones instead of reparsing a saved `innerHTML` template when returning from temporary add/history drawers. Keep add-site/source form construction, detail tabs, handlers, and visual output unchanged.
 
+Current performance phase 112 decision: cache normalized region options and region alias matchers once, including the short-code boundary regexes, so row indexing and filter preparation no longer rebuild identical kraj/slovensko alias data for every row.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
