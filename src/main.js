@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-auth-email-sets-v238";
+const APP_BUILD_VERSION="2026-08-11-cache-date-parsing-v239";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v238-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v239-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -2530,15 +2530,40 @@ function siteId(raw,i){return first(raw,["Klíč_adresy","ID_mista","Název","Ad
 function rawGps(r){return Number.isFinite(r.lat)&&Number.isFinite(r.lon)}
 function inCzSk(r){return rawGps(r)&&r.lat>=47&&r.lat<=51.5&&r.lon>=12&&r.lon<=23}
 
+const PARSE_DATE_VALUE_CACHE_MAX=8000;
+const parseDateValueCache=new Map();
+function rememberParsedDateValue(key,time){
+  parseDateValueCache.set(key,time);
+  if(parseDateValueCache.size>PARSE_DATE_VALUE_CACHE_MAX){
+    const firstKey=parseDateValueCache.keys().next().value;
+    parseDateValueCache.delete(firstKey);
+  }
+}
 function parseDateValue(v){
   const s=safe(v);
   if(!s) return null;
+  if(parseDateValueCache.has(s)){
+    const time=parseDateValueCache.get(s);
+    return Number.isFinite(time) ? new Date(time) : null;
+  }
   let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  if(m){
+    const d=new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+    const time=isNaN(d.getTime()) ? null : d.getTime();
+    rememberParsedDateValue(s,time);
+    return Number.isFinite(time) ? new Date(time) : null;
+  }
   m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-  if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+  if(m){
+    const d=new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+    const time=isNaN(d.getTime()) ? null : d.getTime();
+    rememberParsedDateValue(s,time);
+    return Number.isFinite(time) ? new Date(time) : null;
+  }
   const d=new Date(s);
-  return isNaN(d.getTime()) ? null : d;
+  const time=isNaN(d.getTime()) ? null : d.getTime();
+  rememberParsedDateValue(s,time);
+  return Number.isFinite(time) ? new Date(time) : null;
 }
 function formatDateCz(dateObj){
   if(!dateObj || isNaN(dateObj.getTime())) return "";
