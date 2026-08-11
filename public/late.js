@@ -820,19 +820,31 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(modern) return modern;
     return compatDatabase();
   }
+  let compatAuthCache={compat:null,value:null};
+  function compatAuth(){
+    const compat=ensureCompatFirebase();
+    if(!compat || !compat.auth) return null;
+    if(compatAuthCache.compat===compat && compatAuthCache.value) return compatAuthCache.value;
+    try{
+      const value=compat.auth();
+      compatAuthCache={compat,value};
+      return value;
+    }catch(e){
+      return null;
+    }
+  }
   function user(){
     const modernUser=window.__authReadyUser || window.currentUser || (window.auth && window.auth.currentUser) || null;
     if(modernUser) return modernUser;
-    const compat=ensureCompatFirebase();
-    if(!compat) return null;
-    try{return compat.auth().currentUser || window.__authReadyUser || window.currentUser || null;}catch(e){return window.__authReadyUser || window.currentUser || null;}
+    const auth=compatAuth();
+    if(!auth) return null;
+    try{return auth.currentUser || window.__authReadyUser || window.currentUser || null;}catch(e){return window.__authReadyUser || window.currentUser || null;}
   }
   function waitCompatUser(timeoutMs=3500){
     if(window.__authReadyUser || window.currentUser) return Promise.resolve(window.__authReadyUser || window.currentUser);
     if(typeof window.waitForFirebaseUser==="function") return window.waitForFirebaseUser(timeoutMs);
-    const compat=ensureCompatFirebase();
-    if(!compat || !compat.auth) return Promise.resolve(window.__authReadyUser || window.currentUser || null);
-    const auth=compat.auth();
+    const auth=compatAuth();
+    if(!auth) return Promise.resolve(window.__authReadyUser || window.currentUser || null);
     try{
       auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
         .catch(()=>auth.setPersistence(firebase.auth.Auth.Persistence.SESSION))
@@ -2096,7 +2108,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-late-compat-db-v263";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-late-compat-auth-v264";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
