@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-dedup-raw-parts-cache-v210";
+const APP_BUILD_VERSION="2026-08-11-row-raw-value-count-cache-v211";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v210-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v211-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -5210,10 +5210,33 @@ function computeSiteDedupKeysFromRaw(raw,parts=siteDedupRawParts(raw || {})){
   [parts.address,parts.gpsAddress,parts.location,parts.sourceLocation,parts.originalAddress].forEach(value=>add("address", value));
   return keys;
 }
+const rawNonEmptyValueCountCache=new WeakMap();
+function rawNonEmptyValueCount(raw={}){
+  const source=raw || {};
+  if(!source || (typeof source!=="object" && typeof source!=="function")){
+    return Object.values(source).filter(v=>safe(v)).length;
+  }
+  const keys=Object.keys(source);
+  const cached=rawNonEmptyValueCountCache.get(source);
+  if(cached && sameArrayValues(cached.keys,keys)){
+    let same=true;
+    for(let i=0;i<keys.length;i++){
+      if(cached.values[i]!==source[keys[i]]){
+        same=false;
+        break;
+      }
+    }
+    if(same) return cached.count;
+  }
+  const values=keys.map(key=>source[key]);
+  const count=values.filter(v=>safe(v)).length;
+  rawNonEmptyValueCountCache.set(source,{keys,values,count});
+  return count;
+}
 function siteRowPriority(r,index,preferredDocId=null){
   const raw=r.raw || {};
   const data=r.firebaseData || {};
-  let score=Object.values(raw).filter(v=>safe(v)).length;
+  let score=rawNonEmptyValueCount(raw);
   const docId=String(r.firebaseDocId || raw["Firebase_doc_id"] || r.id || "");
   if(preferredDocId && docId===String(preferredDocId)) score+=100000;
   if(Number.isFinite(r.lat)&&Number.isFinite(r.lon)) score+=20;
