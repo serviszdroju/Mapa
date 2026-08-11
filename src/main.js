@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-site-local-array-meta-cache-v221";
+const APP_BUILD_VERSION="2026-08-11-offline-detail-meta-cache-v222";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v221-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v222-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1356,10 +1356,35 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
   return done;
 }
 
+const SZZ_OFFLINE_DETAIL_META_CACHE_MS=1800;
+let szzOfflineDetailMetaCache={raw:null,meta:null,savedAt:0};
+function cloneSzzOfflineDetailMeta(meta={}){
+  const source=meta && typeof meta==="object" && !Array.isArray(meta) ? meta : {};
+  return {
+    ...source,
+    sites:source.sites && typeof source.sites==="object" && !Array.isArray(source.sites) ? {...source.sites} : source.sites
+  };
+}
+function clearSzzOfflineDetailMetaCache(){
+  szzOfflineDetailMetaCache={raw:null,meta:null,savedAt:0};
+}
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key===SZZ_OFFLINE_DETAIL_META_KEY) clearSzzOfflineDetailMetaCache();
+});
 function readSzzOfflineDetailMeta(){
   try{
-    const parsed=JSON.parse(localStorage.getItem(SZZ_OFFLINE_DETAIL_META_KEY) || "{}");
-    return parsed && typeof parsed==="object" ? parsed : {};
+    const raw=localStorage.getItem(SZZ_OFFLINE_DETAIL_META_KEY) || "";
+    if(
+      szzOfflineDetailMetaCache.raw===raw &&
+      szzOfflineDetailMetaCache.meta &&
+      Date.now()-szzOfflineDetailMetaCache.savedAt<SZZ_OFFLINE_DETAIL_META_CACHE_MS
+    ){
+      return cloneSzzOfflineDetailMeta(szzOfflineDetailMetaCache.meta);
+    }
+    const parsed=JSON.parse(raw || "{}");
+    const meta=parsed && typeof parsed==="object" ? parsed : {};
+    szzOfflineDetailMetaCache={raw,meta:cloneSzzOfflineDetailMeta(meta),savedAt:Date.now()};
+    return meta;
   }catch(e){
     return {};
   }
@@ -1368,7 +1393,9 @@ function readSzzOfflineDetailMeta(){
 function writeSzzOfflineDetailMeta(update={}){
   try{
     const next={...readSzzOfflineDetailMeta(),...update,updatedAt:new Date().toISOString()};
-    localStorage.setItem(SZZ_OFFLINE_DETAIL_META_KEY,JSON.stringify(next));
+    const raw=JSON.stringify(next);
+    localStorage.setItem(SZZ_OFFLINE_DETAIL_META_KEY,raw);
+    szzOfflineDetailMetaCache={raw,meta:cloneSzzOfflineDetailMeta(next),savedAt:Date.now()};
     return next;
   }catch(e){
     return {...update};
