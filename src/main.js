@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-data-norm-fixed-v259";
+const APP_BUILD_VERSION="2026-08-12-cache-field-spec-lookup-v260";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,7 +1349,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v259-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v260-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -6285,9 +6285,13 @@ const USER_SITE_DATA_FIELDS = [
 ];
 window.userSiteDataFields = USER_SITE_DATA_FIELDS.map(f=>({label:f.label,key:f.key,type:f.type||"text"}));
 
+const userSiteFieldSpecLookupCache=new Map();
 function userSiteFieldSpecByKey(key){
   const target=dataNormFixed(key);
-  return USER_SITE_DATA_FIELDS.find(spec=>dataNormFixed(spec.key)===target || dataNormFixed(spec.label)===target);
+  if(userSiteFieldSpecLookupCache.has(target)) return userSiteFieldSpecLookupCache.get(target);
+  const spec=USER_SITE_DATA_FIELDS.find(item=>dataNormFixed(item.key)===target || dataNormFixed(item.label)===target) || null;
+  userSiteFieldSpecLookupCache.set(target,spec);
+  return spec;
 }
 
 function userSiteSharedFieldValue(site,key){
