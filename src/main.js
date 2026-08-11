@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-offline-detail-meta-cache-v222";
+const APP_BUILD_VERSION="2026-08-11-local-state-object-cache-v223";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v222-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v223-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1802,20 +1802,59 @@ async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
   return totals;
 }
 
-function readSzzOfflineReadyState(){
+const SZZ_LOCAL_STATE_CACHE_MS=1800;
+const szzLocalStateObjectCache=new Map();
+function cloneSzzLocalStateObject(value={}){
+  return value && typeof value==="object" && !Array.isArray(value) ? {...value} : {};
+}
+function clearSzzLocalStateObjectCache(key=""){
+  const clean=safe(key);
+  if(!clean){
+    szzLocalStateObjectCache.clear();
+    return;
+  }
+  szzLocalStateObjectCache.delete(clean);
+}
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key===SZZ_OFFLINE_READY_KEY || event.key===SZZ_SYNC_STATE_KEY){
+    clearSzzLocalStateObjectCache(event.key || "");
+  }
+});
+function readSzzLocalStateObject(key){
   try{
-    const parsed=JSON.parse(localStorage.getItem(SZZ_OFFLINE_READY_KEY) || "{}");
-    return parsed && typeof parsed==="object" ? parsed : {};
+    const cleanKey=safe(key);
+    if(!cleanKey) return {};
+    const raw=localStorage.getItem(cleanKey) || "";
+    const cached=szzLocalStateObjectCache.get(cleanKey);
+    if(cached && cached.raw===raw && Date.now()-cached.savedAt<SZZ_LOCAL_STATE_CACHE_MS){
+      return cloneSzzLocalStateObject(cached.item);
+    }
+    const parsed=JSON.parse(raw || "{}");
+    const item=parsed && typeof parsed==="object" ? parsed : {};
+    szzLocalStateObjectCache.set(cleanKey,{raw,item:cloneSzzLocalStateObject(item),savedAt:Date.now()});
+    return item;
   }catch(e){
     return {};
   }
+}
+function writeSzzLocalStateObject(key,item={}){
+  const cleanKey=safe(key);
+  if(!cleanKey) return cloneSzzLocalStateObject(item);
+  const next=cloneSzzLocalStateObject(item);
+  const raw=JSON.stringify(next);
+  localStorage.setItem(cleanKey,raw);
+  szzLocalStateObjectCache.set(cleanKey,{raw,item:cloneSzzLocalStateObject(next),savedAt:Date.now()});
+  return next;
+}
+
+function readSzzOfflineReadyState(){
+  return readSzzLocalStateObject(SZZ_OFFLINE_READY_KEY);
 }
 
 function writeSzzOfflineReadyState(update={}){
   try{
     const next={...readSzzOfflineReadyState(),...update,updatedAt:new Date().toISOString()};
-    localStorage.setItem(SZZ_OFFLINE_READY_KEY,JSON.stringify(next));
-    return next;
+    return writeSzzLocalStateObject(SZZ_OFFLINE_READY_KEY,next);
   }catch(e){
     return {...update};
   }
@@ -12121,19 +12160,13 @@ function invalidateSzzOfflineCountsCache(){
 window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
 
 function readSzzSyncState(){
-  try{
-    const parsed=JSON.parse(localStorage.getItem(SZZ_SYNC_STATE_KEY) || "{}");
-    return parsed && typeof parsed==="object" ? parsed : {};
-  }catch(e){
-    return {};
-  }
+  return readSzzLocalStateObject(SZZ_SYNC_STATE_KEY);
 }
 
 function writeSzzSyncState(update={}){
   try{
     const next={...readSzzSyncState(),...update,updatedAt:new Date().toISOString()};
-    localStorage.setItem(SZZ_SYNC_STATE_KEY,JSON.stringify(next));
-    return next;
+    return writeSzzLocalStateObject(SZZ_SYNC_STATE_KEY,next);
   }catch(e){
     return {...update};
   }

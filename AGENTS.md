@@ -216,6 +216,8 @@ Current performance phase 96 decision: cache local array meta summaries on the s
 
 Current performance phase 97 decision: cache `readSzzOfflineDetailMeta()` briefly by the exact stored raw metadata string and refresh that cache on writes/storage events, so repeated offline preparation and delta checks avoid reparsing the same metadata object while preserving cross-tab freshness.
 
+Current performance phase 98 decision: cache small local state object reads for offline-readiness and sync-status by exact stored raw value, refreshing on writes and storage events so startup/offline status rendering avoids repeated JSON parsing while preserving visible status values.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
