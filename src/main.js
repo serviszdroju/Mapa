@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-precache-lazy-assets-v233";
+const APP_BUILD_VERSION="2026-08-11-reuse-offline-shell-v234";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1186,7 +1186,30 @@ function setOfflineMapButtonState(busy=false,text="Stáhnout mapu do telefonu"){
   button.textContent=text;
 }
 
-async function cacheAppShellForOffline(){
+async function cachedAppShellCountIfCurrent(signature){
+  try{
+    const ready=readSzzOfflineReadyState();
+    const count=Number(ready && ready.shellCount);
+    if(
+      ready.appBuildVersion!==APP_BUILD_VERSION ||
+      ready.appShellSignature!==signature ||
+      !Number.isFinite(count) ||
+      count<=0 ||
+      !("caches" in window)
+    ){
+      return 0;
+    }
+    const cachedShell=
+      await caches.match(new URL("./index.html",document.baseURI).href) ||
+      await caches.match(new URL("./sw.js",document.baseURI).href) ||
+      await caches.match("./");
+    return cachedShell ? count : 0;
+  }catch(e){
+    return 0;
+  }
+}
+
+async function cacheAppShellForOffline(options={}){
   if(!("serviceWorker" in navigator)) return 0;
   try{
     const registration=window.registerSzzServiceWorker
@@ -1194,7 +1217,17 @@ async function cacheAppShellForOffline(){
       : await navigator.serviceWorker.register("./sw.js");
     await navigator.serviceWorker.ready;
     const urls=currentAppShellUrls();
-    return await cachedPostAppShellUrlsToServiceWorker(registration,urls);
+    const signature=urls.join("\n");
+    const reusable=options.force===true ? 0 : await cachedAppShellCountIfCurrent(signature);
+    if(reusable) return reusable;
+    const count=await cachedPostAppShellUrlsToServiceWorker(registration,urls);
+    writeSzzOfflineReadyState({
+      appBuildVersion:APP_BUILD_VERSION,
+      appShellSignature:signature,
+      shellCachedAt:new Date().toISOString(),
+      shellCount:count
+    });
+    return count;
   }catch(e){
     console.warn("Service worker pro offline aplikaci se nepodařilo připravit",e);
     return 0;
@@ -1296,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v233-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v234-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1964,6 +1997,7 @@ async function prepareSzzOfflineAppData(options={}){
     const estimate=await szzStorageEstimate();
     const nowMs=Date.now();
     const ready=writeSzzOfflineReadyState({
+      appBuildVersion:APP_BUILD_VERSION,
       preparedAt:new Date().toISOString(),
       rowsSyncedAtMs:navigator.onLine!==false ? Math.max(0,nowMs-SZZ_OFFLINE_INCREMENTAL_SAFETY_MS) : (readyBefore.rowsSyncedAtMs || 0),
       incremental:!firstRun,

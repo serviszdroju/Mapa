@@ -238,6 +238,8 @@ Current performance phase 107 decision: lazy-load the Android/PWA install contro
 
 Current performance phase 108 decision: during the production build, inject current hashed `dist/client/assets` files into the service-worker precache so lazy chunks, CSS, manifest, logos, and local images are available offline after install without being eagerly loaded on startup.
 
+Current performance phase 109 decision: reuse the already prepared offline app shell when the app build version, shell URL signature, and Cache Storage shell entry are unchanged, avoiding repeated service-worker cache-post work during install/offline preparation while still refreshing after each new build.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

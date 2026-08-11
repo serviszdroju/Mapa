@@ -2042,6 +2042,7 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-11-reuse-offline-shell-v234";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -2155,6 +2156,44 @@ function szzInstallCachedPostShellUrlsToServiceWorker(registration,urls){
   });
   szzInstallShellPostCache={signature,savedAt:now,count:null,promise};
   return promise;
+}
+
+function szzInstallReadOfflineReady(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SZZ_INSTALL_OFFLINE_READY_KEY) || "{}");
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function szzInstallWriteOfflineReady(update={}){
+  const next={...szzInstallReadOfflineReady(),...update,updatedAt:new Date().toISOString()};
+  try{ localStorage.setItem(SZZ_INSTALL_OFFLINE_READY_KEY,JSON.stringify(next)); }catch(e){}
+  return next;
+}
+
+async function szzInstallCachedShellCountIfCurrent(signature){
+  try{
+    const ready=szzInstallReadOfflineReady();
+    const count=Number(ready && ready.shellCount);
+    if(
+      ready.appBuildVersion!==SZZ_INSTALL_APP_BUILD_VERSION ||
+      ready.appShellSignature!==signature ||
+      !Number.isFinite(count) ||
+      count<=0 ||
+      !("caches" in window)
+    ){
+      return 0;
+    }
+    const cachedShell=
+      await caches.match(new URL("./index.html",document.baseURI).href) ||
+      await caches.match(new URL("./sw.js",document.baseURI).href) ||
+      await caches.match("./");
+    return cachedShell ? count : 0;
+  }catch(e){
+    return 0;
+  }
 }
 
 function szzInstallSafe(value){
@@ -2445,7 +2484,7 @@ window.scheduleSzzOfflineAppStatus=window.scheduleSzzOfflineAppStatus || functio
   window.__szzInstallStatusTimer=setTimeout(()=>window.updateSzzOfflineAppStatus?.().catch(()=>{}),delay);
 };
 
-window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(){
+window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(options={}){
   if(!("serviceWorker" in navigator)) return 0;
   try{
     const registration=window.registerSzzServiceWorker
@@ -2453,7 +2492,17 @@ window.cacheAppShellForOffline=window.cacheAppShellForOffline || async function(
       : await navigator.serviceWorker.register("./sw.js");
     await navigator.serviceWorker.ready;
     const urls=szzInstallCurrentShellUrls();
-    return await szzInstallCachedPostShellUrlsToServiceWorker(registration,urls);
+    const signature=urls.join("\n");
+    const reusable=options.force===true ? 0 : await szzInstallCachedShellCountIfCurrent(signature);
+    if(reusable) return reusable;
+    const count=await szzInstallCachedPostShellUrlsToServiceWorker(registration,urls);
+    szzInstallWriteOfflineReady({
+      appBuildVersion:SZZ_INSTALL_APP_BUILD_VERSION,
+      appShellSignature:signature,
+      shellCachedAt:new Date().toISOString(),
+      shellCount:count
+    });
+    return count;
   }catch(e){
     console.warn("Offline shell fallback se nepodařilo připravit přes service worker",e);
     return 0;
@@ -2517,6 +2566,7 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
     }
     const cachedRows=szzInstallCacheCurrentRows();
     const ready={
+      appBuildVersion:SZZ_INSTALL_APP_BUILD_VERSION,
       preparedAt:new Date().toISOString(),
       rowsSyncedAtMs:navigator.onLine!==false ? Date.now() : 0,
       persistentStorage:!!storage.persisted,
@@ -2524,7 +2574,7 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
       shellCount,
       cachedRows
     };
-    try{ localStorage.setItem(SZZ_INSTALL_OFFLINE_READY_KEY,JSON.stringify(ready)); }catch(e){}
+    szzInstallWriteOfflineReady(ready);
     if(text) text.textContent=cachedRows ? `Offline připraveno: ${cachedRows} bodů v telefonu.` : "Aplikace je připravená pro offline otevření.";
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
