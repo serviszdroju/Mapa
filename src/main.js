@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-sidebar-top-groups-bounded-v213";
+const APP_BUILD_VERSION="2026-08-11-map-bounds-fit-allocation-v214";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v213-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v214-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4785,7 +4785,7 @@ function currentMapBoundsKey(){
     const bounds=map.getBounds().pad(0.18);
     const sw=bounds.getSouthWest();
     const ne=bounds.getNorthEast();
-    return [sw.lat,sw.lng,ne.lat,ne.lng].map(n=>Number(n).toFixed(4)).join(",");
+    return `${Number(sw.lat).toFixed(4)},${Number(sw.lng).toFixed(4)},${Number(ne.lat).toFixed(4)},${Number(ne.lng).toFixed(4)}`;
   }catch(e){
     return "bounds-error";
   }
@@ -5073,7 +5073,14 @@ function updateStatusFilterColor(){
   const cls=statusFilterClass(st.value);
   if(cls) st.classList.add(cls);
 }
-function fit(){syncRowIndexes();const pts=filtered().filter(inCzSk).map(r=>[r.lat,r.lon]);if(pts.length)map.fitBounds(pts,{padding:[30,30]})}
+function fit(){
+  syncRowIndexes();
+  const pts=[];
+  for(const r of filtered()){
+    if(inCzSk(r)) pts.push([r.lat,r.lon]);
+  }
+  if(pts.length)map.fitBounds(pts,{padding:[30,30]});
+}
 window.fit=fit;
 
 let mapFocusDetailKey="";
