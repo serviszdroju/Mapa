@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-source-chooser-signature-cache-v209";
+const APP_BUILD_VERSION="2026-08-11-dedup-raw-parts-cache-v210";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v209-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v210-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -5152,36 +5152,46 @@ function siteDedupValue(v){
     .replace(/\s+/g," ")
     .trim();
 }
-function siteDedupRawSignature(raw){
+function siteDedupRawParts(raw){
   raw=raw || {};
-  return [
-    raw["Název"],
-    raw["Adresa / umístění"],
-    raw["Adresa_GPS"],
-    raw["Umístění"],
-    raw["Umístění zdroje"],
-    raw["Původní adresa / umístění"],
-    sourceTypeTextFromRaw(raw),
-    sourceSerialTextFromRaw(raw)
-  ].map(v=>String(v || "")).join("\u001f");
+  return {
+    name:raw["Název"],
+    address:raw["Adresa / umístění"],
+    gpsAddress:raw["Adresa_GPS"],
+    location:raw["Umístění"],
+    sourceLocation:raw["Umístění zdroje"],
+    originalAddress:raw["Původní adresa / umístění"],
+    sourceType:sourceTypeTextFromRaw(raw),
+    sourceSerial:sourceSerialTextFromRaw(raw)
+  };
+}
+function siteDedupPartsEqual(a={},b={}){
+  return a.name===b.name &&
+    a.address===b.address &&
+    a.gpsAddress===b.gpsAddress &&
+    a.location===b.location &&
+    a.sourceLocation===b.sourceLocation &&
+    a.originalAddress===b.originalAddress &&
+    a.sourceType===b.sourceType &&
+    a.sourceSerial===b.sourceSerial;
 }
 function siteDedupKeysFromRaw(raw){
   if(raw && typeof raw==="object"){
-    const signature=siteDedupRawSignature(raw);
+    const parts=siteDedupRawParts(raw);
     const cached=siteDedupKeysCache.get(raw);
-    if(cached && cached.signature===signature) return cached.keys.slice();
-    const keys=computeSiteDedupKeysFromRaw(raw);
-    siteDedupKeysCache.set(raw,{signature,keys:keys.slice()});
+    if(cached && siteDedupPartsEqual(cached.parts,parts)) return cached.keys.slice();
+    const keys=computeSiteDedupKeysFromRaw(raw,parts);
+    siteDedupKeysCache.set(raw,{parts,keys:keys.slice()});
     return keys;
   }
   return computeSiteDedupKeysFromRaw(raw);
 }
-function computeSiteDedupKeysFromRaw(raw){
+function computeSiteDedupKeysFromRaw(raw,parts=siteDedupRawParts(raw || {})){
   const keys=[];
   const seen=new Set();
   const source=siteDedupValue([
-    sourceTypeTextFromRaw(raw || {}),
-    sourceSerialTextFromRaw(raw || {})
+    parts.sourceType,
+    parts.sourceSerial
   ].filter(Boolean).join(" "));
   function add(prefix,v){
     const n=siteDedupValue(v);
@@ -5196,8 +5206,8 @@ function computeSiteDedupKeysFromRaw(raw){
       keys.push(key);
     });
   }
-  add("name", raw && raw["Název"]);
-  ["Adresa / umístění","Adresa_GPS","Umístění","Umístění zdroje","Původní adresa / umístění"].forEach(k=>add("address", raw && raw[k]));
+  add("name", parts.name);
+  [parts.address,parts.gpsAddress,parts.location,parts.sourceLocation,parts.originalAddress].forEach(value=>add("address", value));
   return keys;
 }
 function siteRowPriority(r,index,preferredDocId=null){
