@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-photo-folder-names-v241";
+const APP_BUILD_VERSION="2026-08-11-single-row-status-toggles-v242";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v241-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v242-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -6667,6 +6667,23 @@ function updateStopButton(){
   btn.className=selectedSite.stopped === true ? "secondary stop-toggle-active" : "secondary";
 }
 
+function updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,fallbackSite=null,patch={}){
+  const lookupKey=safe(firebaseDocId || selectedKey);
+  const existing=(lookupKey && findRowByAnyId(lookupKey)) || fallbackSite;
+  const index=rowIndexForRow(existing);
+  if(existing && index>=0){
+    const nextRows=rows.slice();
+    const updated=applyEditToRow(existing);
+    nextRows[index]=updated;
+    rows=nextRows;
+    window.rows=rows;
+    return updated;
+  }
+  rows=rows.map(row=>detailKey(row)===selectedKey ? applyEditToRow(row) : row);
+  window.rows=rows;
+  return (lookupKey && findRowByAnyId(lookupKey)) || (fallbackSite ? {...fallbackSite,...patch} : null);
+}
+
 async function toggleRepairFromDetail(){
   const st=document.getElementById("editStatus");
   if(!selectedSite){ if(st) st.textContent="Není vybrané místo."; return; }
@@ -6701,8 +6718,7 @@ async function toggleRepairFromDetail(){
 
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
-    rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || {...selectedSite, repairOrdered};
+    selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,{repairOrdered});
     if(st) st.textContent=repairOrdered ? "Oprava označena jako objednaná." : "Objednání opravy zrušeno.";
     showSaveConfirmation(repairOrdered ? "Oprava objednána." : "Objednání opravy zrušeno.");
     render();
@@ -6752,8 +6768,7 @@ async function toggleOrderedFromDetail(){
 
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
-    rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || {...selectedSite, ordered};
+    selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,{ordered});
     if(st) st.textContent=ordered ? "Kontrola označena jako objednaná." : "Objednání kontroly zrušeno.";
     showSaveConfirmation(ordered ? "Kontrola objednána." : "Objednání zrušeno.");
     render();
@@ -6796,8 +6811,7 @@ async function toggleStopFromDetail(){
 
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
-    rows=rows.map(r=>detailKey(r)===selectedKey?applyEditToRow(r):r);
-    selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || {...selectedSite, stopped};
+    selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,{stopped});
     if(st) st.textContent=stopped ? "Zdroj je označený jako Stop Stav." : "Stop Stav byl zrušen.";
     showSaveConfirmation(stopped ? "Stop Stav uložen." : "Stop Stav zrušen.");
     render();
