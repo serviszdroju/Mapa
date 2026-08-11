@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-local-state-object-cache-v223";
+const APP_BUILD_VERSION="2026-08-11-firebase-cache-count-cache-v224";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1257,13 +1257,29 @@ async function requestSzzPersistentStorage(options={}){
 }
 window.requestSzzPersistentStorage=requestSzzPersistentStorage;
 
+const SZZ_FIREBASE_SITE_COUNT_CACHE_MS=1800;
+let szzCachedFirebaseSiteCountCache={raw:null,count:0,savedAt:0};
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key===SZZ_FIREBASE_SITE_CACHE_KEY){
+    szzCachedFirebaseSiteCountCache={raw:null,count:0,savedAt:0};
+  }
+});
 function readCachedFirebaseSiteCount(){
   try{
-    const parsed=JSON.parse(localStorage.getItem(SZZ_FIREBASE_SITE_CACHE_KEY) || "null");
+    const raw=localStorage.getItem(SZZ_FIREBASE_SITE_CACHE_KEY) || "";
+    if(szzCachedFirebaseSiteCountCache.raw===raw && Date.now()-szzCachedFirebaseSiteCountCache.savedAt<SZZ_FIREBASE_SITE_COUNT_CACHE_MS){
+      return szzCachedFirebaseSiteCountCache.count;
+    }
+    const parsed=JSON.parse(raw || "null");
     const count=Number(parsed && parsed.count);
-    if(Number.isFinite(count) && count>0) return count;
+    if(Number.isFinite(count) && count>0){
+      szzCachedFirebaseSiteCountCache={raw,count,savedAt:Date.now()};
+      return count;
+    }
     const items=Array.isArray(parsed && parsed.items) ? parsed.items : [];
-    return items.filter(item=>item && item.docId && item.raw).length;
+    const fallbackCount=items.filter(item=>item && item.docId && item.raw).length;
+    szzCachedFirebaseSiteCountCache={raw,count:fallbackCount,savedAt:Date.now()};
+    return fallbackCount;
   }catch(e){
     return 0;
   }
@@ -1280,7 +1296,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v223-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v224-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
