@@ -224,6 +224,14 @@ Current performance phase 100 decision: cache the legacy `astipMap:offlineSites:
 
 Current performance phase 101 decision: cache the legacy offline site queue parser inside `late.js` by exact raw localStorage value and refresh it on writes/compaction/storage events, preserving offline site save/sync behavior while reducing repeated parsing of `astipMap:offlineSites:v1`.
 
+Current performance phase 102 decision: start the monolith split by moving the detail-tab controller and hosted-login fallback binding out of inline `index.html` into separate Vite modules (`src/detail-tabs.js` and `src/hosted-login.js`), preserving the same global functions, DOM ids, and Firebase login handoff.
+
+Current performance phase 103 decision: continue the monolith split by moving app-shell boot helpers for the PWA install prompt, SZZ logo/icon refresh, startup login fallback binding, and mobile map resize invalidation from inline `index.html` into `src/shell-boot.js`, while keeping the tiny early `auth-resume` class bootstrap inline to avoid a startup flash.
+
+Current performance phase 104 decision: load the legacy compatibility/helper `late.js` script with `async` so it no longer delays the HTML shell finishing, relying on the existing Firebase loader retry path and immediate late-script control binding to preserve install, offline, add-site, and map-data behavior.
+
+Current performance phase 105 decision: minify the standalone classic `late.js` only in the production build output via `scripts/prepare-sites-build.mjs`, keeping the source readable while reducing the GitHub Pages transfer size for install/offline/Firebase helper code.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
