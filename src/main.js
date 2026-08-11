@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-single-row-legacy-edit-v243";
+const APP_BUILD_VERSION="2026-08-11-cache-gallery-delete-user-v244";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v243-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v244-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -11931,11 +11931,15 @@ function bytesLabel(bytes){
   return `${(n/1024/1024).toFixed(1).replace(".",",")} MB`;
 }
 
-function canDeleteSitePhoto(item){
+function canDeleteSitePhotoForUser(item,email=currentUserEmail(),isAdminValue=isAppAdmin()){
   if(item && (item.storageMode==="offline" || item._offline === true)) return true;
   const uploadedBy=safe(item && item.uploadedBy).toLowerCase();
-  const email=currentUserEmail();
-  return isAppAdmin() || (!!uploadedBy && uploadedBy===email);
+  const userEmail=safe(email).toLowerCase();
+  return !!isAdminValue || (!!uploadedBy && uploadedBy===userEmail);
+}
+
+function canDeleteSitePhoto(item){
+  return canDeleteSitePhotoForUser(item);
 }
 
 const CLOUDINARY_TRANSFORM_URL_CACHE_LIMIT=800;
@@ -12782,6 +12786,8 @@ function sitePhotoPointInfoRows(site=selectedSite){
 
 function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite,pointInfoRows=null){
   const siteKey=detailLazyKey(site) || sitePlaceGroupKey(site) || safe(site && site.id);
+  const userEmail=currentUserEmail();
+  const isAdminUser=isAppAdmin();
   const pointInfo=(pointInfoRows || sitePhotoPointInfoRows(site))
     .map(([label,value])=>`${safe(label)}:${safe(value)}`)
     .join("|");
@@ -12801,14 +12807,14 @@ function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selec
     safe(photo && (photo.size || "")),
     safe(photo && (photo.originalSize || "")),
     safe(photo && (photo.fileName || photo.originalFileName)),
-    canDeleteSitePhoto(photo) ? "delete" : "readonly"
+    canDeleteSitePhotoForUser(photo,userEmail,isAdminUser) ? "delete" : "readonly"
   ].join("~")).join("||");
   return [
     siteKey,
     index,
     (items || []).length,
-    currentUserEmail(),
-    isAppAdmin() ? "admin" : "user",
+    userEmail,
+    isAdminUser ? "admin" : "user",
     photos,
     pointInfo
   ].join("|||");
