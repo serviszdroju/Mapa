@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-source-field-cache-v205";
+const APP_BUILD_VERSION="2026-08-11-record-id-field-cache-v206";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v205-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v206-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -2051,6 +2051,14 @@ function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt
 function num(v){if(v===null||v===undefined||v==="")return null;const n=Number(String(v).trim().replace(",","."));return Number.isFinite(n)?n:null}
 function stableSignaturePart(value){const text=String(value??"");return `${text.length}:${text}`}
 function stableSignature(parts=[]){return (Array.isArray(parts)?parts:[]).map(stableSignaturePart).join("\u001f")}
+function sameArrayValues(a=[],b=[]){
+  if(a===b) return true;
+  if(!Array.isArray(a) || !Array.isArray(b) || a.length!==b.length) return false;
+  for(let i=0;i<a.length;i++){
+    if(a[i]!==b[i]) return false;
+  }
+  return true;
+}
 const rowKeyLookupCache=new WeakMap();
 function normalizedRowKeyName(n){return String(n).replace(/^\uFEFF/,"").trim().toLowerCase()}
 function normalizedRowKeyLookup(r){
@@ -4450,21 +4458,37 @@ function selectedSiteDocId(site=selectedSite){
 const recordIdKeysCache=new WeakMap();
 function recordIdKeys(record){
   if(!record) return [];
+  const siteKeys=Array.isArray(record.siteKeys) ? record.siteKeys : [];
   const rawValues=[
     record.siteId,
     record.siteKey,
     record.siteDocId,
     record.firebaseDocId,
-    ...(Array.isArray(record.siteKeys) ? record.siteKeys : [])
+    ...siteKeys
   ];
   if(record && (typeof record==="object" || typeof record==="function")){
-    const fingerprint=stableSignature(rawValues);
     const cached=recordIdKeysCache.get(record);
-    if(cached && cached.fingerprint===fingerprint) return cached.keys;
+    if(
+      cached &&
+      cached.siteId===record.siteId &&
+      cached.siteKey===record.siteKey &&
+      cached.siteDocId===record.siteDocId &&
+      cached.firebaseDocId===record.firebaseDocId &&
+      sameArrayValues(cached.siteKeys,siteKeys)
+    ){
+      return cached.keys;
+    }
     const keys=rawValues
       .map(x=>String(x || "").trim())
       .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-    recordIdKeysCache.set(record,{fingerprint,keys});
+    recordIdKeysCache.set(record,{
+      siteId:record.siteId,
+      siteKey:record.siteKey,
+      siteDocId:record.siteDocId,
+      firebaseDocId:record.firebaseDocId,
+      siteKeys:siteKeys.slice(),
+      keys
+    });
     return keys;
   }
   return rawValues
@@ -9459,13 +9483,7 @@ function removeLocalStorageArrayItemByKey(key,id){
 }
 
 function siteFromOfflineRecord(record={},cacheSuffix=""){
-  const recordKeys=[
-    record.siteId,
-    record.siteKey,
-    record.siteDocId,
-    record.firebaseDocId,
-    ...(Array.isArray(record.siteKeys) ? record.siteKeys : [])
-  ].map(x=>String(x || "").trim()).filter(Boolean);
+  const recordKeys=recordIdKeys(record);
   const found=(rows || []).find(row=>{
     try{
       const keys=siteRecordKeys(row);
