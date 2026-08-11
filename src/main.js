@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-find-row-loop-cache-v217";
+const APP_BUILD_VERSION="2026-08-11-local-object-cache-invalidation-v218";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v217-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v218-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -9261,7 +9261,9 @@ function readSiteLocalObject(kind,site=selectedSite){
 
 function writeSiteLocalObject(kind,item,site=selectedSite){
   try{
-    localStorage.setItem(siteLocalCacheKey(kind,site),JSON.stringify(item || {}));
+    const key=siteLocalCacheKey(kind,site);
+    localStorage.setItem(key,JSON.stringify(item || {}));
+    clearLocalStorageObjectEntriesCache(key);
   }catch(e){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
   }
