@@ -288,6 +288,8 @@ Current performance phase 132 decision: cache lazily generated marker popup HTML
 
 Current performance phase 133 decision: cache the merged raw/edit object used for detail field lookup per row/raw/edit reference, so Detail and Protokol helpers reuse one lookup object and its normalized-key caches during repeated renders.
 
+Current performance phase 134 decision: cache repeated `dataNormFixed()` string normalization with a bounded in-memory map, preserving the exact normalized output while reducing Unicode/regex work across detail fields, edit fields, and protocol helpers.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
