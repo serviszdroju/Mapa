@@ -2030,6 +2030,8 @@ const SZZ_INSTALL_SHELL_URLS=[
   "./szz-logo-display.png",
   "./szz-app-icon-192.png",
   "./szz-app-icon-512.png",
+  "./szz-app-icon-maskable-192.png",
+  "./szz-app-icon-maskable-512.png",
   "./podpis-tipek.png",
   "./podpis-tipek.jpg",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
@@ -2074,7 +2076,7 @@ function szzInstallIsShellResourceUrl(url){
     const path=absolute.pathname;
     if(absolute.origin===location.origin){
       return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
     }
     return absolute.hostname==="unpkg.com" &&
       /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
@@ -2918,7 +2920,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-11-gallery-dedupe-cache-v199";
+  const serviceWorkerBuildVersion="2026-08-11-logo-icon-cache-v200";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
