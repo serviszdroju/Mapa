@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v199";
+const CACHE_VERSION = "astip-szz-v200";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -14,6 +14,8 @@ const PRECACHE_URLS = [
   "./szz-icon-512.png",
   "./szz-app-icon-192.png",
   "./szz-app-icon-512.png",
+  "./szz-app-icon-maskable-192.png",
+  "./szz-app-icon-maskable-512.png",
   "./szz-logo.png",
   "./szz-logo-display.png",
   "./podpis-tipek.png",

@@ -170,6 +170,8 @@ Current performance phase 74 decision: make repeated "Připravit offline data" r
 
 Current performance phase 75 decision: deduplicate merged gallery photo sources with a per-load `_id` Set in `loadSitePhotos()` instead of repeated array scans, preserving local, IndexedDB/offline, embedded, and Firebase child photo ordering, metadata, delete rights, and gallery rendering.
 
+Current logo/icon decision: Android/PWA launcher icons must be generated directly from `Tipo_SZZ_logo3.png`. Use opaque white-background `szz-app-icon-192/512.png` for regular icons and separate padded `szz-app-icon-maskable-192/512.png` for maskable Android icons so the battery/SZZ mark is not cropped or shown on a dark transparent background.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-gallery-dedupe-cache-v199";
+const APP_BUILD_VERSION="2026-08-11-logo-icon-cache-v200";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -316,6 +316,8 @@ const APP_SHELL_URLS=[
   "./szz-logo-display.png",
   "./szz-app-icon-192.png",
   "./szz-app-icon-512.png",
+  "./szz-app-icon-maskable-192.png",
+  "./szz-app-icon-maskable-512.png",
   "./podpis-tipek.png",
   "./podpis-tipek.jpg",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
@@ -365,7 +367,7 @@ function isSzzAppShellResourceUrl(url){
     const path=absolute.pathname;
     if(absolute.origin===location.origin){
       return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
     }
     return absolute.hostname==="unpkg.com" &&
       /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
@@ -1278,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v199-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v200-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
