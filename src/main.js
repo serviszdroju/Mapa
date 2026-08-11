@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-legacy-site-count-v235";
+const APP_BUILD_VERSION="2026-08-11-drawer-dom-snapshot-v236";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v235-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v236-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3022,11 +3022,16 @@ function drawerNodesHaveDetailShell(nodes=[]){
   });
 }
 
+function cloneDrawerNodes(nodes=[]){
+  return (nodes || []).map(node=>node && node.cloneNode ? node.cloneNode(true) : null).filter(Boolean);
+}
+
 function captureNormalDetailDrawerShell(drawer=document.getElementById("drawer")){
   if(!drawer || !(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"))) return;
   dedupeDetailTabs(drawer);
-  window.__normalDrawerNodes=Array.from(drawer.childNodes);
-  window.__normalDrawerTemplate=drawer.innerHTML;
+  const nodes=Array.from(drawer.childNodes);
+  window.__normalDrawerNodes=nodes;
+  window.__normalDrawerNodeClones=cloneDrawerNodes(nodes);
 }
 
 function restoreNormalDetailDrawerShell(){
@@ -3036,8 +3041,8 @@ function restoreNormalDetailDrawerShell(){
   if(!hasDetailShell){
     if(drawerNodesHaveDetailShell(window.__normalDrawerNodes)){
       drawer.replaceChildren(...window.__normalDrawerNodes);
-    }else if(window.__normalDrawerTemplate && window.__normalDrawerTemplate.includes('id="detailTable"')){
-      drawer.innerHTML=window.__normalDrawerTemplate;
+    }else if(drawerNodesHaveDetailShell(window.__normalDrawerNodeClones)){
+      drawer.replaceChildren(...cloneDrawerNodes(window.__normalDrawerNodeClones));
     }
   }
   dedupeDetailTabs(drawer);
@@ -3045,6 +3050,8 @@ function restoreNormalDetailDrawerShell(){
   bindDrawerCloseButton();
   return drawer;
 }
+window.captureNormalDetailDrawerShell=captureNormalDetailDrawerShell;
+window.restoreNormalDetailDrawerShell=restoreNormalDetailDrawerShell;
 
 function setNewSiteModeTitle(){
   const title=document.getElementById("drawerTitle");

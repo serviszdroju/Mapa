@@ -21,6 +21,49 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     else window.addEventListener("load",run,{once:true});
   }
 };
+window.szzDrawerNodesHaveDetailShell = window.szzDrawerNodesHaveDetailShell || function(nodes){
+  return (nodes || []).some(node=>{
+    if(!node || node.nodeType!==1) return false;
+    return node.id==="detailTable"
+      || node.id==="detailTabs"
+      || !!(node.querySelector && (node.querySelector("#detailTable") || node.querySelector("#detailTabs")));
+  });
+};
+window.szzCloneDrawerNodes = window.szzCloneDrawerNodes || function(nodes){
+  return (nodes || []).map(node=>node && node.cloneNode ? node.cloneNode(true) : null).filter(Boolean);
+};
+window.szzCaptureNormalDrawerSnapshot = window.szzCaptureNormalDrawerSnapshot || function(drawer){
+  const d=drawer || document.getElementById("drawer");
+  if(!d || !(d.querySelector("#detailTable") && d.querySelector("#detailTabs"))) return false;
+  const nodes=Array.from(d.childNodes);
+  window.__normalDrawerNodes=nodes;
+  window.__normalDrawerNodeClones=window.szzCloneDrawerNodes(nodes);
+  if(typeof window.captureNormalDetailDrawerShell==="function"){
+    try{ window.captureNormalDetailDrawerShell(d); }catch(e){}
+  }
+  return true;
+};
+window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot || function(drawer){
+  const d=drawer || document.getElementById("drawer");
+  if(!d) return false;
+  if(typeof window.restoreNormalDetailDrawerShell==="function"){
+    try{
+      window.restoreNormalDetailDrawerShell();
+      if(d.querySelector("#detailTable") && d.querySelector("#detailTabs")) return true;
+    }catch(e){}
+  }
+  if(window.szzDrawerNodesHaveDetailShell(window.__normalDrawerNodes)){
+    d.replaceChildren(...window.__normalDrawerNodes);
+    window.szzCaptureNormalDrawerSnapshot(d);
+    return true;
+  }
+  if(window.szzDrawerNodesHaveDetailShell(window.__normalDrawerNodeClones)){
+    d.replaceChildren(...window.szzCloneDrawerNodes(window.__normalDrawerNodeClones));
+    window.szzCaptureNormalDrawerSnapshot(d);
+    return true;
+  }
+  return false;
+};
 ;
 (function(){
   let onlyNewTempMarker=null;
@@ -400,10 +443,8 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
   function saveDrawerTemplate(){
     const d = drawer();
     if(!d) return;
-    if(!window.__normalDrawerTemplate || !window.__normalDrawerTemplate.includes('id="detailTable"')){
-      if(!d.querySelector("#newSiteOnlyCard")){
-        window.__normalDrawerTemplate = d.innerHTML;
-      }
+    if(!d.querySelector("#newSiteOnlyCard")){
+      window.szzCaptureNormalDrawerSnapshot(d);
     }
   }
 
@@ -412,8 +453,7 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     if(!d) return false;
 
     const isTemporaryForm = !!d.querySelector("#newSiteOnlyCard") || !!d.querySelector("#mainProtocolHistoryCard");
-    if(isTemporaryForm && window.__normalDrawerTemplate){
-      d.innerHTML = window.__normalDrawerTemplate;
+    if(isTemporaryForm && window.szzRestoreNormalDrawerSnapshot(d)){
       d.classList.remove("adding-new-site");
       const close=d.querySelector("#closeDrawer");
       if(close) close.onclick=()=>d.classList.remove("open");
@@ -1785,16 +1825,13 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
   function saveNormalDrawerTemplateForSource(){
     const drawer = document.getElementById("drawer");
     if(!drawer || drawer.querySelector("#newSiteOnlyCard")) return;
-    if(drawer.innerHTML.includes('id="detailTable"')){
-      window.__normalDrawerTemplate = drawer.innerHTML;
-    }
+    window.szzCaptureNormalDrawerSnapshot(drawer);
   }
 
   function restoreNormalDrawerTemplateForSource(){
     const drawer = document.getElementById("drawer");
     if(!drawer) return false;
-    if(window.__normalDrawerTemplate && drawer.querySelector("#newSiteOnlyCard")){
-      drawer.innerHTML = window.__normalDrawerTemplate;
+    if(drawer.querySelector("#newSiteOnlyCard") && window.szzRestoreNormalDrawerSnapshot(drawer)){
       drawer.classList.remove("adding-new-site");
       return true;
     }
@@ -2042,7 +2079,7 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-11-cache-legacy-site-count-v235";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-11-drawer-dom-snapshot-v236";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
