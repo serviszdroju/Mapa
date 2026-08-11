@@ -200,6 +200,8 @@ Current performance phase 88 decision: select the sidebar's first 160 place grou
 
 Current performance phase 89 decision: reduce map interaction allocations by building the map-bounds render key directly and collecting "Přiblížit na body" coordinates in one loop instead of chained array filter/map calls, preserving the same bounds and fit behavior.
 
+Current performance phase 90 decision: cache each row's lookup key array by direct id/raw fields so row indexing, detail opening, and lookup-key matching reuse the same keys without rebuilding arrays when the row identifiers are unchanged.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-map-bounds-fit-allocation-v214";
+const APP_BUILD_VERSION="2026-08-11-row-lookup-keys-cache-v215";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v214-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v215-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4304,8 +4304,45 @@ installRowsWindowBridge();
 
 function rowLookupKeys(r){
   const raw=(r && r.raw) || {};
+  const detail=r ? detailKey(r) : "";
+  const id=r && r.id;
+  const firebaseDocId=r && r.firebaseDocId;
+  const rawFirebaseDocId=raw["Firebase_doc_id"];
+  const rawAddressKey=raw["Klíč_adresy"];
+  const rawPlaceId=raw["ID_mista"];
+  if(r && (typeof r==="object" || typeof r==="function")){
+    if(
+      r._lookupKeysRawRef===raw &&
+      r._lookupKeysDetail===detail &&
+      r._lookupKeysId===id &&
+      r._lookupKeysFirebaseDocId===firebaseDocId &&
+      r._lookupKeysRawFirebaseDocId===rawFirebaseDocId &&
+      r._lookupKeysRawAddressKey===rawAddressKey &&
+      r._lookupKeysRawPlaceId===rawPlaceId &&
+      Array.isArray(r._lookupKeysCache)
+    ){
+      return r._lookupKeysCache;
+    }
+    const keys=[
+      detail,
+      id,
+      firebaseDocId,
+      rawFirebaseDocId,
+      rawAddressKey,
+      rawPlaceId
+    ].map(x=>String(x || "").trim()).filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+    r._lookupKeysRawRef=raw;
+    r._lookupKeysDetail=detail;
+    r._lookupKeysId=id;
+    r._lookupKeysFirebaseDocId=firebaseDocId;
+    r._lookupKeysRawFirebaseDocId=rawFirebaseDocId;
+    r._lookupKeysRawAddressKey=rawAddressKey;
+    r._lookupKeysRawPlaceId=rawPlaceId;
+    r._lookupKeysCache=keys;
+    return keys;
+  }
   return [
-    r ? detailKey(r) : "",
+    detail,
     r && r.id,
     r && r.firebaseDocId,
     raw["Firebase_doc_id"],
