@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-gallery-point-info-v246";
+const APP_BUILD_VERSION="2026-08-12-cache-gallery-photo-meta-v247";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v246-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v247-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -11973,6 +11973,71 @@ function bytesLabel(bytes){
   return `${(n/1024/1024).toFixed(1).replace(".",",")} MB`;
 }
 
+const photoRenderMetaCache=new WeakMap();
+function photoRenderMetaFingerprint(item,idx=0){
+  if(!item || (typeof item!=="object" && typeof item!=="function")) return "";
+  return [
+    idx,
+    isAppAdmin() ? "admin" : "user",
+    item.createdAt,
+    item.uploadedAt,
+    item.date,
+    item.takenAt,
+    item.photoTakenAt,
+    item.lastModifiedAt,
+    item.cloudinaryVersion,
+    item.version,
+    item.storageMode,
+    item.size,
+    item.originalSize,
+    item.uploadedBy,
+    item.createdBy,
+    item.ownerEmail,
+    item.fileName,
+    item.originalFileName,
+    item.photoFolder,
+    item.folderName,
+    item.folder,
+    item.cloudinaryFolderDate,
+    item.cloudinaryFolder
+  ].map(safe).join("\u001f");
+}
+
+function photoRenderMeta(item,idx=0){
+  const canCache=!!(item && (typeof item==="object" || typeof item==="function"));
+  const fingerprint=canCache ? photoRenderMetaFingerprint(item,idx) : "";
+  if(canCache && fingerprint){
+    const cached=photoRenderMetaCache.get(item);
+    if(cached && cached.fingerprint===fingerprint) return cached.value;
+  }
+  const modeLabel=item.storageMode==="cloudinary" ? "Cloudinary" : (item.storageMode==="offline" ? "lokálně v tomto zařízení" : "starší záznam");
+  const insertedAt=photoDateLabel(item);
+  const meta=[insertedAt ? `Vloženo: ${insertedAt}` : "", modeLabel, bytesLabel(item.size), item.uploadedBy].filter(Boolean).join(" · ");
+  const takenAt=photoTakenLabel(item) || "není uvedeno";
+  const insertedAtFull=photoInsertedLabel(item) || "datum není uložené";
+  const uploadedBy=safe(item.uploadedBy || item.createdBy || item.ownerEmail) || "není uvedeno";
+  const currentFolder=photoFolderName(item);
+  const value={
+    modeLabel,
+    insertedAt,
+    meta,
+    takenAt,
+    insertedAtFull,
+    uploadedBy,
+    currentFolder,
+    downloadName:photoFileName(item,idx),
+    photoInfoRows:[
+      ["Přidáno", insertedAtFull],
+      ["Složka", currentFolder || "Bez data"],
+      ["Uložil", uploadedBy],
+      ["Pořízeno", takenAt],
+      ["Velikost", bytesLabel(item.size || item.originalSize) || "není uvedeno"]
+    ]
+  };
+  if(canCache && fingerprint) photoRenderMetaCache.set(item,{fingerprint,value});
+  return value;
+}
+
 function canDeleteSitePhotoForUser(item,email=currentUserEmail(),isAdminValue=isAppAdmin()){
   if(item && (item.storageMode==="offline" || item._offline === true)) return true;
   const uploadedBy=safe(item && item.uploadedBy).toLowerCase();
@@ -12918,21 +12983,10 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const mainUrl=photoDisplayUrl(item);
   const fullUrl=photoFullUrl(item);
   const thumbCount=sitePhotoItems.length;
-  const modeLabel=item.storageMode==="cloudinary" ? "Cloudinary" : (item.storageMode==="offline" ? "lokálně v tomto zařízení" : "starší záznam");
-  const insertedAt=photoDateLabel(item);
-  const meta=[insertedAt ? `Vloženo: ${insertedAt}` : "", modeLabel, bytesLabel(item.size), item.uploadedBy].filter(Boolean).join(" · ");
-  const takenAt=photoTakenLabel(item) || "není uvedeno";
-  const insertedAtFull=photoInsertedLabel(item) || "datum není uložené";
-  const uploadedBy=safe(item.uploadedBy || item.createdBy || item.ownerEmail) || "není uvedeno";
-  const currentFolder=photoFolderName(item);
-  const photoInfoRows=[
-    ["Přidáno", insertedAtFull],
-    ["Složka", currentFolder || "Bez data"],
-    ["Uložil", uploadedBy],
-    ["Pořízeno", takenAt],
-    ["Velikost", bytesLabel(item.size || item.originalSize) || "není uvedeno"]
-  ];
-  const downloadName=photoFileName(item,sitePhotoIndex);
+  const photoMeta=photoRenderMeta(item,sitePhotoIndex);
+  const currentFolder=photoMeta.currentFolder;
+  const photoInfoRows=photoMeta.photoInfoRows;
+  const downloadName=photoMeta.downloadName;
   const deleteAllowed=canDeleteSitePhoto(item);
   const viewer=document.createElement("div");
   viewer.className="site-photo-viewer";
@@ -13036,10 +13090,10 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   });
   viewer.appendChild(detailGrid);
 
-  if(meta){
+  if(photoMeta.meta){
     const metaEl=document.createElement("div");
     metaEl.className="site-photo-meta";
-    metaEl.textContent=meta;
+    metaEl.textContent=photoMeta.meta;
     viewer.appendChild(metaEl);
   }
 
