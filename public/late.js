@@ -2042,7 +2042,7 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-11-reuse-offline-shell-v234";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-11-cache-legacy-site-count-v235";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -2336,12 +2336,19 @@ window.removeOfflineProtocolQueueItem=window.removeOfflineProtocolQueueItem || a
 const SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS=5000;
 const szzInstallLocalArrayCache=new Map();
 const szzInstallLocalObjectCache=new Map();
+let szzInstallLegacyOfflineSiteQueueCache={raw:null,length:-1,savedAt:0,items:[]};
 let szzInstallDraftCountCache=null;
 let szzInstallDraftCountCacheAt=0;
 let szzInstallDraftCountStorageLength=-1;
 
 function szzInstallCloneItems(items=[]){
   return items.map(item=>item && typeof item==="object" ? {...item} : item);
+}
+
+function szzInstallCloneOfflineSiteQueueItems(items=[]){
+  return items.map(item=>item && typeof item==="object"
+    ? {...item,raw:item.raw && typeof item.raw==="object" ? {...item.raw} : item.raw}
+    : item);
 }
 
 function szzInstallCloneObjectEntries(entries=[]){
@@ -2392,9 +2399,36 @@ function szzInstallLocalObjectEntries(prefix){
   return entries;
 }
 
+function szzInstallLegacyOfflineSiteQueueItems(){
+  const now=Date.now();
+  try{
+    const raw=localStorage.getItem("astipMap:offlineSites:v1") || "";
+    if(
+      szzInstallLegacyOfflineSiteQueueCache.raw===raw &&
+      szzInstallLegacyOfflineSiteQueueCache.length===localStorage.length &&
+      now-szzInstallLegacyOfflineSiteQueueCache.savedAt<SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS
+    ){
+      return szzInstallCloneOfflineSiteQueueItems(szzInstallLegacyOfflineSiteQueueCache.items);
+    }
+    const parsed=JSON.parse(raw || "[]");
+    const items=Array.isArray(parsed) ? parsed.filter(item=>item && item.docId && item.raw) : [];
+    szzInstallLegacyOfflineSiteQueueCache={
+      raw,
+      length:localStorage.length,
+      savedAt:now,
+      items:szzInstallCloneOfflineSiteQueueItems(items)
+    };
+    return items;
+  }catch(e){
+    szzInstallLegacyOfflineSiteQueueCache={raw:null,length:-1,savedAt:0,items:[]};
+    return [];
+  }
+}
+
 window.addEventListener("storage",()=>{
   szzInstallLocalArrayCache.clear();
   szzInstallLocalObjectCache.clear();
+  szzInstallLegacyOfflineSiteQueueCache={raw:null,length:-1,savedAt:0,items:[]};
   szzInstallDraftCountCache=null;
 });
 
@@ -2424,8 +2458,7 @@ async function szzInstallOfflineCounts(){
   const indexedSites=await window.readOfflineSiteQueueItems();
   try{
     if(!indexedSites.length){
-      const parsed=JSON.parse(localStorage.getItem("astipMap:offlineSites:v1") || "[]");
-      localSites=Array.isArray(parsed) ? parsed.filter(item=>item && item.docId && item.raw) : [];
+      localSites=szzInstallLegacyOfflineSiteQueueItems();
     }
   }catch(e){}
   const indexedProtocols=await window.readAllOfflineProtocolQueueItems();
