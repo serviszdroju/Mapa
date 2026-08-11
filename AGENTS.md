@@ -278,6 +278,8 @@ Current performance phase 127 decision: cache the unique row list used for offli
 
 Current performance phase 128 decision: dedupe offline photo media URLs with a `Set` while preserving output order, avoiding repeated linear `includes()` scans across large galleries during offline media preparation.
 
+Current performance phase 129 decision: dedupe the final offline media cache URL list with a `Set` and compute same-origin once per URL before building requests, preserving the existing bounded worker pool and cache behavior.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

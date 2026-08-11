@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-set-dedupe-offline-photo-urls-v253";
+const APP_BUILD_VERSION="2026-08-12-fast-offline-media-cache-v254";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,7 +1349,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v253-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v254-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1403,9 +1403,15 @@ function szzOfflinePhotoUrls(items=[]){
 
 async function cacheSzzOfflineMediaUrls(urls=[]){
   if(!("caches" in window)) return 0;
-  const unique=(Array.isArray(urls) ? urls : [])
-    .map(url=>safe(url))
-    .filter((url,idx,arr)=>/^https?:\/\//i.test(url) && arr.indexOf(url)===idx);
+  const seen=new Set();
+  const unique=[];
+  (Array.isArray(urls) ? urls : []).forEach(url=>{
+    const clean=safe(url);
+    if(clean && /^https?:\/\//i.test(clean) && !seen.has(clean)){
+      seen.add(clean);
+      unique.push(clean);
+    }
+  });
   if(!unique.length) return 0;
   const cache=await caches.open(SZZ_RUNTIME_CACHE_NAME);
   let done=0;
@@ -1417,10 +1423,11 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
     while(index<unique.length){
       const url=unique[index++];
       try{
+        const local=sameOrigin(url);
         const request=new Request(url,{
           cache:"reload",
-          mode:sameOrigin(url) ? "same-origin" : "no-cors",
-          credentials:sameOrigin(url) ? "same-origin" : "omit"
+          mode:local ? "same-origin" : "no-cors",
+          credentials:local ? "same-origin" : "omit"
         });
         const cached=await cache.match(request) || await cache.match(url);
         if(cached){
