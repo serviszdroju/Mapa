@@ -166,11 +166,15 @@ Current performance phase 72 decision: cache per-record identifier keys and per-
 
 Current performance phase 73 decision: deduplicate merged protocol/service history with a per-load `_id` Set instead of repeated `items.some(...)` scans, preserving the same item order, fallback sources, and visible history while reducing work on large detail and main protocol history loads.
 
+Current performance phase 74 decision: make repeated "Připravit offline data" runs incremental after the first full sync: reuse cached Firebase rows, fetch only rows and per-site child items updated since the last prepared timestamp, skip unchanged embedded detail data, and keep full-sync fallback for first run or forced preparation. Child saves should also touch the parent site `updatedAt` so later incremental row checks notice changed protocols, service records, or photos. Preserve install-time offline preparation before the PWA prompt, cached rows, protocols, service records, photos, map tiles, and visible install/offline copy.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
 
-Current offline first-launch decision: the Android/PWA install flow must prepare offline data before opening the browser install prompt when possible, and offline startup must show locally cached Firebase rows even if Firebase SDK/auth cannot load. The supplied `Tipo_SZZ_logo3.png` battery mark is the required app logo/source for the visible logo and Android manifest icons.
+Current offline first-launch decision: the Android/PWA install flow must open the browser install prompt immediately from the user click and must not run full offline data preparation before installation. Offline startup must show locally cached Firebase rows even if Firebase SDK/auth cannot load. The supplied `Tipo_SZZ_logo3.png` battery mark is the required app logo/source for the visible logo and Android manifest icons.
+
+Current incremental offline sync decision: first manual offline preparation may download the full Firebase row/detail/media set once, but repeated preparation/synchronization must use stored sync metadata and delta reads, skip unchanged points and cached media, and merge changed photos, points, protocols, and service records without creating duplicates.
 
 Current Android packaging decision: for a guaranteed launcher/menu icon on tablets, maintain the `android/` Trusted Web Activity project against the current public web URL `https://serviszdroju.github.io/Mapa/`. PWA install remains best-effort because some Android/launcher/browser combinations create only a web shortcut; an APK install is the reliable path for appearing in the tablet app menu.
 

@@ -299,9 +299,11 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-history-dedupe-cache-v197";
+const APP_BUILD_VERSION="2026-08-11-incremental-offline-v198";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
+const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
+const SZZ_OFFLINE_INCREMENTAL_SAFETY_MS=10000;
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
@@ -1276,7 +1278,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v197-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v198-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1333,6 +1335,11 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
           mode:sameOrigin(url) ? "same-origin" : "no-cors",
           credentials:sameOrigin(url) ? "same-origin" : "omit"
         });
+        const cached=await cache.match(request) || await cache.match(url);
+        if(cached){
+          done++;
+          continue;
+        }
         const response=await fetch(request);
         if(response && (response.ok || response.type==="opaque")){
           await cache.put(request,response.clone());
@@ -1345,6 +1352,204 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
   };
   await Promise.allSettled(Array.from({length:Math.min(SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY,unique.length)},()=>worker()));
   return done;
+}
+
+function readSzzOfflineDetailMeta(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(SZZ_OFFLINE_DETAIL_META_KEY) || "{}");
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function writeSzzOfflineDetailMeta(update={}){
+  try{
+    const next={...readSzzOfflineDetailMeta(),...update,updatedAt:new Date().toISOString()};
+    localStorage.setItem(SZZ_OFFLINE_DETAIL_META_KEY,JSON.stringify(next));
+    return next;
+  }catch(e){
+    return {...update};
+  }
+}
+
+function szzOfflineSiteMetaKey(site){
+  return selectedSiteDocId(site) || detailKey(site) || safe(site?.id);
+}
+
+function readSzzOfflineSiteMeta(site){
+  const key=szzOfflineSiteMetaKey(site);
+  const meta=readSzzOfflineDetailMeta();
+  return key && meta.sites && meta.sites[key] && typeof meta.sites[key]==="object" ? meta.sites[key] : null;
+}
+
+function writeSzzOfflineSiteMeta(site,siteMeta={}){
+  const key=szzOfflineSiteMetaKey(site);
+  if(!key) return null;
+  const meta=readSzzOfflineDetailMeta();
+  const sites=meta.sites && typeof meta.sites==="object" ? {...meta.sites} : {};
+  sites[key]={...(sites[key] || {}),...siteMeta,updatedAt:new Date().toISOString()};
+  return writeSzzOfflineDetailMeta({sites});
+}
+
+function szzTimeMsFromAny(value){
+  if(value && typeof value.toDate==="function") return value.toDate().getTime();
+  if(value && typeof value.seconds==="number") return Number(value.seconds)*1000 + Math.round((Number(value.nanoseconds) || 0)/1000000);
+  const fromHelper=typeof timeValueFromAny==="function" ? timeValueFromAny(value) : 0;
+  if(Number.isFinite(fromHelper) && fromHelper>0) return fromHelper;
+  const parsed=Date.parse(safe(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function szzRecordUpdatedMs(item={}){
+  return Math.max(
+    szzTimeMsFromAny(item.updatedAt),
+    szzTimeMsFromAny(item.syncedAt),
+    szzTimeMsFromAny(item.uploadedAt),
+    szzTimeMsFromAny(item.savedAt),
+    szzTimeMsFromAny(item.createdAt),
+    szzTimeMsFromAny(item.date),
+    szzTimeMsFromAny(item.checkDate),
+    szzTimeMsFromAny(item.cloudinaryVersion ? Number(item.cloudinaryVersion)*1000 : 0)
+  );
+}
+
+function szzStableRawFingerprint(raw={}){
+  return Object.keys(raw || {})
+    .sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}))
+    .map(key=>stableSignature([key,raw[key]]))
+    .join("\u001e");
+}
+
+function szzOfflineRowFingerprint(row){
+  const raw=row?.raw || {};
+  const data=row?.firebaseData || {};
+  return stableSignature([
+    row?.firebaseDocId,
+    row?.id,
+    data.updatedAt,
+    data.createdAt,
+    data.latestProtocolDate,
+    szzStableRawFingerprint(raw)
+  ]);
+}
+
+function szzItemsMeta(items=[]){
+  const list=Array.isArray(items) ? items : [];
+  let latestMs=0;
+  const ids=[];
+  list.forEach((item,idx)=>{
+    latestMs=Math.max(latestMs,szzRecordUpdatedMs(item));
+    ids.push(safe(item?._id || item?.id || `${idx}`));
+  });
+  return {
+    count:list.length,
+    latestMs,
+    signature:ids.sort().join("|")
+  };
+}
+
+function szzDetailMetaChanged(before=null,after=null){
+  if(!before || !after) return true;
+  return before.count!==after.count || before.latestMs!==after.latestMs || before.signature!==after.signature;
+}
+
+function szzLocalOfflineDetailMeta(site){
+  return {
+    protocols:szzItemsMeta(readSiteLocalArray("protocolHistory",site)),
+    serviceRecords:szzItemsMeta(readSiteLocalArray("serviceHistory",site)),
+    photos:szzItemsMeta(readSiteLocalArray("photos",site))
+  };
+}
+
+async function readFirestoreDocsUpdatedSince(collectionFactory,fields=[],sinceMs=0,addDocSnap=null,warnLabel="Rozdílový Firestore dotaz"){
+  if(!firebaseReady || !db || !fb.fsMod || navigator.onLine===false || !sinceMs || typeof addDocSnap!=="function") return 0;
+  const {query,where,getDocs,Timestamp}=fb.fsMod;
+  if(!query || !where || !getDocs) return 0;
+  const cutoffMs=Math.max(0,Number(sinceMs) - SZZ_OFFLINE_INCREMENTAL_SAFETY_MS);
+  const cutoffValues=[];
+  if(Timestamp && typeof Timestamp.fromMillis==="function") cutoffValues.push(Timestamp.fromMillis(cutoffMs));
+  cutoffValues.push(new Date(cutoffMs).toISOString());
+  let count=0;
+  const tasks=[];
+  uniqueNonEmptyStrings(fields).forEach(field=>{
+    cutoffValues.forEach(cutoff=>{
+      tasks.push(async()=>{
+        try{
+          const snap=await getDocs(query(collectionFactory(),where(field,">",cutoff)));
+          snap.forEach(docSnap=>{
+            count++;
+            addDocSnap(docSnap);
+          });
+        }catch(e){
+          console.warn(warnLabel,field,e);
+        }
+      });
+    });
+  });
+  await runBoundedFirestoreTasks(tasks,4);
+  return count;
+}
+
+function szzFirebaseRowFromDocSnap(docSnap){
+  if(!docSnap || !docSnap.id || typeof docSnap.data!=="function") return null;
+  const normalizeRows=window.normalizeSiteRows || window.normalize;
+  if(typeof normalizeRows!=="function") return null;
+  const applyRowEdit=window.applySiteEditToRow || window.applyEditToRow || (row=>row);
+  const data=docSnap.data() || {};
+  let raw={...(data.raw || {})};
+  if(typeof window.applyLatestProtocolDateToRaw==="function"){
+    raw=window.applyLatestProtocolDateToRaw(raw,data || {});
+  }
+  raw["Firebase_doc_id"]=docSnap.id;
+  if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docSnap.id;
+  const row=normalizeRows([raw])[0];
+  if(!row) return null;
+  row.id=raw["Klíč_adresy"];
+  row.raw=raw;
+  row.firebaseDocId=docSnap.id;
+  row.firebaseData=data;
+  return applyRowEdit(row);
+}
+
+async function syncSzzOfflineMapRowDeltas(sinceMs=0){
+  if(!sinceMs || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return [];
+  const signedUser=await waitForFirebaseUser(3000);
+  if(!signedUser) return [];
+  const {collection}=fb.fsMod;
+  const rowsById=new Map();
+  await readFirestoreDocsUpdatedSince(
+    ()=>collection(db,"sitesUnified"),
+    ["updatedAt","createdAt"],
+    sinceMs,
+    docSnap=>{
+      const row=szzFirebaseRowFromDocSnap(docSnap);
+      if(row) rowsById.set(safe(row.firebaseDocId || row.id),row);
+    },
+    "Rozdílové načtení bodů selhalo"
+  );
+  const changedRows=[...rowsById.values()];
+  if(!changedRows.length) return [];
+  if(typeof window.upsertFirebaseSiteRow==="function"){
+    changedRows.forEach(row=>{
+      try{ window.upsertFirebaseSiteRow(row,false); }catch(e){}
+    });
+  }
+  cacheCurrentFirebaseRowsForOffline();
+  return changedRows;
+}
+
+function siteChildLocalKind(kind){
+  return kind==="protocols" ? "protocolHistory" : kind==="serviceRecords" ? "serviceHistory" : kind==="photos" ? "photos" : "";
+}
+
+function siteChildTypeLabel(kind){
+  return kind==="protocols" ? "Protokol" : kind==="serviceRecords" ? "Servisní záznam" : "";
+}
+
+function siteChildDeltaFields(kind){
+  if(kind==="photos") return ["updatedAt","uploadedAt","createdAt","savedAt"];
+  return ["updatedAt","syncedAt","savedAt","createdAt","date"];
 }
 
 async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
@@ -1412,20 +1617,31 @@ async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
   return items.filter(item=>recordMatchesSite(item,site));
 }
 
-async function prefetchOfflineDetailsForSite(site){
-  const result={sites:1,protocols:0,serviceRecords:0,photos:0,media:0};
+async function prefetchOfflineDetailsForSite(site,options={}){
+  const result={sites:1,protocols:0,serviceRecords:0,photos:0,media:0,skipped:false,changed:false,full:false};
   if(!site || navigator.onLine===false || !firebaseReady || !db || !fb.fsMod) return result;
-  try{ await refreshSiteDataFromFirebase(site); }catch(e){}
+  const previousMeta=readSzzOfflineSiteMeta(site);
+  const localBefore=szzLocalOfflineDetailMeta(site);
+  const incremental=options.incremental!==false && options.forceFull!==true && !!(previousMeta && previousMeta.syncedAtMs);
+  const sinceMs=incremental ? Number(previousMeta.syncedAtMs) || 0 : 0;
+  const rowFingerprintBefore=szzOfflineRowFingerprint(site);
+  const rowChanged=!previousMeta || previousMeta.rowFingerprint!==rowFingerprintBefore;
+  result.full=!incremental;
+  if((!site.firebaseData || !site.firebaseData.raw) && (!incremental || rowChanged)){
+    try{ await refreshSiteDataFromFirebase(site); }catch(e){}
+  }
+  const includeLegacyStandalone=!incremental || (!localBefore.protocols.count && !localBefore.serviceRecords.count);
   const [childProtocols,childRecords,childPhotos,standaloneProtocols,standaloneRecords]=await Promise.all([
-    loadSiteChildItems("protocols",site),
-    loadSiteChildItems("serviceRecords",site),
-    loadSiteChildItems("photos",site),
-    readOfflineStandaloneHistoryCollection(site,"protocols","Protokol"),
-    readOfflineStandaloneHistoryCollection(site,"serviceRecords","Servisní záznam")
+    loadSiteChildItemsForOffline("protocols",site,sinceMs),
+    loadSiteChildItemsForOffline("serviceRecords",site,sinceMs),
+    loadSiteChildItemsForOffline("photos",site,sinceMs),
+    includeLegacyStandalone ? readOfflineStandaloneHistoryCollection(site,"protocols","Protokol") : Promise.resolve([]),
+    includeLegacyStandalone ? readOfflineStandaloneHistoryCollection(site,"serviceRecords","Servisní záznam") : Promise.resolve([])
   ]);
-  const embeddedProtocols=szzEmbeddedItemsForOffline(site,"protocolHistory","Protokol","embeddedProtocols","embedded_protocol");
-  const embeddedRecords=szzEmbeddedItemsForOffline(site,"serviceHistory","Servisní záznam","embeddedServiceRecords","embedded_service");
-  const embeddedPhotos=szzEmbeddedItemsForOffline(site,"photos","","embeddedPhotos","embedded_photo");
+  const includeEmbedded=!incremental || rowChanged;
+  const embeddedProtocols=includeEmbedded ? szzEmbeddedItemsForOffline(site,"protocolHistory","Protokol","embeddedProtocols","embedded_protocol") : [];
+  const embeddedRecords=includeEmbedded ? szzEmbeddedItemsForOffline(site,"serviceHistory","Servisní záznam","embeddedServiceRecords","embedded_service") : [];
+  const embeddedPhotos=includeEmbedded ? szzEmbeddedItemsForOffline(site,"photos","","embeddedPhotos","embedded_photo") : [];
   const protocols=[...childProtocols.map(item=>({...item,_type:item._type || "Protokol",_collection:item._collection || "siteProtocols"})),...embeddedProtocols,...standaloneProtocols];
   const serviceRecords=[...childRecords.map(item=>({...item,_type:item._type || "Servisní záznam",_collection:item._collection || "siteServiceRecords"})),...embeddedRecords,...standaloneRecords];
   const photos=[...childPhotos,...embeddedPhotos];
@@ -1436,22 +1652,44 @@ async function prefetchOfflineDetailsForSite(site){
   result.serviceRecords=serviceRecords.length;
   result.photos=photos.length;
   result.media=await cacheSzzOfflineMediaUrls(szzOfflinePhotoUrls(photos));
+  const localAfter=szzLocalOfflineDetailMeta(site);
+  const rowFingerprint=szzOfflineRowFingerprint(site);
+  result.changed=!!(
+    rowChanged ||
+    result.protocols ||
+    result.serviceRecords ||
+    result.photos ||
+    result.media ||
+    szzDetailMetaChanged(localBefore.protocols,localAfter.protocols) ||
+    szzDetailMetaChanged(localBefore.serviceRecords,localAfter.serviceRecords) ||
+    szzDetailMetaChanged(localBefore.photos,localAfter.photos)
+  );
+  result.skipped=incremental && !result.changed;
+  writeSzzOfflineSiteMeta(site,{
+    rowFingerprint,
+    syncedAtMs:Date.now(),
+    protocols:localAfter.protocols,
+    serviceRecords:localAfter.serviceRecords,
+    photos:localAfter.photos
+  });
   return result;
 }
 
 async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
   const rowsForPrefetch=szzOfflineRowsForPrefetch(inputRows);
-  const totals={sites:rowsForPrefetch.length,processed:0,protocols:0,serviceRecords:0,photos:0,media:0};
+  const totals={sites:rowsForPrefetch.length,processed:0,protocols:0,serviceRecords:0,photos:0,media:0,skipped:0,changedSites:0};
   if(!rowsForPrefetch.length || navigator.onLine===false || !firebaseReady || !db || !fb.fsMod) return totals;
   const signedUser=await waitForFirebaseUser();
   if(!signedUser) return totals;
   const tasks=rowsForPrefetch.map(site=>async()=>{
-    const item=await prefetchOfflineDetailsForSite(site);
+    const item=await prefetchOfflineDetailsForSite(site,options);
     totals.processed++;
     totals.protocols+=Number(item.protocols) || 0;
     totals.serviceRecords+=Number(item.serviceRecords) || 0;
     totals.photos+=Number(item.photos) || 0;
     totals.media+=Number(item.media) || 0;
+    if(item.skipped) totals.skipped++;
+    if(item.changed) totals.changedSites++;
     if(typeof options.onProgress==="function") options.onProgress({...totals});
   });
   await runBoundedFirestoreTasks(tasks,SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY);
@@ -1496,28 +1734,60 @@ async function prepareSzzOfflineAppData(options={}){
       console.warn("Offline shell se nepodařilo připravit",e);
     }
     let loadedRows=null;
+    let changedRows=[];
+    const readyBefore=readSzzOfflineReadyState();
+    const cachedRowsBefore=readCachedFirebaseSiteCount();
+    const firstRun=options.forceFull===true || !cachedRowsBefore || !readyBefore.rowsSyncedAtMs;
+    if(cachedRowsBefore && (!Array.isArray(window.rows) || !window.rows.length) && typeof window.showFirebaseMapRowsCache==="function"){
+      try{
+        if(syncText) syncText.textContent="Načítám uložené body z telefonu.";
+        await window.showFirebaseMapRowsCache(null,{offlineBoot:true});
+      }catch(e){
+        console.warn("Lokální cache bodů se nepodařila načíst před synchronizací",e);
+      }
+    }
     if(navigator.onLine!==false && typeof window.loadFirebaseSitesUnified==="function"){
       try{
-        loadedRows=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true});
+        if(firstRun){
+          if(syncText) syncText.textContent="První příprava: stahuji body z Firebase do telefonu.";
+          loadedRows=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true});
+        }else{
+          if(syncText) syncText.textContent="Kontroluji změny v bodech od poslední synchronizace.";
+          const sinceMs=Number(readyBefore.rowsSyncedAtMs || Date.parse(readyBefore.preparedAt || "") || 0);
+          changedRows=await syncSzzOfflineMapRowDeltas(sinceMs);
+          loadedRows=changedRows;
+        }
       }catch(e){
-        console.warn("Servisní data se nepodařilo přednačíst",e);
+        console.warn(firstRun ? "Servisní data se nepodařilo přednačíst" : "Rozdílová synchronizace bodů selhala",e);
       }
     }
     const cachedRows=cacheCurrentFirebaseRowsForOffline();
-    let detailCache={sites:0,processed:0,protocols:0,serviceRecords:0,photos:0,media:0};
+    let detailCache={sites:0,processed:0,protocols:0,serviceRecords:0,photos:0,media:0,skipped:0,changedSites:0};
     if(navigator.onLine!==false && cachedRows){
-      const rowsForDetails=Array.isArray(loadedRows) && loadedRows.length ? loadedRows : szzOfflineRowsForPrefetch();
-      if(syncText) syncText.textContent=`Ukládám protokoly a galerie k bodům: 0 / ${rowsForDetails.length}.`;
-      try{
-        detailCache=await prefetchSzzOfflineDetailData(rowsForDetails,{
-          onProgress:progress=>{
-            if(syncText){
-              syncText.textContent=`Ukládám protokoly a galerie k bodům: ${progress.processed} / ${progress.sites}.`;
+      const rowsForDetails=firstRun
+        ? (Array.isArray(loadedRows) && loadedRows.length ? loadedRows : szzOfflineRowsForPrefetch())
+        : changedRows;
+      if(rowsForDetails.length){
+        if(syncText) syncText.textContent=firstRun
+          ? `Ukládám protokoly a galerie k bodům: 0 / ${rowsForDetails.length}.`
+          : `Kontroluji rozdíly u změněných bodů: 0 / ${rowsForDetails.length}.`;
+        try{
+          detailCache=await prefetchSzzOfflineDetailData(rowsForDetails,{
+            incremental:!firstRun,
+            forceFull:options.forceFull===true,
+            onProgress:progress=>{
+              if(syncText){
+                syncText.textContent=firstRun
+                  ? `Ukládám protokoly a galerie k bodům: ${progress.processed} / ${progress.sites}.`
+                  : `Kontroluji rozdíly u změněných bodů: ${progress.processed} / ${progress.sites}, změny: ${progress.changedSites}.`;
+              }
             }
-          }
-        });
-      }catch(e){
-        console.warn("Přednačtení detailů pro offline režim selhalo",e);
+          });
+        }catch(e){
+          console.warn("Přednačtení detailů pro offline režim selhalo",e);
+        }
+      }else if(!firstRun && syncText){
+        syncText.textContent="Žádné nové nebo změněné body od poslední synchronizace.";
       }
     }
     let cachedOfflineMap=czechOfflineMapReady();
@@ -1531,14 +1801,20 @@ async function prepareSzzOfflineAppData(options={}){
       cachedOfflineMap=czechOfflineMapReady();
     }
     const estimate=await szzStorageEstimate();
+    const nowMs=Date.now();
     const ready=writeSzzOfflineReadyState({
       preparedAt:new Date().toISOString(),
+      rowsSyncedAtMs:navigator.onLine!==false ? Math.max(0,nowMs-SZZ_OFFLINE_INCREMENTAL_SAFETY_MS) : (readyBefore.rowsSyncedAtMs || 0),
+      incremental:!firstRun,
       persistentStorage:!!storage.persisted,
       persistentStorageSupported:!!storage.supported,
       shellCount,
       cachedRows,
       loadedRows:Array.isArray(loadedRows) ? loadedRows.length : null,
+      changedRows:Array.isArray(changedRows) ? changedRows.length : 0,
       cachedDetailSites:detailCache.processed || 0,
+      changedDetailSites:detailCache.changedSites || 0,
+      skippedDetailSites:!firstRun && !detailCache.processed ? cachedRows : (detailCache.skipped || 0),
       cachedProtocols:detailCache.protocols || 0,
       cachedServiceRecords:detailCache.serviceRecords || 0,
       cachedPhotos:detailCache.photos || 0,
@@ -1548,13 +1824,21 @@ async function prepareSzzOfflineAppData(options={}){
       storageQuota:estimate ? estimate.quota : 0
     });
     if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
-    const detailSummary=(detailCache.protocols || detailCache.serviceRecords || detailCache.photos)
+    const changedRecordCount=(detailCache.protocols || 0) + (detailCache.serviceRecords || 0);
+    const detailSummary=(changedRecordCount || detailCache.photos)
       ? `, ${detailCache.protocols + detailCache.serviceRecords} záznamů, ${detailCache.photos} fotek`
       : "";
     const mapSummary=cachedOfflineMap ? ", mapa ČR" : "";
-    if(syncText) syncText.textContent=cachedRows
-      ? `Offline připraveno: ${cachedRows} bodů${detailSummary}${mapSummary} v telefonu.`
-      : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.";
+    if(syncText){
+      if(!firstRun && cachedRows){
+        const skippedSites=!detailCache.processed ? cachedRows : (detailCache.skipped || 0);
+        syncText.textContent=`Synchronizace hotová: ${changedRows.length} změněných bodů${detailSummary}, přeskočeno ${skippedSites} beze změny${mapSummary}.`;
+      }else{
+        syncText.textContent=cachedRows
+          ? `Offline připraveno: ${cachedRows} bodů${detailSummary}${mapSummary} v telefonu.`
+          : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.";
+      }
+    }
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     return ready;
   }finally{
@@ -9306,6 +9590,13 @@ async function saveSiteChildItem(kind,id,item,site=selectedSite){
       siteDocId:docId,
       updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
     },{merge:true});
+    try{
+      await setDoc(doc(db,"sitesUnified",docId),{
+        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
+      },{merge:true});
+    }catch(e){
+      console.warn("Označení změny bodu po uložení položky selhalo",kind,e);
+    }
     clearSiteChildItemsCache(kind,site);
     clearDetailHistoryCacheForKind(kind,site);
     return true;
@@ -9339,6 +9630,48 @@ async function loadSiteChildItems(kind,site=selectedSite){
     console.warn("Načtení položek pod bodem selhalo",kind,e);
     return [];
   }
+}
+
+async function loadSiteChildItemsDelta(kind,site=selectedSite,sinceMs=0){
+  const docId=selectedSiteDocId(site);
+  const localKind=siteChildLocalKind(kind);
+  if(!docId || !localKind || !sinceMs || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return [];
+  const items=[];
+  const itemDedupe=createRecordIdDedupe(items);
+  const addDocSnap=docSnap=>{
+    if(!docSnap || !docSnap.id || typeof docSnap.data!=="function") return;
+    itemDedupe.add({
+      ...docSnap.data(),
+      _id:docSnap.id,
+      _collection:`site${kind}`,
+      _type:siteChildTypeLabel(kind)
+    });
+  };
+  try{
+    const {collection}=fb.fsMod;
+    await readFirestoreDocsUpdatedSince(
+      ()=>collection(db,"sitesUnified",docId,kind),
+      siteChildDeltaFields(kind),
+      sinceMs,
+      addDocSnap,
+      `Rozdílové načtení ${kind} selhalo`
+    );
+    if(items.length){
+      const merged=mergeSiteLocalArray(localKind,items,site,kind==="photos" ? 180 : 180);
+      writeSiteChildItemsCache(kind,site,merged);
+    }
+    return cloneSiteChildItems(items);
+  }catch(e){
+    console.warn("Rozdílové načtení položek pod bodem selhalo",kind,e);
+    return [];
+  }
+}
+
+async function loadSiteChildItemsForOffline(kind,site=selectedSite,sinceMs=0){
+  const localKind=siteChildLocalKind(kind);
+  const hasLocal=localKind ? readSiteLocalArray(localKind,site).length>0 : false;
+  if(!sinceMs || !hasLocal) return loadSiteChildItems(kind,site);
+  return loadSiteChildItemsDelta(kind,site,sinceMs);
 }
 
 async function deleteSiteChildItem(kind,id,site=selectedSite){
