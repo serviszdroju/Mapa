@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-firebase-offline-row-list-v251";
+const APP_BUILD_VERSION="2026-08-12-cache-offline-prefetch-rows-v252";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,17 +1349,29 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v251-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v252-runtime";
 
+let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
+  const current=Array.isArray(source) ? source : [];
+  const indexVersion=current===rows ? rowsIndexVersion : -1;
+  if(
+    szzOfflineRowsForPrefetchCache.source===current &&
+    szzOfflineRowsForPrefetchCache.length===current.length &&
+    szzOfflineRowsForPrefetchCache.indexVersion===indexVersion
+  ){
+    return szzOfflineRowsForPrefetchCache.rows;
+  }
   const seen=new Set();
-  return (source || []).filter(row=>{
+  const prefetchRows=current.filter(row=>{
     const id=safe(row && (row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id));
     if(!id || seen.has(id)) return false;
     seen.add(id);
     return true;
   });
+  szzOfflineRowsForPrefetchCache={source:current,length:current.length,indexVersion,rows:prefetchRows};
+  return prefetchRows;
 }
 
 function szzEmbeddedItemsForOffline(site,field,typeLabel,collectionLabel,idPrefix){
