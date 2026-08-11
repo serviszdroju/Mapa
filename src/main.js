@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-photo-url-bundles-v245";
+const APP_BUILD_VERSION="2026-08-12-cache-gallery-point-info-v246";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v245-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v246-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -12808,7 +12808,35 @@ function sitePhotoFolderGroups(items){
   return Array.from(groups.entries()).map(([folder,photos])=>({folder,photos}));
 }
 
+const sitePhotoPointInfoRowsCache=new WeakMap();
+function sitePhotoPointInfoFingerprint(site=selectedSite){
+  if(!site || (typeof site!=="object" && typeof site!=="function")) return "";
+  const raw=(site && site.raw) || {};
+  const gps=Number.isFinite(site?.lat) && Number.isFinite(site?.lon)
+    ? `${site.lat.toFixed(6)}, ${site.lon.toFixed(6)}`
+    : pickRawValue(raw,["Adresa_GPS","GPS","GPS souřadnice","GPS souradnice"]);
+  return [
+    safe(site?.adresa),
+    safe(site?.kraj),
+    safe(site?.zdroj),
+    safe(site?.lat),
+    safe(site?.lon),
+    gps,
+    pickRawValue(raw,["Název","Adresa / umístění","Umístění"]),
+    pickRawValue(raw,["Kraj","Region","Okres"]),
+    pickRawValue(raw,["Adresa / umístění","Adresa","Umístění"]),
+    pickRawValue(raw,["Popis_zdroje","Popis zdroje","Zdroj","Typ zdroje"]),
+    pickRawValue(raw,["Výrobní číslo","Výrobní č.","Výrobní_cislo","Zdroj","SN"])
+  ].map(safe).join("\u001f");
+}
+
 function sitePhotoPointInfoRows(site=selectedSite){
+  const canCache=!!(site && (typeof site==="object" || typeof site==="function"));
+  const fingerprint=canCache ? sitePhotoPointInfoFingerprint(site) : "";
+  if(canCache && fingerprint){
+    const cached=sitePhotoPointInfoRowsCache.get(site);
+    if(cached && cached.fingerprint===fingerprint) return cached.rows;
+  }
   const raw=(site && site.raw) || {};
   const gps=Number.isFinite(site?.lat) && Number.isFinite(site?.lon)
     ? `${site.lat.toFixed(6)}, ${site.lon.toFixed(6)}`
@@ -12821,9 +12849,11 @@ function sitePhotoPointInfoRows(site=selectedSite){
     ["Popis zdroje", site?.zdroj || pickRawValue(raw,["Popis_zdroje","Popis zdroje","Zdroj","Typ zdroje"])],
     ["Výrobní číslo", pickRawValue(raw,["Výrobní číslo","Výrobní č.","Výrobní_cislo","Zdroj","SN"])]
   ];
-  return rows
+  const result=rows
     .map(([label,value])=>[label,safe(value) || "-"])
     .filter(([label,value],idx,all)=>value!=="-" || idx<3 || all.length<=3);
+  if(canCache && fingerprint) sitePhotoPointInfoRowsCache.set(site,{fingerprint,rows:result});
+  return result;
 }
 
 function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite,pointInfoRows=null){
