@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-sidebar-sort-cache-v201";
+const APP_BUILD_VERSION="2026-08-11-record-key-ref-cache-v202";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v201-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v202-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4393,13 +4393,12 @@ function siteRecordKeys(site=selectedSite){
 }
 function siteRecordKeySet(site=selectedSite){
   const keys=siteRecordKeys(site);
-  const fingerprint=stableSignature(keys);
-  if(site && typeof site==="object" && site._recordKeySetFingerprint===fingerprint && site._recordKeySetCache instanceof Set){
+  if(site && typeof site==="object" && site._recordKeySetKeysRef===keys && site._recordKeySetCache instanceof Set){
     return site._recordKeySetCache;
   }
   const keySet=new Set(keys);
   if(site && typeof site==="object"){
-    site._recordKeySetFingerprint=fingerprint;
+    site._recordKeySetKeysRef=keys;
     site._recordKeySetCache=keySet;
   }
   return keySet;
@@ -4501,13 +4500,12 @@ function siteRecordTextKeys(site=selectedSite){
 }
 function siteRecordNormTextKeys(site=selectedSite){
   const keys=siteRecordTextKeys(site);
-  const fingerprint=stableSignature(keys);
-  if(site && typeof site==="object" && site._recordNormTextFingerprint===fingerprint && Array.isArray(site._recordNormTextKeysCache)){
+  if(site && typeof site==="object" && site._recordNormTextKeysRef===keys && Array.isArray(site._recordNormTextKeysCache)){
     return site._recordNormTextKeysCache;
   }
   const normalized=keys.map(searchNorm).filter(x=>x.length>=4);
   if(site && typeof site==="object"){
-    site._recordNormTextFingerprint=fingerprint;
+    site._recordNormTextKeysRef=keys;
     site._recordNormTextKeysCache=normalized;
   }
   return normalized;
