@@ -220,6 +220,8 @@ Current performance phase 98 decision: cache small local state object reads for 
 
 Current performance phase 99 decision: cache the fallback `readCachedFirebaseSiteCount()` result by exact stored Firebase map-cache JSON so offline/status UI avoids repeatedly parsing large legacy localStorage cache payloads while preserving IndexedDB-first data loading and raw-value freshness.
 
+Current performance phase 100 decision: cache the legacy `astipMap:offlineSites:v1` fallback pending-site count by exact raw localStorage value, preserving IndexedDB-first offline queues while reducing repeated JSON parsing during status refreshes when legacy local queue data is present.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-firebase-cache-count-cache-v224";
+const APP_BUILD_VERSION="2026-08-11-legacy-offline-site-count-cache-v225";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1296,7 +1296,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v224-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v225-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -12159,11 +12159,14 @@ async function syncOfflineChanges(options={}){
 window.syncOfflineChanges=syncOfflineChanges;
 
 const SZZ_SYNC_STATE_KEY="astipSzzSyncState:v1";
+const SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY="astipMap:offlineSites:v1";
 let szzOfflineStatusTimer=0;
 let szzOfflineStatusRun=0;
 const SZZ_OFFLINE_COUNTS_CACHE_MS=1200;
 let szzOfflineCountsCache=null;
 let szzOfflineCountsCacheAt=0;
+const SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS=1800;
+let szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
 
 function cloneSzzOfflineCounts(counts){
   return counts ? {...counts} : counts;
@@ -12174,6 +12177,11 @@ function invalidateSzzOfflineCountsCache(){
   szzOfflineCountsCacheAt=0;
 }
 window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key===SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY){
+    szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
+  }
+});
 
 function readSzzSyncState(){
   return readSzzLocalStateObject(SZZ_SYNC_STATE_KEY);
@@ -12220,9 +12228,15 @@ async function readPendingOfflineSitesCount(){
   try{
     const indexedItems=await readOfflineSiteQueueItems();
     if(indexedItems.length) return uniqueByOfflineId(indexedItems,"docId").length;
-    const items=JSON.parse(localStorage.getItem("astipMap:offlineSites:v1") || "[]");
+    const raw=localStorage.getItem(SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY) || "";
+    if(szzLegacyOfflineSiteCountCache.raw===raw && Date.now()-szzLegacyOfflineSiteCountCache.savedAt<SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS){
+      return szzLegacyOfflineSiteCountCache.count;
+    }
+    const items=JSON.parse(raw || "[]");
     const localItems=Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
-    return uniqueByOfflineId(localItems,"docId").length;
+    const count=uniqueByOfflineId(localItems,"docId").length;
+    szzLegacyOfflineSiteCountCache={raw,count,savedAt:Date.now()};
+    return count;
   }catch(e){
     return 0;
   }
