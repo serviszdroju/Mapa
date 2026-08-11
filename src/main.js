@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-multi-source-cache-v195";
+const APP_BUILD_VERSION="2026-08-11-record-id-cache-v196";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1276,7 +1276,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v195-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v196-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4103,21 +4103,51 @@ function siteRecordKeys(site=selectedSite){
   }
   return keys;
 }
+function siteRecordKeySet(site=selectedSite){
+  const keys=siteRecordKeys(site);
+  const fingerprint=stableSignature(keys);
+  if(site && typeof site==="object" && site._recordKeySetFingerprint===fingerprint && site._recordKeySetCache instanceof Set){
+    return site._recordKeySetCache;
+  }
+  const keySet=new Set(keys);
+  if(site && typeof site==="object"){
+    site._recordKeySetFingerprint=fingerprint;
+    site._recordKeySetCache=keySet;
+  }
+  return keySet;
+}
 function selectedSiteDocId(site=selectedSite){
   const raw=(site && site.raw) || {};
   return safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
 }
-function recordMatchesSite(record,site=selectedSite){
-  if(!record || !site) return false;
-  const keys=siteRecordKeys(site);
-  const recordKeys=[
+const recordIdKeysCache=new WeakMap();
+function recordIdKeys(record){
+  if(!record) return [];
+  const rawValues=[
     record.siteId,
     record.siteKey,
     record.siteDocId,
     record.firebaseDocId,
     ...(Array.isArray(record.siteKeys) ? record.siteKeys : [])
-  ].map(x=>String(x || "").trim()).filter(Boolean);
-  if(recordKeys.some(k=>keys.includes(k))) return true;
+  ];
+  if(record && (typeof record==="object" || typeof record==="function")){
+    const fingerprint=stableSignature(rawValues);
+    const cached=recordIdKeysCache.get(record);
+    if(cached && cached.fingerprint===fingerprint) return cached.keys;
+    const keys=rawValues
+      .map(x=>String(x || "").trim())
+      .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+    recordIdKeysCache.set(record,{fingerprint,keys});
+    return keys;
+  }
+  return rawValues
+    .map(x=>String(x || "").trim())
+    .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+}
+function recordMatchesSite(record,site=selectedSite){
+  if(!record || !site) return false;
+  const keySet=siteRecordKeySet(site);
+  if(recordIdKeys(record).some(k=>keySet.has(k))) return true;
   if(siteHasMultipleSources(site) && !recordSourceMatchesSite(record,site)) return false;
 
   const siteTexts=siteRecordNormTextKeys(site);
