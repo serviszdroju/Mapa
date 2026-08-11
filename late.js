@@ -2252,12 +2252,21 @@ window.removeOfflineProtocolQueueItem=window.removeOfflineProtocolQueueItem || a
 
 const SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS=5000;
 const szzInstallLocalArrayCache=new Map();
+const szzInstallLocalObjectCache=new Map();
 let szzInstallDraftCountCache=null;
 let szzInstallDraftCountCacheAt=0;
 let szzInstallDraftCountStorageLength=-1;
 
 function szzInstallCloneItems(items=[]){
   return items.map(item=>item && typeof item==="object" ? {...item} : item);
+}
+
+function szzInstallCloneObjectEntries(entries=[]){
+  return entries.map(entry=>({
+    key:entry.key,
+    suffix:entry.suffix,
+    item:entry.item && typeof entry.item==="object" ? {...entry.item} : entry.item
+  }));
 }
 
 function szzInstallLocalArrayEntries(prefix){
@@ -2280,6 +2289,32 @@ function szzInstallLocalArrayEntries(prefix){
   return entries;
 }
 
+function szzInstallLocalObjectEntries(prefix){
+  const cleanPrefix=String(prefix || "");
+  const now=Date.now();
+  const cached=szzInstallLocalObjectCache.get(cleanPrefix);
+  if(cached && cached.length===localStorage.length && now-cached.savedAt<SZZ_INSTALL_LOCAL_STORAGE_CACHE_MS){
+    return szzInstallCloneObjectEntries(cached.entries);
+  }
+  const entries=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith(cleanPrefix)) continue;
+      const item=JSON.parse(localStorage.getItem(key) || "null");
+      if(item && typeof item==="object") entries.push({key,suffix:key.slice(cleanPrefix.length),item});
+    }
+  }catch(e){}
+  szzInstallLocalObjectCache.set(cleanPrefix,{savedAt:now,length:localStorage.length,entries:szzInstallCloneObjectEntries(entries)});
+  return entries;
+}
+
+window.addEventListener("storage",()=>{
+  szzInstallLocalArrayCache.clear();
+  szzInstallLocalObjectCache.clear();
+  szzInstallDraftCountCache=null;
+});
+
 function szzInstallLocalProtocolDraftCount(){
   const now=Date.now();
   if(
@@ -2291,13 +2326,9 @@ function szzInstallLocalProtocolDraftCount(){
   }
   let drafts=0;
   try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i);
-      if(key && key.startsWith("astipMap:protocolDraft:")){
-        const parsed=JSON.parse(localStorage.getItem(key) || "null");
-        if(parsed && parsed.payload) drafts++;
-      }
-    }
+    szzInstallLocalObjectEntries("astipMap:protocolDraft:").forEach(entry=>{
+      if(entry && entry.item && entry.item.payload) drafts++;
+    });
   }catch(e){}
   szzInstallDraftCountCache=drafts;
   szzInstallDraftCountCacheAt=now;
@@ -2735,11 +2766,7 @@ async function performSzzInstallFromPage(){
   const help=androidInstallHelpText();
   renderSzzInstallGuide();
   setSzzInstallStatus(help,szzInstallReadiness()==="error" ? "error" : "info");
-  if(/android/i.test(navigator.userAgent || "")){
-    await downloadSzzAndroidApk();
-  }else if(window.showSaveConfirmation){
-    window.showSaveConfirmation("Po instalaci bude ikona v menu tabletu.");
-  }
+  if(window.showSaveConfirmation) window.showSaveConfirmation("Instalaci nabízí Android Chrome.");
 }
 
 function installSzzAppFromPage(){
@@ -2749,7 +2776,11 @@ function installSzzAppFromPage(){
     if(window.showSaveConfirmation) window.showSaveConfirmation("Aplikace už je nainstalovaná.");
     return;
   }
-  showSzzInstallConfirm();
+  performSzzInstallFromPage().catch(error=>{
+    console.warn("Instalaci aplikace se nepodařilo spustit",error);
+    setSzzInstallBusy(false);
+    setSzzInstallStatus("Instalaci se nepodařilo spustit: " + (error?.message || error),"error");
+  });
 }
 
 window.updateSzzInstallButtons=updateSzzInstallButtons;
@@ -2877,7 +2908,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-10-apk-release-v186";
+  const serviceWorkerBuildVersion="2026-08-11-offline-install-v187";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
