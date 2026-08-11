@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-site-local-array-read-cache-v220";
+const APP_BUILD_VERSION="2026-08-11-site-local-array-meta-cache-v221";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v220-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v221-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1501,6 +1501,33 @@ function szzItemsMeta(items=[]){
   };
 }
 
+function cloneSzzItemsMeta(meta={}){
+  return {
+    count:Number(meta.count) || 0,
+    latestMs:Number(meta.latestMs) || 0,
+    signature:safe(meta.signature)
+  };
+}
+
+function readSiteLocalArrayMeta(kind,site=selectedSite){
+  try{
+    const key=siteLocalCacheKey(kind,site);
+    const raw=localStorage.getItem(key);
+    const cached=siteLocalArrayReadCache.get(key);
+    if(cached && cached.raw===raw && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
+      if(!cached.meta) cached.meta=szzItemsMeta(cached.items);
+      return cloneSzzItemsMeta(cached.meta);
+    }
+    const items=readSiteLocalArray(kind,site);
+    const meta=szzItemsMeta(items);
+    const fresh=siteLocalArrayReadCache.get(key);
+    if(fresh && fresh.raw===raw) fresh.meta=cloneSzzItemsMeta(meta);
+    return meta;
+  }catch(e){
+    return szzItemsMeta([]);
+  }
+}
+
 function szzDetailMetaChanged(before=null,after=null){
   if(!before || !after) return true;
   return before.count!==after.count || before.latestMs!==after.latestMs || before.signature!==after.signature;
@@ -1508,9 +1535,9 @@ function szzDetailMetaChanged(before=null,after=null){
 
 function szzLocalOfflineDetailMeta(site){
   return {
-    protocols:szzItemsMeta(readSiteLocalArray("protocolHistory",site)),
-    serviceRecords:szzItemsMeta(readSiteLocalArray("serviceHistory",site)),
-    photos:szzItemsMeta(readSiteLocalArray("photos",site))
+    protocols:readSiteLocalArrayMeta("protocolHistory",site),
+    serviceRecords:readSiteLocalArrayMeta("serviceHistory",site),
+    photos:readSiteLocalArrayMeta("photos",site)
   };
 }
 
