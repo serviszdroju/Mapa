@@ -2483,12 +2483,14 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
     const storage=await window.requestSzzPersistentStorage({request:true});
     if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
     const shellCount=await window.cacheAppShellForOffline();
-    if(navigator.onLine!==false && typeof window.loadFirebaseSitesUnified==="function"){
+    const cachedRowsBefore=szzInstallCachedRowsCount();
+    if(navigator.onLine!==false && !cachedRowsBefore && typeof window.loadFirebaseSitesUnified==="function"){
       try{ await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true}); }catch(e){}
     }
     const cachedRows=szzInstallCacheCurrentRows();
     const ready={
       preparedAt:new Date().toISOString(),
+      rowsSyncedAtMs:navigator.onLine!==false ? Date.now() : 0,
       persistentStorage:!!storage.persisted,
       persistentStorageSupported:!!storage.supported,
       shellCount,
@@ -2710,10 +2712,6 @@ function showSzzInstallConfirm(){
 }
 
 async function prepareSzzInstallOfflineShell(){
-  if(window.prepareSzzOfflineAppData){
-    const ready=await window.prepareSzzOfflineAppData({reason:"install"});
-    return Number(ready && ready.shellCount) || 0;
-  }
   if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
   if(window.requestSzzPersistentStorage) await window.requestSzzPersistentStorage({request:true});
   if(window.cacheAppShellForOffline) return await window.cacheAppShellForOffline();
@@ -2744,23 +2742,14 @@ async function performSzzInstallFromPage(){
   }
   setSzzInstallBusy(true,"Instaluji...");
   if(currentSzzInstallPrompt()){
-    let offlineCount=0;
-    let offlinePrepared=false;
-    setSzzInstallStatus("Před instalací ukládám body, protokoly, fotky a mapu pro offline režim...","ok");
-    try{
-      offlineCount=await prepareSzzInstallOfflineShell();
-      offlinePrepared=true;
-    }catch(e){
-      console.warn("Příprava aplikace pro offline režim před instalací selhala",e);
-      setSzzInstallStatus("Offline příprava se nepovedla, přesto otevírám instalační okno telefonu: " + (e?.message || e),"error");
-    }
     setSzzInstallStatus("Otevírám instalační okno telefonu...","ok");
     const choice=await runSzzBrowserInstallPrompt();
     if(choice?.outcome==="accepted"){
-      setSzzInstallStatus(offlinePrepared
-        ? `Instalace spuštěna a offline data jsou připravená (${offlineCount} souborů). Ikonu otevři mezi aplikacemi v tabletu.`
-        : "Instalace spuštěna. Offline data připrav z panelu aplikace, až bude internet.","ok");
+      setSzzInstallStatus("Instalace aplikace spuštěna. Ikonu otevři mezi aplikacemi v tabletu.","ok");
       if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace aplikace spuštěna.");
+      prepareSzzInstallOfflineShell().catch(e=>{
+        console.warn("Příprava instalačního shellu po instalaci selhala",e);
+      });
     }else{
       setSzzInstallStatus("Instalace byla zrušena nebo ji telefon nedokončil. Zkus tlačítko Stáhnout aplikaci znovu.","error");
       if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace zrušena.");
@@ -2929,7 +2918,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-11-history-dedupe-cache-v197";
+  const serviceWorkerBuildVersion="2026-08-11-incremental-offline-v198";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
