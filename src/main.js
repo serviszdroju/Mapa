@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-offline-install-v188";
+const APP_BUILD_VERSION="2026-08-11-source-signature-v189";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1238,7 +1238,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v188-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v189-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1713,6 +1713,8 @@ window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 function safe(v){return String(v??"").trim()}
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function num(v){if(v===null||v===undefined||v==="")return null;const n=Number(String(v).trim().replace(",","."));return Number.isFinite(n)?n:null}
+function stableSignaturePart(value){const text=String(value??"");return `${text.length}:${text}`}
+function stableSignature(parts=[]){return (Array.isArray(parts)?parts:[]).map(stableSignaturePart).join("\u001f")}
 const rowKeyLookupCache=new WeakMap();
 function normalizedRowKeyName(n){return String(n).replace(/^\uFEFF/,"").trim().toLowerCase()}
 function normalizedRowKeyLookup(r){
@@ -3700,7 +3702,7 @@ function openAddSourceForSiteByKey(key){
   if(row) openAddSourceForSite(row);
 }
 function sourceChooserRenderSignature(site,siblings,activeKey){
-  return JSON.stringify([
+  return stableSignature([
     rowsIndexVersion,
     activeKey,
     sitePlaceGroupKey(site),
@@ -3709,7 +3711,7 @@ function sourceChooserRenderSignature(site,siblings,activeKey){
       detailKey(row),
       siteSourceLabel(row),
       statusText(row)
-    ].join("\u001f")).join("\u001e")
+    ].map(stableSignaturePart).join("")).join("\u001e")
   ]);
 }
 function renderSourceChooser(site=selectedSite){
