@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-fast-offline-media-cache-v254";
+const APP_BUILD_VERSION="2026-08-12-warm-site-local-cache-v255";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,7 +1349,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v254-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v255-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -9425,6 +9425,19 @@ function cloneLocalStorageObjectEntries(entries=[]){
 function cloneLocalStorageObjectItem(item){
   return item && typeof item==="object" && !Array.isArray(item) ? {...item} : {};
 }
+function rememberSiteLocalArrayReadCache(key,items=[],raw=null){
+  const clean=String(key || "");
+  if(!clean) return;
+  const serialized=raw===null ? JSON.stringify(Array.isArray(items) ? items : []) : raw;
+  siteLocalArrayReadCache.set(clean,{raw:serialized,savedAt:Date.now(),items:cloneLocalStorageArrayItems(items)});
+}
+function rememberSiteLocalObjectReadCache(key,item={},raw=null){
+  const clean=String(key || "");
+  if(!clean) return;
+  const source=item && typeof item==="object" && !Array.isArray(item) ? item : {};
+  const serialized=raw===null ? JSON.stringify(source) : raw;
+  siteLocalObjectReadCache.set(clean,{raw:serialized,savedAt:Date.now(),item:cloneLocalStorageObjectItem(source)});
+}
 function clearSiteLocalObjectReadCache(prefixOrKey=""){
   const clean=String(prefixOrKey || "");
   if(!clean){
@@ -9496,8 +9509,10 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
     let next=(id ? arr.filter(x=>safe(x && x._id)!==id) : arr).concat([{...item}]);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(kind,site);
-    localStorage.setItem(key,JSON.stringify(next));
+    const raw=JSON.stringify(next);
+    localStorage.setItem(key,raw);
     clearLocalStorageArrayEntriesCache(key);
+    rememberSiteLocalArrayReadCache(key,next,raw);
     clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
@@ -9528,8 +9543,10 @@ function mergeSiteLocalArray(kind,items=[],site=selectedSite,limit=120){
     });
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(cleanKind,site);
-    localStorage.setItem(key,JSON.stringify(next));
+    const raw=JSON.stringify(next);
+    localStorage.setItem(key,raw);
     clearLocalStorageArrayEntriesCache(key);
+    rememberSiteLocalArrayReadCache(key,next,raw);
     clearDetailHistoryCacheForKind(cleanKind,site);
     return next;
   }catch(e){
@@ -9545,8 +9562,10 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
     if(!cleanId) return;
     const next=readSiteLocalArray(kind,site).filter(item=>safe(item && item._id)!==cleanId);
     const key=siteLocalCacheKey(kind,site);
-    localStorage.setItem(key,JSON.stringify(next));
+    const raw=JSON.stringify(next);
+    localStorage.setItem(key,raw);
     clearLocalStorageArrayEntriesCache(key);
+    rememberSiteLocalArrayReadCache(key,next,raw);
     clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila upravit",kind,e);
@@ -9573,8 +9592,11 @@ function readSiteLocalObject(kind,site=selectedSite){
 function writeSiteLocalObject(kind,item,site=selectedSite){
   try{
     const key=siteLocalCacheKey(kind,site);
-    localStorage.setItem(key,JSON.stringify(item || {}));
+    const value=item && typeof item==="object" && !Array.isArray(item) ? item : {};
+    const raw=JSON.stringify(value);
+    localStorage.setItem(key,raw);
     clearLocalStorageObjectEntriesCache(key);
+    rememberSiteLocalObjectReadCache(key,value,raw);
   }catch(e){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
   }
@@ -9968,8 +9990,10 @@ function removeLocalStorageArrayItemByKey(key,id){
     const arr=JSON.parse(localStorage.getItem(key) || "[]");
     if(!Array.isArray(arr)) return;
     const next=arr.filter(item=>safe(item && item._id)!==cleanId);
-    localStorage.setItem(key,JSON.stringify(next));
+    const raw=JSON.stringify(next);
+    localStorage.setItem(key,raw);
     clearLocalStorageArrayEntriesCache(key);
+    rememberSiteLocalArrayReadCache(key,next,raw);
   }catch(e){}
 }
 
