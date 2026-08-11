@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-local-object-cache-invalidation-v218";
+const APP_BUILD_VERSION="2026-08-11-site-local-object-read-cache-v219";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v218-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v219-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -9134,6 +9134,7 @@ function siteLocalCacheKey(kind,site=selectedSite){
 const LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS=1800;
 const localStorageArrayEntriesCache=new Map();
 const localStorageObjectEntriesCache=new Map();
+const siteLocalObjectReadCache=new Map();
 function cloneLocalStorageArrayEntries(entries=[]){
   return (entries || []).map(entry=>({
     key:entry.key,
@@ -9147,6 +9148,21 @@ function cloneLocalStorageObjectEntries(entries=[]){
     suffix:entry.suffix,
     item:entry.item && typeof entry.item==="object" ? {...entry.item} : entry.item
   }));
+}
+function cloneLocalStorageObjectItem(item){
+  return item && typeof item==="object" && !Array.isArray(item) ? {...item} : {};
+}
+function clearSiteLocalObjectReadCache(prefixOrKey=""){
+  const clean=String(prefixOrKey || "");
+  if(!clean){
+    siteLocalObjectReadCache.clear();
+    return;
+  }
+  for(const key of siteLocalObjectReadCache.keys()){
+    if(key===clean || key.startsWith(clean) || clean.startsWith(key)){
+      siteLocalObjectReadCache.delete(key);
+    }
+  }
 }
 function clearLocalStorageArrayEntriesCache(prefixOrKey=""){
   const clean=String(prefixOrKey || "");
@@ -9164,6 +9180,7 @@ function clearLocalStorageObjectEntriesCache(prefixOrKey=""){
   const clean=String(prefixOrKey || "");
   if(!clean){
     localStorageObjectEntriesCache.clear();
+    clearSiteLocalObjectReadCache();
     return;
   }
   for(const prefix of localStorageObjectEntriesCache.keys()){
@@ -9171,6 +9188,7 @@ function clearLocalStorageObjectEntriesCache(prefixOrKey=""){
       localStorageObjectEntriesCache.delete(prefix);
     }
   }
+  clearSiteLocalObjectReadCache(clean);
 }
 window.addEventListener("storage",()=>{
   clearLocalStorageArrayEntriesCache();
@@ -9251,9 +9269,16 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
 
 function readSiteLocalObject(kind,site=selectedSite){
   try{
-    const raw=localStorage.getItem(siteLocalCacheKey(kind,site));
+    const key=siteLocalCacheKey(kind,site);
+    const raw=localStorage.getItem(key);
+    const cached=siteLocalObjectReadCache.get(key);
+    if(cached && cached.raw===raw && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
+      return cloneLocalStorageObjectItem(cached.item);
+    }
     const obj=raw ? JSON.parse(raw) : {};
-    return obj && typeof obj==="object" && !Array.isArray(obj) ? obj : {};
+    const item=obj && typeof obj==="object" && !Array.isArray(obj) ? obj : {};
+    siteLocalObjectReadCache.set(key,{raw,savedAt:Date.now(),item:cloneLocalStorageObjectItem(item)});
+    return item;
   }catch(e){
     return {};
   }
