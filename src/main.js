@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-marker-signature-v192";
+const APP_BUILD_VERSION="2026-08-11-record-key-cache-v193";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1276,7 +1276,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v192-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v193-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4035,6 +4035,17 @@ function detailKey(r){
 function siteRecordKeys(site=selectedSite){
   const raw=(site && site.raw) || {};
   const docId=safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
+  const fingerprint=stableSignature([
+    site ? detailKey(site) : "",
+    site && site.id,
+    site && site.firebaseDocId,
+    raw["Firebase_doc_id"],
+    raw["Klíč_adresy"],
+    raw["ID_mista"]
+  ]);
+  if(site && typeof site==="object" && site._recordKeysRawRef===raw && site._recordKeysFingerprint===fingerprint && Array.isArray(site._recordKeysCache)){
+    return site._recordKeysCache;
+  }
   const values=[
     site ? detailKey(site) : "",
     site && site.id,
@@ -4044,9 +4055,15 @@ function siteRecordKeys(site=selectedSite){
     docId ? `firebase_${docId}` : "",
     docId ? `firebase_site_${docId}` : ""
   ];
-  return values
+  const keys=values
     .map(x=>String(x || "").trim())
     .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+  if(site && typeof site==="object"){
+    site._recordKeysRawRef=raw;
+    site._recordKeysFingerprint=fingerprint;
+    site._recordKeysCache=keys;
+  }
+  return keys;
 }
 function selectedSiteDocId(site=selectedSite){
   const raw=(site && site.raw) || {};
