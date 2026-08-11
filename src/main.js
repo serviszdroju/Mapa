@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-visible-groups-single-pass-v212";
+const APP_BUILD_VERSION="2026-08-11-sidebar-top-groups-bounded-v213";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v212-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v213-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4840,13 +4840,29 @@ function updateMapMarkers(groups){
     mapMarkerCache.delete(key);
   });
 }
+const SIDEBAR_GROUP_RENDER_LIMIT=160;
+function topSidebarGroups(groups,limit=SIDEBAR_GROUP_RENDER_LIMIT){
+  const source=groups || [];
+  if(source.length<=limit){
+    return source.slice().sort((a,b)=>groupNextSortValue(a)-groupNextSortValue(b));
+  }
+  const top=[];
+  source.forEach(group=>{
+    const value=groupNextSortValue(group);
+    if(top.length>=limit && value>=top[top.length-1].value) return;
+    const item={group,value};
+    let insertAt=top.length;
+    while(insertAt>0 && value<top[insertAt-1].value) insertAt--;
+    top.splice(insertAt,0,item);
+    if(top.length>limit) top.pop();
+  });
+  return top.map(item=>item.group);
+}
 function sidebarVisibleGroups(groups,signature){
   if(sidebarSortedGroupsCache.groups===groups && sidebarSortedGroupsCache.signature===signature){
     return sidebarSortedGroupsCache.visibleGroups;
   }
-  const visibleGroups=(groups || []).slice().sort((a,b)=>{
-    return groupNextSortValue(a)-groupNextSortValue(b);
-  }).slice(0,160);
+  const visibleGroups=topSidebarGroups(groups);
   sidebarSortedGroupsCache={groups,signature,visibleGroups};
   return visibleGroups;
 }
