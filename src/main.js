@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-row-lookup-keys-cache-v215";
+const APP_BUILD_VERSION="2026-08-11-row-render-cache-fields-v216";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v215-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v216-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4353,6 +4353,7 @@ function rowLookupKeys(r){
 
 function rowRenderFingerprint(r){
   if(!r) return "";
+  const sourceIdentity=r._sourceIdentity!==undefined ? r._sourceIdentity : siteSourceIdentity(r);
   return [
     rowLookupKeys(r).join(","),
     Number.isFinite(r.lat) ? Number(r.lat).toFixed(6) : "",
@@ -4360,9 +4361,9 @@ function rowRenderFingerprint(r){
     r._regionNorm || "",
     r._statusText || "",
     r._scheduleFingerprint || rowScheduleFingerprint(r),
-    sitePlaceGroupKey(r),
-    sitePlaceLabel(r),
-    siteSourceIdentity(r)
+    r._placeGroupKey || sitePlaceGroupKey(r),
+    r._placeLabel || sitePlaceLabel(r),
+    sourceIdentity
   ].join("|");
 }
 
