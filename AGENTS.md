@@ -300,6 +300,8 @@ Current performance phase 138 decision: cache the `public/late.js` compat Firest
 
 Current performance phase 139 decision: cache the `public/late.js` compat Auth instance for the fallback path and reuse it in `user()` and `waitCompatUser()`, preserving the modular Auth path and existing persistence behavior.
 
+Current performance phase 140 decision: cache the successfully initialized `public/late.js` compat Firebase namespace/app reference, but do not cache missing SDK failures, so later dynamic compat loading can still recover.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

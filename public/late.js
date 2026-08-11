@@ -731,13 +731,21 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     }
     if(el){el.className="notice err";el.textContent=msg;}
   }
+  let compatFirebaseNamespaceCache=null;
+  let compatFirebaseAppCache=null;
   function ensureCompatFirebase(){
     if(!window.firebase) return null;
+    if(compatFirebaseNamespaceCache===window.firebase && compatFirebaseAppCache) return compatFirebaseAppCache;
     try{
       if((!firebase.apps || !firebase.apps.length) && window.__firebaseConfig){
         firebase.initializeApp(window.__firebaseConfig);
       }
-      return firebase.apps && firebase.apps.length ? firebase : null;
+      const app=firebase.apps && firebase.apps.length ? firebase : null;
+      if(app){
+        compatFirebaseNamespaceCache=window.firebase;
+        compatFirebaseAppCache=app;
+      }
+      return app;
     }catch(e){
       console.warn("Firebase compat inicializace selhala",e);
       return null;
@@ -2108,7 +2116,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-late-compat-auth-v264";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-late-compat-app-v265";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
