@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-site-key-field-cache-v203";
+const APP_BUILD_VERSION="2026-08-11-record-text-field-cache-v204";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v203-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v204-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4543,11 +4543,24 @@ function recordMatchTextKeys(record){
   if(!record) return [];
   const values=[record.siteName,record.siteAddress,record.place,record.pbzLocation];
   if(record && (typeof record==="object" || typeof record==="function")){
-    const fingerprint=stableSignature(values);
     const cached=recordMatchTextCache.get(record);
-    if(cached && cached.fingerprint===fingerprint) return cached.keys;
+    if(
+      cached &&
+      cached.siteName===record.siteName &&
+      cached.siteAddress===record.siteAddress &&
+      cached.place===record.place &&
+      cached.pbzLocation===record.pbzLocation
+    ){
+      return cached.keys;
+    }
     const keys=values.map(searchNorm).filter(x=>x.length>=4);
-    recordMatchTextCache.set(record,{fingerprint,keys});
+    recordMatchTextCache.set(record,{
+      siteName:record.siteName,
+      siteAddress:record.siteAddress,
+      place:record.place,
+      pbzLocation:record.pbzLocation,
+      keys
+    });
     return keys;
   }
   return values.map(searchNorm).filter(x=>x.length>=4);
