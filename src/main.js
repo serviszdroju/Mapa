@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-id-cache-v196";
+const APP_BUILD_VERSION="2026-08-11-history-dedupe-cache-v197";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1276,7 +1276,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v196-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v197-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1350,11 +1350,11 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
 async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
   if(!firebaseReady || !db || !fb.fsMod || !site || navigator.onLine===false) return [];
   const items=[];
+  const itemDedupe=createRecordIdDedupe(items);
   const addDocSnap=docSnap=>{
     const id=safe(docSnap && docSnap.id);
-    if(id && items.some(item=>safe(item._id)===id)) return;
     const data=docSnap.data ? docSnap.data() : {};
-    items.push({...data,_type:typeLabel,_collection:colName,_id:id});
+    itemDedupe.add({...data,_type:typeLabel,_collection:colName,_id:id});
   };
   const keys=siteRecordKeys(site);
   const siteKeysBatchOk=await readFirestoreArrayContainsAny(
@@ -4143,6 +4143,30 @@ function recordIdKeys(record){
   return rawValues
     .map(x=>String(x || "").trim())
     .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
+}
+function createRecordIdDedupe(items=[]){
+  const ids=new Set();
+  const rememberId=id=>{
+    const key=safe(id);
+    if(!key) return false;
+    if(ids.has(key)) return true;
+    ids.add(key);
+    return false;
+  };
+  (items || []).forEach(item=>{
+    const id=safe(item && item._id);
+    if(id) ids.add(id);
+  });
+  return {
+    has:id=>ids.has(safe(id)),
+    add:item=>{
+      if(!item) return false;
+      const duplicate=rememberId(item._id);
+      if(duplicate) return false;
+      items.push(item);
+      return true;
+    }
+  };
 }
 function recordMatchesSite(record,site=selectedSite){
   if(!record || !site) return false;
@@ -9933,11 +9957,9 @@ async function loadHistory(siteId){
     if(!stillSameSite()) return;
     const {collection,query,where,getDocs,doc,getDoc}=fb.fsMod;
     const items=[];
+    const itemDedupe=createRecordIdDedupe(items);
     const addHistoryItem=item=>{
-      if(!item) return;
-      const id=String(item._id || "");
-      if(id && items.some(existing=>String(existing._id || "")===id)) return;
-      items.push(item);
+      itemDedupe.add(item);
     };
     childProtocols.forEach((item,idx)=>{
       addHistoryItem({...item,_type:"Protokol",_collection:"siteProtocols",_id:item._id || `site_protocol_${idx}`});
@@ -9967,7 +9989,7 @@ async function loadHistory(siteId){
       const id=safe(refItem && refItem._id);
       if(!id) return;
       refTasks.push(async()=>{
-        if(items.some(item=>String(item._id || "")===id)) return;
+        if(itemDedupe.has(id)) return;
         try{
           const snap=await getDoc(doc(db,"protocols",id));
           if(snap.exists()) addHistoryItem({...snap.data(),_type:"Protokol",_collection:"protocols",_id:snap.id});
@@ -9983,7 +10005,7 @@ async function loadHistory(siteId){
       const id=safe(refItem && refItem._id);
       if(!id) return;
       refTasks.push(async()=>{
-        if(items.some(item=>String(item._id || "")===id)) return;
+        if(itemDedupe.has(id)) return;
         try{
           const snap=await getDoc(doc(db,"serviceRecords",id));
           if(snap.exists()) addHistoryItem({...snap.data(),_type:"Servisní záznam",_collection:"serviceRecords",_id:snap.id});
@@ -10002,9 +10024,8 @@ async function loadHistory(siteId){
     async function readCollection(colName,typeLabel){
       try{
         const addDocSnap=docSnap=>{
-          if(items.some(item=>item._id===docSnap.id)) return;
           const d=docSnap.data();
-          items.push({...d,_type:typeLabel,_collection:colName,_id:docSnap.id});
+          addHistoryItem({...d,_type:typeLabel,_collection:colName,_id:docSnap.id});
         };
         const hasMatchingType=()=>items.some(item=>item._type===typeLabel && recordMatchesSite(item,selectedSite));
         const buildTextQueryTasks=()=>{
@@ -10295,11 +10316,9 @@ async function loadMainProtocolHistoryItems(){
   const cached=readMainProtocolHistoryCache();
   if(cached) return cached;
   const items=[];
+  const itemDedupe=createRecordIdDedupe(items);
   const addItem=item=>{
-    if(!item) return;
-    const id=safe(item._id);
-    if(id && items.some(existing=>safe(existing._id)===id)) return;
-    items.push(item);
+    itemDedupe.add(item);
   };
   (await readAllLocalAndIndexedProtocolHistoryItems()).forEach(addItem);
   if(firebaseReady && db && fb.fsMod && currentUser && navigator.onLine !== false){
@@ -12326,36 +12345,37 @@ async function getLastProtocol(site=selectedSite){
     const {collection,query,where,getDocs,doc,getDoc}=fb.fsMod;
     const keys=siteRecordKeys(site);
     const items=[];
+    const itemDedupe=createRecordIdDedupe(items);
+    const addProtocolItem=item=>{
+      itemDedupe.add(item);
+    };
     childProtocols.forEach((item,idx)=>{
-      items.push({...item,_id:item._id || `site_protocol_${idx}`});
+      addProtocolItem({...item,_id:item._id || `site_protocol_${idx}`});
     });
     const embeddedProtocols=Array.isArray(site?.firebaseData?.protocolHistory) ? site.firebaseData.protocolHistory : [];
     embeddedProtocols.forEach((item,idx)=>{
-      items.push({...item,_id:item._id || `embedded_protocol_${idx}`});
+      addProtocolItem({...item,_id:item._id || `embedded_protocol_${idx}`});
     });
     const localProtocolItems=await readSiteLocalProtocolHistoryItems(site);
     localProtocolItems.forEach((item,idx)=>{
       const id=item._id || `local_protocol_${idx}`;
-      if(!items.some(existing=>String(existing._id || "")===String(id))){
-        items.push({...item,_id:id});
-      }
+      if(!itemDedupe.has(id)) addProtocolItem({...item,_id:id});
     });
     const protocolRefs=Array.isArray(site?.firebaseData?.protocolRefs) ? site.firebaseData.protocolRefs : [];
     const protocolRefTasks=protocolRefs.map(refItem=>async()=>{
       const id=safe(refItem && refItem._id);
-      if(!id || items.some(item=>String(item._id || "")===id)) return;
+      if(!id || itemDedupe.has(id)) return;
       try{
         const snap=await getDoc(doc(db,"protocols",id));
-        if(snap.exists()) items.push({...snap.data(),_id:snap.id});
-        else items.push({...refItem,_id:id});
+        if(snap.exists()) addProtocolItem({...snap.data(),_id:snap.id});
+        else addProtocolItem({...refItem,_id:id});
       }catch(e){
-        items.push({...refItem,_id:id});
+        addProtocolItem({...refItem,_id:id});
       }
     });
     await runBoundedFirestoreTasks(protocolRefTasks,6);
     const addProtocolDocSnap=docSnap=>{
-      if(items.some(item=>item._id===docSnap.id)) return;
-      items.push({...docSnap.data(),_id:docSnap.id});
+      addProtocolItem({...docSnap.data(),_id:docSnap.id});
     };
     const addSnap=snap=>snap.forEach(addProtocolDocSnap);
     const siteKeysBatchOk=await readFirestoreArrayContainsAny(

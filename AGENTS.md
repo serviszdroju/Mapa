@@ -164,6 +164,8 @@ Current performance phase 71 decision: cache `siteHasMultipleSources()` per row/
 
 Current performance phase 72 decision: cache per-record identifier keys and per-site record-key Sets for legacy record matching so protocol/service/photo fallback checks use constant-time key membership while preserving the same `siteId`, `siteKey`, `siteDocId`, `firebaseDocId`, and `siteKeys` coverage.
 
+Current performance phase 73 decision: deduplicate merged protocol/service history with a per-load `_id` Set instead of repeated `items.some(...)` scans, preserving the same item order, fallback sources, and visible history while reducing work on large detail and main protocol history loads.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
