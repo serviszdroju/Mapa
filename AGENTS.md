@@ -272,6 +272,8 @@ Current performance phase 124 decision: saving a GPS position from the detail pa
 
 Current performance phase 125 decision: saving the editable Detail data table should update the selected row through the existing row lookup/index after any sibling-place propagation, with the previous full-row scan kept only as a fallback when the selected row cannot be verified.
 
+Current performance phase 126 decision: build and cache the Firebase-backed row list used for offline map-cache saves per row-array reference and row-index version, and reuse it after save/delete paths instead of repeatedly filtering the full row collection.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

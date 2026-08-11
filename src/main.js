@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-indexed-detail-edit-update-v250";
+const APP_BUILD_VERSION="2026-08-12-cache-firebase-offline-row-list-v251";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1318,18 +1318,38 @@ function readCachedFirebaseSiteCount(){
   }
 }
 
-function cacheCurrentFirebaseRowsForOffline(){
-  const currentRows=Array.isArray(window.rows) ? window.rows : rows;
-  const firebaseRows=(currentRows || []).filter(row=>row && (row.firebaseDocId || (row.raw && row.raw["Firebase_doc_id"])));
+let firebaseRowsForOfflineCache={source:null,length:-1,indexVersion:-1,rows:[]};
+function firebaseRowsForOffline(source=null){
+  const currentRows=Array.isArray(source) ? source : (Array.isArray(window.rows) ? window.rows : rows);
+  const current=Array.isArray(currentRows) ? currentRows : [];
+  const indexVersion=current===rows ? rowsIndexVersion : -1;
+  if(
+    firebaseRowsForOfflineCache.source===current &&
+    firebaseRowsForOfflineCache.length===current.length &&
+    firebaseRowsForOfflineCache.indexVersion===indexVersion
+  ){
+    return firebaseRowsForOfflineCache.rows;
+  }
+  const firebaseRows=current.filter(row=>row && (row.firebaseDocId || (row.raw && row.raw["Firebase_doc_id"])));
+  firebaseRowsForOfflineCache={source:current,length:current.length,indexVersion,rows:firebaseRows};
+  return firebaseRows;
+}
+
+function saveFirebaseRowsCacheForRows(source=null){
+  const firebaseRows=firebaseRowsForOffline(source);
   if(firebaseRows.length && typeof window.saveFirebaseMapRowsCache==="function"){
     try{ window.saveFirebaseMapRowsCache(firebaseRows); }catch(e){}
   }
   return firebaseRows.length || readCachedFirebaseSiteCount();
 }
 
+function cacheCurrentFirebaseRowsForOffline(){
+  return saveFirebaseRowsCacheForRows();
+}
+
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v250-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v251-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3873,9 +3893,7 @@ async function deleteSelectedSite(){
       const removedRows=typeof window.removeFirebaseSiteRow==="function" ? window.removeFirebaseSiteRow(selectedSite) : null;
       if(removedRows){
         selectedSite=null;
-        if(typeof window.saveFirebaseMapRowsCache==="function"){
-          try{ window.saveFirebaseMapRowsCache(removedRows.filter(r=>r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"])))); }catch(e){}
-        }
+        saveFirebaseRowsCacheForRows(removedRows);
       }else{
         await loadDeletedSites();
         await window.loadFirebaseSitesUnified();
@@ -5970,11 +5988,7 @@ async function saveSelectedSiteGpsPosition(lat,lon,found={},address=""){
     window.rows=rows;
     selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyGpsEditToRow(selectedSite);
   }
-  if(typeof window.saveFirebaseMapRowsCache==="function"){
-    try{
-      window.saveFirebaseMapRowsCache(rows.filter(r=>r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]))));
-    }catch(e){}
-  }
+  saveFirebaseRowsCacheForRows(rows);
   render();
   try{
     if(window.map && window.map.setView) window.map.setView([lat,lon],15);
@@ -6653,11 +6667,7 @@ async function saveAllDataEdits(){
       window.rows=rows;
       selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyDataEditToRow(selectedSite);
     }
-    if(typeof window.saveFirebaseMapRowsCache==="function"){
-      try{
-        window.saveFirebaseMapRowsCache(rows.filter(r=>r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]))));
-      }catch(e){}
-    }
+    saveFirebaseRowsCacheForRows(rows);
 
     const siblingText=siblingAddressUpdates ? ` Sdílené řádky propsány i do dalších zdrojů: ${siblingAddressUpdates}.` : "";
     if(st) st.textContent=cancelOrderedByDateChange ? `Data uložena. Objednaná kontrola byla zrušena kvůli změně termínu.${siblingText}` : `Data uložena.${siblingText}`;
