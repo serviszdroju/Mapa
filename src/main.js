@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-field-spec-lookup-v260";
+const APP_BUILD_VERSION="2026-08-12-cache-detail-normalizers-v261";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,7 +1349,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v260-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v261-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -6930,12 +6930,25 @@ async function toggleStopFromDetail(){
 }
 
 
+function rememberBoundedStringCache(cache,key,value,maxSize=5000){
+  cache.set(key,value);
+  if(cache.size>maxSize){
+    const firstKey=cache.keys().next().value;
+    cache.delete(firstKey);
+  }
+  return value;
+}
+const DATA_NORM_ALL_CACHE_MAX=5000;
+const dataNormAllCache=new Map();
 function dataNormAll(k){
-  return String(k||"").trim().toLowerCase()
+  const key=String(k||"");
+  if(dataNormAllCache.has(key)) return dataNormAllCache.get(key);
+  const value=key.trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .replace(/_/g," ")
     .replace(/\s+/g," ")
     .trim();
+  return rememberBoundedStringCache(dataNormAllCache,key,value,DATA_NORM_ALL_CACHE_MAX);
 }
 function dataLabelAll(k){
   const n=dataNormAll(k);
@@ -6965,12 +6978,17 @@ function orderedAllDataKeys(raw){
 }
 
 
+const DATA_NORM_USER_CACHE_MAX=5000;
+const dataNormUserCache=new Map();
 function dataNormUser(k){
-  return String(k||"").trim().toLowerCase()
+  const key=String(k||"");
+  if(dataNormUserCache.has(key)) return dataNormUserCache.get(key);
+  const value=key.trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .replace(/_/g," ")
     .replace(/\s+/g," ")
     .trim();
+  return rememberBoundedStringCache(dataNormUserCache,key,value,DATA_NORM_USER_CACHE_MAX);
 }
 
 function hideDataUser(k){
@@ -7057,12 +7075,7 @@ function dataNormFixed(k){
     .replace(/_/g," ")
     .replace(/\s+/g," ")
     .trim();
-  dataNormFixedCache.set(key,value);
-  if(dataNormFixedCache.size>DATA_NORM_FIXED_CACHE_MAX){
-    const firstKey=dataNormFixedCache.keys().next().value;
-    dataNormFixedCache.delete(firstKey);
-  }
-  return value;
+  return rememberBoundedStringCache(dataNormFixedCache,key,value,DATA_NORM_FIXED_CACHE_MAX);
 }
 
 function hideDataFixed(k){
@@ -7132,10 +7145,15 @@ function isNoteFixed(k){
   return n==="dulezita poznamka" || n==="dulezite poznamky";
 }
 
+const VAL_NORM_FIXED_CACHE_MAX=5000;
+const valNormFixedCache=new Map();
 function valNormFixed(v){
-  return String(v||"").trim().toLowerCase()
+  const key=String(v||"");
+  if(valNormFixedCache.has(key)) return valNormFixedCache.get(key);
+  const value=key.trim().toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .replace(/\s+/g," ");
+  return rememberBoundedStringCache(valNormFixedCache,key,value,VAL_NORM_FIXED_CACHE_MAX);
 }
 
 function getWatchFixed(raw){

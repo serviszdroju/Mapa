@@ -292,6 +292,8 @@ Current performance phase 134 decision: cache repeated `dataNormFixed()` string 
 
 Current performance phase 135 decision: cache `USER_SITE_DATA_FIELDS` spec lookup by normalized field key/label so repeated detail/edit save paths do not rescan the field definition list for the same names.
 
+Current performance phase 136 decision: cache the remaining detail/protocol normalization helpers (`dataNormAll`, `dataNormUser`, and `valNormFixed`) with bounded in-memory maps while preserving their exact string transformation output.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
