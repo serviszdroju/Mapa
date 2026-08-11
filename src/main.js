@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-indexed-clear-manual-status-v248";
+const APP_BUILD_VERSION="2026-08-12-indexed-gps-row-update-v249";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v248-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v249-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -5950,14 +5950,26 @@ async function saveSelectedSiteGpsPosition(lat,lon,found={},address=""){
 
   editCache[selectedKey]={...(editCache[selectedKey]||editCache[selectedSite.id]||{}), ...edit};
   if(firebaseDocId) editCache[firebaseDocId]={...(editCache[firebaseDocId]||{}), ...edit};
-  rows=rows.map(r=>{
-    if(!matches(r)) return r;
+  const applyGpsEditToRow=(r)=>{
     const raw={...(r.raw||{}), ...editedRaw};
     if(firebaseDocId) raw["Firebase_doc_id"]=firebaseDocId;
     return applyEditToRow({...r, raw, firebaseDocId:firebaseDocId || r.firebaseDocId});
-  });
-  selectedSite=findRowByAnyId(firebaseDocId || selectedKey) || applyEditToRow({...selectedSite, raw:{...(selectedSite.raw||{}), ...editedRaw}, firebaseDocId:firebaseDocId || selectedSite.firebaseDocId});
-  window.rows=rows;
+  };
+  const lookupKey=safe(firebaseDocId || selectedKey);
+  const indexedRow=(lookupKey && findRowByAnyId(lookupKey)) || selectedSite;
+  const index=rowIndexForRow(indexedRow);
+  if(indexedRow && index>=0 && matches(indexedRow)){
+    const nextRows=rows.slice();
+    const updated=applyGpsEditToRow(indexedRow);
+    nextRows[index]=updated;
+    rows=nextRows;
+    window.rows=rows;
+    selectedSite=updated;
+  }else{
+    rows=rows.map(r=>matches(r) ? applyGpsEditToRow(r) : r);
+    window.rows=rows;
+    selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyGpsEditToRow(selectedSite);
+  }
   if(typeof window.saveFirebaseMapRowsCache==="function"){
     try{
       window.saveFirebaseMapRowsCache(rows.filter(r=>r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]))));
