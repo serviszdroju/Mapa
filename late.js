@@ -1411,13 +1411,17 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     sideStatus(sourceLabel || `<b>Firebase režim aktivní.</b> Načteno ${loadedRows.length} bodů z Firebase.`);
     return loadedRows;
   }
-  async function showMapRowsCache(openDocId=null){
+  async function showMapRowsCache(openDocId=null, options={}){
     if(openDocId) return [];
     if(Array.isArray(rows) && rows.length) return [];
     const cachedRows=await readMapRowsCacheFast();
     if(!cachedRows.length) return [];
-    return applyFirebaseRows(cachedRows, openDocId, `<b>Načteno ${cachedRows.length} bodů z lokální cache.</b> Aktualizuji Firebase na pozadí...`, false);
+    const label=navigator.onLine===false || options.offlineBoot
+      ? `<b>Offline režim.</b> Načteno ${cachedRows.length} bodů z lokální cache.`
+      : `<b>Načteno ${cachedRows.length} bodů z lokální cache.</b> Aktualizuji Firebase na pozadí...`;
+    return applyFirebaseRows(cachedRows, openDocId, label, false);
   }
+  window.showFirebaseMapRowsCache=showMapRowsCache;
   async function saveUnifiedSiteRaw(rawInput, opts={}){
     if(navigator.onLine===false && !(opts && opts.skipOffline)){
       return saveUnifiedSiteRawOffline(rawInput,opts,"Bez připojení k internetu.");
@@ -1480,6 +1484,18 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
       firebaseSitesLoadingPromise=new Promise(resolve=>{firebaseSitesLoadingResolve=resolve;});
     }
     const database=db(); if(!database){
+      const cachedRows=await showMapRowsCache(openDocId,{offlineBoot:navigator.onLine===false || opts.offlineCacheOnly});
+      if(cachedRows.length){
+        const p=document.getElementById("progress");
+        if(p) p.textContent="Offline režim. Body jsou načtené z lokální cache.";
+        if(lockLoad){
+          firebaseSitesLoading=false;
+          if(firebaseSitesLoadingResolve) firebaseSitesLoadingResolve();
+          firebaseSitesLoadingPromise=null;
+          firebaseSitesLoadingResolve=null;
+        }
+        return cachedRows;
+      }
       sideStatus("Firebase není dostupný.",true);
       if(lockLoad){
         firebaseSitesLoading=false;
@@ -1492,8 +1508,8 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     try{
       const signedUser=await waitCompatUser();
       if(!signedUser){
-        if(navigator.onLine===false || (window.knownSignedIn && window.knownSignedIn())){
-          const cachedRows=await showMapRowsCache(openDocId);
+        if(navigator.onLine===false || opts.offlineCacheOnly || (window.knownSignedIn && window.knownSignedIn())){
+          const cachedRows=await showMapRowsCache(openDocId,{offlineBoot:navigator.onLine===false || opts.offlineCacheOnly});
           if(cachedRows.length){
             const p=document.getElementById("progress");
             if(p) p.textContent=navigator.onLine===false
@@ -1503,7 +1519,7 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
           }
         }
         sideStatus("",false);
-        if(!opts.retryAuth) setTimeout(()=>loadFirebaseSites(openDocId,{retryAuth:true}),1200);
+        if(!opts.offlineCacheOnly && !opts.retryAuth) setTimeout(()=>loadFirebaseSites(openDocId,{retryAuth:true}),1200);
         return [];
       }
       if(!opts.skipLocalCache){
@@ -2728,18 +2744,23 @@ async function performSzzInstallFromPage(){
   }
   setSzzInstallBusy(true,"Instaluji...");
   if(currentSzzInstallPrompt()){
+    let offlineCount=0;
+    let offlinePrepared=false;
+    setSzzInstallStatus("Před instalací ukládám body, protokoly, fotky a mapu pro offline režim...","ok");
+    try{
+      offlineCount=await prepareSzzInstallOfflineShell();
+      offlinePrepared=true;
+    }catch(e){
+      console.warn("Příprava aplikace pro offline režim před instalací selhala",e);
+      setSzzInstallStatus("Offline příprava se nepovedla, přesto otevírám instalační okno telefonu: " + (e?.message || e),"error");
+    }
     setSzzInstallStatus("Otevírám instalační okno telefonu...","ok");
     const choice=await runSzzBrowserInstallPrompt();
     if(choice?.outcome==="accepted"){
-      setSzzInstallStatus("Instalace aplikace spuštěna. Po dokončení bude ikona mezi aplikacemi v tabletu. Připravuji ještě offline soubory...","ok");
+      setSzzInstallStatus(offlinePrepared
+        ? `Instalace spuštěna a offline data jsou připravená (${offlineCount} souborů). Ikonu otevři mezi aplikacemi v tabletu.`
+        : "Instalace spuštěna. Offline data připrav z panelu aplikace, až bude internet.","ok");
       if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace aplikace spuštěna.");
-      try{
-        const count=await prepareSzzInstallOfflineShell();
-        setSzzInstallStatus(`Instalace spuštěna a offline soubory jsou připravené (${count} souborů). Ikonu pak otevři mezi aplikacemi v tabletu.`,"ok");
-      }catch(e){
-        console.warn("Příprava aplikace pro offline režim selhala",e);
-        setSzzInstallStatus("Instalace byla spuštěna, ale offline příprava se nepovedla: " + (e?.message || e),"error");
-      }
     }else{
       setSzzInstallStatus("Instalace byla zrušena nebo ji telefon nedokončil. Zkus tlačítko Stáhnout aplikaci znovu.","error");
       if(window.showSaveConfirmation) window.showSaveConfirmation("Instalace zrušena.");
@@ -2908,7 +2929,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-11-place-group-cache-v190";
+  const serviceWorkerBuildVersion="2026-08-11-marker-signature-v192";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
