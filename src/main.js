@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-warm-site-local-cache-v255";
+const APP_BUILD_VERSION="2026-08-12-cache-row-raw-search-v256";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,7 +1349,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v255-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v256-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -3993,6 +3993,27 @@ function searchNorm(v){
     .replace(/\s+/g," ")
     .trim();
 }
+const rawSearchTextCache=new WeakMap();
+function rawSearchText(raw={}){
+  const source=raw || {};
+  if(!source || (typeof source!=="object" && typeof source!=="function")) return String(source ?? "");
+  const keys=Object.keys(source);
+  const cached=rawSearchTextCache.get(source);
+  if(cached && sameArrayValues(cached.keys,keys)){
+    let same=true;
+    for(let i=0;i<keys.length;i++){
+      if(cached.values[i]!==source[keys[i]]){
+        same=false;
+        break;
+      }
+    }
+    if(same) return cached.text;
+  }
+  const values=keys.map(key=>source[key]);
+  const text=keys.concat(values).join(" ");
+  rawSearchTextCache.set(source,{keys,values,text});
+  return text;
+}
 function rowSearchText(r){
   const raw=(r&&r.raw)||{};
   return [
@@ -4004,8 +4025,7 @@ function rowSearchText(r){
     r&&r.poznamky,
     r&&r.id,
     r&&r.firebaseDocId,
-    ...Object.keys(raw),
-    ...Object.values(raw)
+    rawSearchText(raw)
   ].join(" ");
 }
 function rowMatchesSearch(r,normalizedQuery,compactQuery=null){
