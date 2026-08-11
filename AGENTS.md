@@ -204,6 +204,8 @@ Current performance phase 90 decision: cache each row's lookup key array by dire
 
 Current performance phase 91 decision: have row render fingerprints reuse already-populated place/source cache fields when available, falling back to the existing helpers only when needed so row indexing avoids redundant place/source recomputation.
 
+Current performance phase 92 decision: make the `findRowByAnyId()` fallback scan reuse the already-normalized lookup key in a simple loop instead of calling `rowMatchesAnyLookupKey()` for every row, preserving the same lookup coverage while avoiding repeated trim/helper work.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

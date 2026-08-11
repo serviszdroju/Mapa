@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-row-render-cache-fields-v216";
+const APP_BUILD_VERSION="2026-08-11-find-row-loop-cache-v217";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v216-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v217-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4488,7 +4488,11 @@ function findRowByAnyId(key,pool=rows){
     const direct=siteRowsByAnyId && siteRowsByAnyId.get(wanted);
     if(direct) return direct;
   }
-  return (Array.isArray(pool) ? pool : []).find(row=>rowMatchesAnyLookupKey(row,wanted)) || null;
+  const source=Array.isArray(pool) ? pool : [];
+  for(const row of source){
+    if(row && rowLookupKeys(row).includes(wanted)) return row;
+  }
+  return null;
 }
 function detailKey(r){
   return editCacheKeyForRow(r);
