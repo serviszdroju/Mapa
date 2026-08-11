@@ -210,6 +210,8 @@ Current performance phase 93 decision: invalidate the short-lived localStorage o
 
 Current performance phase 94 decision: cache direct `readSiteLocalObject()` parses briefly by exact localStorage key and raw value, invalidating through the existing object-cache clear path so repeated Doklad/detail reads avoid reparsing unchanged local objects while preserving fresh writes.
 
+Current performance phase 95 decision: cache direct `readSiteLocalArray()` parses briefly by exact localStorage key and raw value, invalidating through the existing array-cache clear path so repeated protocol/photo/offline local reads avoid reparsing unchanged arrays while preserving writes and removals.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
