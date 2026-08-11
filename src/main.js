@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-10-apk-release-v186";
+const APP_BUILD_VERSION="2026-08-11-offline-install-v187";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1236,6 +1236,190 @@ function cacheCurrentFirebaseRowsForOffline(){
   return firebaseRows.length || readCachedFirebaseSiteCount();
 }
 
+const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
+const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v187-runtime";
+
+function szzOfflineRowsForPrefetch(inputRows=null){
+  const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
+  const seen=new Set();
+  return (source || []).filter(row=>{
+    const id=safe(row && (row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id));
+    if(!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function szzEmbeddedItemsForOffline(site,field,typeLabel,collectionLabel,idPrefix){
+  const items=Array.isArray(site?.firebaseData?.[field]) ? site.firebaseData[field] : [];
+  return items.map((item,idx)=>({
+    ...item,
+    _type:item?._type || typeLabel || "",
+    _collection:item?._collection || collectionLabel || field,
+    _id:item?._id || `${idPrefix || field}_${idx}`
+  }));
+}
+
+function szzOfflinePhotoUrls(items=[]){
+  const urls=[];
+  (Array.isArray(items) ? items : []).forEach(item=>{
+    try{
+      [photoDisplayUrl(item),photoThumbUrl(item),photoFullUrl(item)].forEach(url=>{
+        const clean=safe(url);
+        if(clean && /^https?:\/\//i.test(clean) && !urls.includes(clean)) urls.push(clean);
+      });
+    }catch(e){}
+  });
+  return urls;
+}
+
+async function cacheSzzOfflineMediaUrls(urls=[]){
+  if(!("caches" in window)) return 0;
+  const unique=(Array.isArray(urls) ? urls : [])
+    .map(url=>safe(url))
+    .filter((url,idx,arr)=>/^https?:\/\//i.test(url) && arr.indexOf(url)===idx);
+  if(!unique.length) return 0;
+  const cache=await caches.open(SZZ_RUNTIME_CACHE_NAME);
+  let done=0;
+  let index=0;
+  const sameOrigin=url=>{
+    try{return new URL(url,location.href).origin===location.origin;}catch(e){return false;}
+  };
+  const worker=async()=>{
+    while(index<unique.length){
+      const url=unique[index++];
+      try{
+        const request=new Request(url,{
+          cache:"reload",
+          mode:sameOrigin(url) ? "same-origin" : "no-cors",
+          credentials:sameOrigin(url) ? "same-origin" : "omit"
+        });
+        const response=await fetch(request);
+        if(response && (response.ok || response.type==="opaque")){
+          await cache.put(new Request(url),response.clone());
+          done++;
+        }
+      }catch(e){
+        console.warn("Offline media cache: soubor se nepodařilo uložit",url,e);
+      }
+    }
+  };
+  await Promise.allSettled(Array.from({length:Math.min(SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY,unique.length)},()=>worker()));
+  return done;
+}
+
+async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
+  if(!firebaseReady || !db || !fb.fsMod || !site || navigator.onLine===false) return [];
+  const items=[];
+  const addDocSnap=docSnap=>{
+    const id=safe(docSnap && docSnap.id);
+    if(id && items.some(item=>safe(item._id)===id)) return;
+    const data=docSnap.data ? docSnap.data() : {};
+    items.push({...data,_type:typeLabel,_collection:colName,_id:id});
+  };
+  const keys=siteRecordKeys(site);
+  const siteKeysBatchOk=await readFirestoreArrayContainsAny(
+    fb.fsMod,
+    db,
+    colName,
+    "siteKeys",
+    keys,
+    addDocSnap,
+    `Offline historie dávkový dotaz selhal ${colName}`
+  );
+  const tasks=[];
+  for(const field of ["siteId","siteKey","firebaseDocId"]){
+    tasks.push(()=>readFirestoreEqualsAny(
+      fb.fsMod,
+      db,
+      colName,
+      field,
+      keys,
+      addDocSnap,
+      `Offline historie rovnostní dotaz selhal ${colName}`
+    ));
+  }
+  if(!siteKeysBatchOk){
+    const {collection,query,where,getDocs}=fb.fsMod;
+    keys.forEach(id=>{
+      tasks.push(async()=>{
+        try{
+          const snap=await getDocs(query(collection(db,colName),where("siteKeys","array-contains",id)));
+          snap.forEach(addDocSnap);
+        }catch(e){
+          console.warn("Offline historie dotaz selhal",colName,e);
+        }
+      });
+    });
+  }
+  await runBoundedFirestoreTasks(tasks,6);
+  if(!items.some(item=>recordMatchesSite(item,site))){
+    const {collection,query,where,getDocs}=fb.fsMod;
+    const textTasks=[];
+    siteRecordTextKeys(site).slice(0,6).forEach(value=>{
+      ["siteName","siteAddress","place"].forEach(field=>{
+        textTasks.push(async()=>{
+          try{
+            const snap=await getDocs(query(collection(db,colName),where(field,"==",value)));
+            snap.forEach(addDocSnap);
+          }catch(e){
+            console.warn("Offline historie textový dotaz selhal",colName,field,e);
+          }
+        });
+      });
+    });
+    await runBoundedFirestoreTasks(textTasks,4);
+  }
+  return items.filter(item=>recordMatchesSite(item,site));
+}
+
+async function prefetchOfflineDetailsForSite(site){
+  const result={sites:1,protocols:0,serviceRecords:0,photos:0,media:0};
+  if(!site || navigator.onLine===false || !firebaseReady || !db || !fb.fsMod) return result;
+  try{ await refreshSiteDataFromFirebase(site); }catch(e){}
+  const [childProtocols,childRecords,childPhotos,standaloneProtocols,standaloneRecords]=await Promise.all([
+    loadSiteChildItems("protocols",site),
+    loadSiteChildItems("serviceRecords",site),
+    loadSiteChildItems("photos",site),
+    readOfflineStandaloneHistoryCollection(site,"protocols","Protokol"),
+    readOfflineStandaloneHistoryCollection(site,"serviceRecords","Servisní záznam")
+  ]);
+  const embeddedProtocols=szzEmbeddedItemsForOffline(site,"protocolHistory","Protokol","embeddedProtocols","embedded_protocol");
+  const embeddedRecords=szzEmbeddedItemsForOffline(site,"serviceHistory","Servisní záznam","embeddedServiceRecords","embedded_service");
+  const embeddedPhotos=szzEmbeddedItemsForOffline(site,"photos","","embeddedPhotos","embedded_photo");
+  const protocols=[...childProtocols.map(item=>({...item,_type:item._type || "Protokol",_collection:item._collection || "siteProtocols"})),...embeddedProtocols,...standaloneProtocols];
+  const serviceRecords=[...childRecords.map(item=>({...item,_type:item._type || "Servisní záznam",_collection:item._collection || "siteServiceRecords"})),...embeddedRecords,...standaloneRecords];
+  const photos=[...childPhotos,...embeddedPhotos];
+  if(protocols.length) mergeSiteLocalArray("protocolHistory",protocols,site,180);
+  if(serviceRecords.length) mergeSiteLocalArray("serviceHistory",serviceRecords,site,180);
+  if(photos.length) mergeSiteLocalArray("photos",photos,site,180);
+  result.protocols=protocols.length;
+  result.serviceRecords=serviceRecords.length;
+  result.photos=photos.length;
+  result.media=await cacheSzzOfflineMediaUrls(szzOfflinePhotoUrls(photos));
+  return result;
+}
+
+async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
+  const rowsForPrefetch=szzOfflineRowsForPrefetch(inputRows);
+  const totals={sites:rowsForPrefetch.length,processed:0,protocols:0,serviceRecords:0,photos:0,media:0};
+  if(!rowsForPrefetch.length || navigator.onLine===false || !firebaseReady || !db || !fb.fsMod) return totals;
+  const signedUser=await waitForFirebaseUser();
+  if(!signedUser) return totals;
+  const tasks=rowsForPrefetch.map(site=>async()=>{
+    const item=await prefetchOfflineDetailsForSite(site);
+    totals.processed++;
+    totals.protocols+=Number(item.protocols) || 0;
+    totals.serviceRecords+=Number(item.serviceRecords) || 0;
+    totals.photos+=Number(item.photos) || 0;
+    totals.media+=Number(item.media) || 0;
+    if(typeof options.onProgress==="function") options.onProgress({...totals});
+  });
+  await runBoundedFirestoreTasks(tasks,SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY);
+  return totals;
+}
+
 function readSzzOfflineReadyState(){
   try{
     const parsed=JSON.parse(localStorage.getItem(SZZ_OFFLINE_READY_KEY) || "{}");
@@ -1282,6 +1466,22 @@ async function prepareSzzOfflineAppData(options={}){
       }
     }
     const cachedRows=cacheCurrentFirebaseRowsForOffline();
+    let detailCache={sites:0,processed:0,protocols:0,serviceRecords:0,photos:0,media:0};
+    if(navigator.onLine!==false && cachedRows){
+      const rowsForDetails=Array.isArray(loadedRows) && loadedRows.length ? loadedRows : szzOfflineRowsForPrefetch();
+      if(syncText) syncText.textContent=`Ukládám protokoly a galerie k bodům: 0 / ${rowsForDetails.length}.`;
+      try{
+        detailCache=await prefetchSzzOfflineDetailData(rowsForDetails,{
+          onProgress:progress=>{
+            if(syncText){
+              syncText.textContent=`Ukládám protokoly a galerie k bodům: ${progress.processed} / ${progress.sites}.`;
+            }
+          }
+        });
+      }catch(e){
+        console.warn("Přednačtení detailů pro offline režim selhalo",e);
+      }
+    }
     const estimate=await szzStorageEstimate();
     const ready=writeSzzOfflineReadyState({
       preparedAt:new Date().toISOString(),
@@ -1290,12 +1490,20 @@ async function prepareSzzOfflineAppData(options={}){
       shellCount,
       cachedRows,
       loadedRows:Array.isArray(loadedRows) ? loadedRows.length : null,
+      cachedDetailSites:detailCache.processed || 0,
+      cachedProtocols:detailCache.protocols || 0,
+      cachedServiceRecords:detailCache.serviceRecords || 0,
+      cachedPhotos:detailCache.photos || 0,
+      cachedPhotoFiles:detailCache.media || 0,
       storageUsage:estimate ? estimate.usage : 0,
       storageQuota:estimate ? estimate.quota : 0
     });
     if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
+    const detailSummary=(detailCache.protocols || detailCache.serviceRecords || detailCache.photos)
+      ? `, ${detailCache.protocols + detailCache.serviceRecords} záznamů, ${detailCache.photos} fotek`
+      : "";
     if(syncText) syncText.textContent=cachedRows
-      ? `Offline připraveno: ${cachedRows} bodů v telefonu.`
+      ? `Offline připraveno: ${cachedRows} bodů${detailSummary} v telefonu.`
       : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.";
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     return ready;
@@ -2242,6 +2450,63 @@ function getAllKnownDataKeys(){
 
 
 
+function bindDrawerCloseButton(){
+  const close=document.getElementById("closeDrawer");
+  const drawer=document.getElementById("drawer");
+  if(close && drawer) close.onclick=()=>drawer.classList.remove("open");
+}
+
+function dedupeDetailTabs(drawer=document.getElementById("drawer")){
+  if(!drawer) return;
+  const tabBars=Array.from(drawer.querySelectorAll(".detail-tabs"));
+  if(!tabBars.length) return;
+  const keep=tabBars.find(el=>el.id==="detailTabs") || tabBars[0];
+  keep.id="detailTabs";
+  tabBars.forEach(el=>{ if(el!==keep) el.remove(); });
+  const seenTabs=new Set();
+  keep.querySelectorAll(".detail-tab[data-detail-tab]").forEach(btn=>{
+    const key=btn.getAttribute("data-detail-tab");
+    if(seenTabs.has(key)){
+      btn.remove();
+      return;
+    }
+    seenTabs.add(key);
+  });
+}
+
+function drawerNodesHaveDetailShell(nodes=[]){
+  return (nodes || []).some(node=>{
+    if(!node || node.nodeType!==1) return false;
+    return node.id==="detailTable"
+      || node.id==="detailTabs"
+      || !!(node.querySelector && (node.querySelector("#detailTable") || node.querySelector("#detailTabs")));
+  });
+}
+
+function captureNormalDetailDrawerShell(drawer=document.getElementById("drawer")){
+  if(!drawer || !(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"))) return;
+  dedupeDetailTabs(drawer);
+  window.__normalDrawerNodes=Array.from(drawer.childNodes);
+  window.__normalDrawerTemplate=drawer.innerHTML;
+}
+
+function restoreNormalDetailDrawerShell(){
+  const drawer=document.getElementById("drawer");
+  if(!drawer) return null;
+  const hasDetailShell=!!(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"));
+  if(!hasDetailShell){
+    if(drawerNodesHaveDetailShell(window.__normalDrawerNodes)){
+      drawer.replaceChildren(...window.__normalDrawerNodes);
+    }else if(window.__normalDrawerTemplate && window.__normalDrawerTemplate.includes('id="detailTable"')){
+      drawer.innerHTML=window.__normalDrawerTemplate;
+    }
+  }
+  dedupeDetailTabs(drawer);
+  captureNormalDetailDrawerShell(drawer);
+  bindDrawerCloseButton();
+  return drawer;
+}
+
 function setNewSiteModeTitle(){
   const title=document.getElementById("drawerTitle");
   const sub=document.getElementById("drawerSub");
@@ -2430,6 +2695,7 @@ function populateNewRegionOptions(){
 }
 
 function openNewSiteForm(){
+  restoreNormalDetailDrawerShell();
   selectedSite=null;
   addSourceBaseSite=null;
   const chooser=document.getElementById("sourceChooser");
@@ -5888,6 +6154,7 @@ function renderDetailTable(table,r){
 }
 
 window.openDetail=function(i){
+  restoreNormalDetailDrawerShell();
   syncRowIndexes();
   const r=rows[Number(i)]; if(!r)return; selectedSite=r;
   startDetailAsyncLoads(r);
@@ -8171,6 +8438,42 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
   }
 }
+
+function mergeSiteLocalArray(kind,items=[],site=selectedSite,limit=120){
+  try{
+    const cleanKind=safe(kind);
+    if(!cleanKind) return [];
+    const incoming=(Array.isArray(items) ? items : []).filter(item=>item && typeof item==="object");
+    if(!incoming.length) return readSiteLocalArray(cleanKind,site);
+    const docId=selectedSiteDocId(site);
+    const keys=siteRecordKeys(site);
+    let next=readSiteLocalArray(cleanKind,site).slice();
+    incoming.forEach((item,idx)=>{
+      const id=safe(item._id || item.id) || `${cleanKind}_${Date.now()}_${idx}`;
+      const enriched={
+        ...item,
+        _id:id,
+        siteDocId:safe(item.siteDocId) || docId,
+        firebaseDocId:safe(item.firebaseDocId) || docId,
+        siteKey:safe(item.siteKey) || keys[0] || docId,
+        siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...keys])
+      };
+      next=next.filter(existing=>safe(existing && existing._id)!==id);
+      next.push(enriched);
+    });
+    if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
+    const key=siteLocalCacheKey(cleanKind,site);
+    localStorage.setItem(key,JSON.stringify(next));
+    clearLocalStorageArrayEntriesCache(key);
+    clearDetailHistoryCacheForKind(cleanKind,site);
+    return next;
+  }catch(e){
+    console.warn("Lokální cache se nepodařila sloučit",kind,e);
+    return [];
+  }
+}
+window.mergeSiteLocalArray=mergeSiteLocalArray;
+
 function removeSiteLocalItem(kind,id,site=selectedSite){
   try{
     const cleanId=safe(id);
@@ -8828,6 +9131,12 @@ async function loadSiteChildItems(kind,site=selectedSite){
       items.push({...docSnap.data(),_id:docSnap.id});
     });
     writeSiteChildItemsCache(kind,site,items);
+    const localKind=kind==="protocols" ? "protocolHistory" : kind==="serviceRecords" ? "serviceHistory" : kind==="photos" ? "photos" : "";
+    if(localKind) mergeSiteLocalArray(localKind,items.map(item=>({
+      ...item,
+      _collection:item._collection || `site${kind}`,
+      _type:item._type || (kind==="protocols" ? "Protokol" : kind==="serviceRecords" ? "Servisní záznam" : "")
+    })),site,localKind==="photos" ? 180 : 180);
     return cloneSiteChildItems(items);
   }catch(e){
     console.warn("Načtení položek pod bodem selhalo",kind,e);
@@ -9884,9 +10193,7 @@ async function openMainProtocolHistoryPanel(){
   }
   const drawer=document.getElementById("drawer");
   if(!drawer) return;
-  if(!window.__normalDrawerTemplate || !window.__normalDrawerTemplate.includes('id="detailTable"')){
-    window.__normalDrawerTemplate=drawer.innerHTML;
-  }
+  captureNormalDetailDrawerShell(drawer);
   drawer.classList.add("open");
   drawer.classList.remove("adding-new-site");
   drawer.scrollTop=0;
@@ -9938,7 +10245,7 @@ if(typeof window.bindLoginButtons==="function"){
 
 
 
-document.getElementById("closeDrawer").onclick=()=>document.getElementById("drawer").classList.remove("open");
+bindDrawerCloseButton();
 let filterRenderTimer=0;
 let lastFilterInputSignature="";
 function filterInputSignature(){

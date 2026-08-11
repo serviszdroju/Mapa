@@ -148,13 +148,17 @@ Current performance phase 63 decision: include currently loaded script, styleshe
 
 Current performance phase 64 decision: extract the inline CSS style blocks into app.css so Vite can emit CSS as a separate hashed asset, reducing the HTML app-shell size while preserving selector order and visual appearance.
 
-Current install UX decision: the Android/PWA install area should be a polished guided flow, not just a bare button. Keep a clear readiness check for Chrome/HTTPS/offline/service-worker/install dialog state, show a custom "Opravdu chcete nainstalovat aplikaci?" confirmation before attempting installation, call the browser install prompt immediately after confirmation, make all success/fallback copy clear that a completed install creates an icon among tablet apps or in the tablet app menu, avoid telling the user that the installed app is in the browser menu, and keep the existing offline data preparation and sync behavior intact.
+Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
+
+Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
 
 Current Android packaging decision: for a guaranteed launcher/menu icon on tablets, maintain the `android/` Trusted Web Activity project against the current public web URL `https://serviszdroju.github.io/Mapa/`. PWA install remains best-effort because some Android/launcher/browser combinations create only a web shortcut; an APK install is the reliable path for appearing in the tablet app menu.
 
 Current APK delivery decision: keep the public Pages `downloads/` folder during web deployments and expose `downloads/szz-mapa-tablet.apk` from the install panel as the reliable tablet-menu installation path. Build the APK from the `android/` TWA project and ship it inside the public web build until a CI token with workflow scope is available.
 
 Current detail/history styling decision: the read-only Detail tab rows must use the same `history-item` and `history-detail-row` visual treatment as "Historie záznamů", including font, text size, colors, spacing, borders, and background. Do not apply special red/important-note styling to read-only detail rows.
+
+Current detail menu decision: the Detail / Protokol / Galerie / Doklad tab menu must appear exactly once in the detail drawer. When returning from alternate drawer content such as main protocol history, restore the normal detail drawer shell and deduplicate `.detail-tabs`.
 
 Current gallery folder display decision: gallery folders must be stacked vertically as full-width sections and must not block vertical drawer scrolling. Do not show a horizontal folder chip row; each folder header should show only the stored folder name, without a separate formatted date label or photo count.
 
