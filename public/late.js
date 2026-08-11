@@ -1278,10 +1278,31 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
   }
   window.saveFirebaseMapRowsCache=saveMapRowsCache;
   const OFFLINE_SITE_QUEUE_KEY="astipMap:offlineSites:v1";
+  const OFFLINE_SITE_QUEUE_CACHE_MS=1800;
+  let offlineSiteQueueCache={raw:null,items:null,savedAt:0};
+  function cloneOfflineSiteQueueItems(items=[]){
+    return Array.isArray(items)
+      ? items.map(item=>item && typeof item==="object" ? {...item,raw:item.raw && typeof item.raw==="object" ? {...item.raw} : item.raw} : item)
+      : [];
+  }
+  function rememberOfflineSiteQueue(raw,items=[]){
+    offlineSiteQueueCache={raw:String(raw || ""),items:cloneOfflineSiteQueueItems(items),savedAt:Date.now()};
+  }
+  window.addEventListener("storage",event=>{
+    if(!event.key || event.key===OFFLINE_SITE_QUEUE_KEY){
+      offlineSiteQueueCache={raw:null,items:null,savedAt:0};
+    }
+  });
   function readOfflineSiteQueue(){
     try{
-      const items=JSON.parse(localStorage.getItem(OFFLINE_SITE_QUEUE_KEY) || "[]");
-      return Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
+      const raw=localStorage.getItem(OFFLINE_SITE_QUEUE_KEY) || "";
+      if(offlineSiteQueueCache.raw===raw && offlineSiteQueueCache.items && Date.now()-offlineSiteQueueCache.savedAt<OFFLINE_SITE_QUEUE_CACHE_MS){
+        return cloneOfflineSiteQueueItems(offlineSiteQueueCache.items);
+      }
+      const items=JSON.parse(raw || "[]");
+      const queue=Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
+      rememberOfflineSiteQueue(raw,queue);
+      return queue;
     }catch(e){
       return [];
     }
@@ -1291,14 +1312,19 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     Promise.allSettled(items.map(item=>window.saveOfflineSiteQueueItem(item))).then(results=>{
       const unsaved=items.filter((_item,idx)=>!(results[idx] && results[idx].status==="fulfilled" && results[idx].value));
       try{
-        localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,JSON.stringify(unsaved));
+        const raw=JSON.stringify(unsaved);
+        localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,raw);
+        rememberOfflineSiteQueue(raw,unsaved);
       }catch(e){}
     }).catch(()=>{});
   }
   function writeOfflineSiteQueue(items=[]){
     try{
-      localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,JSON.stringify(items));
-      compactOfflineSiteQueueAfterIndexedDbSave(items);
+      const queueItems=Array.isArray(items) ? items : [];
+      const raw=JSON.stringify(queueItems);
+      localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,raw);
+      rememberOfflineSiteQueue(raw,queueItems);
+      compactOfflineSiteQueueAfterIndexedDbSave(queueItems);
     }catch(e){
       console.warn("Offline frontu nových bodů se nepodařilo uložit",e);
     }
@@ -2920,7 +2946,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-11-legacy-offline-site-count-cache-v225";
+  const serviceWorkerBuildVersion="2026-08-11-late-offline-site-queue-cache-v226";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
