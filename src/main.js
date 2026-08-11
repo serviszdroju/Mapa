@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-key-cache-v193";
+const APP_BUILD_VERSION="2026-08-11-record-text-cache-v194";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1276,7 +1276,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v193-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v194-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3592,9 +3592,10 @@ function siteSiblingRows(site,pool=rows){
 function siteHasMultipleSources(site){
   return siteSiblingRows(site).length>1;
 }
+const recordSourceIdentityCache=new WeakMap();
 function recordSourceIdentity(record){
   if(!record) return "";
-  return searchNorm([
+  const values=[
     record.siteSource,
     record.siteSourceIdentity,
     record.sourceIdentity,
@@ -3606,7 +3607,16 @@ function recordSourceIdentity(record){
     record.serial,
     record.serialNumber,
     record.vyrobniCislo
-  ].filter(Boolean).join(" "));
+  ];
+  if(record && (typeof record==="object" || typeof record==="function")){
+    const fingerprint=stableSignature(values);
+    const cached=recordSourceIdentityCache.get(record);
+    if(cached && cached.fingerprint===fingerprint) return cached.identity;
+    const identity=searchNorm(values.filter(Boolean).join(" "));
+    recordSourceIdentityCache.set(record,{fingerprint,identity});
+    return identity;
+  }
+  return searchNorm(values.filter(Boolean).join(" "));
 }
 function recordSourceMatchesSite(record,site){
   const siteSource=siteSourceIdentity(site);
@@ -4082,8 +4092,14 @@ function recordMatchesSite(record,site=selectedSite){
   if(recordKeys.some(k=>keys.includes(k))) return true;
   if(siteHasMultipleSources(site) && !recordSourceMatchesSite(record,site)) return false;
 
+  const siteTexts=siteRecordNormTextKeys(site);
+  const recordTexts=recordMatchTextKeys(record);
+  return siteTexts.some(a=>recordTexts.some(b=>a===b || (a.length>=10 && b.length>=10 && (a.includes(b) || b.includes(a)))));
+}
+function siteRecordTextKeys(site=selectedSite){
+  if(!site) return [];
   const raw=site.raw || {};
-  const siteTexts=[
+  const fingerprint=stableSignature([
     site.adresa,
     site.gpsAddress,
     raw["Název"],
@@ -4091,19 +4107,11 @@ function recordMatchesSite(record,site=selectedSite){
     raw["Adresa_GPS"],
     raw["Umístění"],
     raw["Umístění zdroje"]
-  ].map(searchNorm).filter(x=>x.length>=4);
-  const recordTexts=[
-    record.siteName,
-    record.siteAddress,
-    record.place,
-    record.pbzLocation
-  ].map(searchNorm).filter(x=>x.length>=4);
-  return siteTexts.some(a=>recordTexts.some(b=>a===b || (a.length>=10 && b.length>=10 && (a.includes(b) || b.includes(a)))));
-}
-function siteRecordTextKeys(site=selectedSite){
-  if(!site) return [];
-  const raw=site.raw || {};
-  return [
+  ]);
+  if(site && typeof site==="object" && site._recordTextRawRef===raw && site._recordTextFingerprint===fingerprint && Array.isArray(site._recordTextKeysCache)){
+    return site._recordTextKeysCache;
+  }
+  const keys=[
     site.adresa,
     site.gpsAddress,
     raw["Název"],
@@ -4114,6 +4122,39 @@ function siteRecordTextKeys(site=selectedSite){
   ]
     .map(x=>String(x || "").trim())
     .filter((x,idx,arr)=>x.length>=4 && arr.indexOf(x)===idx);
+  if(site && typeof site==="object"){
+    site._recordTextRawRef=raw;
+    site._recordTextFingerprint=fingerprint;
+    site._recordTextKeysCache=keys;
+  }
+  return keys;
+}
+function siteRecordNormTextKeys(site=selectedSite){
+  const keys=siteRecordTextKeys(site);
+  const fingerprint=stableSignature(keys);
+  if(site && typeof site==="object" && site._recordNormTextFingerprint===fingerprint && Array.isArray(site._recordNormTextKeysCache)){
+    return site._recordNormTextKeysCache;
+  }
+  const normalized=keys.map(searchNorm).filter(x=>x.length>=4);
+  if(site && typeof site==="object"){
+    site._recordNormTextFingerprint=fingerprint;
+    site._recordNormTextKeysCache=normalized;
+  }
+  return normalized;
+}
+const recordMatchTextCache=new WeakMap();
+function recordMatchTextKeys(record){
+  if(!record) return [];
+  const values=[record.siteName,record.siteAddress,record.place,record.pbzLocation];
+  if(record && (typeof record==="object" || typeof record==="function")){
+    const fingerprint=stableSignature(values);
+    const cached=recordMatchTextCache.get(record);
+    if(cached && cached.fingerprint===fingerprint) return cached.keys;
+    const keys=values.map(searchNorm).filter(x=>x.length>=4);
+    recordMatchTextCache.set(record,{fingerprint,keys});
+    return keys;
+  }
+  return values.map(searchNorm).filter(x=>x.length>=4);
 }
 Object.assign(window,{
   geocodeAddressGeneric,
