@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-record-text-cache-v194";
+const APP_BUILD_VERSION="2026-08-11-multi-source-cache-v195";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -1276,7 +1276,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v194-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v195-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -3589,8 +3589,36 @@ function siteSiblingRows(site,pool=rows){
   const key=sitePlaceGroupKey(site);
   return cachedRowsByPlaceGroup(key,pool);
 }
+function uncachedHasMultipleSourcesForKey(key){
+  if(!key) return false;
+  let count=0;
+  for(const row of rows){
+    if(sitePlaceGroupKey(row)===key && ++count>1) return true;
+  }
+  return false;
+}
 function siteHasMultipleSources(site){
-  return siteSiblingRows(site).length>1;
+  const key=sitePlaceGroupKey(site);
+  if(!site || typeof site!=="object"){
+    return cachedRowsByPlaceGroup(key).length>1;
+  }
+  if(
+    !rowsIndexDirty
+    && site._multiSourceVersion===rowsIndexVersion
+    && site._multiSourcePlaceKey===key
+    && typeof site._multiSourceCache==="boolean"
+  ){
+    return site._multiSourceCache;
+  }
+  const hasMultiple=rowsIndexDirty
+    ? uncachedHasMultipleSourcesForKey(key)
+    : cachedRowsByPlaceGroup(key).length>1;
+  if(!rowsIndexDirty){
+    site._multiSourceVersion=rowsIndexVersion;
+    site._multiSourcePlaceKey=key;
+    site._multiSourceCache=hasMultiple;
+  }
+  return hasMultiple;
 }
 const recordSourceIdentityCache=new WeakMap();
 function recordSourceIdentity(record){
