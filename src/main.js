@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-cache-region-aliases-v237";
+const APP_BUILD_VERSION="2026-08-11-cache-auth-email-sets-v238";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1329,7 +1329,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v237-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v238-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -2427,6 +2427,9 @@ const APP_ALLOWED_EMAILS = [
 const APP_PROTOCOL_HISTORY_EMAILS = [
   "iva.glozova@astip.cz"
 ];
+const APP_ADMIN_EMAIL_SET = new Set(APP_ADMIN_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
+const APP_ALLOWED_EMAIL_SET = new Set(APP_ALLOWED_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
+const APP_PROTOCOL_HISTORY_EMAIL_SET = new Set(APP_PROTOCOL_HISTORY_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
 window.appRegionOptions = () => APP_REGION_OPTIONS.slice();
 function compatAuthCurrentUser(){
   try{
@@ -2450,21 +2453,21 @@ function currentUserEmail(){
 }
 function isAllowedLoginEmail(email){
   const e=safe(email).toLowerCase();
-  return e.endsWith("@astip.cz") || APP_ALLOWED_EMAILS.includes(e);
+  return e.endsWith("@astip.cz") || APP_ALLOWED_EMAIL_SET.has(e);
 }
 function isAppAdmin(){
   const email=currentUserEmail();
-  return !!email && APP_ADMIN_EMAILS.map(e=>String(e).toLowerCase()).includes(email);
+  return !!email && APP_ADMIN_EMAIL_SET.has(email);
 }
 function canViewProtocolHistory(){
   const email=currentUserEmail();
   if(!email) return false;
-  return isAllowedLoginEmail(email) || APP_PROTOCOL_HISTORY_EMAILS.map(e=>String(e).toLowerCase()).includes(email);
+  return isAllowedLoginEmail(email) || APP_PROTOCOL_HISTORY_EMAIL_SET.has(email);
 }
 function canViewMainProtocolHistory(){
   const email=currentUserEmail();
   if(!email) return false;
-  return isAppAdmin() || APP_PROTOCOL_HISTORY_EMAILS.map(e=>String(e).toLowerCase()).includes(email);
+  return isAppAdmin() || APP_PROTOCOL_HISTORY_EMAIL_SET.has(email);
 }
 function updateProtocolHistoryVisibility(){
   const showDetail=canViewProtocolHistory();
