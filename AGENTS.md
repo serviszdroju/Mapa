@@ -154,9 +154,13 @@ Current performance phase 66 decision: build the detail source chooser render si
 
 Current performance phase 67 decision: return the cached place-group row array directly for normal `rows` lookups instead of cloning it on every detail/source read, preserving caller behavior because mutating paths already create their own filtered arrays.
 
+Current performance phase 68 decision: precompute each place group's marker row signature during grouping and reuse it during map marker reconciliation, preserving marker content and lazy popups while reducing repeated source/status signature work on map moves.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
+
+Current offline first-launch decision: the Android/PWA install flow must prepare offline data before opening the browser install prompt when possible, and offline startup must show locally cached Firebase rows even if Firebase SDK/auth cannot load. The supplied `Tipo_SZZ_logo3.png` battery mark is the required app logo/source for the visible logo and Android manifest icons.
 
 Current Android packaging decision: for a guaranteed launcher/menu icon on tablets, maintain the `android/` Trusted Web Activity project against the current public web URL `https://serviszdroju.github.io/Mapa/`. PWA install remains best-effort because some Android/launcher/browser combinations create only a web shortcut; an APK install is the reliable path for appearing in the tablet app menu.
 

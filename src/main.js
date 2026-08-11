@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-place-group-cache-v190";
+const APP_BUILD_VERSION="2026-08-11-marker-signature-v192";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
@@ -435,6 +435,39 @@ function showAppShellFast(message=""){
   if(progress && message) progress.textContent=message;
 }
 
+function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
+  if(window.__szzOfflineBootCacheLoadStarted) return;
+  window.__szzOfflineBootCacheLoadStarted=true;
+  const started=Date.now();
+  const progress=document.getElementById("progress");
+  const run=()=>{
+    const directLoader=window.showFirebaseMapRowsCache;
+    const unifiedLoader=window.loadFirebaseSitesUnified;
+    const done=loadedRows=>{
+      const count=Array.isArray(loadedRows) ? loadedRows.length : 0;
+      if(progress) progress.textContent=count
+        ? `Offline režim. Načteno ${count} bodů z telefonu.`
+        : (message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.");
+    };
+    if(typeof directLoader==="function"){
+      Promise.resolve(directLoader(null,{offlineBoot:true})).then(done).catch(e=>console.warn("Offline cache bodů se nepodařila načíst",e));
+      return;
+    }
+    if(typeof unifiedLoader==="function"){
+      Promise.resolve(unifiedLoader(null,{offlineCacheOnly:true,skipFirestoreCache:true})).then(done).catch(e=>console.warn("Offline cache bodů se nepodařila načíst",e));
+      return;
+    }
+    if(Date.now()-started<timeoutMs){
+      setTimeout(run,150);
+      return;
+    }
+    if(progress) progress.textContent=message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.";
+  };
+  if(progress && message) progress.textContent=message;
+  run();
+}
+window.loadOfflineRowsFromLocalCacheWhenAvailable=loadOfflineRowsFromLocalCacheWhenAvailable;
+
 function runAfterPaint(fn){
   requestAnimationFrame(()=>{
     try{ fn(); }catch(e){}
@@ -568,7 +601,12 @@ if(firebaseReady){
     if(st) st.textContent=compatAvailable
       ? "Firebase modul se načetl v záložním režimu. Otevírám mapu."
       : "Firebase není dostupný. Servisní data se načtou po obnovení přihlášení nebo připojení.";
-    runAfterTwoPaints(()=>{try{showApp();}catch(err){}});
+    runAfterTwoPaints(()=>{
+      try{showApp();}catch(err){}
+      if(!compatAvailable || navigator.onLine===false){
+        loadOfflineRowsFromLocalCacheWhenAvailable("Offline režim. Hledám uložené body, mapu a protokoly v telefonu.");
+      }
+    });
   }
   if(firebaseReady && appMod && authMod && fsMod){
   fb={appMod,authMod,fsMod,fnMod:null};
@@ -1238,7 +1276,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v190-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v192-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1482,6 +1520,16 @@ async function prepareSzzOfflineAppData(options={}){
         console.warn("Přednačtení detailů pro offline režim selhalo",e);
       }
     }
+    let cachedOfflineMap=czechOfflineMapReady();
+    if(navigator.onLine!==false && !cachedOfflineMap && options.skipOfflineMap!==true){
+      if(syncText) syncText.textContent="Ukládám mapový podklad ČR pro první offline otevření.";
+      try{
+        await cacheCzechOfflineMap({reason:options.reason || "offline"});
+      }catch(e){
+        console.warn("Offline mapa ČR se nepodařila přednačíst",e);
+      }
+      cachedOfflineMap=czechOfflineMapReady();
+    }
     const estimate=await szzStorageEstimate();
     const ready=writeSzzOfflineReadyState({
       preparedAt:new Date().toISOString(),
@@ -1495,6 +1543,7 @@ async function prepareSzzOfflineAppData(options={}){
       cachedServiceRecords:detailCache.serviceRecords || 0,
       cachedPhotos:detailCache.photos || 0,
       cachedPhotoFiles:detailCache.media || 0,
+      cachedOfflineMap,
       storageUsage:estimate ? estimate.usage : 0,
       storageQuota:estimate ? estimate.quota : 0
     });
@@ -1502,8 +1551,9 @@ async function prepareSzzOfflineAppData(options={}){
     const detailSummary=(detailCache.protocols || detailCache.serviceRecords || detailCache.photos)
       ? `, ${detailCache.protocols + detailCache.serviceRecords} záznamů, ${detailCache.photos} fotek`
       : "";
+    const mapSummary=cachedOfflineMap ? ", mapa ČR" : "";
     if(syncText) syncText.textContent=cachedRows
-      ? `Offline připraveno: ${cachedRows} bodů${detailSummary} v telefonu.`
+      ? `Offline připraveno: ${cachedRows} bodů${detailSummary}${mapSummary} v telefonu.`
       : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.";
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     return ready;
@@ -3606,6 +3656,11 @@ function groupRowsByPlace(inputRows){
   });
   return [...mapByKey.values()].map(group=>{
     group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
+    group._markerRowsSignature=group.rows.map(row=>stableSignature([
+      detailKey(row),
+      siteSourceLabel(row),
+      statusText(row)
+    ])).join("\u001e");
     const representative=groupRepresentative(group.rows) || group.rows[0] || null;
     group._representativeRow=representative;
     group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
@@ -4087,11 +4142,11 @@ function mapMarkerSignature(group,fill){
     Number(group.lon).toFixed(6),
     fill,
     group.label || "",
-    (group.rows || []).map(row=>[
+    group._markerRowsSignature || (group.rows || []).map(row=>stableSignature([
       detailKey(row),
       siteSourceLabel(row),
       statusText(row)
-    ].join(":")).join("|")
+    ])).join("\u001e")
   ].join("||");
 }
 function attachLazyMarkerPopup(marker,group){
