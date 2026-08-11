@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-row-raw-value-count-cache-v211";
+const APP_BUILD_VERSION="2026-08-11-visible-groups-single-pass-v212";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v211-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v212-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -4749,13 +4749,35 @@ function groupHasUsableGps(group){
   return group && Number.isFinite(group.lat) && Number.isFinite(group.lon) && group.lat>=47 && group.lat<=51.5 && group.lon>=12 && group.lon<=23;
 }
 function groupsInsideCurrentMap(groups){
-  const gpsGroups=(groups || []).filter(groupHasUsableGps);
-  if(!map || typeof map.getBounds!=="function") return gpsGroups.slice(0,MAP_MARKER_RENDER_LIMIT);
+  const source=groups || [];
+  const out=[];
+  const pushGroup=group=>{
+    if(!groupHasUsableGps(group)) return;
+    out.push(group);
+  };
+  if(!map || typeof map.getBounds!=="function"){
+    for(const group of source){
+      pushGroup(group);
+      if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
+    }
+    return out;
+  }
   let bounds=null;
   try{bounds=map.getBounds().pad(0.18);}catch(e){}
-  if(!bounds || typeof bounds.contains!=="function") return gpsGroups.slice(0,MAP_MARKER_RENDER_LIMIT);
-  const visible=gpsGroups.filter(group=>bounds.contains([group.lat,group.lon]));
-  return visible.slice(0,MAP_MARKER_RENDER_LIMIT);
+  if(!bounds || typeof bounds.contains!=="function"){
+    for(const group of source){
+      pushGroup(group);
+      if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
+    }
+    return out;
+  }
+  for(const group of source){
+    if(!groupHasUsableGps(group)) continue;
+    if(!bounds.contains([group.lat,group.lon])) continue;
+    out.push(group);
+    if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
+  }
+  return out;
 }
 function currentMapBoundsKey(){
   if(!map || typeof map.getBounds!=="function") return "no-map";
