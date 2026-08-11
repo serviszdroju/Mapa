@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-11-marker-row-signature-cache-v207";
+const APP_BUILD_VERSION="2026-08-11-offline-row-fingerprint-cache-v208";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1280,7 +1280,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v207-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v208-runtime";
 
 function szzOfflineRowsForPrefetch(inputRows=null){
   const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
@@ -1416,23 +1416,73 @@ function szzRecordUpdatedMs(item={}){
   );
 }
 
+const szzRawFingerprintCache=new WeakMap();
+const szzOfflineRowFingerprintCache=new WeakMap();
+function szzCachedObjectValuesMatch(keys=[],values=[],source={},currentKeys=[]){
+  const compareKeys=Array.isArray(currentKeys) ? currentKeys : Object.keys(source || {}).sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}));
+  if(!sameArrayValues(keys,compareKeys)) return false;
+  for(let i=0;i<keys.length;i++){
+    if(values[i]!==source[keys[i]]) return false;
+  }
+  return true;
+}
 function szzStableRawFingerprint(raw={}){
-  return Object.keys(raw || {})
-    .sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}))
-    .map(key=>stableSignature([key,raw[key]]))
-    .join("\u001e");
+  const source=raw || {};
+  const keys=Object.keys(source).sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}));
+  const cacheable=source && (typeof source==="object" || typeof source==="function");
+  if(cacheable){
+    const cached=szzRawFingerprintCache.get(source);
+    if(cached && szzCachedObjectValuesMatch(cached.keys,cached.values,source,keys)) return cached.fingerprint;
+  }
+  const values=keys.map(key=>source[key]);
+  const fingerprint=keys.map((key,idx)=>stableSignature([key,values[idx]])).join("\u001e");
+  if(cacheable) szzRawFingerprintCache.set(source,{keys,values,fingerprint});
+  return fingerprint;
 }
 
 function szzOfflineRowFingerprint(row){
   const raw=row?.raw || {};
   const data=row?.firebaseData || {};
+  const rawFingerprint=szzStableRawFingerprint(raw);
+  if(row && (typeof row==="object" || typeof row==="function")){
+    const cached=szzOfflineRowFingerprintCache.get(row);
+    if(
+      cached &&
+      cached.firebaseDocId===row.firebaseDocId &&
+      cached.id===row.id &&
+      cached.updatedAt===data.updatedAt &&
+      cached.createdAt===data.createdAt &&
+      cached.latestProtocolDate===data.latestProtocolDate &&
+      cached.rawFingerprint===rawFingerprint
+    ){
+      return cached.fingerprint;
+    }
+    const fingerprint=stableSignature([
+      row?.firebaseDocId,
+      row?.id,
+      data.updatedAt,
+      data.createdAt,
+      data.latestProtocolDate,
+      rawFingerprint
+    ]);
+    szzOfflineRowFingerprintCache.set(row,{
+      firebaseDocId:row.firebaseDocId,
+      id:row.id,
+      updatedAt:data.updatedAt,
+      createdAt:data.createdAt,
+      latestProtocolDate:data.latestProtocolDate,
+      rawFingerprint,
+      fingerprint
+    });
+    return fingerprint;
+  }
   return stableSignature([
     row?.firebaseDocId,
     row?.id,
     data.updatedAt,
     data.createdAt,
     data.latestProtocolDate,
-    szzStableRawFingerprint(raw)
+    rawFingerprint
   ]);
 }
 
