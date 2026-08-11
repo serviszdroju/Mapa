@@ -284,6 +284,8 @@ Current performance phase 130 decision: after writing per-site local arrays or o
 
 Current performance phase 131 decision: cache the raw-object portion of each row search text by raw field names and values, so fallback search/region inference reuses the same concatenated raw text instead of repeatedly running `Object.keys()`, `Object.values()`, and `join()` for unchanged records.
 
+Current performance phase 132 decision: cache lazily generated marker popup HTML per place group signature, preserving click-time popup creation while avoiding repeated HTML assembly for the same unchanged grouped sources.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

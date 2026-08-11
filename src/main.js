@@ -299,7 +299,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-row-raw-search-v256";
+const APP_BUILD_VERSION="2026-08-12-cache-marker-popup-html-v257";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1349,7 +1349,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v256-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v257-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4369,12 +4369,29 @@ function sourceButtonHtml(row){
   return `<button class="source-popup-btn" type="button" onclick="openDetailById(${esc(JSON.stringify(detailKey(row)))})">${esc(siteSourceLabel(row))}<small>${esc(statusText(row))}</small></button>`;
 }
 function groupPopupHtml(group){
+  if(!group) return "";
   const rowsInGroup=group.rows || [];
-  if(rowsInGroup.length<=1){
-    const r=rowsInGroup[0];
-    return `<b>${esc(r.adresa||"Bez názvu")}</b><br>${esc(siteSourceLabel(r))}<br>${esc(statusText(r))}<br><button onclick="openDetailById(${esc(JSON.stringify(detailKey(r)))})">Detail</button>`;
+  const primary=rowsInGroup[0] || null;
+  const signature=stableSignature([
+    group.key || "",
+    group.label || "",
+    primary ? primary.adresa || "" : "",
+    rowsInGroup.length,
+    group._markerRowsSignature || rowsInGroup.map(markerRowSignature).join("\u001e")
+  ]);
+  if(group._popupHtmlSignature===signature && group._popupHtml){
+    return group._popupHtml;
   }
-  return `<b>${esc(group.label || "Místo")}</b><br>${rowsInGroup.length} zdrojů na jednom místě<div class="source-popup-list">${rowsInGroup.map(sourceButtonHtml).join("")}</div>`;
+  let html="";
+  if(rowsInGroup.length<=1){
+    const r=primary;
+    html=r ? `<b>${esc(r.adresa||"Bez názvu")}</b><br>${esc(siteSourceLabel(r))}<br>${esc(statusText(r))}<br><button onclick="openDetailById(${esc(JSON.stringify(detailKey(r)))})">Detail</button>` : "";
+  }else{
+    html=`<b>${esc(group.label || "Místo")}</b><br>${rowsInGroup.length} zdrojů na jednom místě<div class="source-popup-list">${rowsInGroup.map(sourceButtonHtml).join("")}</div>`;
+  }
+  group._popupHtmlSignature=signature;
+  group._popupHtml=html;
+  return html;
 }
 function setNewDataFieldValue(key,value){
   document.querySelectorAll("#newAllFieldsBox [data-new-key]").forEach(el=>{
