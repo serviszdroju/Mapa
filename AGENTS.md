@@ -440,6 +440,8 @@ Current performance phase 208 decision: remove now-unused HTML string builders f
 
 Current performance phase 209 decision: replace short fixed-delay detail-open/focus timers in `public/late.js` with the existing frame-based `szzAfterPaint()`/`szzAfterTwoPaints()` helpers, preserving the same post-save/detail-return behavior while avoiding unnecessary 0/100/150/250 ms timeout waits.
 
+Current performance phase 210 decision: use the main app's existing `runAfterTwoPaints()` helper for opening a newly saved offline add-site detail instead of a fixed 250 ms timeout, preserving the same offline add flow while avoiding another hard-coded wait.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
