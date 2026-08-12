@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-delegate-gallery-input-preview-v300";
+const APP_BUILD_VERSION="2026-08-12-cache-protocol-summary-nodes-v301";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v300-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v301-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12168,10 +12168,18 @@ function protocolSourceLocationFromSite(site){
   ]);
 }
 
+const protocolSummaryNodeCache={};
+function protocolSummaryNode(id){
+  const cached=protocolSummaryNodeCache[id];
+  if(cached && cached.isConnected) return cached;
+  const el=document.getElementById(id);
+  if(el) protocolSummaryNodeCache[id]=el;
+  return el;
+}
+
 function updateProtocolSummary(){
   const set=(id,value)=>{
-    const el=document.getElementById(id);
-    if(el) el.textContent=safe(value) || "-";
+    setTextIfChanged(protocolSummaryNode(id),safe(value) || "-");
   };
   set("protoSummaryAddress", val("protoPlace"));
   set("protoSummaryDevice", val("protoDeviceTypeSelect") || val("protoDeviceType") || val("protoDeviceSelect"));
