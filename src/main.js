@@ -20,7 +20,7 @@ const CLOUDINARY_PHOTOS = {
   fallbackUploadPresets:[],
   folder:"astip-servis"
 };
-let app, auth, db, mailFunctions=null, fb={}, currentUser=null;
+let app, auth, db, mailFunctions=null, mailFunctionsPromise=null, fb={}, currentUser=null;
 let rows=[], csvRows=[], originalCsvRows=[], extraSites=[], selectedSite=null, addSourceBaseSite=null, editCache={};
 let firebaseUnifiedPrimary = firebaseReady;
 let map=null, layer=null;
@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-compat-script-loads-v269";
+const APP_BUILD_VERSION="2026-08-12-coalesce-mail-functions-load-v270";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -538,16 +538,23 @@ window.cacheAppShellForOffline=cacheAppShellForOffline;
 async function ensureMailFunctions(){
   if(!firebaseReady || !app) return false;
   if(fb.fnMod && mailFunctions) return true;
-  try{
-    const fnMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js");
-    fb.fnMod=fnMod;
-    mailFunctions=fnMod.getFunctions(app,"europe-west1");
-    window.mailFunctions=mailFunctions;
-    return true;
-  }catch(e){
-    console.warn("Firebase Functions se nepodařilo připravit",e);
-    return false;
+  if(!mailFunctionsPromise){
+    mailFunctionsPromise=(async()=>{
+      try{
+        const fnMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js");
+        fb.fnMod=fnMod;
+        mailFunctions=fnMod.getFunctions(app,"europe-west1");
+        window.mailFunctions=mailFunctions;
+        return true;
+      }catch(e){
+        console.warn("Firebase Functions se nepodařilo připravit",e);
+        return false;
+      }
+    })();
   }
+  const ready=await mailFunctionsPromise;
+  if(!ready) mailFunctionsPromise=null;
+  return ready;
 }
 
 window.addEventListener("load",()=>{
@@ -1348,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v269-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v270-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
