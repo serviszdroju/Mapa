@@ -1801,9 +1801,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   window.runSzzDomReadyInit(bind,{onLoad:true});
   try{
-    const compat=ensureCompatFirebase();
-    if(compat && compat.auth){
-      compat.auth().onAuthStateChanged(user=>{ if(user) loadFirebaseSites(null,{auto:true}); });
+    const auth=compatAuth();
+    if(auth && auth.onAuthStateChanged){
+      auth.onAuthStateChanged(user=>{ if(user) loadFirebaseSites(null,{auto:true}); });
     }
   }catch(e){}
   window.loadFirebaseSitesUnified=loadFirebaseSites;
@@ -2116,7 +2116,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-local-login-paint-redirect-v266";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-late-auth-listener-v267";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
