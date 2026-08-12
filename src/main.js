@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-skip-form-reset-dom-writes-v287";
+const APP_BUILD_VERSION="2026-08-12-cache-filter-option-dom-v288";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v287-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v288-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2461,6 +2461,15 @@ const APP_REGION_OPTIONS = [
   "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
   "Ústecký kraj","Liberecký kraj","Královéhradecký kraj","Pardubický kraj","Kraj Vysočina",
   "Jihomoravský kraj","Olomoucký kraj","Moravskoslezský kraj","Zlínský kraj","Slovensko"
+];
+const APP_STATUS_FILTER_OPTIONS = [
+  "Propadlá kontrola",
+  "Kontrola objednaná",
+  "Objednaná oprava",
+  "1–30 dní k termínu",
+  "Stop Stav",
+  "OK / ostatní",
+  "Hlídáme termín sami"
 ];
 const APP_ADMIN_EMAILS = [
   "jan.soldan@astip.cz",
@@ -5343,36 +5352,43 @@ function filters(){
   const st=document.getElementById("statusFilter"), kr=document.getElementById("regionFilter");
   const currentStatus=st.value;
   const currentRegion=kr.value;
-  const statusFragment=document.createDocumentFragment();
-  const statusAll=document.createElement("option");
-  statusAll.value="";
-  statusAll.textContent="Vše";
-  statusFragment.appendChild(statusAll);
-  ["Propadlá kontrola","Kontrola objednaná","Objednaná oprava","1–30 dní k termínu","Stop Stav","OK / ostatní","Hlídáme termín sami"].forEach(v=>{
-    const o=document.createElement("option");
-    o.value=v;
-    o.textContent=v;
-    const cls=statusFilterClass(v);
-    if(cls) o.className=cls;
-    if(cls==="status-red"){o.style.backgroundColor="#fee2e2";o.style.color="#991b1b";}
-    if(cls==="status-orange"){o.style.backgroundColor="#ffedd5";o.style.color="#9a3412";}
-    if(cls==="status-yellow"){o.style.backgroundColor="#fef3c7";o.style.color="#92400e";}
-    if(cls==="status-blue"){o.style.backgroundColor="#dbeafe";o.style.color="#1d4ed8";}
-    if(cls==="status-green"){o.style.backgroundColor="#dcfce7";o.style.color="#166534";}
-    if(cls==="status-gray"){o.style.backgroundColor="#f1f5f9";o.style.color="#334155";}
-    if(cls==="status-pink"){o.style.backgroundColor="#fdf2f8";o.style.color="#9d174d";}
-    statusFragment.appendChild(o);
-  });
-  const regionFragment=document.createDocumentFragment();
-  const regionAll=document.createElement("option");
-  regionAll.value="";
-  regionAll.textContent="Vše";
-  regionFragment.appendChild(regionAll);
-  APP_REGION_OPTIONS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;regionFragment.appendChild(o)});
-  st.replaceChildren(statusFragment);
-  kr.replaceChildren(regionFragment);
-  if([...st.options].some(o=>o.value===currentStatus)) st.value=currentStatus;
-  if([...kr.options].some(o=>o.value===currentRegion)) kr.value=currentRegion;
+  const signature=`status:${APP_STATUS_FILTER_OPTIONS.join("|")};region:${APP_REGION_OPTIONS.join("|")}`;
+  if(st.dataset.filterOptionsSignature!==signature){
+    const statusFragment=document.createDocumentFragment();
+    const statusAll=document.createElement("option");
+    statusAll.value="";
+    statusAll.textContent="Vše";
+    statusFragment.appendChild(statusAll);
+    APP_STATUS_FILTER_OPTIONS.forEach(v=>{
+      const o=document.createElement("option");
+      o.value=v;
+      o.textContent=v;
+      const cls=statusFilterClass(v);
+      if(cls) o.className=cls;
+      if(cls==="status-red"){o.style.backgroundColor="#fee2e2";o.style.color="#991b1b";}
+      if(cls==="status-orange"){o.style.backgroundColor="#ffedd5";o.style.color="#9a3412";}
+      if(cls==="status-yellow"){o.style.backgroundColor="#fef3c7";o.style.color="#92400e";}
+      if(cls==="status-blue"){o.style.backgroundColor="#dbeafe";o.style.color="#1d4ed8";}
+      if(cls==="status-green"){o.style.backgroundColor="#dcfce7";o.style.color="#166534";}
+      if(cls==="status-gray"){o.style.backgroundColor="#f1f5f9";o.style.color="#334155";}
+      if(cls==="status-pink"){o.style.backgroundColor="#fdf2f8";o.style.color="#9d174d";}
+      statusFragment.appendChild(o);
+    });
+    st.replaceChildren(statusFragment);
+    st.dataset.filterOptionsSignature=signature;
+  }
+  if(kr.dataset.filterOptionsSignature!==signature){
+    const regionFragment=document.createDocumentFragment();
+    const regionAll=document.createElement("option");
+    regionAll.value="";
+    regionAll.textContent="Vše";
+    regionFragment.appendChild(regionAll);
+    APP_REGION_OPTIONS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;regionFragment.appendChild(o)});
+    kr.replaceChildren(regionFragment);
+    kr.dataset.filterOptionsSignature=signature;
+  }
+  if((currentStatus===""||APP_STATUS_FILTER_OPTIONS.includes(currentStatus))&&st.value!==currentStatus) st.value=currentStatus;
+  if((currentRegion===""||APP_REGION_OPTIONS.includes(currentRegion))&&kr.value!==currentRegion) kr.value=currentRegion;
   updateStatusFilterColor();
 }
 function statusFilterClass(v){
