@@ -84,6 +84,117 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
   }
 
+  function nodeAdd(tag, options={}, children=[]){
+    const node=document.createElement(tag);
+    if(options.id) node.id=options.id;
+    if(options.className) node.className=options.className;
+    if(options.type) node.type=options.type;
+    if(options.text!==undefined) node.textContent=String(options.text);
+    if(options.value!==undefined) node.value=String(options.value);
+    if(options.placeholder!==undefined) node.placeholder=String(options.placeholder);
+    if(options.readOnly) node.readOnly=true;
+    if(options.selected) node.selected=true;
+    if(options.attrs){
+      Object.entries(options.attrs).forEach(([key,value])=>{
+        if(value!==undefined && value!==null) node.setAttribute(key,String(value));
+      });
+    }
+    if(options.style) Object.assign(node.style,options.style);
+    const list=Array.isArray(children) ? children : [children];
+    list.forEach(child=>{
+      if(child===null || child===undefined) return;
+      node.append(child && child.nodeType ? child : document.createTextNode(String(child)));
+    });
+    return node;
+  }
+
+  function newKeyFieldAdd(label,key,options={}){
+    const classes=[options.full ? "full" : "", options.className || ""].filter(Boolean).join(" ");
+    const wrap=nodeAdd("div",{className:classes});
+    const labelEl=nodeAdd("label",{text:label});
+    let control;
+    if(options.type==="textarea"){
+      control=nodeAdd("textarea",{id:options.id});
+    }else if(options.type==="select"){
+      const selectedValue=String(options.value ?? "");
+      control=nodeAdd("select",{id:options.id},(options.options || []).map(item=>{
+        const value=String(item.value ?? "");
+        return nodeAdd("option",{value,text:item.label ?? value,selected:value===selectedValue});
+      }));
+      control.value=selectedValue;
+    }else{
+      control=nodeAdd("input",{
+        id:options.id,
+        type:options.inputType,
+        value:options.value,
+        placeholder:options.placeholder,
+        readOnly:options.readOnly
+      });
+    }
+    control.dataset.newKey=key;
+    wrap.append(labelEl,control);
+    return wrap;
+  }
+
+  function createOnlyNewHead(){
+    return nodeAdd("div",{className:"drawer-head"},[
+      nodeAdd("div",{},[
+        nodeAdd("h2",{text:"Přidat nové místo"}),
+        nodeAdd("p",{className:"small",text:"Vyplň údaje a ulož bod."})
+      ]),
+      nodeAdd("button",{className:"secondary x",type:"button",id:"closeOnlyNew",text:"Zavřít"})
+    ]);
+  }
+
+  function createOnlyNewSiteCard(){
+    const gpsAddressInput=nodeAdd("input",{id:"onlyNewGpsAddress"});
+    gpsAddressInput.dataset.newKey="Adresa_GPS";
+    const grid=nodeAdd("div",{className:"new-only-grid"},[
+      newKeyFieldAdd("Název","Název",{id:"onlyNewName"}),
+      newKeyFieldAdd("Adresa / umístění","Adresa / umístění",{id:"onlyNewAddress"}),
+      nodeAdd("div",{className:"full new-gps-address-field"},[
+        nodeAdd("label",{text:"Adresa GPS"}),
+        nodeAdd("div",{className:"new-gps-address-line"},[
+          gpsAddressInput,
+          nodeAdd("button",{className:"secondary",type:"button",id:"calcOnlyGps",text:"Dopočítat GPS"})
+        ])
+      ]),
+      nodeAdd("div",{className:"full gps-actions"},[
+        nodeAdd("button",{className:"secondary",type:"button",id:"pickOnlyGps",text:"Vybrat na mapě"}),
+        nodeAdd("button",{className:"primary",type:"button",id:"findOnlyGps",text:"Ukázat bod na mapě"})
+      ]),
+      newKeyFieldAdd("GPS lat","GPS_lat",{id:"onlyNewGpsLat",placeholder:"49.123456"}),
+      newKeyFieldAdd("GPS lon","GPS_lon",{id:"onlyNewGpsLon",placeholder:"16.123456"}),
+      newKeyFieldAdd("Popis zdroje","Popis_zdroje",{full:true}),
+      newKeyFieldAdd("Výrobní číslo","Zdroj",{full:true}),
+      newKeyFieldAdd("Kontakt","Kontakt"),
+      newKeyFieldAdd("Kraj","Kraj"),
+      newKeyFieldAdd("Rok výroby","Rok výroby"),
+      newKeyFieldAdd("Serviska","Serviska",{type:"select",options:[
+        {value:"",label:""},
+        {value:"ano",label:"ano"},
+        {value:"ne",label:"ne"}
+      ]}),
+      newKeyFieldAdd("Perioda kontrol","Perioda kontrol",{type:"select",value:"12",options:[
+        {value:"6",label:"6 měsíců"},
+        {value:"12",label:"12 měsíců"}
+      ]}),
+      newKeyFieldAdd("Hlídáme kontroly sami","Hlídáme kontroly sami",{full:true,type:"select",value:"ne",options:[
+        {value:"ne",label:"ne"},
+        {value:"ano",label:"ano"}
+      ]}),
+      newKeyFieldAdd("Důležité poznámky","Důležitá poznámka",{full:true,className:"only-red",type:"textarea"})
+    ]);
+    return nodeAdd("div",{className:"card",id:"newSiteOnlyCard"},[
+      grid,
+      nodeAdd("div",{className:"row",style:{marginTop:"12px"}},[
+        nodeAdd("button",{className:"primary",type:"button",id:"saveOnlyNew",text:"Uložit nové místo"}),
+        nodeAdd("button",{className:"secondary",type:"button",id:"cancelOnlyNew",text:"Zrušit"})
+      ]),
+      nodeAdd("p",{className:"small",id:"onlyNewStatus"})
+    ]);
+  }
+
   function collectAddRaw(){
     const raw={};
     document.querySelectorAll("#newSiteOnlyCard [data-new-key]").forEach(el=>{
@@ -232,52 +343,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(!drawer) return;
 
     drawer.classList.add("open");
-    drawer.innerHTML=`
-      <div class="drawer-head">
-        <div>
-          <h2>Přidat nové místo</h2>
-          <p class="small">Vyplň údaje a ulož bod.</p>
-        </div>
-        <button class="secondary x" type="button" id="closeOnlyNew">Zavřít</button>
-      </div>
-
-      <div class="card" id="newSiteOnlyCard">
-        <div class="new-only-grid">
-          <div><label>Název</label><input data-new-key="Název" id="onlyNewName"></div>
-          <div><label>Adresa / umístění</label><input data-new-key="Adresa / umístění" id="onlyNewAddress"></div>
-
-          <div class="full new-gps-address-field"><label>Adresa GPS</label><div class="new-gps-address-line"><input data-new-key="Adresa_GPS" id="onlyNewGpsAddress"><button class="secondary" type="button" id="calcOnlyGps">Dopočítat GPS</button></div></div>
-
-          <div class="full gps-actions">
-            <button class="secondary" type="button" id="pickOnlyGps">Vybrat na mapě</button>
-            <button class="primary" type="button" id="findOnlyGps">Ukázat bod na mapě</button>
-          </div>
-
-          <div><label>GPS lat</label><input data-new-key="GPS_lat" id="onlyNewGpsLat" placeholder="49.123456"></div>
-          <div><label>GPS lon</label><input data-new-key="GPS_lon" id="onlyNewGpsLon" placeholder="16.123456"></div>
-
-          <div class="full"><label>Popis zdroje</label><input data-new-key="Popis_zdroje"></div>
-          <div class="full"><label>Výrobní číslo</label><input data-new-key="Zdroj"></div>
-
-          <div><label>Kontakt</label><input data-new-key="Kontakt"></div>
-          <div><label>Kraj</label><input data-new-key="Kraj"></div>
-
-          <div><label>Rok výroby</label><input data-new-key="Rok výroby"></div>
-          <div><label>Serviska</label><select data-new-key="Serviska"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
-
-          <div><label>Perioda kontrol</label><select data-new-key="Perioda kontrol"><option value="6">6 měsíců</option><option value="12" selected>12 měsíců</option></select></div>
-
-          <div class="full"><label>Hlídáme kontroly sami</label><select data-new-key="Hlídáme kontroly sami"><option value="ne" selected>ne</option><option value="ano">ano</option></select></div>
-
-          <div class="full only-red"><label>Důležité poznámky</label><textarea data-new-key="Důležitá poznámka"></textarea></div>
-        </div>
-
-        <div class="row" style="margin-top:12px">
-          <button class="primary" type="button" id="saveOnlyNew">Uložit nové místo</button>
-          <button class="secondary" type="button" id="cancelOnlyNew">Zrušit</button>
-        </div>
-        <p class="small" id="onlyNewStatus"></p>
-      </div>`;
+    drawer.replaceChildren(createOnlyNewHead(),createOnlyNewSiteCard());
 
     document.getElementById("closeOnlyNew").onclick=()=>{drawer.classList.remove("open");};
     document.getElementById("cancelOnlyNew").onclick=()=>{drawer.classList.remove("open");};
@@ -1880,6 +1946,114 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return "";
   }
 
+  function sourceNode(tag, options={}, children=[]){
+    const node=document.createElement(tag);
+    if(options.id) node.id=options.id;
+    if(options.className) node.className=options.className;
+    if(options.type) node.type=options.type;
+    if(options.text!==undefined) node.textContent=String(options.text);
+    if(options.value!==undefined) node.value=String(options.value);
+    if(options.placeholder!==undefined) node.placeholder=String(options.placeholder);
+    if(options.readOnly) node.readOnly=true;
+    if(options.selected) node.selected=true;
+    if(options.attrs){
+      Object.entries(options.attrs).forEach(([key,value])=>{
+        if(value!==undefined && value!==null) node.setAttribute(key,String(value));
+      });
+    }
+    if(options.style) Object.assign(node.style,options.style);
+    const list=Array.isArray(children) ? children : [children];
+    list.forEach(child=>{
+      if(child===null || child===undefined) return;
+      node.append(child && child.nodeType ? child : document.createTextNode(String(child)));
+    });
+    return node;
+  }
+
+  function sourceNewKeyField(label,key,options={}){
+    const classes=[options.full ? "full" : "", options.className || ""].filter(Boolean).join(" ");
+    const wrap=sourceNode("div",{className:classes});
+    let control;
+    if(options.type==="textarea"){
+      control=sourceNode("textarea",{id:options.id,value:options.value});
+      if(options.value!==undefined) control.value=String(options.value);
+    }else if(options.type==="select"){
+      const selectedValue=String(options.value ?? "");
+      control=sourceNode("select",{id:options.id},(options.options || []).map(item=>{
+        const value=String(item.value ?? "");
+        return sourceNode("option",{value,text:item.label ?? value,selected:value===selectedValue});
+      }));
+      control.value=selectedValue;
+    }else{
+      control=sourceNode("input",{
+        id:options.id,
+        type:options.inputType,
+        value:options.value,
+        placeholder:options.placeholder,
+        readOnly:options.readOnly
+      });
+    }
+    control.dataset.newKey=key;
+    wrap.append(sourceNode("label",{text:label}),control);
+    return wrap;
+  }
+
+  function createAddSourceHead(place){
+    return sourceNode("div",{className:"drawer-head"},[
+      sourceNode("div",{},[
+        sourceNode("h2",{text:"Přidat další zdroj"}),
+        sourceNode("p",{className:"small",text:place || "Stejné místo"})
+      ]),
+      sourceNode("button",{className:"secondary x",type:"button",id:"closeOnlyNew",text:"Zavřít"})
+    ]);
+  }
+
+  function createAddSourceCard(data){
+    const period=data.period === "6" ? "6" : "12";
+    const grid=sourceNode("div",{className:"new-only-grid"},[
+      sourceNewKeyField("Název místa","Název",{full:true,value:data.name}),
+      sourceNewKeyField("Adresa / umístění","Adresa / umístění",{full:true,id:"onlyNewAddress",value:data.place,readOnly:true}),
+      sourceNewKeyField("GPS lat","GPS_lat",{id:"onlyNewGpsLat",value:data.lat,readOnly:true}),
+      sourceNewKeyField("GPS lon","GPS_lon",{id:"onlyNewGpsLon",value:data.lon,readOnly:true}),
+      sourceNewKeyField("Adresa GPS","Adresa_GPS",{full:true,value:data.place,readOnly:true}),
+      sourceNewKeyField("Kraj","Kraj",{value:data.region,readOnly:true}),
+      sourceNewKeyField("Kontakt","Kontakt",{value:data.contact}),
+      sourceNewKeyField("Popis zdroje","Popis_zdroje",{full:true,id:"addSourceType",placeholder:"např. PS 20 000/3f - 45 min."}),
+      sourceNewKeyField("Výrobní číslo","Zdroj",{full:true,id:"addSourceSerial",placeholder:"výrobní číslo zdroje"}),
+      sourceNewKeyField("Poslední kontrola","Poslední_kontrola",{inputType:"date",value:data.lastCheck}),
+      sourceNewKeyField("Příští kontrola","Příští_kontrola",{inputType:"date",value:data.nextCheck}),
+      sourceNewKeyField("Perioda kontrol","Perioda kontrol",{type:"select",value:period,options:[
+        {value:"6",label:"6 měsíců"},
+        {value:"12",label:"12 měsíců"}
+      ]}),
+      sourceNewKeyField("Hlídáme sami termín","Hlídáme sami termín",{type:"select",value:"ne",options:[
+        {value:"ne",label:"ne"},
+        {value:"ano",label:"ano"}
+      ]}),
+      sourceNewKeyField("Rok výroby","Rok výroby"),
+      sourceNewKeyField("Serviska","Serviska",{type:"select",options:[
+        {value:"",label:""},
+        {value:"ano",label:"ano"},
+        {value:"ne",label:"ne"}
+      ]}),
+      sourceNewKeyField("Smlouva","Smlouva ano/ne",{type:"select",options:[
+        {value:"",label:""},
+        {value:"ano",label:"ano"},
+        {value:"ne",label:"ne"}
+      ]}),
+      sourceNewKeyField("Důležité poznámky","Důležitá poznámka",{full:true,className:"only-red",type:"textarea"})
+    ]);
+    return sourceNode("div",{className:"card",id:"newSiteOnlyCard",attrs:{"data-add-source-form":"1"}},[
+      sourceNode("p",{className:"small",text:"Adresa a GPS jsou převzaté z aktuálního místa. Doplň hlavně popis zdroje nebo výrobní číslo."}),
+      grid,
+      sourceNode("div",{className:"row",style:{marginTop:"12px"}},[
+        sourceNode("button",{className:"primary",type:"button",id:"saveAddSourceOnly",text:"Uložit nový zdroj"}),
+        sourceNode("button",{className:"secondary",type:"button",id:"cancelOnlyNew",text:"Zrušit"})
+      ]),
+      sourceNode("p",{className:"small",id:"onlyNewStatus"})
+    ]);
+  }
+
   function rowKeySource(row){
     try{
       if(typeof detailKey === "function") return detailKey(row);
@@ -1967,52 +2141,17 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 
     drawer.classList.add("open");
     drawer.classList.remove("adding-new-site");
-    drawer.innerHTML = `
-      <div class="drawer-head">
-        <div>
-          <h2>Přidat další zdroj</h2>
-          <p class="small">${escSource(place || "Stejné místo")}</p>
-        </div>
-        <button class="secondary x" type="button" id="closeOnlyNew">Zavřít</button>
-      </div>
-
-      <div class="card" id="newSiteOnlyCard" data-add-source-form="1">
-        <p class="small">Adresa a GPS jsou převzaté z aktuálního místa. Doplň hlavně popis zdroje nebo výrobní číslo.</p>
-        <div class="new-only-grid">
-	          <div class="full"><label>Název místa</label><input data-new-key="Název" value="${attrSource(name)}"></div>
-	          <div class="full"><label>Adresa / umístění</label><input data-new-key="Adresa / umístění" id="onlyNewAddress" value="${attrSource(place)}" readonly></div>
-	          <div><label>GPS lat</label><input data-new-key="GPS_lat" id="onlyNewGpsLat" value="${attrSource(lat)}" readonly></div>
-	          <div><label>GPS lon</label><input data-new-key="GPS_lon" id="onlyNewGpsLon" value="${attrSource(lon)}" readonly></div>
-	          <div class="full"><label>Adresa GPS</label><input data-new-key="Adresa_GPS" value="${attrSource(place)}" readonly></div>
-	          <div><label>Kraj</label><input data-new-key="Kraj" value="${attrSource(region)}" readonly></div>
-	          <div><label>Kontakt</label><input data-new-key="Kontakt" value="${attrSource(contact)}"></div>
-
-	          <div class="full"><label>Popis zdroje</label><input data-new-key="Popis_zdroje" id="addSourceType" placeholder="např. PS 20 000/3f - 45 min."></div>
-	          <div class="full"><label>Výrobní číslo</label><input data-new-key="Zdroj" id="addSourceSerial" placeholder="výrobní číslo zdroje"></div>
-
-	          <div><label>Poslední kontrola</label><input type="date" data-new-key="Poslední_kontrola" value="${attrSource(lastCheck)}"></div>
-	          <div><label>Příští kontrola</label><input type="date" data-new-key="Příští_kontrola" value="${attrSource(nextCheck)}"></div>
-          <div><label>Perioda kontrol</label><select data-new-key="Perioda kontrol">
-            <option value="6" ${period === "6" ? "selected" : ""}>6 měsíců</option>
-            <option value="12" ${period !== "6" ? "selected" : ""}>12 měsíců</option>
-          </select></div>
-          <div><label>Hlídáme sami termín</label><select data-new-key="Hlídáme sami termín">
-            <option value="ne" selected>ne</option>
-            <option value="ano">ano</option>
-          </select></div>
-
-	          <div><label>Rok výroby</label><input data-new-key="Rok výroby"></div>
-	          <div><label>Serviska</label><select data-new-key="Serviska"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
-	          <div><label>Smlouva</label><select data-new-key="Smlouva ano/ne"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
-	          <div class="full only-red"><label>Důležité poznámky</label><textarea data-new-key="Důležitá poznámka"></textarea></div>
-        </div>
-
-        <div class="row" style="margin-top:12px">
-          <button class="primary" type="button" id="saveAddSourceOnly">Uložit nový zdroj</button>
-          <button class="secondary" type="button" id="cancelOnlyNew">Zrušit</button>
-        </div>
-        <p class="small" id="onlyNewStatus"></p>
-      </div>`;
+    drawer.replaceChildren(createAddSourceHead(place),createAddSourceCard({
+      place,
+      region,
+      name,
+      contact,
+      lat,
+      lon,
+      period,
+      lastCheck,
+      nextCheck
+    }));
 
     document.getElementById("closeOnlyNew").onclick = ()=>returnToSourceDetail(site);
     document.getElementById("cancelOnlyNew").onclick = ()=>returnToSourceDetail(site);
@@ -2155,7 +2294,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-protocol-history-gallery-v331";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-dom-built-temp-forms-v332";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

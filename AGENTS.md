@@ -432,6 +432,8 @@ Current performance phase 204 decision: cache repeated short text normalizations
 
 Current performance phase 205 decision: use the same bounded short-text normalization cache pattern for region canonicalization and Firebase deduplication keys, reducing repeated Unicode/regex normalization during filtering, address-region inference, grouping, add-site duplicate checks, and single-row upserts without changing matching output.
 
+Current performance phase 206 decision: build the temporary add-site and add-source drawer forms in `public/late.js` with DOM nodes plus `replaceChildren()` instead of assigning large `drawer.innerHTML` strings, preserving the same IDs, `data-new-key` fields, classes, values, focus behavior, and save/cancel handlers.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
