@@ -458,4 +458,12 @@ Current protocol form decision: the protocol form uses the selected source from 
 
 Current Doklad logo decision: official document logo/watermark output must preserve the source image aspect ratio and never stretch or squash the SZZ logo.
 
+Current protocol/detail sync decision: `protoDeviceType` stays editable in Protokol. Detail pre-fills it from the current source, edits in Protokol update the open detail/source label locally, and saving a protocol persists the changed type back into `Popis_zdroje`, `Kontrolované zařízení`, and `Typ zařízení`.
+
+Current main protocol history decision: the private main "Historie protokolů" panel must keep a small top-left date filter for the protocol visit/control date (`date`/`checkDate`) and a per-protocol processed checkbox. Processed protocols render green and persist as `processed` on the saved protocol when possible.
+
+Current important-note color decision: important-note rows may keep their red-tinted row background, but their text color and typography must match regular detail/history rows.
+
+Current gallery metadata decision: the Galerie detail view must not show the bottom point-information cards for Název, Kraj, Adresa, GPS, Popis zdroje, or Výrobní číslo. Photo action buttons belong above the photo metadata row.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

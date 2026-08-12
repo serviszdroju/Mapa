@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-region-dedup-normalization-cache-v330";
+const APP_BUILD_VERSION="2026-08-12-protocol-history-gallery-v331";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v330-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v331-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -6645,6 +6645,41 @@ function syncOpenProtocolContactFromDetail(site=selectedSite,options={}){
   }
 }
 
+function syncOpenProtocolDeviceTypeFromDetail(site=selectedSite,options={}){
+  const el=formFieldNode("protoDeviceType");
+  const form=formFieldNode("protocolForm");
+  if(!el || !form || form.style.display==="none") return;
+  const next=protocolDeviceTypeFromSite(site);
+  if(!next) return;
+  const current=safe(el.value);
+  const previous=safe(options.previousDeviceType);
+  if(options.force || !current || (previous && dataNormFixed(current)===dataNormFixed(previous))){
+    el.value=next;
+    updateProtocolSummary();
+    if(options.saveDraft) scheduleProtocolDraftSave();
+  }
+}
+
+function applyProtocolDeviceTypeToSelectedSiteDraft(value,options={}){
+  const device=safe(value);
+  if(!selectedSite || !device) return;
+  const raw={...(selectedSite.raw || {})};
+  raw["Popis_zdroje"]=device;
+  raw["Kontrolované zařízení"]=device;
+  raw["Typ zařízení"]=device;
+  selectedSite.raw=raw;
+  selectedSite.zdroj=device;
+  selectedSite.firebaseData={...(selectedSite.firebaseData || {}),raw};
+  const sub=detailSubNode();
+  if(sub) sub.textContent=siteSourceLabel(selectedSite) || "";
+  renderSourceChooser(selectedSite);
+  const table=detailTableNode();
+  if(table && !table.classList.contains("data-edit-table")){
+    renderDetailTable(table,selectedSite);
+  }
+  if(options.saveDraft) scheduleProtocolDraftSave();
+}
+
 const rowDataNormKeyLookupCache=new WeakMap();
 function dataNormRowKeyEntries(raw){
   if(!raw || (typeof raw!=="object" && typeof raw!=="function")) return [];
@@ -7716,6 +7751,8 @@ const lastProtocolCache=new Map();
 const MAIN_PROTOCOL_HISTORY_CACHE_MS=45000;
 let mainProtocolHistoryCache={key:"",savedAt:0,items:null};
 let mainProtocolHistoryRenderSignature="";
+let mainProtocolHistoryCurrentItems=[];
+let mainProtocolHistoryDateFilter="";
 const allLocalProtocolHistoryReadCache=new Map();
 
 function detailHistoryCacheKey(site=selectedSite){
@@ -11137,6 +11174,7 @@ function applyLatestProtocolDateToRaw(raw,data){
 function applyLatestProtocolToSite(protocol,site=selectedSite){
   if(!protocol || !site) return;
   const raw=applyLatestProtocolDateToRaw(site.raw || {},{protocolHistory:[protocol]});
+  applyProtocolFieldsToRaw(raw,protocol);
   site.raw=raw;
   const refreshed=normalize([raw])[0];
   Object.assign(site, refreshed, {
@@ -11309,6 +11347,7 @@ function refreshSelectedDetailDataView(){
   const sub=detailSubNode();
   if(sub) sub.textContent=siteSourceLabel(selectedSite) || "";
   syncOpenProtocolContactFromDetail(selectedSite);
+  syncOpenProtocolDeviceTypeFromDetail(selectedSite);
 }
 
 async function refreshSiteDataFromFirebase(site=selectedSite){
@@ -12027,6 +12066,136 @@ function protocolGlobalHistoryTitle(item={}){
   return [title, device, serial].filter(Boolean).join(" | ");
 }
 
+function mainProtocolControlDateIso(item={}){
+  return isoDateFromAny(item.date || item.checkDate || "");
+}
+
+function isMainProtocolProcessed(item={}){
+  if(item.processed === true) return true;
+  const processed=safe(item.processed).toLowerCase();
+  return processed==="ano" || processed==="true" || processed==="1" || !!item.processedAt;
+}
+
+function mainProtocolProcessedLocalPatch(checked){
+  return {
+    processed:!!checked,
+    processedAt:checked ? new Date().toISOString() : null,
+    processedBy:checked ? currentUserEmail() : ""
+  };
+}
+
+function mainProtocolProcessedRemotePatch(checked){
+  const serverTime=fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString();
+  return {
+    processed:!!checked,
+    processedAt:checked ? serverTime : null,
+    processedBy:checked ? currentUserEmail() : "",
+    updatedBy:currentUserEmail(),
+    updatedAt:serverTime
+  };
+}
+
+function updateLocalProtocolHistoryProcessed(id,checked){
+  const cleanId=safe(id);
+  if(!cleanId) return 0;
+  const patch=mainProtocolProcessedLocalPatch(checked);
+  let changed=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith("astipMap:protocolHistory:")) continue;
+      const arr=JSON.parse(localStorage.getItem(key) || "[]");
+      if(!Array.isArray(arr)) continue;
+      let touched=false;
+      const next=arr.map(item=>{
+        if(safe(item && item._id)!==cleanId) return item;
+        touched=true;
+        return {...item,...patch};
+      });
+      if(!touched) continue;
+      const raw=JSON.stringify(next);
+      localStorage.setItem(key,raw);
+      clearLocalStorageArrayEntriesCache(key);
+      rememberSiteLocalArrayReadCache(key,next,raw);
+      changed++;
+    }
+  }catch(e){
+    console.warn("Lokální označení protokolu jako zpracovaný selhalo",e);
+  }
+  return changed;
+}
+
+async function updateOfflineProtocolQueueProcessed(id,checked){
+  const cleanId=safe(id);
+  if(!cleanId || typeof withSzzOfflineQueueStore!=="function") return false;
+  const patch=mainProtocolProcessedLocalPatch(checked);
+  try{
+    return await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store,setResult)=>{
+      const req=store.get(cleanId);
+      req.onsuccess=()=>{
+        const item=req.result;
+        if(!item){
+          setResult(false);
+          return;
+        }
+        store.put({...item,...patch});
+        setResult(true);
+      };
+      req.onerror=()=>setResult(false);
+    });
+  }catch(e){
+    return false;
+  }
+}
+
+async function saveMainProtocolProcessedRemote(item={},checked=false){
+  const id=safe(item._id || item.id);
+  if(!id || !firebaseReady || !db || !fb.fsMod || !currentUser || navigator.onLine===false) return false;
+  if(item._offline || /local|indexed/i.test(safe(item._collection))) return false;
+  const {doc,setDoc}=fb.fsMod;
+  const patch=mainProtocolProcessedRemotePatch(checked);
+  const writes=[
+    setDoc(doc(db,"protocols",id),patch,{merge:true})
+  ];
+  const siteDocIds=uniqueNonEmptyStrings([
+    item.siteDocId,
+    item.firebaseDocId,
+    item.siteId && String(item.siteId).startsWith("firebase_") ? String(item.siteId).slice("firebase_".length) : ""
+  ]);
+  siteDocIds.forEach(docId=>{
+    writes.push(setDoc(doc(db,"sitesUnified",docId,"protocols",id),patch,{merge:true}).catch(e=>{
+      console.warn("Označení protokolu pod bodem selhalo",docId,e);
+    }));
+  });
+  await Promise.all(writes);
+  return true;
+}
+
+function updateMainProtocolHistoryProcessedState(id,checked){
+  const cleanId=safe(id);
+  const patch=mainProtocolProcessedLocalPatch(checked);
+  mainProtocolHistoryCurrentItems=mainProtocolHistoryCurrentItems.map(item=>{
+    if(safe(item && (item._id || item.id))!==cleanId) return item;
+    return {...item,...patch};
+  });
+  if(Array.isArray(mainProtocolHistoryCache.items)){
+    mainProtocolHistoryCache.items=mainProtocolHistoryCache.items.map(item=>{
+      if(safe(item && (item._id || item.id))!==cleanId) return item;
+      return {...item,...patch};
+    });
+    mainProtocolHistoryCache.savedAt=Date.now();
+  }
+}
+
+async function setMainProtocolHistoryProcessed(item={},checked=false){
+  const id=safe(item._id || item.id);
+  if(!id) throw new Error("Protokol nemá ID.");
+  await saveMainProtocolProcessedRemote(item,checked);
+  updateLocalProtocolHistoryProcessed(id,checked);
+  await updateOfflineProtocolQueueProcessed(id,checked);
+  updateMainProtocolHistoryProcessedState(id,checked);
+}
+
 function readAllLocalProtocolHistoryItems(){
   const items=[];
   try{
@@ -12138,8 +12307,15 @@ async function loadMainProtocolHistoryItems(){
 function renderMainProtocolHistoryShell(drawer){
   const existingList=drawer?.querySelector?.("#mainProtocolHistoryList");
   const existingCard=drawer?.querySelector?.("#mainProtocolHistoryCard");
-  if(existingList && existingCard){
-    return {close:drawer.querySelector("#closeDrawer"),list:existingList,reused:true};
+  const existingDateFilter=drawer?.querySelector?.("#mainProtocolHistoryDateFilter");
+  if(existingList && existingCard && existingDateFilter){
+    return {
+      close:drawer.querySelector("#closeDrawer"),
+      list:existingList,
+      dateFilter:existingDateFilter,
+      clearDate:drawer.querySelector("#mainProtocolHistoryDateClear"),
+      reused:true
+    };
   }
   mainProtocolHistoryRenderSignature="";
   const head=document.createElement("div");
@@ -12163,19 +12339,56 @@ function renderMainProtocolHistoryShell(drawer){
   card.id="mainProtocolHistoryCard";
   const heading=document.createElement("h3");
   heading.textContent="Poslední protokoly";
+  const toolbar=document.createElement("div");
+  toolbar.className="main-history-toolbar";
+  const filterWrap=document.createElement("label");
+  filterWrap.className="main-history-filter";
+  const filterText=document.createElement("span");
+  filterText.textContent="Datum kontroly";
+  const dateFilter=document.createElement("input");
+  dateFilter.type="date";
+  dateFilter.id="mainProtocolHistoryDateFilter";
+  dateFilter.value=mainProtocolHistoryDateFilter;
+  filterWrap.append(filterText,dateFilter);
+  const clearDate=document.createElement("button");
+  clearDate.className="secondary main-history-clear-date";
+  clearDate.type="button";
+  clearDate.id="mainProtocolHistoryDateClear";
+  clearDate.textContent="Vše";
+  toolbar.append(filterWrap,clearDate);
   const list=document.createElement("div");
   list.id="mainProtocolHistoryList";
   list.className="main-history-list small";
   list.textContent="Načítám historii...";
-  card.append(heading,list);
+  card.append(heading,toolbar,list);
 
   drawer.replaceChildren(head,card);
-  return {close,list};
+  return {close,list,dateFilter,clearDate};
 }
 
 function bindMainProtocolHistoryListClick(list){
   if(!list || list.__szzMainHistoryClickBound) return;
   list.__szzMainHistoryClickBound=true;
+  list.addEventListener("change",async event=>{
+    const checkbox=event.target.closest && event.target.closest("[data-main-history-processed]");
+    if(!checkbox || !list.contains(checkbox)) return;
+    const id=checkbox.getAttribute("data-main-history-processed");
+    const item=mainProtocolHistoryCurrentItems.find(row=>safe(row && (row._id || row.id))===safe(id));
+    if(!item) return;
+    checkbox.disabled=true;
+    try{
+      await setMainProtocolHistoryProcessed(item,checkbox.checked);
+      mainProtocolHistoryRenderSignature="";
+      renderMainProtocolHistoryRows(list,mainProtocolHistoryCurrentItems);
+      showSaveConfirmation(checkbox.checked ? "Protokol označen jako zpracovaný." : "Zpracování protokolu zrušeno.");
+    }catch(e){
+      checkbox.checked=!checkbox.checked;
+      showSaveConfirmation("Zpracování protokolu se nepodařilo uložit.");
+      console.warn("Označení protokolu jako zpracovaný selhalo",e);
+    }finally{
+      checkbox.disabled=false;
+    }
+  });
   list.addEventListener("click",event=>{
     const btn=event.target.closest && event.target.closest("[data-history-site-key]");
     if(!btn || !list.contains(btn)) return;
@@ -12184,36 +12397,106 @@ function bindMainProtocolHistoryListClick(list){
   });
 }
 
+function bindMainProtocolHistoryControls({list,dateFilter,clearDate}={}){
+  if(dateFilter && !dateFilter.__szzMainHistoryDateBound){
+    dateFilter.__szzMainHistoryDateBound=true;
+    dateFilter.addEventListener("change",()=>{
+      mainProtocolHistoryDateFilter=dateFilter.value || "";
+      mainProtocolHistoryRenderSignature="";
+      renderMainProtocolHistoryRows(list,mainProtocolHistoryCurrentItems);
+    });
+  }
+  if(clearDate && !clearDate.__szzMainHistoryDateBound){
+    clearDate.__szzMainHistoryDateBound=true;
+    clearDate.addEventListener("click",()=>{
+      mainProtocolHistoryDateFilter="";
+      if(dateFilter) dateFilter.value="";
+      mainProtocolHistoryRenderSignature="";
+      renderMainProtocolHistoryRows(list,mainProtocolHistoryCurrentItems);
+    });
+  }
+}
+
 function mainProtocolHistoryVisibleRows(items=[]){
   const adminPart=isAppAdmin() ? "admin" : "user";
-  return (items || []).map((item,idx)=>{
+  const filterDate=safe(mainProtocolHistoryDateFilter);
+  return (items || [])
+  .filter(item=>!filterDate || mainProtocolControlDateIso(item)===filterDate)
+  .map((item,idx)=>{
     const title=protocolGlobalHistoryTitle(item);
     const key=safe(item && (item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : "")));
+    const id=safe(item && (item._id || item.id || ""));
     const saved=historySavedDateLabel(item);
     const checked=historyDateLabel(item);
     const owner=safe(item && (item.createdBy || item.technicianEmail || item.updatedBy));
+    const processed=isMainProtocolProcessed(item);
     const meta=adminPart==="admin" ? [
       saved ? `uloženo ${saved}` : "",
       checked ? `kontrola ${checked}` : "",
+      processed ? "zpracováno" : "",
       owner
     ].filter(Boolean).join(" | ") : "";
     const signature=[
-      safe(item && (item._id || item.id || idx)),
+      id || idx,
       title,
       key,
       saved,
       checked,
       owner,
+      processed ? "processed" : "open",
       protocolTimeValue(item)
     ].map(value=>`${String(value).length}:${value}`).join("");
-    return {title,key,meta,signature};
+    return {id,title,key,meta,processed,signature};
   });
 }
 
 function mainProtocolHistoryRenderKey(visibleRows=[]){
   const adminPart=isAppAdmin() ? "admin" : "user";
   const rows=(visibleRows || []).map(row=>row && row.signature ? row.signature : "").join("\u001f");
-  return `${adminPart}\u001e${visibleRows.length}\u001e${rows}`;
+  return `${adminPart}\u001e${mainProtocolHistoryDateFilter}\u001e${visibleRows.length}\u001e${rows}`;
+}
+
+function renderMainProtocolHistoryRows(list,items=[]){
+  if(!list) return;
+  const visibleRows=mainProtocolHistoryVisibleRows(items);
+  if(!visibleRows.length){
+    mainProtocolHistoryRenderSignature=`empty:${mainProtocolHistoryDateFilter}`;
+    list.textContent=mainProtocolHistoryDateFilter ? "Pro vybrané datum není uložený žádný protokol." : "Zatím není uložený žádný protokol.";
+    return;
+  }
+  const renderSignature=mainProtocolHistoryRenderKey(visibleRows);
+  if(mainProtocolHistoryRenderSignature===renderSignature && list.childElementCount) return;
+  mainProtocolHistoryRenderSignature=renderSignature;
+  const fragment=document.createDocumentFragment();
+  visibleRows.forEach(({id,title,key,meta,processed})=>{
+    const row=document.createElement("div");
+    row.className=`main-history-row ${processed ? "processed" : ""}`.trim();
+    const top=document.createElement("div");
+    top.className="main-history-row-main";
+    const processedLabel=document.createElement("label");
+    processedLabel.className="main-history-processed";
+    const checkbox=document.createElement("input");
+    checkbox.type="checkbox";
+    checkbox.checked=processed;
+    checkbox.disabled=!id;
+    checkbox.dataset.mainHistoryProcessed=id;
+    const processedText=document.createElement("span");
+    processedText.textContent="Zpracováno";
+    processedLabel.append(checkbox,processedText);
+    const button=document.createElement("button");
+    button.type="button";
+    button.dataset.historySiteKey=key;
+    button.textContent=title;
+    top.append(processedLabel,button);
+    row.appendChild(top);
+    if(meta){
+      const small=document.createElement("small");
+      small.textContent=meta;
+      row.appendChild(small);
+    }
+    fragment.appendChild(row);
+  });
+  list.replaceChildren(fragment);
 }
 
 async function openMainProtocolHistoryPanel(){
@@ -12227,37 +12510,16 @@ async function openMainProtocolHistoryPanel(){
   drawer.classList.add("open");
   drawer.classList.remove("adding-new-site");
   drawer.scrollTop=0;
-  const {close,list}=renderMainProtocolHistoryShell(drawer);
+  const shell=renderMainProtocolHistoryShell(drawer);
+  const {close,list,dateFilter}=shell;
   if(close) close.onclick=()=>drawer.classList.remove("open");
   bindMainProtocolHistoryListClick(list);
+  bindMainProtocolHistoryControls(shell);
+  if(dateFilter) dateFilter.value=mainProtocolHistoryDateFilter;
   const items=await loadMainProtocolHistoryItems();
+  mainProtocolHistoryCurrentItems=items;
   if(!list) return;
-  if(!items.length){
-    mainProtocolHistoryRenderSignature="empty";
-    list.textContent="Zatím není uložený žádný protokol.";
-    return;
-  }
-  const visibleRows=mainProtocolHistoryVisibleRows(items);
-  const renderSignature=mainProtocolHistoryRenderKey(visibleRows);
-  if(mainProtocolHistoryRenderSignature===renderSignature && list.childElementCount) return;
-  mainProtocolHistoryRenderSignature=renderSignature;
-  const fragment=document.createDocumentFragment();
-  visibleRows.forEach(({title,key,meta})=>{
-    const row=document.createElement("div");
-    row.className="main-history-row";
-    const button=document.createElement("button");
-    button.type="button";
-    button.dataset.historySiteKey=key;
-    button.textContent=title;
-    row.appendChild(button);
-    if(meta){
-      const small=document.createElement("small");
-      small.textContent=meta;
-      row.appendChild(small);
-    }
-    fragment.appendChild(row);
-  });
-  list.replaceChildren(fragment);
+  renderMainProtocolHistoryRows(list,items);
 }
 window.openMainProtocolHistoryPanel=openMainProtocolHistoryPanel;
 
@@ -13979,61 +14241,10 @@ function sitePhotoFolderGroups(items){
   return result;
 }
 
-const sitePhotoPointInfoRowsCache=new WeakMap();
-function sitePhotoPointInfoFingerprint(site=selectedSite){
-  if(!site || (typeof site!=="object" && typeof site!=="function")) return "";
-  const raw=(site && site.raw) || {};
-  const gps=Number.isFinite(site?.lat) && Number.isFinite(site?.lon)
-    ? `${site.lat.toFixed(6)}, ${site.lon.toFixed(6)}`
-    : pickRawValue(raw,["Adresa_GPS","GPS","GPS souřadnice","GPS souradnice"]);
-  return [
-    safe(site?.adresa),
-    safe(site?.kraj),
-    safe(site?.zdroj),
-    safe(site?.lat),
-    safe(site?.lon),
-    gps,
-    pickRawValue(raw,["Název","Adresa / umístění","Umístění"]),
-    pickRawValue(raw,["Kraj","Region","Okres"]),
-    pickRawValue(raw,["Adresa / umístění","Adresa","Umístění"]),
-    pickRawValue(raw,["Popis_zdroje","Popis zdroje","Zdroj","Typ zdroje"]),
-    pickRawValue(raw,["Výrobní číslo","Výrobní č.","Výrobní_cislo","Zdroj","SN"])
-  ].map(safe).join("\u001f");
-}
-
-function sitePhotoPointInfoRows(site=selectedSite){
-  const canCache=!!(site && (typeof site==="object" || typeof site==="function"));
-  const fingerprint=canCache ? sitePhotoPointInfoFingerprint(site) : "";
-  if(canCache && fingerprint){
-    const cached=sitePhotoPointInfoRowsCache.get(site);
-    if(cached && cached.fingerprint===fingerprint) return cached.rows;
-  }
-  const raw=(site && site.raw) || {};
-  const gps=Number.isFinite(site?.lat) && Number.isFinite(site?.lon)
-    ? `${site.lat.toFixed(6)}, ${site.lon.toFixed(6)}`
-    : pickRawValue(raw,["Adresa_GPS","GPS","GPS souřadnice","GPS souradnice"]);
-  const rows=[
-    ["Název", site?.adresa || pickRawValue(raw,["Název","Adresa / umístění","Umístění"])],
-    ["Kraj", site?.kraj || pickRawValue(raw,["Kraj","Region","Okres"])],
-    ["Adresa", pickRawValue(raw,["Adresa / umístění","Adresa","Umístění"]) || site?.adresa],
-    ["GPS", gps],
-    ["Popis zdroje", site?.zdroj || pickRawValue(raw,["Popis_zdroje","Popis zdroje","Zdroj","Typ zdroje"])],
-    ["Výrobní číslo", pickRawValue(raw,["Výrobní číslo","Výrobní č.","Výrobní_cislo","Zdroj","SN"])]
-  ];
-  const result=rows
-    .map(([label,value])=>[label,safe(value) || "-"])
-    .filter(([label,value],idx,all)=>value!=="-" || idx<3 || all.length<=3);
-  if(canCache && fingerprint) sitePhotoPointInfoRowsCache.set(site,{fingerprint,rows:result});
-  return result;
-}
-
-function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite,pointInfoRows=null){
+function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite){
   const siteKey=detailLazyKey(site) || sitePlaceGroupKey(site) || safe(site && site.id);
   const userEmail=currentUserEmail();
   const isAdminUser=isAppAdmin();
-  const pointInfo=(pointInfoRows || sitePhotoPointInfoRows(site))
-    .map(([label,value])=>`${safe(label)}:${safe(value)}`)
-    .join("|");
   const photos=(items || []).map((photo,idx)=>[
     safe(photo && (photo._id || photo.id || idx)),
     photoDisplayUrl(photo),
@@ -14058,8 +14269,7 @@ function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selec
     (items || []).length,
     userEmail,
     isAdminUser ? "admin" : "user",
-    photos,
-    pointInfo
+    photos
   ].join("|||");
 }
 
@@ -14117,8 +14327,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     return;
   }
   sitePhotoIndex=Math.max(0,Math.min(sitePhotoIndex,sitePhotoItems.length-1));
-  const pointInfoRows=sitePhotoPointInfoRows(selectedSite);
-  const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite,pointInfoRows);
+  const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite);
   if(sitePhotoRenderSignature===renderSignature && list.childElementCount) return;
   sitePhotoRenderSignature=renderSignature;
   const item=sitePhotoItems[sitePhotoIndex];
@@ -14204,41 +14413,6 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   thumbs.appendChild(thumbsFragment);
   viewer.appendChild(thumbs);
 
-  const infoStrip=document.createElement("div");
-  infoStrip.className="site-photo-info-strip";
-  photoInfoRows.forEach(([label,value])=>{
-    const pill=document.createElement("div");
-    pill.className="site-photo-info-pill";
-    const labelEl=document.createElement("span");
-    labelEl.textContent=safe(label);
-    const valueEl=document.createElement("b");
-    valueEl.textContent=safe(value);
-    pill.append(labelEl,valueEl);
-    infoStrip.appendChild(pill);
-  });
-  viewer.appendChild(infoStrip);
-
-  const detailGrid=document.createElement("div");
-  detailGrid.className="site-photo-detail-grid";
-  pointInfoRows.forEach(([label,value])=>{
-    const card=document.createElement("div");
-    card.className="site-photo-detail-card";
-    const labelEl=document.createElement("span");
-    labelEl.textContent=safe(label);
-    const valueEl=document.createElement("b");
-    valueEl.textContent=safe(value);
-    card.append(labelEl,valueEl);
-    detailGrid.appendChild(card);
-  });
-  viewer.appendChild(detailGrid);
-
-  if(photoMeta.meta){
-    const metaEl=document.createElement("div");
-    metaEl.className="site-photo-meta";
-    metaEl.textContent=photoMeta.meta;
-    viewer.appendChild(metaEl);
-  }
-
   const actions=document.createElement("div");
   actions.className="site-photo-actions";
   const download=document.createElement("a");
@@ -14254,6 +14428,27 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   del.textContent="Smazat fotku";
   actions.append(download,del);
   viewer.appendChild(actions);
+
+  const infoStrip=document.createElement("div");
+  infoStrip.className="site-photo-info-strip";
+  photoInfoRows.forEach(([label,value])=>{
+    const pill=document.createElement("div");
+    pill.className="site-photo-info-pill";
+    const labelEl=document.createElement("span");
+    labelEl.textContent=safe(label);
+    const valueEl=document.createElement("b");
+    valueEl.textContent=safe(value);
+    pill.append(labelEl,valueEl);
+    infoStrip.appendChild(pill);
+  });
+  viewer.appendChild(infoStrip);
+
+  if(photoMeta.meta){
+    const metaEl=document.createElement("div");
+    metaEl.className="site-photo-meta";
+    metaEl.textContent=photoMeta.meta;
+    viewer.appendChild(metaEl);
+  }
 
   list.replaceChildren(viewer);
 }
@@ -14986,8 +15181,12 @@ protocolFormEl.addEventListener("submit",async e=>{
 ].forEach(id=>{
   const el=formFieldNode(id);
   if(el){
-    el.addEventListener("input",updateProtocolSummary);
-    el.addEventListener("change",updateProtocolSummary);
+    const sync=()=>{
+      updateProtocolSummary();
+      if(id==="protoDeviceType") applyProtocolDeviceTypeToSelectedSiteDraft(el.value,{saveDraft:true});
+    };
+    el.addEventListener("input",sync);
+    el.addEventListener("change",sync);
   }
 });
 

@@ -14,9 +14,12 @@
   background:#fee2e2 !important;
   border:1px solid #fecaca !important;
 }
-.important-note-row td:first-child,
+.important-note-row td:first-child{
+  color:#475569 !important;
+}
 .important-note-row td:nth-child(2){
-  color:#991b1b !important;
+  color:inherit !important;
+  font-weight:inherit;
 }
 .data-edit-table input,
 .data-edit-table select,
@@ -48,10 +51,13 @@
   background:#fee2e2 !important;
   border:1px solid #fecaca !important;
 }
-.notes-red-row td:first-child,
-.notes-red-row td:nth-child(2){
-  color:#991b1b !important;
+.notes-red-row td:first-child{
+  color:#475569 !important;
   font-weight:800;
+}
+.notes-red-row td:nth-child(2){
+  color:inherit !important;
+  font-weight:inherit;
 }
 .fbUnifiedGrid .fbImportant{
   background:#fee2e2;
@@ -60,7 +66,7 @@
   padding:9px;
 }
 .fbUnifiedGrid .fbImportant label{
-  color:#991b1b;
+  color:#475569;
 }
 @media(max-width:700px){
   .data-add-row{grid-template-columns:1fr}
@@ -204,4 +210,3 @@
   border-top:1px solid #e2e8f0;
   padding-top:10px;
 }
-
