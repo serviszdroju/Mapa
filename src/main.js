@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-detail-history-node-v310";
+const APP_BUILD_VERSION="2026-08-12-cache-detail-shell-nodes-v311";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v310-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v311-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -3073,11 +3073,11 @@ function getAllKnownDataKeys(){
 
 function bindDrawerCloseButton(){
   const close=document.getElementById("closeDrawer");
-  const drawer=document.getElementById("drawer");
+  const drawer=drawerNode();
   if(close && drawer) close.onclick=()=>drawer.classList.remove("open");
 }
 
-function dedupeDetailTabs(drawer=document.getElementById("drawer")){
+function dedupeDetailTabs(drawer=drawerNode()){
   if(!drawer) return;
   const tabBars=Array.from(drawer.querySelectorAll(".detail-tabs"));
   if(!tabBars.length) return;
@@ -3108,7 +3108,7 @@ function cloneDrawerNodes(nodes=[]){
   return (nodes || []).map(node=>node && node.cloneNode ? node.cloneNode(true) : null).filter(Boolean);
 }
 
-function captureNormalDetailDrawerShell(drawer=document.getElementById("drawer")){
+function captureNormalDetailDrawerShell(drawer=drawerNode()){
   if(!drawer || !(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"))) return;
   dedupeDetailTabs(drawer);
   const nodes=Array.from(drawer.childNodes);
@@ -3117,7 +3117,7 @@ function captureNormalDetailDrawerShell(drawer=document.getElementById("drawer")
 }
 
 function restoreNormalDetailDrawerShell(){
-  const drawer=document.getElementById("drawer");
+  const drawer=drawerNode();
   if(!drawer) return null;
   const hasDetailShell=!!(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"));
   if(!hasDetailShell){
@@ -3136,16 +3136,16 @@ window.captureNormalDetailDrawerShell=captureNormalDetailDrawerShell;
 window.restoreNormalDetailDrawerShell=restoreNormalDetailDrawerShell;
 
 function setNewSiteModeTitle(){
-  const title=document.getElementById("drawerTitle");
-  const sub=document.getElementById("drawerSub");
+  const title=document.getElementById("drawerTitle") || detailTitleNode();
+  const sub=document.getElementById("drawerSub") || detailSubNode();
   if(title) title.textContent="Přidat nové místo";
   if(sub) sub.textContent="Vyplň údaje a ulož místo.";
 }
 function clearNewSiteMode(){
-  const drawerEl=document.getElementById("drawer");
+  const drawerEl=drawerNode();
   if(drawerEl) drawerEl.classList.remove("adding-new-site");
   addSourceBaseSite=null;
-  const chooser=document.getElementById("sourceChooser");
+  const chooser=sourceChooserNode();
   if(chooser){
     chooser.style.display="none";
     chooser.replaceChildren();
@@ -3364,13 +3364,14 @@ function openNewSiteForm(){
   restoreNormalDetailDrawerShell();
   selectedSite=null;
   addSourceBaseSite=null;
-  const chooser=document.getElementById("sourceChooser");
+  const chooser=sourceChooserNode();
   if(chooser){chooser.style.display="none";chooser.replaceChildren();chooser.dataset.renderSignature="";}
   populateNewRegionOptions();
-  document.getElementById("drawer").classList.add("open"); document.getElementById("drawer").scrollTop=0;
-  document.getElementById("newSiteCard").style.display="block";
+  const drawerEl=drawerNode();
+  if(drawerEl){ drawerEl.classList.add("open"); drawerEl.scrollTop=0; }
+  const newSiteCard=newSiteCardNode();
+  if(newSiteCard) newSiteCard.style.display="block";
   forceRenderNewSiteForm();
-  const drawerEl=document.getElementById("drawer");
   if(drawerEl) drawerEl.classList.add("adding-new-site");
   renderNewSiteAllFields();
   setNewSiteModeTitle();
@@ -3383,9 +3384,9 @@ function openNewSiteForm(){
 
 runAfterPaint(()=>{const n=document.getElementById("newName"); if(n){n.focus(); n.scrollIntoView({behavior:"smooth",block:"start"});}});
   document.getElementById("editCard").style.display="none";
-  document.getElementById("detailTitle").textContent="Přidat nové místo";
-  document.getElementById("detailSub").textContent="Vyplň údaje a ulož místo.";
-  const detailTable=document.getElementById("detailTable");
+  setTextIfChanged(detailTitleNode(),"Přidat nové místo");
+  setTextIfChanged(detailSubNode(),"Vyplň údaje a ulož místo.");
+  const detailTable=detailTableNode();
   if(detailTable){
     detailTable.dataset.detailTableMode="new";
     delete detailTable.dataset.detailSignature;
@@ -3958,7 +3959,7 @@ async function deleteSelectedSite(){
     }
 
     st.textContent="Místo bylo smazáno/skryto.";
-    document.getElementById("drawer").classList.remove("open");
+    drawerNode()?.classList.remove("open");
     if(firebaseUnifiedPrimary && typeof window.loadFirebaseSitesUnified==="function"){
       const deletedId=safe(selectedSite && selectedSite.id);
       if(deletedId) deletedSiteIds.add(deletedId);
@@ -4488,8 +4489,8 @@ function openAddSourceForSite(site=selectedSite){
   addSourceBaseSite=site;
   openNewSiteForm();
   addSourceBaseSite=site;
-  const title=document.getElementById("drawerTitle") || document.getElementById("detailTitle");
-  const sub=document.getElementById("drawerSub") || document.getElementById("detailSub");
+  const title=document.getElementById("drawerTitle") || detailTitleNode();
+  const sub=document.getElementById("drawerSub") || detailSubNode();
   if(title) title.textContent="Přidat další zdroj";
   if(sub) sub.textContent=sitePlaceLabel(site) || site.adresa || "";
   copyPlaceFieldsToNewSource(site);
@@ -4532,7 +4533,7 @@ function bindSourceChooserClick(box){
   });
 }
 function renderSourceChooser(site=selectedSite){
-  const box=document.getElementById("sourceChooser");
+  const box=sourceChooserNode();
   if(!box) return;
   bindSourceChooserClick(box);
   const siblings=siteSiblingRows(site);
@@ -5565,7 +5566,7 @@ function showSelectedSiteOnMap(){
     return;
   }
   mapFocusDetailKey=detailKey(selectedSite) || selectedSite.id;
-  const drawer=document.getElementById("drawer");
+  const drawer=drawerNode();
   if(drawer) drawer.classList.remove("open");
   showMapFocusLocation(selectedSite.lat, selectedSite.lon, selectedSite.adresa || "Bez názvu", statusText(selectedSite), null);
 }
@@ -6228,8 +6229,8 @@ function reopenDetailAfterManualGps(key,wasEditing){
 
 function startDetailManualGpsPick(){
   const key=selectedSite ? (detailKey(selectedSite) || selectedSite.id) : "";
-  const wasEditing=!!document.getElementById("detailTable")?.classList.contains("data-edit-table");
-  const drawer=document.getElementById("drawer");
+  const wasEditing=!!detailTableNode()?.classList.contains("data-edit-table");
+  const drawer=drawerNode();
   if(drawer) drawer.classList.remove("open");
   beginManualGpsPick({
     title:"Vyber GPS pro tento bod",
@@ -6248,16 +6249,16 @@ function startDetailManualGpsPick(){
 }
 
 function startLegacyNewManualGpsPick(){
-  const drawer=document.getElementById("drawer");
+  const drawer=drawerNode();
   if(drawer) drawer.classList.remove("open");
   beginManualGpsPick({
     title:"Vyber GPS pro nové místo",
     statusId:"newSiteStatus",
     confirmation:"GPS nového místa vybráno.",
     reopen:()=>{
-      const d=document.getElementById("drawer");
+      const d=drawerNode();
       if(d) d.classList.add("open");
-      const card=document.getElementById("newSiteCard");
+      const card=newSiteCardNode();
       if(card){card.style.display="block";card.scrollIntoView({block:"start"});}
     },
     apply:async(lat,lon)=>{
@@ -6270,14 +6271,14 @@ function startLegacyNewManualGpsPick(){
 }
 
 function startOnlyNewManualGpsPick(){
-  const drawer=document.getElementById("drawer");
+  const drawer=drawerNode();
   if(drawer) drawer.classList.remove("open");
   beginManualGpsPick({
     title:"Vyber GPS pro nové místo",
     statusId:"onlyNewStatus",
     confirmation:"GPS nového místa vybráno.",
     reopen:()=>{
-      const d=document.getElementById("drawer");
+      const d=drawerNode();
       if(d) d.classList.add("open");
     },
     apply:async(lat,lon)=>{
@@ -6645,15 +6646,15 @@ function setDisabledIfChanged(el,value){
 }
 
 function showControlDateDisplay(r){
-  const lastBox=document.getElementById("detailLastCheck");
-  const nextBox=document.getElementById("detailNextCheck");
+  const lastBox=detailLastCheckNode();
+  const nextBox=detailNextCheckNode();
   setTextIfChanged(lastBox,formatDateCz(parseDateValue(r.posledni)) || r.posledni || "-");
   setTextIfChanged(nextBox,displayNext(r) || r.pristi || "-");
 }
 
 function showControlDateInputs(r){
-  const lastBox=document.getElementById("detailLastCheck");
-  const nextBox=document.getElementById("detailNextCheck");
+  const lastBox=detailLastCheckNode();
+  const nextBox=detailNextCheckNode();
   if(lastBox){
     const input=document.createElement("input");
     input.id="detailLastCheckInput";
@@ -6687,7 +6688,7 @@ function showControlDateInputs(r){
 function addNewDataRowToTable(){
   const keyEl = document.getElementById("newDataKey");
   const valEl = document.getElementById("newDataValue");
-  const table = document.getElementById("detailTable");
+  const table = detailTableNode();
   if(!keyEl || !valEl || !table) return;
 
   const key = keyEl.value.trim();
@@ -7376,17 +7377,21 @@ window.openDetail=function(i){
   syncRowIndexes();
   const r=rows[Number(i)]; if(!r)return; selectedSite=r;
   startDetailAsyncLoads(r);
-  document.getElementById("drawer").classList.add("open"); document.getElementById("drawer").scrollTop=0;
-  document.getElementById("newSiteCard").style.display="none";
+  const drawer=drawerNode();
+  if(drawer){ drawer.classList.add("open"); drawer.scrollTop=0; }
+  const newSiteCard=newSiteCardNode();
+  if(newSiteCard) newSiteCard.style.display="none";
   clearNewSiteMode();
-  document.getElementById("detailTitle").textContent=r.adresa||"Bez názvu";
-  document.getElementById("detailSub").textContent=siteSourceLabel(r)||"";
+  setTextIfChanged(detailTitleNode(),r.adresa||"Bez názvu");
+  setTextIfChanged(detailSubNode(),siteSourceLabel(r)||"");
   renderSourceChooser(r);
   resetOfficialProtocolSection(r);
   if(window.setDetailTab) window.setDetailTab("data");
-  const detailTableEl=document.getElementById("detailTable");
-  detailTableEl.classList.remove("data-edit-table");
-  renderDetailTable(detailTableEl,r);
+  const detailTableEl=detailTableNode();
+  if(detailTableEl){
+    detailTableEl.classList.remove("data-edit-table");
+    renderDetailTable(detailTableEl,r);
+  }
   showControlDateDisplay(r);
   const addDataRowBox=document.getElementById("addDataRowBox"); if(addDataRowBox) addDataRowBox.style.display="none";
   const editDataToggleBtn=document.getElementById("editDataToggleBtn");
@@ -7426,7 +7431,8 @@ window.openDetail=function(i){
   if(editDataToggleBtn){
     editDataToggleBtn.style.display="block";
     editDataToggleBtn.onclick=()=>{
-      const table=document.getElementById("detailTable");
+      const table=detailTableNode();
+      if(!table) return;
       table.classList.add("data-edit-table");
       renderEditableDataTable(table,selectedSite);
       const inlineGpsBtn=document.getElementById("detailGpsCalcInline");
@@ -7676,6 +7682,31 @@ function formFieldNode(id){
   return el;
 }
 
+function drawerNode(){
+  return formFieldNode("drawer");
+}
+function detailTitleNode(){
+  return formFieldNode("detailTitle");
+}
+function detailSubNode(){
+  return formFieldNode("detailSub");
+}
+function detailTableNode(){
+  return formFieldNode("detailTable");
+}
+function newSiteCardNode(){
+  return formFieldNode("newSiteCard");
+}
+function sourceChooserNode(){
+  return formFieldNode("sourceChooser");
+}
+function detailLastCheckNode(){
+  return formFieldNode("detailLastCheck");
+}
+function detailNextCheckNode(){
+  return formFieldNode("detailNextCheck");
+}
+
 function setInputValue(id,value){
   const el=formFieldNode(id);
   const next=String(value ?? "");
@@ -7850,7 +7881,7 @@ function detailLazyKey(site=selectedSite){
   return String(detailKey(site) || site.firebaseDocId || site.raw?.["Firebase_doc_id"] || site.id || "").trim();
 }
 function activeDetailTabName(){
-  return document.getElementById("drawer")?.dataset?.detailTab || "data";
+  return drawerNode()?.dataset?.detailTab || "data";
 }
 function sameDetailLazySite(site=selectedSite){
   return !!site && detailLazyKey(site)===detailLazyLoadKey;
@@ -10779,12 +10810,12 @@ function clearManualStatusLocalState(site=selectedSite){
 
 function refreshSelectedDetailDataView(){
   if(!selectedSite) return;
-  const table=document.getElementById("detailTable");
+  const table=detailTableNode();
   if(table && !table.classList.contains("data-edit-table")){
     renderDetailTable(table,selectedSite);
   }
   showControlDateDisplay(selectedSite);
-  const sub=document.getElementById("detailSub");
+  const sub=detailSubNode();
   if(sub) sub.textContent=siteSourceLabel(selectedSite) || "";
   syncOpenProtocolContactFromDetail(selectedSite);
 }
@@ -11584,7 +11615,7 @@ async function openMainProtocolHistoryPanel(){
     showSaveConfirmation("Hlavní historii protokolů může zobrazit jen správce nebo Iva.");
     return;
   }
-  const drawer=document.getElementById("drawer");
+  const drawer=drawerNode();
   if(!drawer) return;
   captureNormalDetailDrawerShell(drawer);
   drawer.classList.add("open");
@@ -11679,7 +11710,7 @@ document.getElementById("reloadEditBtn").onclick=async()=>{
 };
 document.getElementById("addSiteBtn").onclick=()=>{
   openNewSiteForm();
-  const form=document.getElementById("newSiteCard");
+  const form=newSiteCardNode();
   if(form){
     form.style.display="block";
     form.scrollIntoView({behavior:"smooth",block:"start"});
@@ -11694,7 +11725,8 @@ document.getElementById("addSiteBtn").onclick=()=>{
 };
 document.getElementById("cancelNewSiteBtn").onclick=()=>{
   const baseKey=addSourceBaseSite ? detailKey(addSourceBaseSite) : "";
-  document.getElementById("newSiteCard").style.display="none";
+  const form=newSiteCardNode();
+  if(form) form.style.display="none";
   clearNewSiteMode();
   if(baseKey) window.openDetailById(baseKey);
 };
