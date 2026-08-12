@@ -380,6 +380,8 @@ Current performance phase 178 decision: cache the last applied status-filter CSS
 
 Current performance phase 179 decision: cache frequently used form field DOM nodes behind the shared value/checkbox/protocol setters, preserving the same protocol/detail form behavior while reducing repeated `getElementById()` lookups during form fill, save, draft, and export work.
 
+Current performance phase 180 decision: route protocol prefill, device reset/change handling, service-record save reads, and small protocol helper writes through the cached form-field lookup path, preserving the same protocol values, status text, and handlers while reducing direct DOM queries during repeated protocol work.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

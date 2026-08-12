@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-form-field-nodes-v304";
+const APP_BUILD_VERSION="2026-08-12-use-cached-protocol-nodes-v305";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v304-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v305-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11929,7 +11929,7 @@ if(serviceForm){
       const {collection,doc,setDoc,serverTimestamp}=fb.fsMod;
       const keys=siteRecordKeys(selectedSite);
       const serviceRef=doc(collection(db,"serviceRecords"));
-      const servicePayload={_id:serviceRef.id,siteId:selectedSite.id,siteKey:keys[0] || selectedSite.id,siteKeys:keys,firebaseDocId:selectedSite.firebaseDocId || selectedSite.raw?.["Firebase_doc_id"] || "",sourceGroupKey:sitePlaceGroupKey(selectedSite),sourceIdentity:siteSourceIdentity(selectedSite),siteAddress:selectedSite.adresa,siteSource:selectedSite.zdroj,technician:document.getElementById("technician").value,technicianEmail:currentUser.email,checkDate:document.getElementById("checkDate").value,result:document.getElementById("result").value,issues:document.getElementById("issues").value,recommendation:document.getElementById("recommendation").value,photoLinks:document.getElementById("photoLinks").value.split(/\n+/).map(x=>x.trim()).filter(Boolean),createdAt:new Date().toISOString()};
+      const servicePayload={_id:serviceRef.id,siteId:selectedSite.id,siteKey:keys[0] || selectedSite.id,siteKeys:keys,firebaseDocId:selectedSite.firebaseDocId || selectedSite.raw?.["Firebase_doc_id"] || "",sourceGroupKey:sitePlaceGroupKey(selectedSite),sourceIdentity:siteSourceIdentity(selectedSite),siteAddress:selectedSite.adresa,siteSource:selectedSite.zdroj,technician:val("technician"),technicianEmail:currentUser.email,checkDate:val("checkDate"),result:val("result"),issues:val("issues"),recommendation:val("recommendation"),photoLinks:val("photoLinks").split(/\n+/).map(x=>x.trim()).filter(Boolean),createdAt:new Date().toISOString()};
       const childOk=await saveSiteChildItem("serviceRecords",serviceRef.id,servicePayload,selectedSite);
       const embeddedOk=childOk ? true : await appendEmbeddedSiteItem("serviceHistory",servicePayload,selectedSite);
       await appendEmbeddedSiteItem("serviceRefs",{
@@ -12125,12 +12125,13 @@ function resetProtocolTechnicalFieldsForNewDevice(){
     "protoInputVac","protoOutput1Vac","protoOutput2Vac","protoBackup1Vac","protoBackup2Vac",
     "protoMainBatVdc","protoResetDiag","protoAuxBatVdc","protoUnbalance1","protoUnbalance2"
   ].forEach(id=>{
-    const el=document.getElementById(id);
+    const el=formFieldNode(id);
     if(el) el.value="";
   });
 
-  const sel=document.getElementById("protoDeviceSelect");
-  if(sel && sel.value) document.getElementById("protoDeviceType").value=sel.value;
+  const sel=formFieldNode("protoDeviceSelect");
+  const type=formFieldNode("protoDeviceType");
+  if(sel && sel.value && type) type.value=sel.value;
   updateProtocolSummary();
 }
 
@@ -12143,13 +12144,13 @@ function pickRawValue(raw, names){
 }
 
 function setIfEmpty(id,value){
-  const el=document.getElementById(id);
+  const el=formFieldNode(id);
   if(!el) return;
   if(!safe(el.value) && safe(value)) el.value=value;
 }
 
 function setCheckbox(id,value){
-  const el=document.getElementById(id);
+  const el=formFieldNode(id);
   if(!el) return;
   el.checked = value === true || String(value).toLowerCase()==="true" || String(value).toLowerCase()==="ano";
 }
@@ -13924,14 +13925,14 @@ async function prefillProtocol(){
   const serial=protocolSerialFromSite(selectedSite);
   const sourceLocation=protocolSourceLocationFromSite(selectedSite);
 
-  document.getElementById("protoDate").value = new Date().toISOString().slice(0,10);
-  document.getElementById("protoPlace").value = address;
-  document.getElementById("protoContacts").value = contacts;
-  document.getElementById("protoTechSign").value = currentUser?.displayName || currentUser?.email || "";
-  document.getElementById("protoPeriod").value = period;
-  document.getElementById("protoDeviceType").value = deviceType;
-  document.getElementById("protoSerial").value = serial;
-  document.getElementById("protoPbzLocation").value = sourceLocation;
+  setProtocolFieldValue("protoDate",new Date().toISOString().slice(0,10));
+  setProtocolFieldValue("protoPlace",address);
+  setProtocolFieldValue("protoContacts",contacts);
+  setProtocolFieldValue("protoTechSign",currentUser?.displayName || currentUser?.email || "");
+  setProtocolFieldValue("protoPeriod",period);
+  setProtocolFieldValue("protoDeviceType",deviceType);
+  setProtocolFieldValue("protoSerial",serial);
+  setProtocolFieldValue("protoPbzLocation",sourceLocation);
 
   // předvyplnění z dat v indexu / CSV
   setIfEmpty("protoBatteryCount", pickRawValue(raw,["Počet baterií","Pocet baterii","Počet baterií (ks)","Baterie ks","Počet AKU"]));
@@ -14281,7 +14282,7 @@ document.getElementById("protocolForm").addEventListener("submit",async e=>{
 const protoDeviceTypeSelectEl=document.getElementById("protoDeviceTypeSelect");
 if(protoDeviceTypeSelectEl){
   protoDeviceTypeSelectEl.addEventListener("change",()=>{
-    const input=document.getElementById("protoDeviceType");
+    const input=formFieldNode("protoDeviceType");
     resetProtocolTechnicalFieldsForNewDevice();
     if(input) input.value=protoDeviceTypeSelectEl.value;
     updateProtocolSummary();
@@ -14295,14 +14296,14 @@ if(protoDeviceSelectEl){
   protoDeviceSelectEl.addEventListener("change",()=>{
     resetProtocolTechnicalFieldsForNewDevice();
     updateProtocolSummary();
-    document.getElementById("protocolStatus").textContent="Vybrán jiný zdroj – vyplň hodnoty pro tento zdroj.";
+    setTextIfChanged(document.getElementById("protocolStatus"),"Vybrán jiný zdroj – vyplň hodnoty pro tento zdroj.");
   });
 }
 
 [
   "protoPlace","protoDeviceType","protoSerial","protoPbzLocation","protoPeriod"
 ].forEach(id=>{
-  const el=document.getElementById(id);
+  const el=formFieldNode(id);
   if(el){
     el.addEventListener("input",updateProtocolSummary);
     el.addEventListener("change",updateProtocolSummary);
