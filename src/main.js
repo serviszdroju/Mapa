@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-status-filter-class-v303";
+const APP_BUILD_VERSION="2026-08-12-cache-form-field-nodes-v304";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v303-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v304-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7661,13 +7661,25 @@ async function runBoundedFirestoreTasks(tasks=[],concurrency=6){
   await Promise.all(workers);
 }
 
+const formFieldNodeCache=new Map();
+function formFieldNode(id){
+  const key=safe(id);
+  if(!key) return null;
+  const cached=formFieldNodeCache.get(key);
+  if(cached && cached.isConnected && cached.id===key) return cached;
+  const el=document.getElementById(key);
+  if(el) formFieldNodeCache.set(key,el);
+  else formFieldNodeCache.delete(key);
+  return el;
+}
+
 function setInputValue(id,value){
-  const el=document.getElementById(id);
+  const el=formFieldNode(id);
   const next=String(value ?? "");
   if(el && el.value!==next) el.value=next;
 }
 function setInputChecked(id,value){
-  const el=document.getElementById(id);
+  const el=formFieldNode(id);
   if(el && el.checked!==!!value) el.checked=!!value;
 }
 
@@ -7680,7 +7692,7 @@ function normalizeSealValue(value){
 }
 
 function setProtocolFieldValue(id,value){
-  const el=document.getElementById(id);
+  const el=formFieldNode(id);
   if(!el) return;
   let next=safe(value);
   if(el.tagName==="SELECT"){
@@ -11942,8 +11954,8 @@ if(serviceForm){
 }
 
 
-function checkbox(id){return document.getElementById(id)?.checked || false;}
-function val(id){return document.getElementById(id)?.value || "";}
+function checkbox(id){return formFieldNode(id)?.checked || false;}
+function val(id){return formFieldNode(id)?.value || "";}
 
 let protoClientSignatureDirty=false;
 function protocolSignatureCanvas(){
