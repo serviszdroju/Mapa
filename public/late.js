@@ -766,24 +766,6 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(n==="ne" || n==="no" || n==="false" || n==="0") return "ne";
     return fallback;
   }
-  function regionOptions(current=""){
-    const defaults=typeof window.appRegionOptions==="function" ? window.appRegionOptions() : [
-      "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
-      "Ústecký kraj","Liberecký kraj","Královéhradecký kraj","Pardubický kraj","Kraj Vysočina",
-      "Jihomoravský kraj","Olomoucký kraj","Moravskoslezský kraj","Zlínský kraj","Slovensko"
-    ];
-    const map=new Map();
-    const add=v=>{
-      const clean=val(v);
-      const key=rawKeyNorm(clean);
-      if(!key && !map.has("")) map.set("", "");
-      if(key && !map.has(key)) map.set(key, clean);
-    };
-    add("");
-    defaults.forEach(add);
-    const currentKey=rawKeyNorm(current);
-    return [...map.entries()].map(([key,v])=>`<option value="${esc(v)}" ${key===currentKey ? "selected" : ""}>${esc(v || "Vyber kraj")}</option>`).join("");
-  }
   function regionOptionNodes(current=""){
     const defaults=typeof window.appRegionOptions==="function" ? window.appRegionOptions() : [
       "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
@@ -1127,17 +1109,6 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     let h=0; for(let x=0;x<base.length;x++) h=((h<<5)-h+base.charCodeAt(x))|0;
     return "site_" + Math.abs(h).toString(36) + "_" + String(i).padStart(5,"0");
   }
-  function field(spec){
-    const k=spec.key;
-    const cls=[spec.full ? "full" : "", spec.important ? "fbImportant" : ""].filter(Boolean).join(" ");
-    if(spec.type==="region") return `<div class="${cls}"><label>${esc(spec.label)}</label><select data-fb-key="${esc(k)}">${regionOptions()}</select></div>`;
-    if(spec.type==="period") return `<div class="${cls}"><label>${esc(spec.label)}</label><select data-fb-key="${esc(k)}"><option value="6">6 měsíců</option><option value="12" selected>12 měsíců</option></select></div>`;
-    if(spec.type==="yesno") return `<div class="${cls}"><label>${esc(spec.label)}</label><select data-fb-key="${esc(k)}"><option value="ne" selected>ne</option><option value="ano">ano</option></select></div>`;
-    if(spec.type==="textarea") return `<div class="${cls}"><label>${esc(spec.label)}</label><textarea data-fb-key="${esc(k)}"></textarea></div>`;
-    if(spec.gpsAddress) return `<div class="${cls} fbUnifiedGpsAddressField"><label>${esc(spec.label)}</label><div class="fbUnifiedGpsAddressLine"><input data-fb-key="${esc(k)}" id="fbUnifiedGpsAddress"><button class="fbSecondary" id="fbUnifiedGpsInline" type="button">Dopočítat GPS</button></div></div>`;
-    if(spec.readonly) return `<div class="${cls}"><label>${esc(spec.label)}</label><input data-fb-key="${esc(k)}" readonly title="Dopočítá se z adresy"></div>`;
-    return `<div class="${cls}"><label>${esc(spec.label)}</label><input data-fb-key="${esc(k)}"></div>`;
-  }
   function fbNode(tag, options={}, children=[]){
     const node=document.createElement(tag);
     if(options.id) node.id=options.id;
@@ -1480,12 +1451,19 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   let mapRowsCacheSaveTimer=0;
   let mapRowsCacheSaveVersion=0;
   let pendingMapRowsCacheItems=[];
+  function rawHasOwnKeys(raw){
+    if(!raw || typeof raw!=="object") return false;
+    for(const key in raw){
+      if(Object.prototype.hasOwnProperty.call(raw,key)) return true;
+    }
+    return false;
+  }
   function mapRowsCacheItems(firebaseRows){
     return (firebaseRows || []).map(row=>({
       docId:row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id || "",
       raw:row.raw || {},
       latestProtocolDate:row.firebaseData?.latestProtocolDate || ""
-    })).filter(item=>item.docId && item.raw && Object.keys(item.raw).length);
+    })).filter(item=>item.docId && rawHasOwnKeys(item.raw));
   }
   function openMapRowsCacheDb(){
     return new Promise((resolve,reject)=>{
@@ -2413,7 +2391,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-dom-built-unified-panel-v333";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-trim-unused-panel-html-v334";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

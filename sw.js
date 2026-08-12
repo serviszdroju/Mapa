@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v333";
+const CACHE_VERSION = "astip-szz-v334";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";

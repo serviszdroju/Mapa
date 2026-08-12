@@ -436,6 +436,8 @@ Current performance phase 206 decision: build the temporary add-site and add-sou
 
 Current performance phase 207 decision: build the Firebase unified add-site panel in `public/late.js` with DOM nodes and `replaceChildren()` instead of `panel.innerHTML`, preserving the same `fbUnified*` IDs, classes, `data-fb-key` fields, default values, GPS/date controls, and save/clear/pick handlers.
 
+Current performance phase 208 decision: remove now-unused HTML string builders from the Firebase unified add-site panel path and avoid allocating `Object.keys()` just to check cached raw-row emptiness, trimming the public helper script while preserving cache contents and panel behavior.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
