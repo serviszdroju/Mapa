@@ -344,6 +344,8 @@ Current performance phase 160 decision: skip unchanged hosted-login status, clas
 
 Current performance phase 161 decision: skip unchanged form value and checkbox writes in shared detail/protocol/document fill helpers, preserving the same detail editing, add-source, protocol restore, and official document prefill behavior while reducing repeated form DOM work.
 
+Current performance phase 162 decision: skip unchanged GPS/detail helper writes, protocol save-button text writes, and add-site form reset writes, preserving the same map GPS picking, protocol edit labels, and post-save form cleanup while reducing repeated form DOM work.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
