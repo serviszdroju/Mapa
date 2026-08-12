@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-new-site-field-elements-v289";
+const APP_BUILD_VERSION="2026-08-12-cache-filter-controls-v290";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v289-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v290-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4000,9 +4000,10 @@ async function loadDeletedSites(){
 }
 
 function filtered(){
-  const q=safe(document.getElementById("search").value);
-  const s=safe(document.getElementById("statusFilter").value);
-  const k=safe(document.getElementById("regionFilter").value);
+  const {search,status,region}=filterControls();
+  const q=safe(search && search.value);
+  const s=safe(status && status.value);
+  const k=safe(region && region.value);
   const qn=searchNorm(q);
   const kn=regionTextNorm(k);
   const signature=`${rowsIndexVersion}\u001f${qn}\u001f${s}\u001f${kn}`;
@@ -5388,7 +5389,8 @@ async function scheduleFirebaseRowsAutoReload(delay=9000){
 }
 window.scheduleFirebaseRowsAutoReload=scheduleFirebaseRowsAutoReload;
 function filters(){
-  const st=document.getElementById("statusFilter"), kr=document.getElementById("regionFilter");
+  const {status:st,region:kr}=filterControls();
+  if(!st || !kr) return;
   const currentStatus=st.value;
   const currentRegion=kr.value;
   const signature=`status:${APP_STATUS_FILTER_OPTIONS.join("|")};region:${APP_REGION_OPTIONS.join("|")}`;
@@ -5441,7 +5443,7 @@ function statusFilterClass(v){
   return "";
 }
 function updateStatusFilterColor(){
-  const st=document.getElementById("statusFilter");
+  const st=filterControls().status;
   if(!st) return;
   st.classList.remove("status-red","status-orange","status-yellow","status-blue","status-green","status-gray","status-pink");
   const cls=statusFilterClass(st.value);
@@ -5704,13 +5706,29 @@ function dedupeSiteRows(inputRows,preferredDocId=null){
 }
 window.siteDedupKeysFromRaw = siteDedupKeysFromRaw;
 window.dedupeSiteRows = dedupeSiteRows;
+let filterControlCache=null;
+function filterControls(){
+  if(
+    filterControlCache &&
+    filterControlCache.search?.isConnected &&
+    filterControlCache.status?.isConnected &&
+    filterControlCache.region?.isConnected
+  ){
+    return filterControlCache;
+  }
+  filterControlCache={
+    search:document.getElementById("search"),
+    status:document.getElementById("statusFilter"),
+    region:document.getElementById("regionFilter")
+  };
+  return filterControlCache;
+}
 function clearFiltersForOpenedSite(){
-  const search=document.getElementById("search");
-  if(search) search.value="";
-  const status=document.getElementById("statusFilter");
-  if(status) status.value="";
-  const region=document.getElementById("regionFilter");
-  if(region) region.value="";
+  const {search,status,region}=filterControls();
+  if(search && search.value!=="") search.value="";
+  if(status && status.value!=="") status.value="";
+  if(region && region.value!=="") region.value="";
+  updateStatusFilterColor();
 }
 function isFirebaseRowHidden(row,openedDocId=""){
   if(!row || !deletedSiteIds || !deletedSiteIds.has(row.id)) return false;
@@ -11564,9 +11582,7 @@ bindDrawerCloseButton();
 let filterRenderTimer=0;
 let lastFilterInputSignature="";
 function filterInputSignature(){
-  const search=document.getElementById("search");
-  const status=document.getElementById("statusFilter");
-  const region=document.getElementById("regionFilter");
+  const {search,status,region}=filterControls();
   return [
     search ? search.value : "",
     status ? status.value : "",
@@ -11587,9 +11603,10 @@ function requestFilterRenderNow(){
   requestRender();
 }
 lastFilterInputSignature=filterInputSignature();
-document.getElementById("search").addEventListener("input",()=>scheduleFilterRender());
-document.getElementById("statusFilter").addEventListener("change",()=>{updateStatusFilterColor();requestFilterRenderNow();});
-document.getElementById("regionFilter").addEventListener("change",requestFilterRenderNow);
+const initialFilterControls=filterControls();
+initialFilterControls.search?.addEventListener("input",()=>scheduleFilterRender());
+initialFilterControls.status?.addEventListener("change",()=>{updateStatusFilterColor();requestFilterRenderNow();});
+initialFilterControls.region?.addEventListener("change",requestFilterRenderNow);
 document.getElementById("fitBtn").addEventListener("click",fit);
 const mapBackBtn=document.getElementById("mapBackBtn");
 if(mapBackBtn) mapBackBtn.onclick=returnFromMapFocus;

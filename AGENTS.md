@@ -350,6 +350,8 @@ Current performance phase 163 decision: cache the static status and region filte
 
 Current performance phase 164 decision: cache the add-site/all-fields DOM controls by `data-new-key` and reuse that index for collection, clearing, and add-source field prefill, preserving the same form values and save behavior while avoiding repeated full-field query scans.
 
+Current performance phase 165 decision: cache the sidebar filter controls for search/status/region and reuse them during filtering, reset, color updates, signatures, and event binding, preserving the same filter UI and values while reducing repeated DOM lookups during render and search work.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
