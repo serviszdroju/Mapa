@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-filter-controls-v290";
+const APP_BUILD_VERSION="2026-08-12-delegate-sidebar-clicks-v291";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v290-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v291-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5234,9 +5234,20 @@ function sidebarVisibleGroups(groups,signature){
   sidebarSortedGroupsCache={groups,signature,visibleGroups};
   return visibleGroups;
 }
+function bindSidebarListClick(list){
+  if(!list || list.__szzSidebarClickBound) return;
+  list.__szzSidebarClickBound=true;
+  list.addEventListener("click",event=>{
+    const item=event.target.closest && event.target.closest("[data-sidebar-detail-key]");
+    if(!item || !list.contains(item)) return;
+    const key=item.getAttribute("data-sidebar-detail-key");
+    if(key) window.openDetailById(key);
+  });
+}
 function renderSidebarGroups(groups){
   const list=document.getElementById("list");
   if(!list) return;
+  bindSidebarListClick(list);
   const signature=`${rowsIndexVersion}\u001f${filteredRowsCache.signature || ""}\u001f${groups ? groups.length : 0}`;
   if(sidebarRenderCache.groups===groups && sidebarRenderCache.signature===signature && (list.childElementCount || sidebarRenderCache.renderedEmpty)){
     return;
@@ -5254,6 +5265,7 @@ function renderSidebarGroups(groups){
 function createSidebarGroupItem(group,r){
   const d=document.createElement("div");
   d.className="item";
+  d.dataset.sidebarDetailKey=safe(detailKey(r));
   const title=document.createElement("div");
   title.className="item-title";
   title.textContent=group.label || r.adresa || "Bez názvu";
@@ -5291,7 +5303,6 @@ function createSidebarGroupItem(group,r){
   status.className=`pill ${pill(r)}`;
   status.textContent=statusText(r);
   d.appendChild(status);
-  d.onclick=()=>window.openDetailById(detailKey(r));
   return d;
 }
 function setCounterTextIfChanged(el,value){
