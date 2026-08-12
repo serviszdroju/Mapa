@@ -2116,12 +2116,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-install-ready-state-v275";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-install-site-count-v276";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
 const SZZ_INSTALL_OFFLINE_READY_CACHE_MS=1800;
+const SZZ_INSTALL_SITE_COUNT_CACHE_MS=1800;
 let szzInstallOfflineReadyCache={raw:null,item:null,savedAt:0};
+let szzInstallSiteCountCache={raw:null,count:0,savedAt:0};
 function cloneSzzInstallOfflineReady(value={}){
   return value && typeof value==="object" && !Array.isArray(value) ? {...value} : {};
 }
@@ -2130,6 +2132,7 @@ function clearSzzInstallOfflineReadyCache(){
 }
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_INSTALL_OFFLINE_READY_KEY) clearSzzInstallOfflineReadyCache();
+  if(!event.key || event.key===SZZ_INSTALL_SITE_CACHE_KEY) szzInstallSiteCountCache={raw:null,count:0,savedAt:0};
 });
 const SZZ_INSTALL_SITE_QUEUE_STORE="siteQueue";
 const SZZ_INSTALL_PROTOCOL_QUEUE_STORE="protocolQueue";
@@ -2660,11 +2663,20 @@ window.requestSzzPersistentStorage=window.requestSzzPersistentStorage || async f
 
 function szzInstallCachedRowsCount(){
   try{
-    const parsed=JSON.parse(localStorage.getItem(SZZ_INSTALL_SITE_CACHE_KEY) || "null");
+    const raw=localStorage.getItem(SZZ_INSTALL_SITE_CACHE_KEY) || "";
+    if(szzInstallSiteCountCache.raw===raw && Date.now()-szzInstallSiteCountCache.savedAt<SZZ_INSTALL_SITE_COUNT_CACHE_MS){
+      return szzInstallSiteCountCache.count;
+    }
+    const parsed=JSON.parse(raw || "null");
     const count=Number(parsed && parsed.count);
-    if(Number.isFinite(count) && count>0) return count;
+    if(Number.isFinite(count) && count>0){
+      szzInstallSiteCountCache={raw,count,savedAt:Date.now()};
+      return count;
+    }
     const items=Array.isArray(parsed && parsed.items) ? parsed.items : [];
-    return items.filter(item=>item && item.docId && item.raw).length;
+    const fallbackCount=items.filter(item=>item && item.docId && item.raw).length;
+    szzInstallSiteCountCache={raw,count:fallbackCount,savedAt:Date.now()};
+    return fallbackCount;
   }catch(e){
     return 0;
   }
