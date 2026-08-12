@@ -2116,23 +2116,46 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-skip-install-status-dom-writes-v277";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-install-offline-counts-v278";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
 const SZZ_INSTALL_OFFLINE_READY_CACHE_MS=1800;
 const SZZ_INSTALL_SITE_COUNT_CACHE_MS=1800;
+const SZZ_INSTALL_OFFLINE_COUNTS_CACHE_MS=1200;
 let szzInstallOfflineReadyCache={raw:null,item:null,savedAt:0};
 let szzInstallSiteCountCache={raw:null,count:0,savedAt:0};
+let szzInstallOfflineCountsCache={savedAt:0,counts:null,promise:null};
+let szzInstallOfflineCountsCacheVersion=0;
 function cloneSzzInstallOfflineReady(value={}){
   return value && typeof value==="object" && !Array.isArray(value) ? {...value} : {};
 }
 function clearSzzInstallOfflineReadyCache(){
   szzInstallOfflineReadyCache={raw:null,item:null,savedAt:0};
 }
+function cloneSzzInstallOfflineCounts(counts={}){
+  return {
+    sites:Number(counts.sites) || 0,
+    protocols:Number(counts.protocols) || 0,
+    photos:Number(counts.photos) || 0,
+    drafts:Number(counts.drafts) || 0
+  };
+}
+function clearSzzInstallOfflineCountsCache(){
+  szzInstallOfflineCountsCacheVersion++;
+  szzInstallOfflineCountsCache={savedAt:0,counts:null,promise:null};
+}
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_INSTALL_OFFLINE_READY_KEY) clearSzzInstallOfflineReadyCache();
   if(!event.key || event.key===SZZ_INSTALL_SITE_CACHE_KEY) szzInstallSiteCountCache={raw:null,count:0,savedAt:0};
+  if(
+    !event.key ||
+    event.key==="astipMap:offlineSites:v1" ||
+    event.key.startsWith("astipMap:protocolHistory:") ||
+    event.key.startsWith("astipMap:protocolDraft:")
+  ){
+    clearSzzInstallOfflineCountsCache();
+  }
 });
 const SZZ_INSTALL_SITE_QUEUE_STORE="siteQueue";
 const SZZ_INSTALL_PROTOCOL_QUEUE_STORE="protocolQueue";
@@ -2363,6 +2386,7 @@ async function withSzzInstallQueueStore(storeName,mode,callback){
 window.saveOfflineSiteQueueItem=window.saveOfflineSiteQueueItem || async function(item){
   if(!item || !szzInstallSafe(item.docId)) return null;
   await withSzzInstallQueueStore(SZZ_INSTALL_SITE_QUEUE_STORE,"readwrite",(store)=>{store.put({...item});});
+  clearSzzInstallOfflineCountsCache();
   return item;
 };
 
@@ -2384,6 +2408,7 @@ window.removeOfflineSiteQueueItem=window.removeOfflineSiteQueueItem || async fun
   if(!id) return;
   try{
     await withSzzInstallQueueStore(SZZ_INSTALL_SITE_QUEUE_STORE,"readwrite",(store)=>{store.delete(id);});
+    clearSzzInstallOfflineCountsCache();
   }catch(e){}
 };
 
@@ -2397,6 +2422,7 @@ window.saveOfflineProtocolQueueItem=window.saveOfflineProtocolQueueItem || async
   if(!item || !szzInstallSafe(item._id)) return null;
   const payload={...item,siteCacheKey:szzInstallSiteCacheKey(site)};
   await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.put(payload);});
+  clearSzzInstallOfflineCountsCache();
   return payload;
 };
 
@@ -2432,6 +2458,7 @@ window.removeOfflineProtocolQueueItem=window.removeOfflineProtocolQueueItem || a
   if(!cleanId) return;
   try{
     await withSzzInstallQueueStore(SZZ_INSTALL_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.delete(cleanId);});
+    clearSzzInstallOfflineCountsCache();
   }catch(e){}
 };
 
@@ -2532,6 +2559,7 @@ window.addEventListener("storage",()=>{
   szzInstallLocalObjectCache.clear();
   szzInstallLegacyOfflineSiteQueueCache={raw:null,length:-1,savedAt:0,items:[]};
   szzInstallDraftCountCache=null;
+  clearSzzInstallOfflineCountsCache();
 });
 
 function szzInstallLocalProtocolDraftCount(){
@@ -2556,6 +2584,18 @@ function szzInstallLocalProtocolDraftCount(){
 }
 
 async function szzInstallOfflineCounts(){
+  const now=Date.now();
+  if(
+    szzInstallOfflineCountsCache.counts &&
+    now-szzInstallOfflineCountsCache.savedAt<SZZ_INSTALL_OFFLINE_COUNTS_CACHE_MS
+  ){
+    return cloneSzzInstallOfflineCounts(szzInstallOfflineCountsCache.counts);
+  }
+  if(szzInstallOfflineCountsCache.promise){
+    return szzInstallOfflineCountsCache.promise.then(cloneSzzInstallOfflineCounts);
+  }
+  const cacheVersion=szzInstallOfflineCountsCacheVersion;
+  const promise=(async()=>{
   let localSites=[];
   const indexedSites=await window.readOfflineSiteQueueItems();
   try{
@@ -2588,6 +2628,18 @@ async function szzInstallOfflineCounts(){
     photos:0,
     drafts
   };
+  })().then(counts=>{
+    const cleanCounts=cloneSzzInstallOfflineCounts(counts);
+    if(cacheVersion===szzInstallOfflineCountsCacheVersion){
+      szzInstallOfflineCountsCache={savedAt:Date.now(),counts:cleanCounts,promise:null};
+    }
+    return cloneSzzInstallOfflineCounts(cleanCounts);
+  }).catch(error=>{
+    if(cacheVersion===szzInstallOfflineCountsCacheVersion) clearSzzInstallOfflineCountsCache();
+    throw error;
+  });
+  szzInstallOfflineCountsCache={savedAt:now,counts:null,promise};
+  return promise;
 }
 
 function szzInstallSetTextIfChanged(el,value){

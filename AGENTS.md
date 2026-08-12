@@ -326,6 +326,8 @@ Current performance phase 151 decision: cache the `public/late.js` install fallb
 
 Current performance phase 152 decision: skip unchanged text/disabled DOM writes in the `public/late.js` install fallback offline status updater, preserving the same fallback display while reducing repeated UI work before the main updater is available.
 
+Current performance phase 153 decision: cache the `public/late.js` install fallback offline queue counts briefly and invalidate after queue/storage changes, preserving the same startup offline status while reducing repeated IndexedDB/localStorage reads before the main updater takes over.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
