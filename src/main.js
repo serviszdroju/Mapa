@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-offline-protocol-queue-cache-v324";
+const APP_BUILD_VERSION="2026-08-12-offline-photo-read-cache-v325";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v324-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v325-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -13078,6 +13078,17 @@ async function readOfflinePhotoItems(site=selectedSite){
   return readCachedLocalDetailItems(siteOfflinePhotoReadCache,cacheKey,()=>computeOfflinePhotoItems(site));
 }
 
+const OFFLINE_PHOTO_ALL_READ_CACHE_MS=1200;
+let offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
+
+function cloneOfflinePhotoItems(items=[]){
+  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
+}
+
+function clearOfflinePhotoAllReadCache(){
+  offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
+}
+
 async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
   const cleanId=safe(id);
   if(!cleanId) return;
@@ -13094,7 +13105,7 @@ async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
 
-async function readAllOfflinePhotoItems(){
+async function computeAllOfflinePhotoItems(){
   const fallback=[];
   localStorageArrayEntries("astipMap:offlinePhotos:").forEach(entry=>{
     const siteCacheKey=entry.key.replace("astipMap:offlinePhotos:","astipMap:photos:");
@@ -13119,6 +13130,27 @@ async function readAllOfflinePhotoItems(){
       if(id) seen.add(id);
       return !!photoDisplayUrl(item);
     });
+}
+
+async function readAllOfflinePhotoItems(){
+  const now=Date.now();
+  if(Array.isArray(offlinePhotoAllReadCache.items) && now-offlinePhotoAllReadCache.savedAt<OFFLINE_PHOTO_ALL_READ_CACHE_MS){
+    return cloneOfflinePhotoItems(offlinePhotoAllReadCache.items);
+  }
+  if(offlinePhotoAllReadCache.promise){
+    return cloneOfflinePhotoItems(await offlinePhotoAllReadCache.promise);
+  }
+  offlinePhotoAllReadCache.promise=computeAllOfflinePhotoItems()
+    .then(items=>{
+      const cloned=cloneOfflinePhotoItems(items);
+      offlinePhotoAllReadCache={savedAt:Date.now(),items:cloned,promise:null};
+      return cloned;
+    })
+    .catch(e=>{
+      offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
+      throw e;
+    });
+  return cloneOfflinePhotoItems(await offlinePhotoAllReadCache.promise);
 }
 
 function siteCacheSuffixFromPhoto(item){
@@ -13297,6 +13329,7 @@ function invalidateOfflineSiteCountCache(){
 }
 function invalidateOfflinePhotoCountCache(){
   offlinePhotoCountCache={count:null,savedAt:0,storageLength:-1};
+  clearOfflinePhotoAllReadCache();
   invalidateSzzOfflineCountsCache();
 }
 window.addEventListener("storage",event=>{

@@ -420,6 +420,8 @@ Current performance phase 198 decision: skip unchanged Protokol detail-history D
 
 Current performance phase 199 decision: cache and coalesce short-lived IndexedDB reads of the offline protocol queue, both globally and per site, invalidating after queue saves/removes and protocol-history storage changes so offline status, main history, detail history, and sync flows avoid duplicate `getAll()` bursts while fresh offline protocols still appear immediately.
 
+Current performance phase 200 decision: cache and coalesce short-lived global offline photo reads from IndexedDB plus legacy localStorage, invalidating after offline photo saves/removes and cross-tab offline-photo storage changes so sync status and photo synchronization avoid duplicate scans while Galerie and upload/delete behavior stay unchanged.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
