@@ -2116,7 +2116,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-install-site-count-v276";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-skip-install-status-dom-writes-v277";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -2590,11 +2590,15 @@ async function szzInstallOfflineCounts(){
   };
 }
 
+function szzInstallSetTextIfChanged(el,value){
+  if(el && el.textContent!==String(value)) el.textContent=String(value);
+}
+
 window.updateSzzOfflineAppStatus=window.updateSzzOfflineAppStatus || async function(){
   const counts=await szzInstallOfflineCounts();
   const setCount=(id,value)=>{
     const el=document.getElementById(id);
-    if(el) el.textContent=String(value || 0);
+    szzInstallSetTextIfChanged(el,String(value || 0));
   };
   setCount("pendingSitesCount",counts.sites);
   setCount("pendingProtocolsCount",counts.protocols);
@@ -2605,12 +2609,15 @@ window.updateSzzOfflineAppStatus=window.updateSzzOfflineAppStatus || async funct
   const text=document.getElementById("appSyncText");
   const meta=document.getElementById("appSyncMeta");
   const syncBtn=document.getElementById("syncNowBtn");
-  if(label) label.textContent=navigator.onLine===false ? "Offline režim" : (pending ? "Čeká na synchronizaci" : "Synchronizováno");
-  if(text) text.textContent=navigator.onLine===false
+  szzInstallSetTextIfChanged(label,navigator.onLine===false ? "Offline režim" : (pending ? "Čeká na synchronizaci" : "Synchronizováno"));
+  szzInstallSetTextIfChanged(text,navigator.onLine===false
     ? "Práce se ukládá do telefonu. Po připojení se odešle do webu."
-    : pending ? `V telefonu čeká ${pending} změn k odeslání.` : "Všechny uložené změny jsou spárované s webem.";
-  if(meta) meta.textContent=meta.textContent || "Offline fronta připravena v telefonu.";
-  if(syncBtn) syncBtn.disabled=navigator.onLine===false || !pending || typeof window.syncOfflineChanges!=="function";
+    : pending ? `V telefonu čeká ${pending} změn k odeslání.` : "Všechny uložené změny jsou spárované s webem.");
+  if(meta && !meta.textContent) szzInstallSetTextIfChanged(meta,"Offline fronta připravena v telefonu.");
+  if(syncBtn){
+    const disabled=navigator.onLine===false || !pending || typeof window.syncOfflineChanges!=="function";
+    if(syncBtn.disabled!==disabled) syncBtn.disabled=disabled;
+  }
   return counts;
 };
 
