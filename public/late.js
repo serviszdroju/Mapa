@@ -784,6 +784,30 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     const currentKey=rawKeyNorm(current);
     return [...map.entries()].map(([key,v])=>`<option value="${esc(v)}" ${key===currentKey ? "selected" : ""}>${esc(v || "Vyber kraj")}</option>`).join("");
   }
+  function regionOptionNodes(current=""){
+    const defaults=typeof window.appRegionOptions==="function" ? window.appRegionOptions() : [
+      "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
+      "Ústecký kraj","Liberecký kraj","Královéhradecký kraj","Pardubický kraj","Kraj Vysočina",
+      "Jihomoravský kraj","Olomoucký kraj","Moravskoslezský kraj","Zlínský kraj","Slovensko"
+    ];
+    const map=new Map();
+    const add=v=>{
+      const clean=val(v);
+      const key=rawKeyNorm(clean);
+      if(!key && !map.has("")) map.set("", "");
+      if(key && !map.has(key)) map.set(key, clean);
+    };
+    add("");
+    defaults.forEach(add);
+    const currentKey=rawKeyNorm(current);
+    return [...map.entries()].map(([key,value])=>{
+      const option=document.createElement("option");
+      option.value=value;
+      option.textContent=value || "Vyber kraj";
+      option.selected=key===currentKey;
+      return option;
+    });
+  }
   function dateInputFromDate(date){
     if(!date || isNaN(date.getTime())) return "";
     const y=date.getFullYear();
@@ -1114,19 +1138,114 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(spec.readonly) return `<div class="${cls}"><label>${esc(spec.label)}</label><input data-fb-key="${esc(k)}" readonly title="Dopočítá se z adresy"></div>`;
     return `<div class="${cls}"><label>${esc(spec.label)}</label><input data-fb-key="${esc(k)}"></div>`;
   }
+  function fbNode(tag, options={}, children=[]){
+    const node=document.createElement(tag);
+    if(options.id) node.id=options.id;
+    if(options.className) node.className=options.className;
+    if(options.type) node.type=options.type;
+    if(options.text!==undefined) node.textContent=String(options.text);
+    if(options.value!==undefined) node.value=String(options.value);
+    if(options.placeholder!==undefined) node.placeholder=String(options.placeholder);
+    if(options.readOnly) node.readOnly=true;
+    if(options.selected) node.selected=true;
+    if(options.title) node.title=options.title;
+    if(options.attrs){
+      Object.entries(options.attrs).forEach(([key,value])=>{
+        if(value!==undefined && value!==null) node.setAttribute(key,String(value));
+      });
+    }
+    const list=Array.isArray(children) ? children : [children];
+    list.forEach(child=>{
+      if(child===null || child===undefined) return;
+      node.append(child && child.nodeType ? child : document.createTextNode(String(child)));
+    });
+    return node;
+  }
+  function fbField(spec){
+    const k=spec.key;
+    const cls=[spec.full ? "full" : "", spec.important ? "fbImportant" : ""].filter(Boolean).join(" ");
+    const wrap=fbNode("div",{className:cls});
+    const label=fbNode("label",{text:spec.label});
+    let control;
+    if(spec.type==="region"){
+      control=fbNode("select",{},regionOptionNodes());
+    }else if(spec.type==="period"){
+      control=fbNode("select",{},[
+        fbNode("option",{value:"6",text:"6 měsíců"}),
+        fbNode("option",{value:"12",text:"12 měsíců",selected:true})
+      ]);
+      control.value="12";
+    }else if(spec.type==="yesno"){
+      control=fbNode("select",{},[
+        fbNode("option",{value:"ne",text:"ne",selected:true}),
+        fbNode("option",{value:"ano",text:"ano"})
+      ]);
+      control.value="ne";
+    }else if(spec.type==="textarea"){
+      control=fbNode("textarea");
+    }else if(spec.gpsAddress){
+      const input=fbNode("input",{id:"fbUnifiedGpsAddress"});
+      input.dataset.fbKey=k;
+      wrap.classList.add("fbUnifiedGpsAddressField");
+      wrap.append(label,fbNode("div",{className:"fbUnifiedGpsAddressLine"},[
+        input,
+        fbNode("button",{className:"fbSecondary",id:"fbUnifiedGpsInline",type:"button",text:"Dopočítat GPS"})
+      ]));
+      return wrap;
+    }else{
+      control=fbNode("input",{readOnly:spec.readonly,title:spec.readonly ? "Dopočítá se z adresy" : ""});
+    }
+    control.dataset.fbKey=k;
+    wrap.append(label,control);
+    return wrap;
+  }
+  function fbDateBox(className,label,id){
+    return fbNode("div",{className:`control-date-box ${className}`},[
+      fbNode("span",{text:label}),
+      fbNode("input",{id,type:"date"})
+    ]);
+  }
+  function createFbUnifiedPanelContent(){
+    const head=fbNode("div",{className:"fbUnifiedHead"},[
+      fbNode("div",{},[
+        fbNode("h2",{text:"Přidat nové místo"}),
+        fbNode("p",{className:"small",text:"Nové místo se uloží mezi ostatní body."}),
+        fbNode("div",{className:"fbDbBadge"},[
+          "Kolekce: ",
+          fbNode("b",{text:FB_COLLECTION})
+        ])
+      ]),
+      fbNode("button",{className:"fbSecondary",id:"fbUnifiedClose",type:"button",text:"Zavřít"})
+    ]);
+    const grid=fbNode("div",{className:"fbUnifiedGrid"},[
+      ...FB_USER_FIELDS.map(fbField),
+      ...FB_HIDDEN_KEYS.map(key=>{
+        const input=fbNode("input",{type:"hidden"});
+        input.dataset.fbKey=key;
+        return input;
+      })
+    ]);
+    return [
+      head,
+      fbNode("div",{className:"fbUnifiedNotice",id:"fbUnifiedStatus",text:"Připraveno. Vyplň aspoň název/adresu a GPS."}),
+      fbNode("div",{className:"fbUnifiedDates control-dates-strong"},[
+        fbDateBox("control-date-last","Poslední proběhlá kontrola","fbUnifiedLastCheck"),
+        fbDateBox("control-date-next","Příští plánovaná kontrola","fbUnifiedNextCheck")
+      ]),
+      fbNode("div",{className:"fbUnifiedActions"},[
+        fbNode("button",{className:"fbSecondary",id:"fbUnifiedPick",type:"button",text:"Vybrat na mapě"}),
+        fbNode("button",{className:"fbSecondary",id:"fbUnifiedFind",type:"button",text:"Ukázat bod na mapě"}),
+        fbNode("button",{className:"fbPrimary",id:"fbUnifiedSave",type:"button",text:"Uložit bod a otevřít detail"}),
+        fbNode("button",{className:"fbDanger",id:"fbUnifiedClear",type:"button",text:"Vymazat formulář"})
+      ]),
+      grid
+    ];
+  }
   function ensurePanel(){
     if(document.getElementById("fbUnifiedPanel")) return;
     const overlay=document.createElement("div"); overlay.id="fbUnifiedOverlay"; overlay.onclick=closePanel; document.body.appendChild(overlay);
     const panel=document.createElement("div"); panel.id="fbUnifiedPanel";
-    panel.innerHTML=`
-      <div class="fbUnifiedHead"><div><h2>Přidat nové místo</h2><p class="small">Nové místo se uloží mezi ostatní body.</p><div class="fbDbBadge">Kolekce: <b>${FB_COLLECTION}</b></div></div><button class="fbSecondary" id="fbUnifiedClose" type="button">Zavřít</button></div>
-      <div id="fbUnifiedStatus" class="fbUnifiedNotice">Připraveno. Vyplň aspoň název/adresu a GPS.</div>
-      <div class="fbUnifiedDates control-dates-strong">
-        <div class="control-date-box control-date-last"><span>Poslední proběhlá kontrola</span><input id="fbUnifiedLastCheck" type="date"></div>
-        <div class="control-date-box control-date-next"><span>Příští plánovaná kontrola</span><input id="fbUnifiedNextCheck" type="date"></div>
-      </div>
-      <div class="fbUnifiedActions"><button class="fbSecondary" id="fbUnifiedPick" type="button">Vybrat na mapě</button><button class="fbSecondary" id="fbUnifiedFind" type="button">Ukázat bod na mapě</button><button class="fbPrimary" id="fbUnifiedSave" type="button">Uložit bod a otevřít detail</button><button class="fbDanger" id="fbUnifiedClear" type="button">Vymazat formulář</button></div>
-      <div class="fbUnifiedGrid">${FB_USER_FIELDS.map(field).join("")}${FB_HIDDEN_KEYS.map(k=>`<input type="hidden" data-fb-key="${esc(k)}">`).join("")}</div>`;
+    panel.replaceChildren(...createFbUnifiedPanelContent());
     document.body.appendChild(panel);
     document.getElementById("fbUnifiedClose").onclick=closePanel;
     const gpsBtn=document.getElementById("fbUnifiedGpsInline");
@@ -2294,7 +2413,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-dom-built-temp-forms-v332";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-dom-built-unified-panel-v333";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
