@@ -412,6 +412,8 @@ Current performance phase 194 decision: load main cross-site protocol history lo
 
 Current performance phase 195 decision: reuse the existing main cross-site protocol history shell and skip unchanged list DOM rerenders with a render signature based on row IDs, titles, visible metadata, admin mode, and protocol time, preserving the same list rows and delegated open-detail behavior while avoiding repeated drawer/list DOM rebuilds on cached reopen.
 
+Current performance phase 196 decision: cache short-lived merged local cross-site protocol history reads after combining legacy localStorage and IndexedDB queue sources, invalidating through the existing protocol/main-history mutation path so repeated main history opens avoid duplicate local scans while preserving fresh saved/deleted/offline protocol rows.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

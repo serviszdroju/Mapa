@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-main-history-render-cache-v320";
+const APP_BUILD_VERSION="2026-08-12-main-local-history-cache-v321";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v320-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v321-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7660,6 +7660,7 @@ const lastProtocolCache=new Map();
 const MAIN_PROTOCOL_HISTORY_CACHE_MS=45000;
 let mainProtocolHistoryCache={key:"",savedAt:0,items:null};
 let mainProtocolHistoryRenderSignature="";
+const allLocalProtocolHistoryReadCache=new Map();
 
 function detailHistoryCacheKey(site=selectedSite){
   if(!site) return "";
@@ -7763,6 +7764,7 @@ function writeMainProtocolHistoryCache(items=[]){
 function clearMainProtocolHistoryCache(){
   mainProtocolHistoryCache={key:"",savedAt:0,items:null};
   mainProtocolHistoryRenderSignature="";
+  allLocalProtocolHistoryReadCache.clear();
 }
 window.clearMainProtocolHistoryCache=clearMainProtocolHistoryCache;
 
@@ -9933,6 +9935,7 @@ function clearLocalDetailReadCache(cache,prefixOrKey=""){
 function clearLocalDetailReadCaches(){
   siteLocalProtocolHistoryReadCache.clear();
   siteOfflinePhotoReadCache.clear();
+  allLocalProtocolHistoryReadCache.clear();
 }
 function clearLocalDetailReadCacheForKind(kind,site=selectedSite){
   const cleanKind=String(kind || "");
@@ -9942,6 +9945,7 @@ function clearLocalDetailReadCacheForKind(kind,site=selectedSite){
   }
   if(cleanKind==="protocolHistory" || cleanKind==="protocols"){
     clearLocalDetailReadCache(siteLocalProtocolHistoryReadCache,site ? siteLocalCacheKey("protocolHistory",site) : "");
+    clearLocalDetailReadCache(allLocalProtocolHistoryReadCache);
   }
   if(cleanKind==="offlinePhotos" || cleanKind==="photos"){
     clearLocalDetailReadCache(siteOfflinePhotoReadCache,site ? siteLocalCacheKey("photos",site) : "");
@@ -11865,7 +11869,7 @@ function normalizeProtocolHistoryItems(items=[],collection="localProtocols",idPr
   }));
 }
 
-async function readAllLocalAndIndexedProtocolHistoryItems(){
+async function computeAllLocalAndIndexedProtocolHistoryItems(){
   const localItems=readAllLocalProtocolHistoryItems();
   let indexedItems=[];
   if(typeof readAllOfflineProtocolQueueItems==="function"){
@@ -11876,6 +11880,10 @@ async function readAllLocalAndIndexedProtocolHistoryItems(){
     }
   }
   return uniqueByOfflineId([...localItems,...indexedItems]);
+}
+
+async function readAllLocalAndIndexedProtocolHistoryItems(){
+  return readCachedLocalDetailItems(allLocalProtocolHistoryReadCache,mainProtocolHistoryCacheKey(),computeAllLocalAndIndexedProtocolHistoryItems);
 }
 
 async function computeSiteLocalProtocolHistoryItems(site=selectedSite){
