@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-skip-startup-dom-writes-v281";
+const APP_BUILD_VERSION="2026-08-12-skip-offline-prepare-dom-writes-v282";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v281-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v282-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1963,10 +1963,10 @@ async function prepareSzzOfflineAppData(options={}){
   const button=document.getElementById("prepareOfflineAppBtn");
   const syncText=document.getElementById("appSyncText");
   if(button){
-    button.disabled=true;
-    button.textContent="Připravuji offline...";
+    setDisabledIfChanged(button,true);
+    setTextIfChanged(button,"Připravuji offline...");
   }
-  if(syncText) syncText.textContent="Ukládám aplikaci a servisní data do telefonu.";
+  setTextIfChanged(syncText,"Ukládám aplikaci a servisní data do telefonu.");
   try{
     const storage=await requestSzzPersistentStorage({request:true});
     let shellCount=0;
@@ -1983,7 +1983,7 @@ async function prepareSzzOfflineAppData(options={}){
     const firstRun=options.forceFull===true || !cachedRowsBefore || !readyBefore.rowsSyncedAtMs;
     if(cachedRowsBefore && (!Array.isArray(window.rows) || !window.rows.length) && typeof window.showFirebaseMapRowsCache==="function"){
       try{
-        if(syncText) syncText.textContent="Načítám uložené body z telefonu.";
+        setTextIfChanged(syncText,"Načítám uložené body z telefonu.");
         await window.showFirebaseMapRowsCache(null,{offlineBoot:true});
       }catch(e){
         console.warn("Lokální cache bodů se nepodařila načíst před synchronizací",e);
@@ -1992,10 +1992,10 @@ async function prepareSzzOfflineAppData(options={}){
     if(navigator.onLine!==false && typeof window.loadFirebaseSitesUnified==="function"){
       try{
         if(firstRun){
-          if(syncText) syncText.textContent="První příprava: stahuji body z Firebase do telefonu.";
+          setTextIfChanged(syncText,"První příprava: stahuji body z Firebase do telefonu.");
           loadedRows=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true});
         }else{
-          if(syncText) syncText.textContent="Kontroluji změny v bodech od poslední synchronizace.";
+          setTextIfChanged(syncText,"Kontroluji změny v bodech od poslední synchronizace.");
           const sinceMs=Number(readyBefore.rowsSyncedAtMs || Date.parse(readyBefore.preparedAt || "") || 0);
           changedRows=await syncSzzOfflineMapRowDeltas(sinceMs);
           loadedRows=changedRows;
@@ -2011,31 +2011,29 @@ async function prepareSzzOfflineAppData(options={}){
         ? (Array.isArray(loadedRows) && loadedRows.length ? loadedRows : szzOfflineRowsForPrefetch())
         : changedRows;
       if(rowsForDetails.length){
-        if(syncText) syncText.textContent=firstRun
+        setTextIfChanged(syncText,firstRun
           ? `Ukládám protokoly a galerie k bodům: 0 / ${rowsForDetails.length}.`
-          : `Kontroluji rozdíly u změněných bodů: 0 / ${rowsForDetails.length}.`;
+          : `Kontroluji rozdíly u změněných bodů: 0 / ${rowsForDetails.length}.`);
         try{
           detailCache=await prefetchSzzOfflineDetailData(rowsForDetails,{
             incremental:!firstRun,
             forceFull:options.forceFull===true,
             onProgress:progress=>{
-              if(syncText){
-                syncText.textContent=firstRun
-                  ? `Ukládám protokoly a galerie k bodům: ${progress.processed} / ${progress.sites}.`
-                  : `Kontroluji rozdíly u změněných bodů: ${progress.processed} / ${progress.sites}, změny: ${progress.changedSites}.`;
-              }
+              setTextIfChanged(syncText,firstRun
+                ? `Ukládám protokoly a galerie k bodům: ${progress.processed} / ${progress.sites}.`
+                : `Kontroluji rozdíly u změněných bodů: ${progress.processed} / ${progress.sites}, změny: ${progress.changedSites}.`);
             }
           });
         }catch(e){
           console.warn("Přednačtení detailů pro offline režim selhalo",e);
         }
-      }else if(!firstRun && syncText){
-        syncText.textContent="Žádné nové nebo změněné body od poslední synchronizace.";
+      }else if(!firstRun){
+        setTextIfChanged(syncText,"Žádné nové nebo změněné body od poslední synchronizace.");
       }
     }
     let cachedOfflineMap=czechOfflineMapReady();
     if(navigator.onLine!==false && !cachedOfflineMap && options.skipOfflineMap!==true){
-      if(syncText) syncText.textContent="Ukládám mapový podklad ČR pro první offline otevření.";
+      setTextIfChanged(syncText,"Ukládám mapový podklad ČR pro první offline otevření.");
       try{
         await cacheCzechOfflineMap({reason:options.reason || "offline"});
       }catch(e){
@@ -2073,22 +2071,20 @@ async function prepareSzzOfflineAppData(options={}){
       ? `, ${detailCache.protocols + detailCache.serviceRecords} záznamů, ${detailCache.photos} fotek`
       : "";
     const mapSummary=cachedOfflineMap ? ", mapa ČR" : "";
-    if(syncText){
-      if(!firstRun && cachedRows){
+    if(!firstRun && cachedRows){
         const skippedSites=!detailCache.processed ? cachedRows : (detailCache.skipped || 0);
-        syncText.textContent=`Synchronizace hotová: ${changedRows.length} změněných bodů${detailSummary}, přeskočeno ${skippedSites} beze změny${mapSummary}.`;
-      }else{
-        syncText.textContent=cachedRows
-          ? `Offline připraveno: ${cachedRows} bodů${detailSummary}${mapSummary} v telefonu.`
-          : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.";
-      }
+      setTextIfChanged(syncText,`Synchronizace hotová: ${changedRows.length} změněných bodů${detailSummary}, přeskočeno ${skippedSites} beze změny${mapSummary}.`);
+    }else{
+      setTextIfChanged(syncText,cachedRows
+        ? `Offline připraveno: ${cachedRows} bodů${detailSummary}${mapSummary} v telefonu.`
+        : "Aplikace je připravená pro offline otevření, body se uloží po načtení z Firebase.");
     }
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     return ready;
   }finally{
     if(button){
-      button.disabled=false;
-      button.textContent="Připravit offline data";
+      setDisabledIfChanged(button,false);
+      setTextIfChanged(button,"Připravit offline data");
     }
   }
 }
