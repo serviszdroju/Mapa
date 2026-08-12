@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-main-local-history-cache-v321";
+const APP_BUILD_VERSION="2026-08-12-main-history-row-cache-v322";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v321-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v322-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12003,18 +12003,36 @@ function bindMainProtocolHistoryListClick(list){
   });
 }
 
-function mainProtocolHistoryRenderKey(items=[]){
+function mainProtocolHistoryVisibleRows(items=[]){
   const adminPart=isAppAdmin() ? "admin" : "user";
-  const rows=(items || []).map((item,idx)=>[
-    safe(item && (item._id || item.id || idx)),
-    protocolGlobalHistoryTitle(item),
-    safe(item && (item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : ""))),
-    historySavedDateLabel(item),
-    historyDateLabel(item),
-    safe(item && (item.createdBy || item.technicianEmail || item.updatedBy)),
-    protocolTimeValue(item)
-  ].map(value=>`${String(value).length}:${value}`).join("")).join("\u001f");
-  return `${adminPart}\u001e${items.length}\u001e${rows}`;
+  return (items || []).map((item,idx)=>{
+    const title=protocolGlobalHistoryTitle(item);
+    const key=safe(item && (item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : "")));
+    const saved=historySavedDateLabel(item);
+    const checked=historyDateLabel(item);
+    const owner=safe(item && (item.createdBy || item.technicianEmail || item.updatedBy));
+    const meta=adminPart==="admin" ? [
+      saved ? `uloženo ${saved}` : "",
+      checked ? `kontrola ${checked}` : "",
+      owner
+    ].filter(Boolean).join(" | ") : "";
+    const signature=[
+      safe(item && (item._id || item.id || idx)),
+      title,
+      key,
+      saved,
+      checked,
+      owner,
+      protocolTimeValue(item)
+    ].map(value=>`${String(value).length}:${value}`).join("");
+    return {title,key,meta,signature};
+  });
+}
+
+function mainProtocolHistoryRenderKey(visibleRows=[]){
+  const adminPart=isAppAdmin() ? "admin" : "user";
+  const rows=(visibleRows || []).map(row=>row && row.signature ? row.signature : "").join("\u001f");
+  return `${adminPart}\u001e${visibleRows.length}\u001e${rows}`;
 }
 
 async function openMainProtocolHistoryPanel(){
@@ -12038,18 +12056,12 @@ async function openMainProtocolHistoryPanel(){
     list.textContent="Zatím není uložený žádný protokol.";
     return;
   }
-  const renderSignature=mainProtocolHistoryRenderKey(items);
+  const visibleRows=mainProtocolHistoryVisibleRows(items);
+  const renderSignature=mainProtocolHistoryRenderKey(visibleRows);
   if(mainProtocolHistoryRenderSignature===renderSignature && list.childElementCount) return;
   mainProtocolHistoryRenderSignature=renderSignature;
   const fragment=document.createDocumentFragment();
-  items.forEach(item=>{
-    const title=protocolGlobalHistoryTitle(item);
-    const key=safe(item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : ""));
-    const meta=isAppAdmin() ? [
-      historySavedDateLabel(item) ? `uloženo ${historySavedDateLabel(item)}` : "",
-      historyDateLabel(item) ? `kontrola ${historyDateLabel(item)}` : "",
-      safe(item.createdBy || item.technicianEmail || item.updatedBy)
-    ].filter(Boolean).join(" | ") : "";
+  visibleRows.forEach(({title,key,meta})=>{
     const row=document.createElement("div");
     row.className="main-history-row";
     const button=document.createElement("button");
