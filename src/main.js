@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-use-cached-protocol-nodes-v305";
+const APP_BUILD_VERSION="2026-08-12-cache-protocol-panel-nodes-v306";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v305-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v306-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7450,7 +7450,7 @@ window.openDetail=function(i){
   const addDataRowBtn=document.getElementById("addDataRowBtn");
   if(addDataRowBtn) addDataRowBtn.onclick=addNewDataRowToTable;
   clearProtocolEditState();
-  const pf=document.getElementById("protocolForm"); if(pf){ pf.style.display="none"; } const tb=document.getElementById("toggleProtocolBtn"); if(tb) tb.textContent="Vyplnit protokol";;
+  const pf=formFieldNode("protocolForm"); if(pf){ pf.style.display="none"; } setTextIfChanged(formFieldNode("toggleProtocolBtn"),"Vyplnit protokol");;
   try{
     setInputValue("editName",r.adresa||"");
     setInputValue("editContact",r.kontakt||"");
@@ -7708,8 +7708,7 @@ function setProtocolFieldValue(id,value){
 }
 
 function updateProtocolSaveButtonText(){
-  const btn=document.getElementById("saveProtocolBtn");
-  setTextIfChanged(btn,protocolEditState ? "Uložit změny protokolu" : "Uložit protokol");
+  setTextIfChanged(formFieldNode("saveProtocolBtn"),protocolEditState ? "Uložit změny protokolu" : "Uložit protokol");
 }
 
 function clearProtocolEditState(){
@@ -11846,14 +11845,14 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
 document.getElementById("editBtn").onclick=()=>document.getElementById("editCard").style.display="block";
 document.getElementById("cancelEditBtn").onclick=()=>document.getElementById("editCard").style.display="none";
 
-const toggleProtocolBtn=document.getElementById("toggleProtocolBtn");
+const toggleProtocolBtn=formFieldNode("toggleProtocolBtn");
 if(toggleProtocolBtn){
   toggleProtocolBtn.onclick=()=>{
-    const f=document.getElementById("protocolForm");
+    const f=formFieldNode("protocolForm");
     if(!f) return;
     const open=f.style.display !== "none";
     f.style.display=open ? "none" : "block";
-    toggleProtocolBtn.textContent=open ? "Vyplnit protokol" : "Skrýt protokol";
+    setTextIfChanged(toggleProtocolBtn,open ? "Vyplnit protokol" : "Skrýt protokol");
     if(!open){
       initProtocolClientSignaturePad();
       if(typeof prefillProtocol==="function") prefillProtocol();
@@ -11921,7 +11920,7 @@ if(serviceForm){
     if(!selectedSite){st.textContent="Není vybrané místo.";return;}
     if(!val("protoResetDiag")){
       st.textContent="Je nutné vyplnit pole Reset diagnostiky.";
-      document.getElementById("protoResetDiag").focus();
+      formFieldNode("protoResetDiag")?.focus();
       return;
     }
 
@@ -11956,10 +11955,16 @@ if(serviceForm){
 
 function checkbox(id){return formFieldNode(id)?.checked || false;}
 function val(id){return formFieldNode(id)?.value || "";}
+function protocolStatusNode(){
+  return formFieldNode("protocolStatus");
+}
+function setProtocolStatusText(text){
+  setTextIfChanged(protocolStatusNode(),text);
+}
 
 let protoClientSignatureDirty=false;
 function protocolSignatureCanvas(){
-  return document.getElementById("protoClientSignaturePad");
+  return formFieldNode("protoClientSignaturePad");
 }
 function protocolSignaturePoint(e,canvas){
   const rect=canvas.getBoundingClientRect();
@@ -12031,7 +12036,7 @@ function initProtocolClientSignaturePad(){
   canvas.addEventListener("pointerup",stop);
   canvas.addEventListener("pointercancel",stop);
   canvas.addEventListener("pointerleave",stop);
-  const clearBtn=document.getElementById("clearClientSignatureBtn");
+  const clearBtn=formFieldNode("clearClientSignatureBtn");
   if(clearBtn) clearBtn.onclick=()=>{
     clearProtocolClientSignature();
     scheduleProtocolDraftSave();
@@ -12083,12 +12088,12 @@ function sourceOptionsFromSite(site){
 }
 
 function populateProtocolDeviceSelect(){
-  const oldWrap=document.getElementById("protocolDeviceSelectWrap");
+  const oldWrap=formFieldNode("protocolDeviceSelectWrap");
   if(oldWrap) oldWrap.style.display="none";
-  const inputWrap=document.getElementById("protoDeviceInputWrap");
-  const selectWrap=document.getElementById("protoDeviceSelectWrap2");
-  const select=document.getElementById("protoDeviceTypeSelect");
-  const input=document.getElementById("protoDeviceType");
+  const inputWrap=formFieldNode("protoDeviceInputWrap");
+  const selectWrap=formFieldNode("protoDeviceSelectWrap2");
+  const select=formFieldNode("protoDeviceTypeSelect");
+  const input=formFieldNode("protoDeviceType");
   if(!selectedSite || !input || !select) return;
   const rawSource=[
     protocolDeviceTypeFromSite(selectedSite),
@@ -12210,14 +12215,14 @@ let protocolPrefillSiteId="";
 function resetProtocolFormForSelectedSite(siteId){
   const key=String(siteId || "");
   clearProtocolEditState();
-  const form=document.getElementById("protocolForm");
+  const form=formFieldNode("protocolForm");
   if(form) form.reset();
   clearProtocolClientSignature();
   protocolPrefillSiteId=key;
 }
 
 function closeProtocolFormAfterSave(){
-  const form=document.getElementById("protocolForm");
+  const form=formFieldNode("protocolForm");
   if(form){
     form.reset();
     form.style.display="none";
@@ -12226,8 +12231,7 @@ function closeProtocolFormAfterSave(){
   clearProtocolClientSignature();
   protocolPrefillSiteId="";
   updateProtocolSummary();
-  const btn=document.getElementById("toggleProtocolBtn");
-  if(btn) btn.textContent="Vyplnit protokol";
+  setTextIfChanged(formFieldNode("toggleProtocolBtn"),"Vyplnit protokol");
 }
 
 function fileBaseName(name){
@@ -14022,9 +14026,9 @@ async function prefillProtocol(){
       setIfEmpty("protoOtherAvailability", last.availability.other);
     }
 
-    document.getElementById("protocolStatus").textContent="Předvyplněno z posledního uloženého protokolu a dat místa.";
+    setProtocolStatusText("Předvyplněno z posledního uloženého protokolu a dat místa.");
   }else{
-    document.getElementById("protocolStatus").textContent="Předvyplněno z dat místa.";
+    setProtocolStatusText("Předvyplněno z dat místa.");
   }
 
   updateProtocolSummary();
@@ -14134,9 +14138,8 @@ function protocolPayload(){
 const exportProtocolFormBtn=document.getElementById("exportProtocolFormBtn");
 if(exportProtocolFormBtn){
   exportProtocolFormBtn.addEventListener("click",()=>{
-    const st=document.getElementById("protocolStatus");
     if(!selectedSite){
-      if(st) st.textContent="Není vybrané místo.";
+      setProtocolStatusText("Není vybrané místo.");
       return;
     }
     const payload=protocolPayload();
@@ -14148,9 +14151,8 @@ if(exportProtocolFormBtn){
 const mailProtocolFormBtn=document.getElementById("mailProtocolFormBtn");
 if(mailProtocolFormBtn){
   mailProtocolFormBtn.addEventListener("click",async()=>{
-    const st=document.getElementById("protocolStatus");
     if(!selectedSite){
-      if(st) st.textContent="Není vybrané místo.";
+      setProtocolStatusText("Není vybrané místo.");
       return;
     }
     const payload=protocolPayload();
@@ -14161,7 +14163,7 @@ if(mailProtocolFormBtn){
       await sendProtocolByMail(payload);
     }catch(e){
       const message=protocolMailErrorText(e);
-      if(st) st.textContent=`Chyba odeslání e-mailu: ${message}`;
+      setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
       showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
     }finally{
       mailProtocolFormBtn.disabled=false;
@@ -14197,14 +14199,15 @@ if(officialProtocolStopBtn){
   officialProtocolStopBtn.addEventListener("click",()=>exportOfficialProtocol("stop"));
 }
 
-document.getElementById("protocolForm").addEventListener("submit",async e=>{
+const protocolFormEl=formFieldNode("protocolForm");
+if(protocolFormEl){
+protocolFormEl.addEventListener("submit",async e=>{
   e.preventDefault();
-  const st=document.getElementById("protocolStatus");
-  if(!selectedSite){st.textContent="Není vybrané místo.";return;}
+  if(!selectedSite){setProtocolStatusText("Není vybrané místo.");return;}
 
   if(!val("protoResetDiag")){
-    st.textContent="Je nutné vyplnit pole Reset diagnostiky.";
-    document.getElementById("protoResetDiag").focus();
+    setProtocolStatusText("Je nutné vyplnit pole Reset diagnostiky.");
+    formFieldNode("protoResetDiag")?.focus();
     return;
   }
 
@@ -14222,7 +14225,7 @@ document.getElementById("protocolForm").addEventListener("submit",async e=>{
     if(!editing) clearManualStatusLocalState(selectedSite);
     refreshSelectedDetailDataView();
     render();
-    st.textContent="Protokol uložen lokálně v tomto prohlížeči. Internet/Firebase teď není dostupný.";
+    setProtocolStatusText("Protokol uložen lokálně v tomto prohlížeči. Internet/Firebase teď není dostupný.");
     showSaveConfirmation("Protokol uložen lokálně.");
     if(navigator.onLine!==false && typeof syncOfflineChanges==="function"){
       setTimeout(()=>syncOfflineChanges({reason:"protocol-offline-save",silent:true}),2000);
@@ -14267,7 +14270,7 @@ document.getElementById("protocolForm").addEventListener("submit",async e=>{
     await updateSiteControlDateFromProtocol(payload,selectedSite,{clearManualStatus:!editing});
     clearProtocolDraft(selectedSite);
     refreshSelectedDetailDataView();
-    st.textContent=editing ? "Protokol upraven." : "Protokol uložen.";
+    setProtocolStatusText(editing ? "Protokol upraven." : "Protokol uložen.");
     showSaveConfirmation(editing ? "Protokol upraven." : "Protokol uložen.");
     render();
     if(typeof loadHistory === "function") loadHistory(selectedSite.id);
@@ -14276,27 +14279,27 @@ document.getElementById("protocolForm").addEventListener("submit",async e=>{
     saveOffline(err.message);
   }
 });
+}
 
 
 
-const protoDeviceTypeSelectEl=document.getElementById("protoDeviceTypeSelect");
+const protoDeviceTypeSelectEl=formFieldNode("protoDeviceTypeSelect");
 if(protoDeviceTypeSelectEl){
   protoDeviceTypeSelectEl.addEventListener("change",()=>{
     const input=formFieldNode("protoDeviceType");
     resetProtocolTechnicalFieldsForNewDevice();
     if(input) input.value=protoDeviceTypeSelectEl.value;
     updateProtocolSummary();
-    const st=document.getElementById("protocolStatus");
-    if(st) st.textContent="Vybráno zařízení – vyplň údaje pro tento zdroj.";
+    setProtocolStatusText("Vybráno zařízení – vyplň údaje pro tento zdroj.");
   });
 }
 
-const protoDeviceSelectEl=document.getElementById("protoDeviceSelect");
+const protoDeviceSelectEl=formFieldNode("protoDeviceSelect");
 if(protoDeviceSelectEl){
   protoDeviceSelectEl.addEventListener("change",()=>{
     resetProtocolTechnicalFieldsForNewDevice();
     updateProtocolSummary();
-    setTextIfChanged(document.getElementById("protocolStatus"),"Vybrán jiný zdroj – vyplň hodnoty pro tento zdroj.");
+    setProtocolStatusText("Vybrán jiný zdroj – vyplň hodnoty pro tento zdroj.");
   });
 }
 
