@@ -366,6 +366,8 @@ Current performance phase 171 decision: delegate detail protocol-history control
 
 Current performance phase 172 decision: delegate Galerie viewer arrows and delete action through the existing `#sitePhotosList` listener, preserving thumbnail navigation, photo switching, and delete behavior while avoiding repeated viewer-button handlers on every photo rerender.
 
+Current performance phase 173 decision: set detail history previous/next disabled state on the newly created button elements before `replaceChildren()`, preserving the same controls while avoiding redundant DOM lookups after every history render.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
