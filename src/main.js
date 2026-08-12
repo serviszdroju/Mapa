@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-offline-protocol-count-v272";
+const APP_BUILD_VERSION="2026-08-12-cache-offline-site-count-v273";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v272-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v273-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -9759,6 +9759,7 @@ async function saveOfflineSiteQueueItem(item){
   if(!item || !safe(item.docId)) return null;
   try{
     await withSzzOfflineQueueStore(SZZ_OFFLINE_SITE_QUEUE_STORE,"readwrite",(store)=>{store.put({...item});});
+    invalidateOfflineSiteCountCache();
     return item;
   }catch(e){
     console.warn("IndexedDB frontu bodů se nepodařilo uložit",e);
@@ -9787,6 +9788,7 @@ async function removeOfflineSiteQueueItem(docId){
   try{
     await withSzzOfflineQueueStore(SZZ_OFFLINE_SITE_QUEUE_STORE,"readwrite",(store)=>{store.delete(id);});
   }catch(e){}
+  invalidateOfflineSiteCountCache();
 }
 window.removeOfflineSiteQueueItem=removeOfflineSiteQueueItem;
 
@@ -12578,6 +12580,8 @@ let szzOfflineCountsCache=null;
 let szzOfflineCountsCacheAt=0;
 const SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS=1800;
 let szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
+const OFFLINE_SITE_COUNT_CACHE_MS=1800;
+let offlineSiteCountCache={count:null,savedAt:0,storageLength:-1};
 const OFFLINE_PHOTO_COUNT_CACHE_MS=1800;
 let offlinePhotoCountCache={count:null,savedAt:0,storageLength:-1};
 
@@ -12590,13 +12594,18 @@ function invalidateSzzOfflineCountsCache(){
   szzOfflineCountsCacheAt=0;
 }
 window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
+function invalidateOfflineSiteCountCache(){
+  offlineSiteCountCache={count:null,savedAt:0,storageLength:-1};
+  szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
+  invalidateSzzOfflineCountsCache();
+}
 function invalidateOfflinePhotoCountCache(){
   offlinePhotoCountCache={count:null,savedAt:0,storageLength:-1};
   invalidateSzzOfflineCountsCache();
 }
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY){
-    szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
+    invalidateOfflineSiteCountCache();
   }
   if(!event.key || event.key.startsWith("astipMap:offlinePhotos:")){
     invalidateOfflinePhotoCountCache();
@@ -12645,20 +12654,32 @@ function noteSzzSyncState(status,details={}){
 window.noteSzzSyncState=noteSzzSyncState;
 
 async function readPendingOfflineSitesCount(){
+  const now=Date.now();
+  if(
+    offlineSiteCountCache.count!==null &&
+    offlineSiteCountCache.storageLength===localStorage.length &&
+    now-offlineSiteCountCache.savedAt<OFFLINE_SITE_COUNT_CACHE_MS
+  ){
+    return offlineSiteCountCache.count;
+  }
+  const remember=count=>{
+    offlineSiteCountCache={count:Number(count) || 0,savedAt:Date.now(),storageLength:localStorage.length};
+    return offlineSiteCountCache.count;
+  };
   try{
     const indexedItems=await readOfflineSiteQueueItems();
-    if(indexedItems.length) return uniqueByOfflineId(indexedItems,"docId").length;
+    if(indexedItems.length) return remember(uniqueByOfflineId(indexedItems,"docId").length);
     const raw=localStorage.getItem(SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY) || "";
     if(szzLegacyOfflineSiteCountCache.raw===raw && Date.now()-szzLegacyOfflineSiteCountCache.savedAt<SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS){
-      return szzLegacyOfflineSiteCountCache.count;
+      return remember(szzLegacyOfflineSiteCountCache.count);
     }
     const items=JSON.parse(raw || "[]");
     const localItems=Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
     const count=uniqueByOfflineId(localItems,"docId").length;
     szzLegacyOfflineSiteCountCache={raw,count,savedAt:Date.now()};
-    return count;
+    return remember(count);
   }catch(e){
-    return 0;
+    return remember(0);
   }
 }
 
