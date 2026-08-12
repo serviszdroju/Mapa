@@ -314,6 +314,8 @@ Current performance phase 145 decision: coalesce the lazy Firebase Functions imp
 
 Current performance phase 146 decision: cache pending offline photo counts briefly and invalidate them with the overall offline counts after photo save/delete/sync or matching storage changes, avoiding repeated full offline-photo IndexedDB reads during status refreshes.
 
+Current performance phase 147 decision: cache pending offline protocol counts briefly and invalidate them with the overall offline counts after protocol queue save/delete/local save or matching storage changes, reducing repeated full offline-protocol queue reads during status refreshes.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

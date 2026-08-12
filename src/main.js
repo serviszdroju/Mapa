@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-offline-photo-count-v271";
+const APP_BUILD_VERSION="2026-08-12-cache-offline-protocol-count-v272";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v271-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v272-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -9795,6 +9795,7 @@ async function saveOfflineProtocolQueueItem(item,site=selectedSite){
   const payload={...item,siteCacheKey:siteLocalCacheKey("protocolHistory",site)};
   try{
     await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.put(payload);});
+    invalidateOfflineProtocolCountCache();
     return payload;
   }catch(e){
     console.warn("IndexedDB frontu protokolů se nepodařilo uložit",e);
@@ -9842,6 +9843,7 @@ async function removeOfflineProtocolQueueItem(id){
   try{
     await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.delete(cleanId);});
   }catch(e){}
+  invalidateOfflineProtocolCountCache();
 }
 window.removeOfflineProtocolQueueItem=removeOfflineProtocolQueueItem;
 
@@ -9858,6 +9860,7 @@ function saveProtocolLocally(payload,site=selectedSite,reason=""){
     syncQueuedAt:new Date().toISOString()
   };
   appendSiteLocalArray("protocolHistory",offlinePayload,site,120);
+  invalidateOfflineProtocolCountCache();
   saveOfflineProtocolQueueItem(offlinePayload,site).catch(()=>{});
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("protocol");
@@ -9867,9 +9870,11 @@ function saveProtocolLocally(payload,site=selectedSite,reason=""){
 let protocolDraftTimer=null;
 let protocolDraftRestoreInProgress=false;
 const PROTOCOL_DRAFT_COUNT_CACHE_MS=1800;
+const OFFLINE_PROTOCOL_COUNT_CACHE_MS=1800;
 let protocolDraftCountCache=null;
 let protocolDraftCountCacheAt=0;
 let protocolDraftCountStorageLength=0;
+let offlineProtocolCountCache={count:null,savedAt:0,storageLength:-1};
 
 function clearProtocolDraftCountCache(){
   protocolDraftCountCache=null;
@@ -9877,8 +9882,13 @@ function clearProtocolDraftCountCache(){
   protocolDraftCountStorageLength=0;
 }
 window.clearProtocolDraftCountCache=clearProtocolDraftCountCache;
+function invalidateOfflineProtocolCountCache(){
+  offlineProtocolCountCache={count:null,savedAt:0,storageLength:-1};
+  invalidateSzzOfflineCountsCache();
+}
 window.addEventListener("storage",event=>{
   if(!event.key || event.key.startsWith("astipMap:protocolDraft:")) clearProtocolDraftCountCache();
+  if(!event.key || event.key.startsWith("astipMap:protocolHistory:")) invalidateOfflineProtocolCountCache();
 });
 
 function protocolDraftKey(site=selectedSite){
@@ -12653,18 +12663,30 @@ async function readPendingOfflineSitesCount(){
 }
 
 async function readPendingOfflineProtocolCount(){
+  const now=Date.now();
+  if(
+    offlineProtocolCountCache.count!==null &&
+    offlineProtocolCountCache.storageLength===localStorage.length &&
+    now-offlineProtocolCountCache.savedAt<OFFLINE_PROTOCOL_COUNT_CACHE_MS
+  ){
+    return offlineProtocolCountCache.count;
+  }
+  const remember=count=>{
+    offlineProtocolCountCache={count:Number(count) || 0,savedAt:Date.now(),storageLength:localStorage.length};
+    return offlineProtocolCountCache.count;
+  };
   try{
     const indexedItems=await readAllOfflineProtocolQueueItems();
-    if(indexedItems.length) return uniqueByOfflineId(indexedItems).length;
+    if(indexedItems.length) return remember(uniqueByOfflineId(indexedItems).length);
     const localItems=[];
     localStorageArrayEntries("astipMap:protocolHistory:").forEach(entry=>{
       entry.items
         .filter(item=>item && item._offline && item._syncStatus!=="online")
         .forEach(item=>localItems.push(item));
     });
-    return uniqueByOfflineId(localItems).length;
+    return remember(uniqueByOfflineId(localItems).length);
   }catch(e){}
-  return 0;
+  return remember(0);
 }
 
 async function readProtocolDraftCount(){
