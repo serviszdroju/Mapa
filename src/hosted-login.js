@@ -22,6 +22,14 @@ function openHostedApp(){
   window.location.href=HOSTED_APP_URL;
 }
 
+function runAfterHostedLoginPaint(fn){
+  if(typeof window.requestAnimationFrame==="function"){
+    window.requestAnimationFrame(()=>window.requestAnimationFrame(fn));
+    return;
+  }
+  Promise.resolve().then(fn);
+}
+
 window.loginPopup=function(){
   if(isLocalFileApp()){
     openHostedApp();
@@ -77,7 +85,7 @@ window.addEventListener("load",bindLoginButtons);
 window.addEventListener("load",()=>{
   if(isLocalFileApp()){
     status("Přihlášení přes otevřený soubor nejde. Přesměrovávám na webovou verzi...");
-    setTimeout(openHostedApp,1200);
+    runAfterHostedLoginPaint(openHostedApp);
     return;
   }
   bindLoginButtons();
