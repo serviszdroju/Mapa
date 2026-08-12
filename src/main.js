@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-record-site-identity-v314";
+const APP_BUILD_VERSION="2026-08-12-record-site-docid-query-v315";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v314-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v315-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1776,7 +1776,7 @@ async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
     `Offline historie dávkový dotaz selhal ${colName}`
   );
   const tasks=[];
-  for(const field of ["siteId","siteKey","firebaseDocId"]){
+  for(const field of SITE_RECORD_EQUALITY_FIELDS){
     tasks.push(()=>readFirestoreEqualsAny(
       fb.fsMod,
       db,
@@ -7680,6 +7680,8 @@ async function readFirestoreEqualsAny(fsMod,database,colName,field,values,addDoc
   return false;
 }
 
+const SITE_RECORD_EQUALITY_FIELDS=["siteId","siteKey","firebaseDocId","siteDocId","siteLegacyId"];
+
 async function runBoundedFirestoreTasks(tasks=[],concurrency=6){
   const queue=(Array.isArray(tasks) ? tasks : []).filter(task=>typeof task==="function");
   if(!queue.length) return;
@@ -9783,7 +9785,22 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
   try{
     const arr=readSiteLocalArray(kind,site);
     const id=safe(item && item._id);
-    let next=(id ? arr.filter(x=>safe(x && x._id)!==id) : arr).concat([{...item}]);
+    const identity=site && item && typeof item==="object" ? siteRecordIdentity(site) : null;
+    const enrichedItem=identity ? {
+      ...item,
+      siteId:safe(item.siteId) || identity.siteId,
+      siteLegacyId:safe(item.siteLegacyId) || identity.siteLegacyId,
+      siteDocId:safe(item.siteDocId) || identity.siteDocId,
+      firebaseDocId:safe(item.firebaseDocId) || identity.firebaseDocId,
+      siteKey:safe(item.siteKey) || identity.siteKey,
+      siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...identity.siteKeys]),
+      sourceGroupKey:safe(item.sourceGroupKey) || identity.sourceGroupKey,
+      sourceIdentity:safe(item.sourceIdentity) || identity.sourceIdentity,
+      siteName:safe(item.siteName) || identity.siteName,
+      siteAddress:safe(item.siteAddress) || identity.siteAddress,
+      siteSource:safe(item.siteSource) || identity.siteSource
+    } : {...item};
+    let next=(id ? arr.filter(x=>safe(x && x._id)!==id) : arr).concat([enrichedItem]);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(kind,site);
     const raw=JSON.stringify(next);
@@ -10394,8 +10411,13 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
       await appendEmbeddedSiteItem("protocolRefs",{
         _id:id,
         siteId:payload.siteId,
+        siteLegacyId:payload.siteLegacyId,
+        siteDocId:payload.siteDocId,
         siteKey:payload.siteKey,
         firebaseDocId:payload.firebaseDocId,
+        siteKeys:payload.siteKeys,
+        sourceGroupKey:payload.sourceGroupKey,
+        sourceIdentity:payload.sourceIdentity,
         date:payload.date,
         createdAt:payload.createdAt || payload.savedAt
       },site);
@@ -11319,7 +11341,7 @@ async function loadHistory(siteId){
           }
           return textQueryTasks;
         };
-        const renderLegacyTextMatches=()=>{
+        const renderMatchingItems=()=>{
           if(!stillSameSite()) return;
           const finalItems=items.filter(item=>recordMatchesSite(item,selectedSite));
           if(finalItems.length<=detailHistoryItems.length) return;
@@ -11335,6 +11357,7 @@ async function loadHistory(siteId){
           writeDetailHistoryCache(selectedSite,finalItems);
           renderHistory();
         };
+        const renderLegacyTextMatches=renderMatchingItems;
         const runTextFallback=async(background=false)=>{
           const textQueryTasks=buildTextQueryTasks();
           if(!textQueryTasks.length) return;
@@ -11358,7 +11381,7 @@ async function loadHistory(siteId){
           `Historie dávkový dotaz selhal ${colName}`
         );
         const queryTasks=[];
-        for(const field of ["siteId","siteKey","firebaseDocId"]){
+        for(const field of SITE_RECORD_EQUALITY_FIELDS){
           queryTasks.push(()=>readFirestoreEqualsAny(
             fb.fsMod,
             db,
@@ -11382,8 +11405,27 @@ async function loadHistory(siteId){
             });
           }
         }
-        await runBoundedFirestoreTasks(queryTasks,6);
+        const runQueryFallback=async(background=false)=>{
+          if(!queryTasks.length) return;
+          if(!background){
+            await runBoundedFirestoreTasks(queryTasks,6);
+            return;
+          }
+          runWhenIdle(async()=>{
+            const before=items.length;
+            await runBoundedFirestoreTasks(queryTasks,3);
+            if(items.length>before) renderMatchingItems();
+            await runTextFallback(true);
+          },900);
+        };
+        if(siteKeysBatchOk && hasMatchingType()){
+          renderMatchingItems();
+          await runQueryFallback(true);
+          return;
+        }
+        await runQueryFallback(false);
         if(hasMatchingType()){
+          renderMatchingItems();
           await runTextFallback(true);
           return;
         }
@@ -12022,8 +12064,13 @@ if(serviceForm){
       await appendEmbeddedSiteItem("serviceRefs",{
         _id:servicePayload._id,
         siteId:servicePayload.siteId,
+        siteLegacyId:servicePayload.siteLegacyId,
+        siteDocId:servicePayload.siteDocId,
         siteKey:servicePayload.siteKey,
         firebaseDocId:servicePayload.firebaseDocId,
+        siteKeys:servicePayload.siteKeys,
+        sourceGroupKey:servicePayload.sourceGroupKey,
+        sourceIdentity:servicePayload.sourceIdentity,
         checkDate:servicePayload.checkDate,
         createdAt:servicePayload.createdAt
       },selectedSite);
@@ -13950,7 +13997,7 @@ async function getLastProtocol(site=selectedSite){
       "Poslední protokol dávkový dotaz selhal"
     );
     const protocolQueryTasks=[];
-    for(const field of ["siteId","siteKey","firebaseDocId"]){
+    for(const field of SITE_RECORD_EQUALITY_FIELDS){
       protocolQueryTasks.push(()=>readFirestoreEqualsAny(
         fb.fsMod,
         db,
@@ -14334,8 +14381,13 @@ protocolFormEl.addEventListener("submit",async e=>{
     await appendEmbeddedSiteItem("protocolRefs",{
       _id:ref.id,
       siteId:payload.siteId,
+      siteLegacyId:payload.siteLegacyId,
+      siteDocId:payload.siteDocId,
       siteKey:payload.siteKey,
       firebaseDocId:payload.firebaseDocId,
+      siteKeys:payload.siteKeys,
+      sourceGroupKey:payload.sourceGroupKey,
+      sourceIdentity:payload.sourceIdentity,
       date:payload.date,
       createdAt:payload.createdAt
     },selectedSite);

@@ -1,5 +1,5 @@
 let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
-const SZZ_ANDROID_APK_URL="./downloads/szz-mapa-tablet-1.0.0.apk";
+const SZZ_ANDROID_APK_URL="./downloads/szz-mapa-tablet-1.0.1.apk";
 let szzApkAvailabilityPromise=null;
 
 function setTextIfChanged(el,value){

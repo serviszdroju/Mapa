@@ -400,6 +400,8 @@ Current performance phase 188 decision: cache stable sidebar render and counter 
 
 Current performance phase 189 decision: enrich new protocol, service-record, photo, local-cache, and offline-sync payloads through one shared site identity helper with canonical `siteId`, legacy ID, document ID, `siteKeys`, source group, and source identity, preserving all old fallback matching while improving the fast Firestore/site-key path for newly written records.
 
+Current performance phase 190 decision: read detail history and latest-protocol fallbacks through the shared site identity field list (`siteId`, `siteKey`, `firebaseDocId`, `siteDocId`, and `siteLegacyId`), enrich embedded protocol/service refs with the same identity fields, and render modern `siteKeys` history results immediately while older equality/text fallbacks continue in the background.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
