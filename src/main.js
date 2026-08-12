@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-filter-option-dom-v288";
+const APP_BUILD_VERSION="2026-08-12-cache-new-site-field-elements-v289";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v288-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v289-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -3207,6 +3207,36 @@ function createNewSiteField(spec,options={}){
   return field;
 }
 
+let newSiteFieldElementMap=null;
+function invalidateNewSiteFieldElementMap(){
+  newSiteFieldElementMap=null;
+}
+function newSiteFieldElementsByKey(){
+  const box=document.getElementById("newAllFieldsBox");
+  if(newSiteFieldElementMap && box){
+    let current=true;
+    newSiteFieldElementMap.forEach(elements=>{
+      (elements || []).forEach(el=>{
+        if(!box.contains(el)) current=false;
+      });
+    });
+    if(current) return newSiteFieldElementMap;
+  }
+  const map=new Map();
+  if(!box){
+    newSiteFieldElementMap=map;
+    return map;
+  }
+  box.querySelectorAll("[data-new-key]").forEach(el=>{
+    const key=el.dataset.newKey;
+    if(!key) return;
+    if(!map.has(key)) map.set(key,[]);
+    map.get(key).push(el);
+  });
+  newSiteFieldElementMap=map;
+  return map;
+}
+
 function renderNewSiteFields(options={}){
   const box=document.getElementById("newAllFieldsBox");
   if(!box) return;
@@ -3217,9 +3247,11 @@ function renderNewSiteFields(options={}){
     grid.className="new-data-grid";
     grid.appendChild(fragment);
     box.replaceChildren(grid);
+    invalidateNewSiteFieldElementMap();
     return;
   }
   box.replaceChildren(fragment);
+  invalidateNewSiteFieldElementMap();
 }
 
 function forceRenderNewSiteForm(){
@@ -3234,16 +3266,18 @@ function renderNewSiteAllFields(){
 
 function collectNewSiteAllFields(){
   const raw={};
-  document.querySelectorAll("#newAllFieldsBox [data-new-key]").forEach(el=>{
-    const key=el.dataset.newKey;
-    const val=String(el.value||"").trim();
-    if(!key || !val) return;
-    raw[key]=val;
+  newSiteFieldElementsByKey().forEach(elements=>{
+    (elements || []).forEach(el=>{
+      const key=el.dataset.newKey;
+      const val=String(el.value||"").trim();
+      if(!key || !val) return;
+      raw[key]=val;
 
-    const n=newSiteFieldNorm(key);
-    if(n==="perioda kontrol"){
-      raw["Perioda kontrol"]=val;
-    }
+      const n=newSiteFieldNorm(key);
+      if(n==="perioda kontrol"){
+        raw["Perioda kontrol"]=val;
+      }
+    });
   });
   if(typeof window.applyWatchSelfAliases==="function"){
     window.applyWatchSelfAliases(raw, raw["Hlídáme sami termín"] || raw["Hlídáme kontroly sami"] || "ne");
@@ -3252,7 +3286,11 @@ function collectNewSiteAllFields(){
 }
 
 function clearNewSiteAllFields(){
-  document.querySelectorAll("#newAllFieldsBox [data-new-key]").forEach(el=>{el.value="";});
+  newSiteFieldElementsByKey().forEach(elements=>{
+    (elements || []).forEach(el=>{
+      if(el.value!=="") el.value="";
+    });
+  });
 }
 
 function newSiteToRow(docId, d){
@@ -4405,8 +4443,9 @@ function groupPopupHtml(group){
   return html;
 }
 function setNewDataFieldValue(key,value){
-  document.querySelectorAll("#newAllFieldsBox [data-new-key]").forEach(el=>{
-    if(el.dataset.newKey===key) el.value=value || "";
+  const next=String(value || "");
+  (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
+    if(el.value!==next) el.value=next;
   });
 }
 function copyPlaceFieldsToNewSource(site){
