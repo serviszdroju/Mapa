@@ -2116,7 +2116,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-install-offline-counts-v278";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-skip-install-prepare-dom-writes-v279";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -2645,6 +2645,9 @@ async function szzInstallOfflineCounts(){
 function szzInstallSetTextIfChanged(el,value){
   if(el && el.textContent!==String(value)) el.textContent=String(value);
 }
+function szzInstallSetDisabledIfChanged(el,value){
+  if(el && el.disabled!==!!value) el.disabled=!!value;
+}
 
 window.updateSzzOfflineAppStatus=window.updateSzzOfflineAppStatus || async function(){
   const counts=await szzInstallOfflineCounts();
@@ -2755,10 +2758,10 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
   const button=document.getElementById("prepareOfflineAppBtn");
   const text=document.getElementById("appSyncText");
   if(button){
-    button.disabled=true;
-    button.textContent="Připravuji offline...";
+    szzInstallSetDisabledIfChanged(button,true);
+    szzInstallSetTextIfChanged(button,"Připravuji offline...");
   }
-  if(text) text.textContent="Ukládám aplikaci a servisní data do telefonu.";
+  szzInstallSetTextIfChanged(text,"Ukládám aplikaci a servisní data do telefonu.");
   try{
     const storage=await window.requestSzzPersistentStorage({request:true});
     if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
@@ -2778,14 +2781,14 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
       cachedRows
     };
     szzInstallWriteOfflineReady(ready);
-    if(text) text.textContent=cachedRows ? `Offline připraveno: ${cachedRows} bodů v telefonu.` : "Aplikace je připravená pro offline otevření.";
+    szzInstallSetTextIfChanged(text,cachedRows ? `Offline připraveno: ${cachedRows} bodů v telefonu.` : "Aplikace je připravená pro offline otevření.");
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
     return ready;
   }finally{
     if(button){
-      button.disabled=false;
-      button.textContent="Připravit offline data";
+      szzInstallSetDisabledIfChanged(button,false);
+      szzInstallSetTextIfChanged(button,"Připravit offline data");
     }
   }
 };
