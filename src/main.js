@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-delegate-gallery-thumb-clicks-v292";
+const APP_BUILD_VERSION="2026-08-12-delegate-main-history-clicks-v293";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v292-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v293-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11530,6 +11530,17 @@ function renderMainProtocolHistoryShell(drawer){
   return {close,list};
 }
 
+function bindMainProtocolHistoryListClick(list){
+  if(!list || list.__szzMainHistoryClickBound) return;
+  list.__szzMainHistoryClickBound=true;
+  list.addEventListener("click",event=>{
+    const btn=event.target.closest && event.target.closest("[data-history-site-key]");
+    if(!btn || !list.contains(btn)) return;
+    const key=btn.getAttribute("data-history-site-key");
+    if(key && typeof window.openDetailById==="function") window.openDetailById(key);
+  });
+}
+
 async function openMainProtocolHistoryPanel(){
   if(!canViewMainProtocolHistory()){
     showSaveConfirmation("Hlavní historii protokolů může zobrazit jen správce nebo Iva.");
@@ -11543,6 +11554,7 @@ async function openMainProtocolHistoryPanel(){
   drawer.scrollTop=0;
   const {close,list}=renderMainProtocolHistoryShell(drawer);
   if(close) close.onclick=()=>drawer.classList.remove("open");
+  bindMainProtocolHistoryListClick(list);
   const items=await loadMainProtocolHistoryItems();
   if(!list) return;
   if(!items.length){
@@ -11573,12 +11585,6 @@ async function openMainProtocolHistoryPanel(){
     fragment.appendChild(row);
   });
   list.replaceChildren(fragment);
-  list.querySelectorAll("[data-history-site-key]").forEach(btn=>{
-    btn.onclick=()=>{
-      const key=btn.getAttribute("data-history-site-key");
-      if(key && typeof window.openDetailById==="function") window.openDetailById(key);
-    };
-  });
 }
 window.openMainProtocolHistoryPanel=openMainProtocolHistoryPanel;
 
