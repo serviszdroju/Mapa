@@ -52,6 +52,7 @@ function clearExplicitSignOut(){
 }
 let compatAuthClient=null;
 let compatAuthPersistencePromise=null;
+let compatFirebaseAppCache={namespace:null,value:null};
 const FIREBASE_COMPAT_SCRIPT_URLS=[
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
@@ -101,12 +102,16 @@ function loadCompatFirebaseScripts(){
 }
 window.__loadFirebaseCompatScripts=window.__loadFirebaseCompatScripts || loadCompatFirebaseScripts;
 function ensureCompatFirebaseApp(){
-  if(!window.firebase || !firebase.initializeApp) return null;
+  const compat=window.firebase;
+  if(!compat || !compat.initializeApp) return null;
+  if(compatFirebaseAppCache.namespace===compat && compatFirebaseAppCache.value) return compatFirebaseAppCache.value;
   try{
-    if((!firebase.apps || !firebase.apps.length) && window.__firebaseConfig){
-      firebase.initializeApp(window.__firebaseConfig);
+    if((!compat.apps || !compat.apps.length) && window.__firebaseConfig){
+      compat.initializeApp(window.__firebaseConfig);
     }
-    return firebase.apps && firebase.apps.length ? firebase : null;
+    const value=compat.apps && compat.apps.length ? compat : null;
+    if(value) compatFirebaseAppCache={namespace:compat,value};
+    return value;
   }catch(e){
     console.warn("Firebase compat aplikace se nepodařila připravit",e);
     return null;
@@ -299,7 +304,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-late-auth-listener-v267";
+const APP_BUILD_VERSION="2026-08-12-cache-main-compat-app-v268";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -568,15 +573,8 @@ if(firebaseReady){
     ]);
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
-    const compatAvailable=!!(window.firebase && firebase.initializeApp && firebase.auth);
+    const compatAvailable=!!(ensureCompatFirebaseApp() && window.firebase && firebase.auth);
     if(compatAvailable){
-      try{
-        if((!firebase.apps || !firebase.apps.length) && window.__firebaseConfig){
-          firebase.initializeApp(window.__firebaseConfig);
-        }
-      }catch(initError){
-        console.warn("Firebase compat inicializace po chybě importu selhala",initError);
-      }
       firebaseReady=true;
       firebaseUnifiedPrimary=true;
       window.firebaseReady=true;
@@ -654,13 +652,7 @@ if(firebaseReady){
   }
   window.fb=fb;
   window.db=db;
-  try{
-    if(window.firebase && firebase.initializeApp && (!firebase.apps || !firebase.apps.length)){
-      firebase.initializeApp(firebaseConfig);
-    }
-  }catch(e){
-    console.warn("Compat Firebase se nepodařilo inicializovat",e);
-  }
+  try{ ensureCompatFirebaseApp(); }catch(e){ console.warn("Compat Firebase se nepodařilo inicializovat",e); }
   const firebaseBox=document.getElementById("firebaseBox");
   if(firebaseBox) firebaseBox.style.display="none";
 
@@ -1349,7 +1341,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v267-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v268-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
