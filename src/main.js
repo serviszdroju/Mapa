@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-protocol-contact-fill-v308";
+const APP_BUILD_VERSION="2026-08-12-cache-gallery-panel-nodes-v309";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v308-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v309-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7862,15 +7862,14 @@ function resetDetailLazyLoadState(site){
   sitePhotoRenderSignature="";
   const history=document.getElementById("history");
   if(history) history.textContent="Zatím nenačteno.";
-  const photoList=document.getElementById("sitePhotosList");
+  const photoList=sitePhotosListNode();
   if(photoList){
     const placeholder=document.createElement("div");
     placeholder.className="site-photos-empty";
     placeholder.textContent="Fotografie se načtou po otevření Galerie.";
     photoList.replaceChildren(placeholder);
   }
-  const photoStatus=document.getElementById("sitePhotosStatus");
-  if(photoStatus) photoStatus.textContent="";
+  setSitePhotosStatusText("");
   updateOfficialProtocolSourceInfo();
 }
 function startDetailAsyncLoads(site){
@@ -7886,8 +7885,8 @@ function ensureDetailTabLoad(tabName=activeDetailTabName(),site=selectedSite){
   if(tabName==="gallery"){
     if(detailLazyLoadState.photosLoaded || detailLazyLoadState.photosLoading) return;
     detailLazyLoadState.photosLoading=true;
-    const st=document.getElementById("sitePhotosStatus");
-    if(st && !st.textContent) st.textContent="Načítám fotografie...";
+    const st=sitePhotosStatusNode();
+    if(st && !st.textContent) setSitePhotosStatusText("Načítám fotografie...");
     Promise.resolve(loadSitePhotos(site))
       .then(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.photosLoaded=true; })
       .catch(e=>{
@@ -12454,6 +12453,18 @@ let sitePhotoItems=[];
 let sitePhotoIndex=0;
 let sitePhotoRenderSignature="";
 let sitePhotoDeleteTokens=new Map();
+function sitePhotosNode(id){
+  return formFieldNode(id);
+}
+function sitePhotosListNode(){
+  return sitePhotosNode("sitePhotosList");
+}
+function sitePhotosStatusNode(){
+  return sitePhotosNode("sitePhotosStatus");
+}
+function setSitePhotosStatusText(text){
+  setTextIfChanged(sitePhotosStatusNode(),text);
+}
 const LOCAL_PHOTO_DB_NAME="astipMapLocalPhotos";
 const LOCAL_PHOTO_STORE="photos";
 
@@ -12658,8 +12669,7 @@ async function syncOfflinePhotos(options={}){
     showSaveConfirmation(synced===1 ? "Offline fotografie uložena online." : `Offline fotografie uloženy online: ${synced}.`);
   }
   if(failed && !options.silent){
-    const st=document.getElementById("sitePhotosStatus");
-    if(st) st.textContent=`Některé offline fotografie ještě čekají na synchronizaci: ${failed}.`;
+    setSitePhotosStatusText(`Některé offline fotografie ještě čekají na synchronizaci: ${failed}.`);
   }
   if((synced || failed) && window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   return synced;
@@ -13149,16 +13159,16 @@ if("serviceWorker" in navigator){
 }
 
 function resetSitePhotoInput(){
-  const input=document.getElementById("sitePhotosInput");
-  const camera=document.getElementById("siteCameraInput");
+  const input=sitePhotosNode("sitePhotosInput");
+  const camera=sitePhotosNode("siteCameraInput");
   if(input) input.value="";
   if(camera) camera.value="";
   renderSitePhotoPreview();
 }
 
 function selectedSitePhotoFiles(){
-  const gallery=document.getElementById("sitePhotosInput");
-  const camera=document.getElementById("siteCameraInput");
+  const gallery=sitePhotosNode("sitePhotosInput");
+  const camera=sitePhotosNode("siteCameraInput");
   return [
     ...Array.from(gallery?.files || []),
     ...Array.from(camera?.files || [])
@@ -13166,7 +13176,7 @@ function selectedSitePhotoFiles(){
 }
 
 function renderSitePhotoPreview(){
-  const box=document.getElementById("sitePhotoPreview");
+  const box=sitePhotosNode("sitePhotoPreview");
   if(!box) return;
   sitePhotoPreviewUrls.forEach(url=>URL.revokeObjectURL(url));
   sitePhotoPreviewUrls=[];
@@ -13400,7 +13410,7 @@ function bindSitePhotoListClicks(list){
 }
 
 function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
-  const list=document.getElementById("sitePhotosList");
+  const list=sitePhotosListNode();
   if(!list) return;
   bindSitePhotoListClicks(list);
   if(Array.isArray(items) && items!==sitePhotoItems){
@@ -13560,7 +13570,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
 }
 
 async function loadSitePhotos(site=selectedSite){
-  const st=document.getElementById("sitePhotosStatus");
+  const st=sitePhotosStatusNode();
   if(!st) return;
   const requestedKey=detailLazyKey(site);
   const stillSameSite=()=>!requestedKey || requestedKey===detailLazyKey(selectedSite);
@@ -13574,7 +13584,7 @@ async function loadSitePhotos(site=selectedSite){
     if(!stillSameSite()) return;
     items.sort((a,b)=>historyTimeValue(b)-historyTimeValue(a));
     renderSitePhotos(items);
-    st.textContent=message || (items.length ? `Načteno fotografií: ${items.length}.` : "");
+    setSitePhotosStatusText(message || (items.length ? `Načteno fotografií: ${items.length}.` : ""));
   };
 
   if(site){
@@ -13592,7 +13602,7 @@ async function loadSitePhotos(site=selectedSite){
     return;
   }
   if(!stillSameSite()) return;
-  st.textContent="Načítám fotografie...";
+  setSitePhotosStatusText("Načítám fotografie...");
   const signedUser=await waitForFirebaseUser();
   if(!stillSameSite()) return;
   if(!signedUser){
@@ -13617,25 +13627,24 @@ async function loadSitePhotos(site=selectedSite){
     if(items.length){
       renderLoaded(`Načteno lokálních fotografií: ${items.length}. Online fotky se nepodařilo načíst.`);
     }else{
-      if(stillSameSite()) st.textContent="Chyba načtení fotografií: "+e.message;
+      if(stillSameSite()) setSitePhotosStatusText("Chyba načtení fotografií: "+e.message);
     }
   }
 }
 
 async function deleteCurrentSitePhoto(){
-  const st=document.getElementById("sitePhotosStatus");
   const item=sitePhotoItems[sitePhotoIndex];
   if(!item || !safe(item._id)){
-    if(st) st.textContent="Není vybraná fotografie ke smazání.";
+    setSitePhotosStatusText("Není vybraná fotografie ke smazání.");
     return;
   }
   if(!canDeleteSitePhoto(item)){
-    if(st) st.textContent="Tuhle fotografii může smazat správce nebo ten, kdo ji nahrál.";
+    setSitePhotosStatusText("Tuhle fotografii může smazat správce nebo ten, kdo ji nahrál.");
     return;
   }
   if(!confirm("Opravdu smazat tuto fotografii?")) return;
   try{
-    if(st) st.textContent="Mažu fotografii...";
+    setSitePhotosStatusText("Mažu fotografii...");
     const id=safe(item._id);
     await deleteSiteChildItem("photos",id,selectedSite);
     await removeEmbeddedSiteItem("photos",id,selectedSite);
@@ -13646,19 +13655,19 @@ async function deleteCurrentSitePhoto(){
     sitePhotoItems=sitePhotoItems.filter(photo=>safe(photo && photo._id)!==id);
     if(sitePhotoIndex>=sitePhotoItems.length) sitePhotoIndex=Math.max(0,sitePhotoItems.length-1);
     renderSitePhotos(sitePhotoItems,true);
-    if(st) st.textContent="Fotografie smazána z bodu.";
+    setSitePhotosStatusText("Fotografie smazána z bodu.");
     showSaveConfirmation("Fotografie smazána z bodu.");
   }catch(e){
-    if(st) st.textContent="Chyba mazání fotografie: "+e.message;
+    setSitePhotosStatusText("Chyba mazání fotografie: "+e.message);
   }
 }
 
 async function uploadSitePhotos(){
-  const st=document.getElementById("sitePhotosStatus");
+  const st=sitePhotosStatusNode();
   const files=selectedSitePhotoFiles();
   if(!st) return;
-  if(!selectedSite){st.textContent="Není vybraný bod.";return;}
-  if(!files.length){st.textContent="Nejdřív vyber fotografie.";return;}
+  if(!selectedSite){setSitePhotosStatusText("Není vybraný bod.");return;}
+  if(!files.length){setSitePhotosStatusText("Nejdřív vyber fotografie.");return;}
 
   try{
     const signedUser=(firebaseReady && db) ? await waitForFirebaseUser(1200) : null;
@@ -13694,7 +13703,7 @@ async function uploadSitePhotos(){
     });
 
     const saveOfflinePhoto=async (photoId,file,reason,index)=>{
-      st.textContent=`Ukládám fotografii ${index+1}/${files.length} lokálně...`;
+      setSitePhotosStatusText(`Ukládám fotografii ${index+1}/${files.length} lokálně...`);
       const createdAt=new Date().toISOString();
       const offlineData=await prepareOfflinePhotoData(file);
       const photoPayload={
@@ -13729,12 +13738,12 @@ async function uploadSitePhotos(){
         continue;
       }
 
-      st.textContent=`Zmenšuji fotografii ${i+1}/${files.length}...`;
+      setSitePhotosStatusText(`Zmenšuji fotografii ${i+1}/${files.length}...`);
       let uploadFile;
       let cloudinaryResult;
       try{
         uploadFile=await prepareCloudinaryUploadFile(file);
-        st.textContent=`Nahrávám fotografii ${i+1}/${files.length} na Cloudinary...`;
+        setSitePhotosStatusText(`Nahrávám fotografii ${i+1}/${files.length} na Cloudinary...`);
         cloudinaryResult=await uploadPhotoToCloudinary(photoId,uploadFile,selectedSite,uploadFolderName);
       }catch(uploadError){
         console.warn("Online nahrání fotky selhalo, ukládám lokálně",uploadError);
@@ -13766,23 +13775,23 @@ async function uploadSitePhotos(){
       appendSiteLocalArray("photos",photoPayload,selectedSite,0);
       if(!childOk && !embeddedOk){
         localOnlyCount++;
-        st.textContent="Fotografie je na Cloudinary. Firebase nepovolil uložení odkazu k bodu, proto je odkaz uložen lokálně v tomto prohlížeči.";
+        setSitePhotosStatusText("Fotografie je na Cloudinary. Firebase nepovolil uložení odkazu k bodu, proto je odkaz uložen lokálně v tomto prohlížeči.");
       }
       onlineCount++;
       renderSitePhotos([photoPayload,...sitePhotoItems.filter(photo=>safe(photo._id)!==photoPayload._id)]);
     }
 
     if(offlineCount && onlineCount){
-      st.textContent=`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} online, ${offlineCount} lokálně v tomto zařízení.`;
+      setSitePhotosStatusText(`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} online, ${offlineCount} lokálně v tomto zařízení.`);
       showSaveConfirmation("Fotografie uloženy.");
     }else if(offlineCount){
-      st.textContent=`Fotografie uloženy lokálně do složky ${uploadFolderName}: ${offlineCount}. Po připojení se samy odešlou online.`;
+      setSitePhotosStatusText(`Fotografie uloženy lokálně do složky ${uploadFolderName}: ${offlineCount}. Po připojení se samy odešlou online.`);
       showSaveConfirmation("Fotografie uloženy lokálně.");
     }else if(localOnlyCount){
-      st.textContent=`Fotografie nahrány na Cloudinary do složky ${uploadFolderName}. ${localOnlyCount} odkazů Firebase nepovolil uložit k bodu, proto jsou uložené lokálně v tomto prohlížeči.`;
+      setSitePhotosStatusText(`Fotografie nahrány na Cloudinary do složky ${uploadFolderName}. ${localOnlyCount} odkazů Firebase nepovolil uložit k bodu, proto jsou uložené lokálně v tomto prohlížeči.`);
       showSaveConfirmation("Fotografie nahrány.");
     }else{
-      st.textContent=`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} (Cloudinary).`;
+      setSitePhotosStatusText(`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} (Cloudinary).`);
       showSaveConfirmation("Fotografie uloženy.");
     }
     if(offlineCount && navigator.onLine!==false && typeof syncOfflineChanges==="function"){
@@ -13791,7 +13800,7 @@ async function uploadSitePhotos(){
     resetSitePhotoInput();
     try{ refreshDetailTabLoad("gallery",selectedSite); }catch(e){}
   }catch(e){
-    st.textContent="Chyba uložení fotografií: "+e.message;
+    setSitePhotosStatusText("Chyba uložení fotografií: "+e.message);
   }
 }
 
@@ -14307,24 +14316,23 @@ if(protoDeviceSelectEl){
   }
 });
 
-const selectGalleryPhotosBtn=document.getElementById("selectGalleryPhotosBtn");
-if(selectGalleryPhotosBtn && selectGalleryPhotosBtn.tagName==="BUTTON") selectGalleryPhotosBtn.addEventListener("click",()=>document.getElementById("sitePhotosInput")?.click());
-const selectCameraPhotosBtn=document.getElementById("selectCameraPhotosBtn");
-if(selectCameraPhotosBtn && selectCameraPhotosBtn.tagName==="BUTTON") selectCameraPhotosBtn.addEventListener("click",()=>document.getElementById("siteCameraInput")?.click());
+const selectGalleryPhotosBtn=sitePhotosNode("selectGalleryPhotosBtn");
+if(selectGalleryPhotosBtn && selectGalleryPhotosBtn.tagName==="BUTTON") selectGalleryPhotosBtn.addEventListener("click",()=>sitePhotosNode("sitePhotosInput")?.click());
+const selectCameraPhotosBtn=sitePhotosNode("selectCameraPhotosBtn");
+if(selectCameraPhotosBtn && selectCameraPhotosBtn.tagName==="BUTTON") selectCameraPhotosBtn.addEventListener("click",()=>sitePhotosNode("siteCameraInput")?.click());
 document.addEventListener("change",e=>{
   const target=e.target;
   if(!target || (target.id!=="sitePhotosInput" && target.id!=="siteCameraInput")) return;
   renderSitePhotoPreview();
-  const st=document.getElementById("sitePhotosStatus");
   const count=selectedSitePhotoFiles().length;
-  if(st && count) st.textContent=`Vybráno fotografií: ${count}.`;
+  if(count) setSitePhotosStatusText(`Vybráno fotografií: ${count}.`);
 });
 document.addEventListener("click",e=>{
   const picker=e.target && e.target.closest ? e.target.closest("[data-photo-picker]") : null;
   if(!picker || picker.tagName!=="BUTTON") return;
   e.preventDefault();
   const inputId=picker.getAttribute("data-photo-picker")==="camera" ? "siteCameraInput" : "sitePhotosInput";
-  document.getElementById(inputId)?.click();
+  sitePhotosNode(inputId)?.click();
 });
 document.addEventListener("click",e=>{
   const btn=e.target && e.target.closest ? e.target.closest("#uploadSitePhotosBtn") : null;
