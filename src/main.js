@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-gallery-panel-nodes-v309";
+const APP_BUILD_VERSION="2026-08-12-cache-detail-history-node-v310";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v309-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v310-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7470,6 +7470,9 @@ window.openDetail=function(i){
 }
 let detailHistoryItems=[];
 let detailHistoryIndex=0;
+function detailHistoryNode(){
+  return formFieldNode("history");
+}
 let protocolEditState=null;
 const DETAIL_HISTORY_CACHE_MS=45000;
 const DETAIL_HISTORY_MUTATION_KINDS=new Set(["protocolHistory","serviceHistory","protocols","serviceRecords"]);
@@ -7860,7 +7863,7 @@ function resetDetailLazyLoadState(site){
   sitePhotoItems=[];
   sitePhotoIndex=0;
   sitePhotoRenderSignature="";
-  const history=document.getElementById("history");
+  const history=detailHistoryNode();
   if(history) history.textContent="Zatím nenačteno.";
   const photoList=sitePhotosListNode();
   if(photoList){
@@ -10863,7 +10866,7 @@ function isHistoryAdmin(){
 }
 
 function prependHistoryNotice(message){
-  const history=document.getElementById("history");
+  const history=detailHistoryNode();
   if(!history) return;
   const note=document.createElement("p");
   note.className="small";
@@ -10949,7 +10952,7 @@ function bindDetailHistoryActions(history){
 }
 
 function renderHistory(){
-  const history=document.getElementById("history");
+  const history=detailHistoryNode();
   if(!history) return;
   bindDetailHistoryActions(history);
   if(!canViewProtocolHistory()){
@@ -11072,7 +11075,7 @@ function renderHistory(){
 }
 
 async function loadHistory(siteId){
-  const history=document.getElementById("history");
+  const history=detailHistoryNode();
   if(!history) return;
   const requestedKey=detailLazyKey(selectedSite);
   const stillSameSite=()=>!requestedKey || requestedKey===detailLazyKey(selectedSite);

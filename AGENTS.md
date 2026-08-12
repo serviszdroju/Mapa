@@ -390,6 +390,8 @@ Current performance phase 183 decision: use the cached form-field lookup when sy
 
 Current performance phase 184 decision: cache stable Galerie panel nodes and route gallery status/list/input/preview lookups through shared helpers, preserving the same lazy photo loading, preview, upload, delete, offline sync, and gallery rendering behavior while reducing repeated DOM queries and duplicate status writes.
 
+Current performance phase 185 decision: cache the detail history container node and reuse it during detail reset, history notices, history rendering, and history loading, preserving the same Protokol history UI and delegated controls while reducing repeated `#history` DOM lookups.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
