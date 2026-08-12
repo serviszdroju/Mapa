@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-local-detail-read-cache-v318";
+const APP_BUILD_VERSION="2026-08-12-parallel-main-history-v319";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v318-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v319-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11725,8 +11725,14 @@ async function loadMainProtocolHistoryItems(){
   const addItem=item=>{
     itemDedupe.add(item);
   };
-  (await readAllLocalAndIndexedProtocolHistoryItems()).forEach(addItem);
+  const localItemsPromise=readAllLocalAndIndexedProtocolHistoryItems()
+    .catch(e=>{
+      console.warn("Lokální hlavní historie protokolů nejde načíst",e);
+      return [];
+    });
+  let firebaseItemsPromise=Promise.resolve([]);
   if(firebaseReady && db && fb.fsMod && currentUser && navigator.onLine !== false){
+    firebaseItemsPromise=(async()=>{
     try{
       const {collection,getDocs,query,orderBy,limit:queryLimit}=fb.fsMod;
       let snap=null;
@@ -11738,11 +11744,18 @@ async function loadMainProtocolHistoryItems(){
         }
       }
       if(!snap) snap=await getDocs(collection(db,"protocols"));
-      snap.forEach(docSnap=>addItem({...docSnap.data(),_type:"Protokol",_collection:"protocols",_id:docSnap.id}));
+      const firebaseItems=[];
+      snap.forEach(docSnap=>firebaseItems.push({...docSnap.data(),_type:"Protokol",_collection:"protocols",_id:docSnap.id}));
+      return firebaseItems;
     }catch(e){
       console.warn("Hlavní historie protokolů nejde načíst",e);
+      return [];
     }
+    })();
   }
+  const [localItems,firebaseItems]=await Promise.all([localItemsPromise,firebaseItemsPromise]);
+  localItems.forEach(addItem);
+  firebaseItems.forEach(addItem);
   const finalItems=items
     .filter(isProtocolHistoryItem)
     .sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a))
