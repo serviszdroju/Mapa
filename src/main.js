@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-offline-photo-read-cache-v325";
+const APP_BUILD_VERSION="2026-08-12-offline-site-queue-cache-v326";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v325-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v326-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10235,7 +10235,18 @@ async function saveOfflineSiteQueueItem(item){
 }
 window.saveOfflineSiteQueueItem=saveOfflineSiteQueueItem;
 
-async function readOfflineSiteQueueItems(){
+const OFFLINE_SITE_QUEUE_READ_CACHE_MS=1200;
+let offlineSiteQueueReadCache={savedAt:0,items:null,promise:null};
+
+function cloneOfflineSiteQueueItems(items=[]){
+  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
+}
+
+function clearOfflineSiteQueueReadCache(){
+  offlineSiteQueueReadCache={savedAt:0,items:null,promise:null};
+}
+
+async function computeOfflineSiteQueueItems(){
   try{
     const items=await withSzzOfflineQueueStore(SZZ_OFFLINE_SITE_QUEUE_STORE,"readonly",(store,setResult)=>{
       const req=store.getAll();
@@ -10246,6 +10257,27 @@ async function readOfflineSiteQueueItems(){
   }catch(e){
     return [];
   }
+}
+
+async function readOfflineSiteQueueItems(){
+  const now=Date.now();
+  if(Array.isArray(offlineSiteQueueReadCache.items) && now-offlineSiteQueueReadCache.savedAt<OFFLINE_SITE_QUEUE_READ_CACHE_MS){
+    return cloneOfflineSiteQueueItems(offlineSiteQueueReadCache.items);
+  }
+  if(offlineSiteQueueReadCache.promise){
+    return cloneOfflineSiteQueueItems(await offlineSiteQueueReadCache.promise);
+  }
+  offlineSiteQueueReadCache.promise=computeOfflineSiteQueueItems()
+    .then(items=>{
+      const cloned=cloneOfflineSiteQueueItems(items);
+      offlineSiteQueueReadCache={savedAt:Date.now(),items:cloned,promise:null};
+      return cloned;
+    })
+    .catch(e=>{
+      offlineSiteQueueReadCache={savedAt:0,items:null,promise:null};
+      throw e;
+    });
+  return cloneOfflineSiteQueueItems(await offlineSiteQueueReadCache.promise);
 }
 window.readOfflineSiteQueueItems=readOfflineSiteQueueItems;
 
@@ -13325,6 +13357,7 @@ window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
 function invalidateOfflineSiteCountCache(){
   offlineSiteCountCache={count:null,savedAt:0,storageLength:-1};
   szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
+  clearOfflineSiteQueueReadCache();
   invalidateSzzOfflineCountsCache();
 }
 function invalidateOfflinePhotoCountCache(){
