@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-sidebar-counter-nodes-v313";
+const APP_BUILD_VERSION="2026-08-12-record-site-identity-v314";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v313-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v314-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4862,6 +4862,7 @@ function siteRecordKeys(site=selectedSite){
     docId,
     rawFirebaseDocId,
     rawAddressKey,
+    rawPlaceId,
     docId ? `firebase_${docId}` : "",
     docId ? `firebase_site_${docId}` : ""
   ];
@@ -4879,6 +4880,26 @@ function siteRecordKeys(site=selectedSite){
     site._recordKeysCache=keys;
   }
   return keys;
+}
+function siteRecordIdentity(site=selectedSite){
+  const keys=siteRecordKeys(site);
+  const docId=selectedSiteDocId(site);
+  const legacyId=safe(site && site.id);
+  const canonicalId=docId || legacyId || keys[0] || "";
+  const siteKey=keys[0] || canonicalId;
+  return {
+    siteId:canonicalId,
+    siteLegacyId:legacyId,
+    siteKey,
+    siteDocId:docId,
+    firebaseDocId:docId,
+    siteKeys:uniqueNonEmptyStrings([canonicalId,siteKey,legacyId,docId,...keys]),
+    sourceGroupKey:site ? sitePlaceGroupKey(site) : "",
+    sourceIdentity:site ? siteSourceIdentity(site) : "",
+    siteName:safe(site && site.adresa),
+    siteAddress:safe(site && site.adresa),
+    siteSource:safe(site && site.zdroj)
+  };
 }
 function siteRecordKeySet(site=selectedSite){
   const keys=siteRecordKeys(site);
@@ -4902,6 +4923,7 @@ function recordIdKeys(record){
   const siteKeys=Array.isArray(record.siteKeys) ? record.siteKeys : [];
   const rawValues=[
     record.siteId,
+    record.siteLegacyId,
     record.siteKey,
     record.siteDocId,
     record.firebaseDocId,
@@ -4912,6 +4934,7 @@ function recordIdKeys(record){
     if(
       cached &&
       cached.siteId===record.siteId &&
+      cached.siteLegacyId===record.siteLegacyId &&
       cached.siteKey===record.siteKey &&
       cached.siteDocId===record.siteDocId &&
       cached.firebaseDocId===record.firebaseDocId &&
@@ -4924,6 +4947,7 @@ function recordIdKeys(record){
       .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
     recordIdKeysCache.set(record,{
       siteId:record.siteId,
+      siteLegacyId:record.siteLegacyId,
       siteKey:record.siteKey,
       siteDocId:record.siteDocId,
       firebaseDocId:record.firebaseDocId,
@@ -9778,18 +9802,24 @@ function mergeSiteLocalArray(kind,items=[],site=selectedSite,limit=120){
     if(!cleanKind) return [];
     const incoming=(Array.isArray(items) ? items : []).filter(item=>item && typeof item==="object");
     if(!incoming.length) return readSiteLocalArray(cleanKind,site);
-    const docId=selectedSiteDocId(site);
-    const keys=siteRecordKeys(site);
+    const identity=siteRecordIdentity(site);
     let next=readSiteLocalArray(cleanKind,site).slice();
     incoming.forEach((item,idx)=>{
       const id=safe(item._id || item.id) || `${cleanKind}_${Date.now()}_${idx}`;
       const enriched={
         ...item,
         _id:id,
-        siteDocId:safe(item.siteDocId) || docId,
-        firebaseDocId:safe(item.firebaseDocId) || docId,
-        siteKey:safe(item.siteKey) || keys[0] || docId,
-        siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...keys])
+        siteId:safe(item.siteId) || identity.siteId,
+        siteLegacyId:safe(item.siteLegacyId) || identity.siteLegacyId,
+        siteDocId:safe(item.siteDocId) || identity.siteDocId,
+        firebaseDocId:safe(item.firebaseDocId) || identity.firebaseDocId,
+        siteKey:safe(item.siteKey) || identity.siteKey,
+        siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...identity.siteKeys]),
+        sourceGroupKey:safe(item.sourceGroupKey) || identity.sourceGroupKey,
+        sourceIdentity:safe(item.sourceIdentity) || identity.sourceIdentity,
+        siteName:safe(item.siteName) || identity.siteName,
+        siteAddress:safe(item.siteAddress) || identity.siteAddress,
+        siteSource:safe(item.siteSource) || identity.siteSource
       };
       next=next.filter(existing=>safe(existing && existing._id)!==id);
       next.push(enriched);
@@ -10019,8 +10049,11 @@ async function removeOfflineProtocolQueueItem(id){
 window.removeOfflineProtocolQueueItem=removeOfflineProtocolQueueItem;
 
 function saveProtocolLocally(payload,site=selectedSite,reason=""){
+  const identity=siteRecordIdentity(site);
   const offlinePayload={
     ...payload,
+    ...identity,
+    siteKeys:uniqueNonEmptyStrings([...(Array.isArray(payload?.siteKeys) ? payload.siteKeys : []),...identity.siteKeys]),
     _id:safe(payload?._id) || makeLocalRecordId("protocol"),
     _offline:true,
     _syncStatus:"local",
@@ -10340,10 +10373,13 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
   let synced=0;
   try{
     const {doc,setDoc,serverTimestamp}=fb.fsMod;
+    const identity=siteRecordIdentity(site);
     for(const item of offlineItems){
       const id=safe(item._id) || makeLocalRecordId("protocol");
       const payload={
         ...item,
+        ...identity,
+        siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...identity.siteKeys]),
         _id:id,
         _offline:false,
         _syncStatus:"online",
@@ -11978,9 +12014,9 @@ if(serviceForm){
 
     try{
       const {collection,doc,setDoc,serverTimestamp}=fb.fsMod;
-      const keys=siteRecordKeys(selectedSite);
+      const identity=siteRecordIdentity(selectedSite);
       const serviceRef=doc(collection(db,"serviceRecords"));
-      const servicePayload={_id:serviceRef.id,siteId:selectedSite.id,siteKey:keys[0] || selectedSite.id,siteKeys:keys,firebaseDocId:selectedSite.firebaseDocId || selectedSite.raw?.["Firebase_doc_id"] || "",sourceGroupKey:sitePlaceGroupKey(selectedSite),sourceIdentity:siteSourceIdentity(selectedSite),siteAddress:selectedSite.adresa,siteSource:selectedSite.zdroj,technician:val("technician"),technicianEmail:currentUser.email,checkDate:val("checkDate"),result:val("result"),issues:val("issues"),recommendation:val("recommendation"),photoLinks:val("photoLinks").split(/\n+/).map(x=>x.trim()).filter(Boolean),createdAt:new Date().toISOString()};
+      const servicePayload={_id:serviceRef.id,...identity,technician:val("technician"),technicianEmail:currentUser.email,checkDate:val("checkDate"),result:val("result"),issues:val("issues"),recommendation:val("recommendation"),photoLinks:val("photoLinks").split(/\n+/).map(x=>x.trim()).filter(Boolean),createdAt:new Date().toISOString()};
       const childOk=await saveSiteChildItem("serviceRecords",serviceRef.id,servicePayload,selectedSite);
       const embeddedOk=childOk ? true : await appendEmbeddedSiteItem("serviceHistory",servicePayload,selectedSite);
       await appendEmbeddedSiteItem("serviceRefs",{
@@ -13731,9 +13767,7 @@ async function uploadSitePhotos(){
   try{
     const signedUser=(firebaseReady && db) ? await waitForFirebaseUser(1200) : null;
     const userEmail=signedUser?.email || currentUser?.email || lastKnownUserEmail() || "";
-    const keys=sitePhotoKeys(selectedSite);
-    const siteKey=keys[0] || selectedSite.id || "bod";
-    const siteId=selectedSite.id || siteKey;
+    const identity=siteRecordIdentity(selectedSite);
     const onlineUploadAvailable=!!(firebaseReady && db && signedUser && navigator.onLine !== false);
     const uploadFolderName=photoFolderNameForDate(new Date());
     let localOnlyCount=0;
@@ -13742,14 +13776,7 @@ async function uploadSitePhotos(){
 
     const buildBasePayload=(photoId,file,createdAt)=>({
       _id:photoId,
-      siteId,
-      siteKey,
-      siteKeys:keys,
-      firebaseDocId:selectedSite.firebaseDocId || selectedSite.raw?.["Firebase_doc_id"] || "",
-      sourceGroupKey:sitePlaceGroupKey(selectedSite),
-      sourceIdentity:siteSourceIdentity(selectedSite),
-      siteName:selectedSite.adresa || "",
-      siteSource:selectedSite.zdroj || "",
+      ...identity,
       fileName:file.name || "",
       uploadedBy:userEmail || "nepřihlášený uživatel",
       photoFolder:uploadFolderName,
@@ -14103,16 +14130,10 @@ function protocolPayload(){
   const signature=protocolClientSignatureDataUrl() || original.clientSignatureDataUrl || "";
   const nowIso=new Date().toISOString();
   const originalCreatedAt=original.createdAt && typeof original.createdAt.toDate==="function" ? original.createdAt.toDate().toISOString() : (safe(original.createdAt) || nowIso);
+  const identity=siteRecordIdentity(selectedSite);
   return {
     _id:protocolEditId() || "",
-    siteId:selectedSite?.id || "",
-    siteKey:siteRecordKeys(selectedSite)[0] || selectedSite?.id || "",
-    siteKeys:siteRecordKeys(selectedSite),
-    firebaseDocId:selectedSite?.firebaseDocId || selectedSite?.raw?.["Firebase_doc_id"] || "",
-    sourceGroupKey:sitePlaceGroupKey(selectedSite),
-    sourceIdentity:siteSourceIdentity(selectedSite),
-    siteName:selectedSite?.adresa || "",
-    siteSource:selectedSite?.zdroj || "",
+    ...identity,
     technicianEmail:currentUser?.email || lastKnownUserEmail() || "",
     date:val("protoDate"),
     selectedDevice:val("protoDeviceTypeSelect") || val("protoDeviceSelect"),
