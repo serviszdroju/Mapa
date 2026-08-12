@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-delegate-sidebar-clicks-v291";
+const APP_BUILD_VERSION="2026-08-12-delegate-gallery-thumb-clicks-v292";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v291-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v292-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -13300,9 +13300,24 @@ function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selec
   ].join("|||");
 }
 
+function bindSitePhotoListClicks(list){
+  if(!list || list.__szzPhotoClickBound) return;
+  list.__szzPhotoClickBound=true;
+  list.addEventListener("click",event=>{
+    const btn=event.target.closest && event.target.closest("[data-photo-idx]");
+    if(!btn || !list.contains(btn)) return;
+    const nextIndex=Number(btn.getAttribute("data-photo-idx")) || 0;
+    if(sitePhotoIndex!==nextIndex){
+      sitePhotoIndex=nextIndex;
+      renderSitePhotos(sitePhotoItems,true);
+    }
+  });
+}
+
 function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const list=document.getElementById("sitePhotosList");
   if(!list) return;
+  bindSitePhotoListClicks(list);
   if(Array.isArray(items) && items!==sitePhotoItems){
     sitePhotoItems=items;
     if(!preserveIndex) sitePhotoIndex=0;
@@ -13459,12 +13474,6 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   list.replaceChildren(viewer);
   if(prev) prev.onclick=()=>{sitePhotoIndex=(sitePhotoIndex-1+sitePhotoItems.length)%sitePhotoItems.length;renderSitePhotos(sitePhotoItems,true);};
   if(next) next.onclick=()=>{sitePhotoIndex=(sitePhotoIndex+1)%sitePhotoItems.length;renderSitePhotos(sitePhotoItems,true);};
-  list.querySelectorAll("[data-photo-idx]").forEach(btn=>{
-    btn.addEventListener("click",()=>{
-      sitePhotoIndex=Number(btn.getAttribute("data-photo-idx")) || 0;
-      renderSitePhotos(sitePhotoItems,true);
-    });
-  });
   if(del) del.onclick=deleteCurrentSitePhoto;
 }
 
