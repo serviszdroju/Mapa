@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-offline-record-index-lookup-v327";
+const APP_BUILD_VERSION="2026-08-12-visible-row-index-cache-v328";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v327-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v328-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4704,6 +4704,7 @@ function rowRegion(r){
 }
 let siteRowsByAnyId=new Map();
 let siteRowIndexByRef=new WeakMap();
+let siteRowIndexByOriginalIndex=new Map();
 let csvRowsByAnyId=new Map();
 let rowsGpsCountCache=0;
 let lastVisiblePlaceGroups=[];
@@ -4847,9 +4848,11 @@ function ensureRowFastIndexes(r,index){
 function rebuildRowLookupCache(){
   const lookup=new Map();
   const indexByRef=new WeakMap();
+  const indexByOriginalIndex=new Map();
   let gpsCount=0;
   rows.forEach((r,i)=>{
     if(r && (typeof r==="object" || typeof r==="function")) indexByRef.set(r,i);
+    if(Number.isFinite(r && r.i) && !indexByOriginalIndex.has(r.i)) indexByOriginalIndex.set(r.i,i);
     if(inCzSk(r)) gpsCount++;
     rowLookupKeys(r).forEach(key=>{
       if(!lookup.has(key)) lookup.set(key,r);
@@ -4857,6 +4860,7 @@ function rebuildRowLookupCache(){
   });
   siteRowsByAnyId=lookup;
   siteRowIndexByRef=indexByRef;
+  siteRowIndexByOriginalIndex=indexByOriginalIndex;
   rowsGpsCountCache=gpsCount;
   window.siteRowsByAnyId=siteRowsByAnyId;
 }
@@ -4927,6 +4931,13 @@ function rowIndexForRow(row){
   const cached=siteRowIndexByRef.get(row);
   if(Number.isInteger(cached) && rows[cached]===row) return cached;
   return rows.indexOf(row);
+}
+function rowIndexForOriginalIndex(originalIndex){
+  const numeric=Number(originalIndex);
+  if(!Number.isFinite(numeric)) return -1;
+  syncRowIndexes();
+  const cached=siteRowIndexByOriginalIndex.get(numeric);
+  return Number.isInteger(cached) ? cached : -1;
 }
 function csvRowIndexForRow(row){
   if(!row) return -1;
@@ -5979,7 +5990,7 @@ window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
   const hiddenRows=[];
   let nextVisibleRows=rows.slice();
   const selectedKey=selectedSite ? (detailKey(selectedSite) || selectedSite.id || selectedSite.firebaseDocId) : "";
-  const visibleIndex=nextVisibleRows.findIndex(row=>Number.isFinite(row && row.i) && row.i===csvIndex);
+  const visibleIndex=rowIndexForOriginalIndex(csvIndex);
   if(isFirebaseRowHidden(nextVisibleRow,openedDocId)){
     hiddenRows.push(hiddenFirebaseRowInfo(nextVisibleRow));
     if(visibleIndex>=0) nextVisibleRows.splice(visibleIndex,1);
