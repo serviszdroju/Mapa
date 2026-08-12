@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-offline-status-nodes-v302";
+const APP_BUILD_VERSION="2026-08-12-cache-status-filter-class-v303";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v302-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v303-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5466,9 +5466,13 @@ function statusFilterClass(v){
 function updateStatusFilterColor(){
   const st=filterControls().status;
   if(!st) return;
-  st.classList.remove("status-red","status-orange","status-yellow","status-blue","status-green","status-gray","status-pink");
   const cls=statusFilterClass(st.value);
+  const previous=st.dataset.statusFilterClass || "";
+  if(previous===cls) return;
+  if(previous) st.classList.remove(previous);
+  else st.classList.remove("status-red","status-orange","status-yellow","status-blue","status-green","status-gray","status-pink");
   if(cls) st.classList.add(cls);
+  st.dataset.statusFilterClass=cls;
 }
 function fit(){
   syncRowIndexes();
