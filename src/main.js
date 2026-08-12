@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-parallel-local-detail-reads-v316";
+const APP_BUILD_VERSION="2026-08-12-gallery-folder-cache-v317";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v316-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v317-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -13435,14 +13435,33 @@ function cloudinaryPhotoFolderPath(folderName){
   return [base,folder].filter(Boolean).join("/");
 }
 
+const sitePhotoFolderGroupsCache=new WeakMap();
+function sitePhotoFolderGroupsFingerprint(items){
+  return (items || []).map((photo,idx)=>[
+    idx,
+    safe(photo && (photo._id || photo.id || "")),
+    photoFolderNameFingerprint(photo),
+    safe(photo && (photo.createdAt || photo.uploadedAt || photo.date || "")),
+    safe(photo && (photo.cloudinaryVersion || photo.version || ""))
+  ].join("\u001f")).join("\u001e");
+}
+
 function sitePhotoFolderGroups(items){
+  const canCache=Array.isArray(items);
+  const fingerprint=canCache ? sitePhotoFolderGroupsFingerprint(items) : "";
+  if(canCache){
+    const cached=sitePhotoFolderGroupsCache.get(items);
+    if(cached && cached.fingerprint===fingerprint) return cached.groups;
+  }
   const groups=new Map();
   (items || []).forEach((photo,idx)=>{
     const folder=photoFolderName(photo);
     if(!groups.has(folder)) groups.set(folder,[]);
     groups.get(folder).push({photo,idx});
   });
-  return Array.from(groups.entries()).map(([folder,photos])=>({folder,photos}));
+  const result=Array.from(groups.entries()).map(([folder,photos])=>({folder,photos}));
+  if(canCache) sitePhotoFolderGroupsCache.set(items,{fingerprint,groups:result});
+  return result;
 }
 
 const sitePhotoPointInfoRowsCache=new WeakMap();

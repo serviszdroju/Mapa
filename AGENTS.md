@@ -404,6 +404,8 @@ Current performance phase 190 decision: read detail history and latest-protocol 
 
 Current performance phase 191 decision: start local IndexedDB/localStorage detail reads for Protokol, latest protocol, and Galerie in parallel with Firebase/auth child reads, merging the results at the same points as before so visible history/photos stay identical while tab opening waits less.
 
+Current performance phase 192 decision: cache Galerie folder grouping by the current photo-list signature so repeated thumbnail navigation and unchanged gallery refreshes reuse the same folder sections while preserving the same stacked folder layout, photo ordering, upload/delete/offline behavior, and metadata.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
