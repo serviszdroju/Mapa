@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-official-document-nodes-v312";
+const APP_BUILD_VERSION="2026-08-12-cache-sidebar-counter-nodes-v313";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v312-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v313-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5256,7 +5256,7 @@ function bindSidebarListClick(list){
   });
 }
 function renderSidebarGroups(groups){
-  const list=document.getElementById("list");
+  const list=sidebarListNode();
   if(!list) return;
   bindSidebarListClick(list);
   const signature=`${rowsIndexVersion}\u001f${filteredRowsCache.signature || ""}\u001f${groups ? groups.length : 0}`;
@@ -5321,14 +5321,14 @@ function setCounterTextIfChanged(el,value){
 }
 function renderCounters(visibleCount,gpsCount){
   if(renderCountersCache.shown!==visibleCount){
-    setCounterTextIfChanged(document.getElementById("shownCount"),visibleCount);
+    setCounterTextIfChanged(shownCountNode(),visibleCount);
     renderCountersCache.shown=visibleCount;
   }
   if(renderCountersCache.gps!==gpsCount){
-    setCounterTextIfChanged(document.getElementById("gpsCount"),gpsCount);
+    setCounterTextIfChanged(gpsCountNode(),gpsCount);
     renderCountersCache.gps=gpsCount;
   }
-  const box=document.getElementById("gpsBox");
+  const box=gpsBoxNode();
   if(box && (box.style.display!=="none" || box.className!=="notice" || box.childNodes.length)){
     if(box.style.display!=="none") box.style.display="none";
     if(box.className!=="notice") box.className="notice";
@@ -7717,6 +7717,18 @@ function officialProtocolSourceInfoNode(){
 }
 function officialManufacturerSelectNode(){
   return formFieldNode("officialManufacturerSelect");
+}
+function sidebarListNode(){
+  return formFieldNode("list");
+}
+function shownCountNode(){
+  return formFieldNode("shownCount");
+}
+function gpsCountNode(){
+  return formFieldNode("gpsCount");
+}
+function gpsBoxNode(){
+  return formFieldNode("gpsBox");
 }
 
 function setInputValue(id,value){

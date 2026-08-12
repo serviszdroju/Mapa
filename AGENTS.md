@@ -396,6 +396,8 @@ Current performance phase 186 decision: cache stable detail drawer shell nodes s
 
 Current performance phase 187 decision: cache stable official document tab nodes such as `officialProtocolStatus`, `officialProtocolDataBox`, `officialProtocolSourceInfo`, and `officialManufacturerSelect`, preserving the same Doklad generation, templates, notes, and data save behavior while reducing repeated DOM lookups and unchanged status/display writes.
 
+Current performance phase 188 decision: cache stable sidebar render and counter nodes such as `list`, `shownCount`, `gpsCount`, and `gpsBox`, preserving the same left result list, GPS notice cleanup, and visible count behavior while reducing repeated DOM lookups during map/filter rerenders.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
