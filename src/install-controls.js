@@ -2,6 +2,26 @@ let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
 const SZZ_ANDROID_APK_URL="https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk?v=release-1";
 let szzApkAvailabilityPromise=null;
 
+function setTextIfChanged(el,value){
+  if(el && el.textContent!==String(value)) el.textContent=String(value);
+}
+
+function setDisplayIfChanged(el,value){
+  if(el && el.style.display!==value) el.style.display=value;
+}
+
+function setDisabledIfChanged(el,value){
+  if(el && el.disabled!==!!value) el.disabled=!!value;
+}
+
+function setClassNameIfChanged(el,value){
+  if(el && el.className!==value) el.className=value;
+}
+
+function setAttributeIfChanged(el,name,value){
+  if(el && el.getAttribute(name)!==String(value)) el.setAttribute(name,String(value));
+}
+
 function currentSzzInstallPrompt(){
   return deferredSzzInstallPrompt || window.__szzDeferredInstallPrompt || null;
 }
@@ -17,7 +37,7 @@ function canShowSzzInstallButton(){
 function updateSzzInstallButtons(){
   const show=canShowSzzInstallButton();
   document.querySelectorAll(".install-app-btn").forEach(button=>{
-    button.style.display=show ? "" : "none";
+    setDisplayIfChanged(button,show ? "" : "none");
   });
   renderSzzInstallGuide();
 }
@@ -25,13 +45,13 @@ function updateSzzInstallButtons(){
 function setSzzInstallStatus(message="",state="info"){
   const panel=document.getElementById("appInstallStatus");
   if(panel){
-    panel.style.display=message ? "block" : "none";
-    panel.className=`notice offline-map-status ${state==="error" ? "err" : state==="ok" ? "ok" : ""}`.trim();
-    panel.textContent=message;
+    setDisplayIfChanged(panel,message ? "block" : "none");
+    setClassNameIfChanged(panel,`notice offline-map-status ${state==="error" ? "err" : state==="ok" ? "ok" : ""}`.trim());
+    setTextIfChanged(panel,message);
   }
   const startup=document.getElementById("startupStatus");
   const startupVisible=!!(startup && document.getElementById("startupScreen")?.style.display!=="none");
-  if(startupVisible && message) startup.textContent=message;
+  if(startupVisible && message) setTextIfChanged(startup,message);
   renderSzzInstallGuide();
 }
 
@@ -77,28 +97,29 @@ function renderSzzInstallGuide(){
   const readiness=szzInstallReadiness(env);
   const badge=document.getElementById("installGuideBadge");
   const state=document.getElementById("installGuideState");
-  card.dataset.state=readiness;
+  if(card.dataset.state!==readiness) card.dataset.state=readiness;
   if(badge){
-    badge.textContent=env.installed
+    setTextIfChanged(badge,env.installed
       ? "Hotovo"
       : readiness==="ready"
         ? "Připraveno"
         : readiness==="error"
           ? "Blokováno"
-          : "Čeká na tablet";
+          : "Čeká na tablet");
   }
   szzInstallCheck(document.getElementById("installCheckChrome"),env.chrome || env.samsung,env.android);
   szzInstallCheck(document.getElementById("installCheckSecure"),env.secure,false);
   szzInstallCheck(document.getElementById("installCheckWorker"),env.serviceWorker,false);
   szzInstallCheck(document.getElementById("installCheckPrompt"),env.hasPrompt,env.android && (env.chrome || env.samsung));
   if(state){
-    if(env.installed) state.textContent="Aplikace už běží jako nainstalovaná. Offline data připravíš tlačítkem níže.";
-    else if(!env.secure) state.textContent="Instalace funguje jen přes zabezpečený web HTTPS. Otevři publikovanou adresu aplikace, ne lokální soubor.";
-    else if(!env.serviceWorker) state.textContent="Tento prohlížeč nepodporuje offline instalaci. Použij Android Chrome.";
-    else if(env.hasPrompt) state.textContent="Tablet je připravený. Klepni na Stáhnout aplikaci, potvrď otázku a ikona se po instalaci objeví mezi aplikacemi.";
-    else if(env.android && (env.chrome || env.samsung)) state.textContent="Tablet zatím neposlal stránce instalační okno. Bez systémového okna Android aplikaci do menu nepřidá; obnov stránku a klepni znovu.";
-    else if(env.android) state.textContent="Otevři tuto adresu v Android Chromu. Některé prohlížeče přímé stažení aplikace nenabízejí.";
-    else state.textContent="Na Androidu otevři stejnou adresu v Chromu. Odkaz si můžeš zkopírovat tlačítkem níže.";
+    let stateText="Na Androidu otevři stejnou adresu v Chromu. Odkaz si můžeš zkopírovat tlačítkem níže.";
+    if(env.installed) stateText="Aplikace už běží jako nainstalovaná. Offline data připravíš tlačítkem níže.";
+    else if(!env.secure) stateText="Instalace funguje jen přes zabezpečený web HTTPS. Otevři publikovanou adresu aplikace, ne lokální soubor.";
+    else if(!env.serviceWorker) stateText="Tento prohlížeč nepodporuje offline instalaci. Použij Android Chrome.";
+    else if(env.hasPrompt) stateText="Tablet je připravený. Klepni na Stáhnout aplikaci, potvrď otázku a ikona se po instalaci objeví mezi aplikacemi.";
+    else if(env.android && (env.chrome || env.samsung)) stateText="Tablet zatím neposlal stránce instalační okno. Bez systémového okna Android aplikaci do menu nepřidá; obnov stránku a klepni znovu.";
+    else if(env.android) stateText="Otevři tuto adresu v Android Chromu. Některé prohlížeče přímé stažení aplikace nenabízejí.";
+    setTextIfChanged(state,stateText);
   }
 }
 
@@ -138,13 +159,13 @@ function openAppToolsPanel(){
   const appToolsPanel=document.getElementById("appToolsPanel");
   const appToolsToggle=document.getElementById("appToolsToggle");
   if(appToolsPanel) appToolsPanel.classList.add("open");
-  if(appToolsToggle) appToolsToggle.setAttribute("aria-expanded","true");
+  setAttributeIfChanged(appToolsToggle,"aria-expanded","true");
 }
 
 function setSzzInstallBusy(busy=false,text="Stáhnout aplikaci"){
   document.querySelectorAll(".install-app-btn").forEach(button=>{
-    button.disabled=!!busy;
-    button.textContent=text;
+    setDisabledIfChanged(button,busy);
+    setTextIfChanged(button,text);
   });
 }
 
@@ -163,8 +184,8 @@ async function updateSzzApkLinkState(force=false){
   if(!link) return false;
   link.href=SZZ_ANDROID_APK_URL;
   const available=await isSzzAndroidApkAvailable(force);
-  link.setAttribute("aria-disabled",available ? "false" : "true");
-  link.textContent=available ? "Stáhnout APK" : "APK se připravuje";
+  setAttributeIfChanged(link,"aria-disabled",available ? "false" : "true");
+  setTextIfChanged(link,available ? "Stáhnout APK" : "APK se připravuje");
   return available;
 }
 
@@ -317,7 +338,7 @@ function bindSzzInstallControls(){
     appToolsToggle.addEventListener("click",()=>{
       const open=!appToolsPanel.classList.contains("open");
       appToolsPanel.classList.toggle("open",open);
-      appToolsToggle.setAttribute("aria-expanded",open ? "true" : "false");
+      setAttributeIfChanged(appToolsToggle,"aria-expanded",open ? "true" : "false");
       if(open) renderSzzInstallGuide();
     });
   }
