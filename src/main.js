@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-protocol-panel-nodes-v306";
+const APP_BUILD_VERSION="2026-08-12-unify-protocol-status-writes-v307";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v306-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v307-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7824,21 +7824,19 @@ function fillProtocolFormFromHistory(protocol={}){
 
 function editCurrentHistoryProtocol(){
   const protocol=selectedHistoryProtocol();
-  const st=document.getElementById("protocolStatus");
   if(!protocol){
-    if(st) st.textContent="Není vybraný protokol k úpravě.";
+    setProtocolStatusText("Není vybraný protokol k úpravě.");
     return;
   }
   if(window.setDetailTab) window.setDetailTab("protocol");
-  const form=document.getElementById("protocolForm");
+  const form=formFieldNode("protocolForm");
   if(form) form.style.display="block";
-  const toggle=document.getElementById("toggleProtocolBtn");
-  if(toggle) toggle.textContent="Skrýt protokol";
+  setTextIfChanged(formFieldNode("toggleProtocolBtn"),"Skrýt protokol");
   initProtocolClientSignaturePad();
   fillProtocolFormFromHistory(protocol);
   protocolEditState={id:safe(protocol._id), item:{...protocol}, collection:protocol._collection || ""};
   updateProtocolSaveButtonText();
-  if(st) st.textContent="Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.";
+  setProtocolStatusText("Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.");
   form?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
@@ -9503,16 +9501,15 @@ async function exportProtocolToWord(protocol){
     showSaveConfirmation("Není vybraný protokol k exportu.");
     return;
   }
-  const st=document.getElementById("protocolStatus");
   try{
-    if(st) st.textContent="Připravuji Word export...";
+    setProtocolStatusText("Připravuji Word export...");
     const prepared=await preparedProtocolExport(protocol);
     downloadBlobFile(prepared.fileName,prepared.blob);
-    if(st) st.textContent="Protokol exportován do Wordu.";
+    setProtocolStatusText("Protokol exportován do Wordu.");
     showSaveConfirmation("Protokol exportován do Wordu.");
   }catch(e){
     console.warn("Export protokolu do Wordu selhal",e);
-    if(st) st.textContent="Export do Wordu se nepodařil.";
+    setProtocolStatusText("Export do Wordu se nepodařil.");
     showSaveConfirmation("Export do Wordu se nepodařil.");
   }
 }
@@ -9563,8 +9560,7 @@ async function sendProtocolByMail(protocol){
     throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
   }
   const prepared=await preparedProtocolExport(protocol);
-  const st=document.getElementById("protocolStatus");
-  if(st) st.textContent="Odesílám protokol na mail...";
+  setProtocolStatusText("Odesílám protokol na mail...");
   const sendMail=fb.fnMod.httpsCallable(mailFunctions,"sendProtocolMail");
   await sendMail({
     subject:protocolMailSubject(prepared.filled),
@@ -9572,7 +9568,7 @@ async function sendProtocolByMail(protocol){
     fileName:prepared.fileName,
     fileBase64:await blobToBase64(prepared.blob)
   });
-  if(st) st.textContent="Protokol byl odeslán na iva.glozova@astip.cz, kopie na jan.soldan@astip.cz.";
+  setProtocolStatusText("Protokol byl odeslán na iva.glozova@astip.cz, kopie na jan.soldan@astip.cz.");
   showSaveConfirmation("Protokol odeslán na mail.");
 }
 
@@ -10070,7 +10066,7 @@ function readProtocolDraft(site=selectedSite){
 
 function saveProtocolDraftNow(){
   if(protocolDraftRestoreInProgress || protocolEditState || !selectedSite) return;
-  const form=document.getElementById("protocolForm");
+  const form=formFieldNode("protocolForm");
   if(!form || form.style.display==="none") return;
   try{
     const payload=protocolPayload();
@@ -10095,9 +10091,9 @@ function saveProtocolDraftNow(){
     });
     clearProtocolDraftCountCache();
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(250);
-    const st=document.getElementById("protocolStatus");
+    const st=protocolStatusNode();
     if(st && !/uložen|upravuješ/i.test(st.textContent || "")){
-      st.textContent="Rozepsaný protokol se průběžně ukládá v tomto zařízení.";
+      setProtocolStatusText("Rozepsaný protokol se průběžně ukládá v tomto zařízení.");
     }
   }catch(e){
     console.warn("Koncept protokolu se nepodařilo uložit",e);
@@ -10111,7 +10107,7 @@ function scheduleProtocolDraftSave(){
 }
 
 function bindProtocolDraftAutosave(){
-  const form=document.getElementById("protocolForm");
+  const form=formFieldNode("protocolForm");
   if(!form || form.__protocolDraftBound) return;
   form.__protocolDraftBound="1";
   form.addEventListener("input",scheduleProtocolDraftSave);
@@ -10123,9 +10119,8 @@ function applyProtocolDraftToForm(draft){
   protocolDraftRestoreInProgress=true;
   try{
     fillProtocolFormFromHistory(draft.payload);
-    const st=document.getElementById("protocolStatus");
     const when=protocolDisplayDate(draft.savedAt || "");
-    if(st) st.textContent=`Obnoven rozepsaný protokol uložený lokálně${when ? ` (${when})` : ""}.`;
+    setProtocolStatusText(`Obnoven rozepsaný protokol uložený lokálně${when ? ` (${when})` : ""}.`);
     return true;
   }catch(e){
     console.warn("Koncept protokolu se nepodařilo obnovit",e);
@@ -10944,9 +10939,8 @@ function bindDetailHistoryActions(history){
       try{
         await sendProtocolByMail(detailHistoryItems[detailHistoryIndex]);
       }catch(e){
-        const st=document.getElementById("protocolStatus");
         const message=protocolMailErrorText(e);
-        if(st) st.textContent=`Chyba odeslání e-mailu: ${message}`;
+        setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
         showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
       }finally{
         button.disabled=false;

@@ -384,6 +384,8 @@ Current performance phase 180 decision: route protocol prefill, device reset/cha
 
 Current performance phase 181 decision: cache stable protocol panel nodes such as the form, toggle/save buttons, status node, device selectors, and signature controls, preserving the same protocol open/close, validation, signature, and submit behavior while reducing repeated DOM lookup and redundant text writes.
 
+Current performance phase 182 decision: route all protocol status messages for edit-from-history, Word export, mail sending, autosave, draft restore, and detail-history mail errors through the shared cached status helper, preserving identical copy while avoiding repeated `protocolStatus` lookups and duplicate text writes.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
