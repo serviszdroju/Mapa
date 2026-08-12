@@ -121,7 +121,9 @@
 .new-only-grid input,.new-only-grid select,.new-only-grid textarea{width:100%;min-height:38px;padding:8px;border:1px solid #cbd5e1;border-radius:10px;box-sizing:border-box}
 .new-only-grid textarea{min-height:90px}
 .gps-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.new-gps-address-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(126px,166px);gap:8px;align-items:end}
+.new-gps-address-line input{min-width:0}
+.new-gps-address-line button{height:38px;min-height:38px;white-space:nowrap}
 .only-red{background:#fee2e2;border:1px solid #fecaca;border-radius:12px;padding:10px}
 .only-red label{color:#991b1b!important}
-@media(max-width:700px){.new-only-grid{grid-template-columns:1fr}.new-only-grid .full{grid-column:auto}.gps-actions{grid-template-columns:1fr}}
-
+@media(max-width:700px){.new-only-grid{grid-template-columns:1fr}.new-only-grid .full{grid-column:auto}.gps-actions,.new-gps-address-line{grid-template-columns:1fr}}

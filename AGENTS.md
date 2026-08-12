@@ -422,10 +422,18 @@ Current Android packaging decision: for a guaranteed launcher/menu icon on table
 
 Current APK delivery decision: keep the public Pages `downloads/` folder during web deployments and expose `downloads/szz-mapa-tablet.apk` from the install panel as the reliable tablet-menu installation path. Build the APK from the `android/` TWA project and ship it inside the public web build until a CI token with workflow scope is available.
 
-Current detail/history styling decision: the read-only Detail tab rows must use the same `history-item` and `history-detail-row` visual treatment as "Historie záznamů", including font, text size, colors, spacing, borders, and background. Do not apply special red/important-note styling to read-only detail rows.
+Current detail/history styling decision: the read-only Detail tab rows must use the same `history-item` and `history-detail-row` visual treatment as "Historie záznamů", including font, text size, colors, spacing, borders, and background. The only read-only detail exception is `Důležité poznámky`, which must render as a red important row; `Adresa_GPS` stays hidden in read-only Detail and `Cena FZ` is hidden from detail/edit forms entirely.
 
 Current detail menu decision: the Detail / Protokol / Galerie / Doklad tab menu must appear exactly once in the detail drawer. When returning from alternate drawer content such as main protocol history, restore the normal detail drawer shell and deduplicate `.detail-tabs`.
 
 Current gallery folder display decision: gallery folders must be stacked vertically as full-width sections and must not block vertical drawer scrolling. Do not show a horizontal folder chip row; each folder header should show only the stored folder name, without a separate formatted date label or photo count.
+
+Current source/status detail decision: sources marked `Stop Stav` must appear red in the top detail source chooser, including when they are the active selected source.
+
+Current add-site form decision: `Přidat nové místo` and add-source detail forms must hide `Historie oprav`, `Postup testování`, `Umístění zdroje`, `Jistič UPS`, `Poznámky`, and `Cena FZ`. `Adresa GPS` remains editable, `Dopočítat GPS` sits on the same row, and `Kraj` auto-fills from address text, geocoded address, or a map-picked GPS point.
+
+Current protocol form decision: the protocol form uses the selected source from the top detail source chooser. Do not reintroduce old device/source dropdown selectors inside Protokol, and always rebind `Vyplnit protokol` after restoring or cloning the detail drawer shell.
+
+Current Doklad logo decision: official document logo/watermark output must preserve the source image aspect ratio and never stretch or squash the SZZ logo.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

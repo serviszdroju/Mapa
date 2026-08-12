@@ -3020,6 +3020,8 @@ function shouldSkipNewSiteField(k){
   if(n==="firebase doc id" || n==="id mista" || n==="klic adresy") return true;
   if(n==="barva bodu" || n==="dni do kontroly" || n==="stav pro mapu" || n==="stav kontroly") return true;
   if(n==="faktura na") return true;
+  if(n==="umisteni zdroje" || n==="historie oprav" || n==="postup testovani" || n==="jistic ups" || n==="jistice ups") return true;
+  if(n==="poznamky" || n==="poznamka" || n==="cena fz" || n==="cena fz v kc") return true;
   if(n==="pristi kontrola" || n==="posledni kontrola" || n==="pristi planovana kontrola" || n==="posledni probehla kontrola") return true;
   if(n==="zdrojovy soubor" || n==="zdrojovy radek" || n==="pocet terminu" || n==="vsechny terminy") return true;
   if(/^mesic\s*\d*$/.test(n) || /^month\s*\d*$/.test(n) || /^\d{1,2}$/.test(n)) return true;
@@ -3028,7 +3030,7 @@ function shouldSkipNewSiteField(k){
 
 function newSiteFieldLabel(k){
   const n=newSiteFieldNorm(k);
-  if(n==="adresa gps") return "Umístění zdroje";
+  if(n==="adresa gps") return "Adresa GPS";
   if(n==="zdroj") return "Výrobní číslo";
   return k;
 }
@@ -3051,9 +3053,8 @@ function getAllKnownDataKeys(){
 
   const required=[
     "Název","Adresa_GPS","Kraj","Popis_zdroje","Zdroj",
-    "Historie oprav","Postup testování","Jistič UPS",
     "Perioda kontrol","Hlídáme kontroly sami","Důležitá poznámka",
-    "Serviska","Smlouva ano/ne","Rok výroby","Poznámky"
+    "Serviska","Smlouva ano/ne","Rok výroby"
   ];
 
   required.forEach(k=>{
@@ -3075,6 +3076,11 @@ function bindDrawerCloseButton(){
   const close=document.getElementById("closeDrawer");
   const drawer=drawerNode();
   if(close && drawer) close.onclick=()=>drawer.classList.remove("open");
+}
+
+function bindDetailShellControls(){
+  bindDrawerCloseButton();
+  bindProtocolToggleButton();
 }
 
 function dedupeDetailTabs(drawer=drawerNode()){
@@ -3129,11 +3135,12 @@ function restoreNormalDetailDrawerShell(){
   }
   dedupeDetailTabs(drawer);
   captureNormalDetailDrawerShell(drawer);
-  bindDrawerCloseButton();
+  bindDetailShellControls();
   return drawer;
 }
 window.captureNormalDetailDrawerShell=captureNormalDetailDrawerShell;
 window.restoreNormalDetailDrawerShell=restoreNormalDetailDrawerShell;
+window.bindDetailShellControls=bindDetailShellControls;
 
 function setNewSiteModeTitle(){
   const title=document.getElementById("drawerTitle") || detailTitleNode();
@@ -3157,19 +3164,14 @@ function clearNewSiteMode(){
 const NEW_SITE_FIELD_SPECS=[
   {label:"Název",key:"Název"},
   {label:"Adresa / umístění",key:"Adresa / umístění"},
-  {label:"Umístění zdroje",key:"Adresa_GPS",full:true},
-  {label:"Historie oprav",key:"Historie oprav",type:"textarea",full:true},
-  {label:"Postup testování",key:"Postup testování",type:"textarea",full:true},
-  {label:"Jistič UPS",key:"Jistič UPS",full:true},
+  {label:"Adresa GPS",key:"Adresa_GPS",full:true},
   {label:"Popis_zdroje",forceLabel:"Popis zdroje",key:"Popis_zdroje",full:true},
   {label:"Výrobní číslo",key:"Zdroj",full:true},
   {label:"Kontakt",key:"Kontakt"},
   {label:"Kraj",key:"Kraj"},
-  {label:"Poznámky",key:"Poznámky",full:true},
   {label:"Rok výroby",key:"Rok výroby"},
   {label:"Serviska",key:"Serviska",type:"select",options:[["",""],["ano","ano"],["ne","ne"]]},
   {label:"Smlouva",key:"Smlouva ano/ne",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne"},
-  {label:"Cena FZ",key:"Cena FZ"},
   {label:"Perioda kontrol",key:"Perioda kontrol",type:"select",options:[["6","6 měsíců"],["12","12 měsíců"]],value:"12"},
   {label:"Hlídáme kontroly sami",key:"Hlídáme kontroly sami",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne",full:true,special:"watch-self"},
   {label:"Důležité poznámky",key:"Důležitá poznámka",type:"textarea",full:true,className:"notes-red-row",style:"padding:10px;border-radius:12px;"}
@@ -3203,6 +3205,18 @@ function createNewSiteField(spec,options={}){
   const control=createNewSiteFieldControl(spec);
   control.dataset.newKey=spec.key;
   if(spec.special) control.dataset.special=spec.special;
+  if(spec.key==="Adresa_GPS"){
+    const line=document.createElement("div");
+    line.className="new-gps-address-line";
+    const button=document.createElement("button");
+    button.className="secondary";
+    button.id="newAllGpsCalcInline";
+    button.type="button";
+    button.textContent="Dopočítat GPS";
+    line.append(control,button);
+    field.append(label,line);
+    return field;
+  }
   field.append(label,control);
   return field;
 }
@@ -3237,6 +3251,109 @@ function newSiteFieldElementsByKey(){
   return map;
 }
 
+function newSiteFieldValue(key){
+  const elements=newSiteFieldElementsByKey().get(key) || [];
+  for(const el of elements){
+    const value=safe(el && el.value);
+    if(value) return value;
+  }
+  return "";
+}
+
+function setNewSiteFieldValue(key,value,options={}){
+  const next=String(value || "");
+  (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
+    if(options.force || !safe(el.value) || el.dataset.autoFilled==="1"){
+      if(el.value!==next) el.value=next;
+      if(options.auto) el.dataset.autoFilled="1";
+    }
+  });
+}
+
+function setNewSiteRegionValue(region,options={}){
+  const clean=safe(region);
+  if(!clean) return;
+  (newSiteFieldElementsByKey().get("Kraj") || []).forEach(el=>{
+    if(options.force || !safe(el.value) || el.dataset.autoRegion==="1"){
+      el.value=clean;
+      el.dataset.autoRegion="1";
+    }
+  });
+  setRegionFieldValue("#newRegion",clean,options);
+}
+
+function syncNewSiteRegionFromText(options={}){
+  const text=newSiteFieldValue("Adresa_GPS")
+    || newSiteFieldValue("Adresa / umístění")
+    || newSiteFieldValue("Název")
+    || safe(document.getElementById("newGpsAddress")?.value)
+    || safe(document.getElementById("newName")?.value);
+  if(!text) return "";
+  const region=inferRegionFromAddressText(text);
+  if(region) setNewSiteRegionValue(region,options);
+  return region;
+}
+
+async function calcNewSiteGpsFromAddress(){
+  const st=document.getElementById("newSiteStatus");
+  const btn=document.getElementById("newAllGpsCalcInline");
+  const address=newSiteFieldValue("Adresa_GPS")
+    || newSiteFieldValue("Adresa / umístění")
+    || newSiteFieldValue("Název")
+    || safe(document.getElementById("newGpsAddress")?.value)
+    || safe(document.getElementById("newName")?.value);
+  if(!address){
+    if(st) st.textContent="Vyplň adresu GPS nebo adresu / umístění.";
+    return;
+  }
+  try{
+    if(btn) btn.disabled=true;
+    if(st) st.textContent="Dopočítávám GPS...";
+    let found=await geocodeAddressFast(address);
+    if(!found) found=await geocodeAddressGeneric(address);
+    if(!found){
+      const region=inferRegionFromAddressText(address);
+      if(region) setNewSiteRegionValue(region,{force:true});
+      if(st) st.textContent=window.lastGeocodeMessage || (region ? "GPS se nepodařilo dopočítat, kraj jsem doplnil podle textu adresy." : "Adresa nebyla nalezena.");
+      return;
+    }
+    const lat=Number(found.lat);
+    const lon=Number(found.lon);
+    if(!Number.isFinite(lat) || !Number.isFinite(lon)){
+      if(st) st.textContent="Adresa byla nalezena, ale GPS souřadnice nejsou platné.";
+      return;
+    }
+    const display=found.display || address;
+    setInputValueIfExists("#newGpsAddress",display);
+    setInputValueIfExists("#newGpsLat",String(lat));
+    setInputValueIfExists("#newGpsLon",String(lon));
+    setNewSiteFieldValue("Adresa_GPS",display,{force:true,auto:true});
+    const region=inferRegionFromAddressText(display,found.address || {});
+    if(region) setNewSiteRegionValue(region,{force:true});
+    if(st) st.textContent=region ? "GPS doplněno, kraj doplněn." : "GPS doplněno.";
+  }catch(e){
+    if(st) st.textContent="Chyba dopočtu GPS: "+e.message;
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+
+function bindNewSiteDynamicControls(){
+  const gpsBtn=document.getElementById("newAllGpsCalcInline");
+  if(gpsBtn && !gpsBtn.__szzGpsBound){
+    gpsBtn.__szzGpsBound=true;
+    gpsBtn.onclick=calcNewSiteGpsFromAddress;
+  }
+  ["Název","Adresa / umístění","Adresa_GPS"].forEach(key=>{
+    (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
+      if(el.__szzRegionBound) return;
+      el.__szzRegionBound=true;
+      el.addEventListener("input",()=>syncNewSiteRegionFromText());
+      el.addEventListener("change",()=>syncNewSiteRegionFromText({force:true}));
+    });
+  });
+}
+
 function renderNewSiteFields(options={}){
   const box=document.getElementById("newAllFieldsBox");
   if(!box) return;
@@ -3248,10 +3365,12 @@ function renderNewSiteFields(options={}){
     grid.appendChild(fragment);
     box.replaceChildren(grid);
     invalidateNewSiteFieldElementMap();
+    bindNewSiteDynamicControls();
     return;
   }
   box.replaceChildren(fragment);
   invalidateNewSiteFieldElementMap();
+  bindNewSiteDynamicControls();
 }
 
 function forceRenderNewSiteForm(){
@@ -3871,12 +3990,15 @@ function geocodePickPhoton(data,sourceAddress=""){
   };
 }
 
-function setRegionFieldValue(selector,region){
+function setRegionFieldValue(selector,region,options={}){
   const clean=safe(region);
   if(!clean) return;
   const el=document.querySelector(selector);
-  if(!el || safe(el.value)) return;
-  el.value=clean;
+  if(!el) return;
+  if(options.force || !safe(el.value) || el.dataset.autoRegion==="1"){
+    el.value=clean;
+    el.dataset.autoRegion="1";
+  }
 }
 
 function isoDateFromAny(v){
@@ -4473,15 +4595,11 @@ function copyPlaceFieldsToNewSource(site){
   setNewDataFieldValue("Adresa_GPS",place);
   setNewDataFieldValue("Kraj",region || "");
   setNewDataFieldValue("Kontakt",contact);
-  setNewDataFieldValue("Historie oprav","");
-  setNewDataFieldValue("Postup testování","");
-  setNewDataFieldValue("Jistič UPS","");
   setNewDataFieldValue("Popis_zdroje","");
   setNewDataFieldValue("Zdroj","");
   setNewDataFieldValue("Perioda kontrol",userSiteSharedFieldValue(site,"Perioda kontrol") || "12");
   setNewDataFieldValue("Hlídáme kontroly sami",userSiteSharedFieldValue(site,"Hlídáme sami termín") || "ne");
   setNewDataFieldValue("Smlouva ano/ne",userSiteSharedFieldValue(site,"Smlouva ano/ne") || "ne");
-  setNewDataFieldValue("Poznámky",userSiteSharedFieldValue(site,"Poznámky"));
   setNewDataFieldValue("Důležitá poznámka",userSiteSharedFieldValue(site,"Důležitá poznámka"));
 }
 function openAddSourceForSite(site=selectedSite){
@@ -4558,7 +4676,10 @@ function renderSourceChooser(site=selectedSite){
   buttons.className="source-chooser-buttons";
   siblings.forEach(row=>{
     const btn=document.createElement("button");
-    btn.className=`source-chooser-button ${detailKey(row)===activeKey ? "active" : ""}`.trim();
+    const classes=["source-chooser-button"];
+    if(detailKey(row)===activeKey) classes.push("active");
+    if(row && row.stopped === true) classes.push("stop-source");
+    btn.className=classes.join(" ");
     btn.type="button";
     btn.dataset.sourceKey=safe(detailKey(row));
     btn.appendChild(document.createTextNode(siteSourceLabel(row)));
@@ -5095,6 +5216,7 @@ Object.assign(window,{
   siteSourceLabel,
   siteSourceIdentity,
   siteSiblingRows,
+  rowRegion,
   openAddSourceForSite,
   openAddSourceForSiteByKey,
   siteRecordKeys,
@@ -6288,8 +6410,19 @@ function startLegacyNewManualGpsPick(){
     apply:async(lat,lon)=>{
       setInputValueIfExists("#newGpsLat",String(lat));
       setInputValueIfExists("#newGpsLon",String(lon));
+      setInputValueIfExists("#newSiteOnlyCard #onlyNewGpsLat",String(lat));
+      setInputValueIfExists("#newSiteOnlyCard #onlyNewGpsLon",String(lon));
+      let address="";
+      try{ address=await reverseGeocodeGpsGeneric(lat,lon); }catch(_e){}
+      const display=address || `${lat}, ${lon}`;
+      setInputValueIfExists("#newGpsAddress",display);
+      setNewSiteFieldValue("Adresa_GPS",display,{force:true,auto:true});
+      setInputValueIfExists('#newSiteOnlyCard [data-new-key="Adresa_GPS"]',display);
+      const region=inferRegionFromAddressText(address || "");
+      if(region) setNewSiteRegionValue(region,{force:true});
+      if(region) setRegionFieldValue('#newSiteOnlyCard [data-new-key="Kraj"]',region,{force:true});
       const st=document.getElementById("newSiteStatus");
-      if(st) st.textContent="GPS vybráno z mapy.";
+      if(st) st.textContent=region ? "GPS vybráno z mapy, kraj doplněn." : "GPS vybráno z mapy.";
     }
   });
 }
@@ -6308,8 +6441,14 @@ function startOnlyNewManualGpsPick(){
     apply:async(lat,lon)=>{
       setInputValueIfExists("#onlyNewGpsLat",String(lat));
       setInputValueIfExists("#onlyNewGpsLon",String(lon));
+      let address="";
+      try{ address=await reverseGeocodeGpsGeneric(lat,lon); }catch(_e){}
+      const display=address || `${lat}, ${lon}`;
+      setInputValueIfExists('#newSiteOnlyCard [data-new-key="Adresa_GPS"]',display);
+      const region=inferRegionFromAddressText(address || "");
+      if(region) setRegionFieldValue('#newSiteOnlyCard [data-new-key="Kraj"]',region,{force:true});
       const st=document.getElementById("onlyNewStatus");
-      if(st) st.textContent="GPS vybráno z mapy.";
+      if(st) st.textContent=region ? "GPS vybráno z mapy, kraj doplněn." : "GPS vybráno z mapy.";
     }
   });
 }
@@ -6332,8 +6471,14 @@ function startFbUnifiedManualGpsPick(){
     apply:async(lat,lon)=>{
       setInputValueIfExists('#fbUnifiedPanel [data-fb-key="GPS_lat"]',String(lat));
       setInputValueIfExists('#fbUnifiedPanel [data-fb-key="GPS_lon"]',String(lon));
+      let address="";
+      try{ address=await reverseGeocodeGpsGeneric(lat,lon); }catch(_e){}
+      const display=address || `${lat}, ${lon}`;
+      setInputValueIfExists('#fbUnifiedPanel [data-fb-key="Adresa_GPS"]',display);
+      const region=inferRegionFromAddressText(address || "");
+      if(region) setRegionFieldValue('#fbUnifiedPanel [data-fb-key="Kraj"]',region,{force:true});
       const st=document.getElementById("fbUnifiedStatus");
-      if(st) st.textContent="GPS vybráno z mapy.";
+      if(st) st.textContent=region ? "GPS vybráno z mapy, kraj doplněn." : "GPS vybráno z mapy.";
     }
   });
 }
@@ -6393,7 +6538,7 @@ function shouldShowEmptyEditableField(k,label){
 const USER_SITE_DATA_FIELDS = [
   {label:"Název", key:"Název", keys:["Název"]},
   {label:"Adresa / umístění", key:"Adresa / umístění", keys:["Adresa / umístění","Původní adresa / umístění"]},
-  {label:"Adresa_GPS", key:"Adresa_GPS", keys:["Adresa_GPS"], readonly:true},
+  {label:"Adresa GPS", key:"Adresa_GPS", keys:["Adresa_GPS"], readonly:true, hideInDetail:true},
   {label:"Kraj", key:"Kraj", keys:["Kraj","Region","Kraj / oblast"], type:"region"},
   {label:"Popis zdroje", key:"Popis_zdroje", keys:["Popis_zdroje","Jaký zdroj"]},
   {label:"Výrobní číslo", key:"Zdroj", keys:["Výrobní číslo","Výrobní_číslo","Seriové číslo","Sériové číslo","Serial","SN","Zdroj"]},
@@ -6406,10 +6551,10 @@ const USER_SITE_DATA_FIELDS = [
   {label:"Perioda kontrol", key:"Perioda kontrol", keys:["Perioda kontrol","Perioda zkoušky","Perioda zkoušek","Perioda kontroly","Perioda kontrol (6/12)","Perioda","Četnost","Cetnost","Kontrola","Interval"], type:"period"},
   {label:"Hlídáme sami termín", key:"Hlídáme sami termín", keys:["Hlídáme sami termín","Hlídáme termín sami","Hlídat termín sami","Hlidat termin sami","Hlídáme kontroly sami","Hlidame kontroly sami","Jezdit hlídáme termín sami","Bez objednávky"], type:"yesno"},
   {label:"Smlouva", key:"Smlouva ano/ne", keys:["Smlouva ano/ne","Smlouva (ano/ne)","Smlouva ano ne","Smlouva ano","Smlouva"], type:"yesno"},
-  {label:"Cena FZ", key:"Cena FZ", keys:["Cena FZ","Cena FZ v Kč"]},
+  {label:"Cena FZ", key:"Cena FZ", keys:["Cena FZ","Cena FZ v Kč"], hideInDetail:true, hideInEdit:true},
   {label:"Důležité poznámky", key:"Důležitá poznámka", keys:["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky"], type:"textarea", important:true}
 ];
-window.userSiteDataFields = USER_SITE_DATA_FIELDS.map(f=>({label:f.label,key:f.key,type:f.type||"text"}));
+window.userSiteDataFields = USER_SITE_DATA_FIELDS.filter(f=>!f.hideInEdit).map(f=>({label:f.label,key:f.key,type:f.type||"text"}));
 
 const userSiteFieldSpecLookupCache=new Map();
 function userSiteFieldSpecByKey(key){
@@ -6622,7 +6767,7 @@ function renderEditableDataTable(table,r){
   table.classList.remove("history-item","small","detail-history-table");
   const raw=rawForSiteFieldLookup(r);
   const fragment=document.createDocumentFragment();
-  USER_SITE_DATA_FIELDS.forEach(spec=>{
+  USER_SITE_DATA_FIELDS.filter(spec=>!spec.hideInEdit).forEach(spec=>{
     const value=userSiteFieldValue(r,spec,raw);
     const row=document.createElement("tr");
     if(spec.important) row.className="notes-red-row";
@@ -7364,7 +7509,9 @@ function shouldWatchSelf(raw){
 
 function detailTableRows(r){
   const raw=rawForSiteFieldLookup(r);
-  return USER_SITE_DATA_FIELDS.map(spec=>({spec,value:userSiteFieldValue(r,spec,raw)}));
+  return USER_SITE_DATA_FIELDS
+    .filter(spec=>!spec.hideInDetail)
+    .map(spec=>({spec,value:userSiteFieldValue(r,spec,raw)}));
 }
 
 function detailTableSignature(rowsForDetail){
@@ -7384,6 +7531,7 @@ function renderDetailTable(table,r){
   rowsForDetail.forEach(({spec,value})=>{
     const row=document.createElement("div");
     row.className="history-detail-row";
+    if(spec.important) row.classList.add("detail-important-row");
     const label=document.createElement("span");
     label.textContent=spec.label;
     const valueCell=document.createElement("span");
@@ -7829,8 +7977,6 @@ function fillProtocolFormFromHistory(protocol={}){
   setProtocolFieldValue("protoDate",dateInputValueFromAny(protocol.date || protocol.checkDate || protocol.createdAt));
   setProtocolFieldValue("protoPlace",protocol.place || protocol.siteAddress || protocol.siteName || selectedSite?.adresa || "");
   setProtocolFieldValue("protoDeviceType",protocol.deviceType || protocol.selectedDevice || protocol.siteSource || "");
-  setProtocolFieldValue("protoDeviceTypeSelect",protocol.selectedDevice || protocol.deviceType || "");
-  setProtocolFieldValue("protoDeviceSelect",protocol.selectedDevice || protocol.deviceType || "");
   setProtocolFieldValue("protoSerial",protocol.serial || "");
   setProtocolFieldValue("protoSeal",protocol.seal || "");
   setProtocolFieldValue("protoOperator",protocol.operator || "");
@@ -9222,11 +9368,45 @@ function dataUrlImageBytes(dataUrl){
   try{return base64ToBytes(match[1]);}catch(e){return null;}
 }
 
+function pngImageSize(bytes){
+  if(!bytes || bytes.length<24) return null;
+  const signature=[137,80,78,71,13,10,26,10];
+  for(let i=0;i<signature.length;i++){
+    if(bytes[i]!==signature[i]) return null;
+  }
+  const width=(((bytes[16]<<24)>>>0) + (bytes[17]<<16) + (bytes[18]<<8) + bytes[19])>>>0;
+  const height=(((bytes[20]<<24)>>>0) + (bytes[21]<<16) + (bytes[22]<<8) + bytes[23])>>>0;
+  if(!width || !height) return null;
+  return {width,height};
+}
+
+function officialRtfWatermarkGeometry(bytes){
+  const size=pngImageSize(bytes) || {width:998,height:495};
+  const maxGoalWidth=9000;
+  const maxGoalHeight=4465;
+  const scale=Math.min(maxGoalWidth/size.width,maxGoalHeight/size.height);
+  const picwgoal=Math.max(1,Math.round(size.width*scale));
+  const pichgoal=Math.max(1,Math.round(size.height*scale));
+  const shpleft=Math.round(900+(maxGoalWidth-picwgoal)/2);
+  const shptop=Math.round(4300+(maxGoalHeight-pichgoal)/2);
+  return {
+    picw:size.width,
+    pich:size.height,
+    picwgoal,
+    pichgoal,
+    shpleft,
+    shptop,
+    shpright:shpleft+picwgoal,
+    shpbottom:shptop+pichgoal
+  };
+}
+
 function officialRtfWatermark(officialData={}){
   const bytes=officialData.watermarkLogoBytes || dataUrlImageBytes(szzLogoDataUrl());
   if(!bytes) return "";
   const hex=bytesToHex(bytes);
-  return `{\\shp{\\*\\shpinst\\shpleft900\\shptop4300\\shpright9900\\shpbottom8765\\shpfhdr1\\shpbxcolumn\\shpbxignore\\shpbypara\\shpbyignore\\shpwr3\\shpwrk0\\shpfblwtxt1\\shpz2\\shplid20260728{\\sp{\\sn shapeType}{\\sv 75}}{\\sp{\\sn fLockAspectRatio}{\\sv 1}}{\\sp{\\sn fFlipH}{\\sv 0}}{\\sp{\\sn fFlipV}{\\sv 0}}{\\sp{\\sn pib}{\\sv {\\pict\\piccropl0\\piccropr0\\piccropt0\\piccropb0\\picw998\\pich495\\picwgoal9000\\pichgoal4465\\pngblip ${hex}}}}{\\sp{\\sn pibFlags}{\\sv 2}}{\\sp{\\sn pictureContrast}{\\sv 19661}}{\\sp{\\sn pictureBrightness}{\\sv 22938}}{\\sp{\\sn fLine}{\\sv 0}}{\\sp{\\sn wzName}{\\sv WordPictureWatermarkSZZ}}{\\sp{\\sn posh}{\\sv 2}}{\\sp{\\sn posrelh}{\\sv 0}}{\\sp{\\sn posv}{\\sv 2}}{\\sp{\\sn posrelv}{\\sv 0}}{\\sp{\\sn dhgt}{\\sv 251660288}}{\\sp{\\sn fLayoutInCell}{\\sv 0}}{\\sp{\\sn fBehindDocument}{\\sv 1}}}}{\\shprslt\\par\\pard\\ql \\li0\\ri0\\widctlpar\\phmrg\\posxc\\posyc\\dxfrtext180\\dfrmtxtx180\\dfrmtxty0\\wraparound\\aspalpha\\aspnum\\faauto\\adjustright\\rin0\\lin0\\itap0}\\par `;
+  const g=officialRtfWatermarkGeometry(bytes);
+  return `{\\shp{\\*\\shpinst\\shpleft${g.shpleft}\\shptop${g.shptop}\\shpright${g.shpright}\\shpbottom${g.shpbottom}\\shpfhdr1\\shpbxcolumn\\shpbxignore\\shpbypara\\shpbyignore\\shpwr3\\shpwrk0\\shpfblwtxt1\\shpz2\\shplid20260728{\\sp{\\sn shapeType}{\\sv 75}}{\\sp{\\sn fLockAspectRatio}{\\sv 1}}{\\sp{\\sn fFlipH}{\\sv 0}}{\\sp{\\sn fFlipV}{\\sv 0}}{\\sp{\\sn pib}{\\sv {\\pict\\piccropl0\\piccropr0\\piccropt0\\piccropb0\\picw${g.picw}\\pich${g.pich}\\picwgoal${g.picwgoal}\\pichgoal${g.pichgoal}\\pngblip ${hex}}}}{\\sp{\\sn pibFlags}{\\sv 2}}{\\sp{\\sn pictureContrast}{\\sv 19661}}{\\sp{\\sn pictureBrightness}{\\sv 22938}}{\\sp{\\sn fLine}{\\sv 0}}{\\sp{\\sn wzName}{\\sv WordPictureWatermarkSZZ}}{\\sp{\\sn posh}{\\sv 2}}{\\sp{\\sn posrelh}{\\sv 0}}{\\sp{\\sn posv}{\\sv 2}}{\\sp{\\sn posrelv}{\\sv 0}}{\\sp{\\sn dhgt}{\\sv 251660288}}{\\sp{\\sn fLayoutInCell}{\\sv 0}}{\\sp{\\sn fBehindDocument}{\\sv 1}}}}{\\shprslt\\par\\pard\\ql \\li0\\ri0\\widctlpar\\phmrg\\posxc\\posyc\\dxfrtext180\\dfrmtxtx180\\dfrmtxty0\\wraparound\\aspalpha\\aspnum\\faauto\\adjustright\\rin0\\lin0\\itap0}\\par `;
 }
 
 function addOfficialRtfWatermark(output,officialData={}){
@@ -11861,7 +12041,7 @@ if(typeof window.bindLoginButtons==="function"){
 
 
 
-bindDrawerCloseButton();
+bindDetailShellControls();
 let filterRenderTimer=0;
 let lastFilterInputSignature="";
 function filterInputSignature(){
@@ -11933,41 +12113,47 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
   if(!firebaseReady){st.textContent="Firebase není nastavený.";return;}
   if(!currentUser){st.textContent="Nejdřív se přihlaš.";return;}
 
-  const name=document.getElementById("newName").value.trim();
-  const gpsLat=document.getElementById("newGpsLat").value.trim();
-  const gpsLon=document.getElementById("newGpsLon").value.trim();
+  const allRawData=collectNewSiteAllFields();
+  const name=document.getElementById("newName").value.trim()
+    || safe(allRawData["Název"] || allRawData["Adresa / umístění"] || allRawData["Adresa_GPS"]);
+  const gpsAddress=document.getElementById("newGpsAddress").value.trim()
+    || safe(allRawData["Adresa_GPS"] || allRawData["Adresa / umístění"] || name);
+  const gpsLat=document.getElementById("newGpsLat").value.trim()
+    || safe(allRawData["GPS_lat"]);
+  const gpsLon=document.getElementById("newGpsLon").value.trim()
+    || safe(allRawData["GPS_lon"]);
 
   if(!name){
     st.className="small";
     st.textContent="Je potřeba doplnit místo / název, který se bude zobrazovat na mapě.";
-    document.getElementById("newName").focus();
+    const target=(newSiteFieldElementsByKey().get("Název") || [])[0] || document.getElementById("newName");
+    if(target) target.focus();
     return;
   }
   if(!gpsLat || !gpsLon){
     st.className="small";
-    st.textContent="Vyplň GPS lat a GPS lon, aby se bod mohl zobrazit na mapě.";
-    if(!gpsLat) document.getElementById("newGpsLat").focus();
-    else document.getElementById("newGpsLon").focus();
+    st.textContent="Vyplň nebo dopočítej GPS, aby se bod mohl zobrazit na mapě.";
+    const target=(newSiteFieldElementsByKey().get("Adresa_GPS") || [])[0] || document.getElementById("newGpsAddress");
+    if(target) target.focus();
     return;
   }
 
   const data={
     name,
-    gpsAddress:document.getElementById("newGpsAddress").value.trim(),
+    gpsAddress,
     gpsLat,
     gpsLon,
-    region:document.getElementById("newRegion").value.trim(),
-    contact:document.getElementById("newContact").value.trim(),
-    source:document.getElementById("newSource").value.trim(),
+    region:document.getElementById("newRegion").value.trim() || safe(allRawData["Kraj"]),
+    contact:document.getElementById("newContact").value.trim() || safe(allRawData["Kontakt"]),
+    source:document.getElementById("newSource").value.trim() || safe(allRawData["Popis_zdroje"]),
     ordered:false,
-    noOrder:document.getElementById("newNoOrder").checked,
-    nextCheck:document.getElementById("newNextCheck").value,
-    lastCheck:document.getElementById("newLastCheck").value,
+    noOrder:document.getElementById("newNoOrder").checked || yesNoFixed(allRawData["Hlídáme kontroly sami"],"ne")==="ano",
+    nextCheck:document.getElementById("newNextCheck").value || safe(allRawData["Příští_kontrola"]),
+    lastCheck:document.getElementById("newLastCheck").value || safe(allRawData["Poslední_kontrola"]),
     notes:document.getElementById("newNotes").value.trim(),
     extra:document.getElementById("newExtra").value.trim(),
-    allRawData:collectNewSiteAllFields(),
+    allRawData,
     allData:document.getElementById("newAllData") ? document.getElementById("newAllData").value.trim() : "",
-    allRawData:collectNewSiteAllFields(),
     createdBy:currentUser.email,
     createdAt:new Date().toISOString(),
     updatedBy:currentUser.email,
@@ -12070,20 +12256,25 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
 document.getElementById("editBtn").onclick=()=>document.getElementById("editCard").style.display="block";
 document.getElementById("cancelEditBtn").onclick=()=>document.getElementById("editCard").style.display="none";
 
-const toggleProtocolBtn=formFieldNode("toggleProtocolBtn");
-if(toggleProtocolBtn){
-  toggleProtocolBtn.onclick=()=>{
-    const f=formFieldNode("protocolForm");
-    if(!f) return;
-    const open=f.style.display !== "none";
-    f.style.display=open ? "none" : "block";
-    setTextIfChanged(toggleProtocolBtn,open ? "Vyplnit protokol" : "Skrýt protokol");
-    if(!open){
-      initProtocolClientSignaturePad();
-      if(typeof prefillProtocol==="function") prefillProtocol();
-    }
-  };
+function toggleProtocolFormFromButton(){
+  const btn=formFieldNode("toggleProtocolBtn");
+  const f=formFieldNode("protocolForm");
+  if(!btn || !f) return;
+  const open=f.style.display !== "none";
+  f.style.display=open ? "none" : "block";
+  setTextIfChanged(btn,open ? "Vyplnit protokol" : "Skrýt protokol");
+  if(!open){
+    initProtocolClientSignaturePad();
+    if(typeof prefillProtocol==="function") prefillProtocol();
+  }
 }
+
+function bindProtocolToggleButton(){
+  const btn=formFieldNode("toggleProtocolBtn");
+  if(btn) btn.onclick=toggleProtocolFormFromButton;
+}
+
+bindProtocolToggleButton();
 
 
 const editFindGpsBtn=document.getElementById("editFindGpsBtn");
@@ -12322,34 +12513,11 @@ function populateProtocolDeviceSelect(){
   if(oldWrap) oldWrap.style.display="none";
   const inputWrap=formFieldNode("protoDeviceInputWrap");
   const selectWrap=formFieldNode("protoDeviceSelectWrap2");
-  const select=formFieldNode("protoDeviceTypeSelect");
   const input=formFieldNode("protoDeviceType");
-  if(!selectedSite || !input || !select) return;
-  const rawSource=[
-    protocolDeviceTypeFromSite(selectedSite),
-    selectedSite?.raw?.["Jaký zdroj"],
-    selectedSite?.raw?.["Popis_zdroje"],
-    selectedSite?.raw?.["Kontrolované zařízení"],
-    selectedSite?.raw?.["Typ zařízení"]
-  ].filter(Boolean).join(" ");
-  const hasPlus=rawSource.includes("+");
-  const devices=hasPlus ? rawSource.split("+").map(x=>x.trim()).filter(Boolean) : sourceOptionsFromSite(selectedSite);
-  const fragment=document.createDocumentFragment();
-  const placeholder=document.createElement("option");
-  placeholder.value="";
-  placeholder.textContent="Vyber zařízení";
-  fragment.appendChild(placeholder);
-  devices.forEach((d,idx)=>{const o=document.createElement("option");o.value=d;o.textContent=d||`Zařízení ${idx+1}`;fragment.appendChild(o);});
-  select.replaceChildren(fragment);
-  if(hasPlus && devices.length>1){
-    if(inputWrap) inputWrap.classList.add("hidden");
-    if(selectWrap) selectWrap.classList.remove("hidden");
-    input.value="";
-  }else{
-    if(inputWrap) inputWrap.classList.remove("hidden");
-    if(selectWrap) selectWrap.classList.add("hidden");
-    input.value=devices[0]||protocolDeviceTypeFromSite(selectedSite)||"";
-  }
+  if(inputWrap) inputWrap.classList.remove("hidden");
+  if(selectWrap) selectWrap.classList.add("hidden");
+  if(!selectedSite || !input) return;
+  input.value=protocolDeviceTypeFromSite(selectedSite) || "";
   updateProtocolSummary();
 }
 
@@ -12364,9 +12532,6 @@ function resetProtocolTechnicalFieldsForNewDevice(){
     if(el) el.value="";
   });
 
-  const sel=formFieldNode("protoDeviceSelect");
-  const type=formFieldNode("protoDeviceType");
-  if(sel && sel.value && type) type.value=sel.value;
   updateProtocolSummary();
 }
 
@@ -12434,7 +12599,7 @@ function updateProtocolSummary(){
     setTextIfChanged(protocolSummaryNode(id),safe(value) || "-");
   };
   set("protoSummaryAddress", val("protoPlace"));
-  set("protoSummaryDevice", val("protoDeviceTypeSelect") || val("protoDeviceType") || val("protoDeviceSelect"));
+  set("protoSummaryDevice", val("protoDeviceType"));
   set("protoSummarySerial", val("protoSerial"));
   set("protoSummaryLocation", val("protoPbzLocation"));
   set("protoSummaryPeriod", val("protoPeriod"));
@@ -14320,7 +14485,7 @@ function protocolPayload(){
     ...identity,
     technicianEmail:currentUser?.email || lastKnownUserEmail() || "",
     date:val("protoDate"),
-    selectedDevice:val("protoDeviceTypeSelect") || val("protoDeviceSelect"),
+    selectedDevice:val("protoDeviceType"),
     deviceType:val("protoDeviceType"),
     serial:val("protoSerial"),
     seal:val("protoSeal"),
@@ -14554,26 +14719,6 @@ protocolFormEl.addEventListener("submit",async e=>{
 }
 
 
-
-const protoDeviceTypeSelectEl=formFieldNode("protoDeviceTypeSelect");
-if(protoDeviceTypeSelectEl){
-  protoDeviceTypeSelectEl.addEventListener("change",()=>{
-    const input=formFieldNode("protoDeviceType");
-    resetProtocolTechnicalFieldsForNewDevice();
-    if(input) input.value=protoDeviceTypeSelectEl.value;
-    updateProtocolSummary();
-    setProtocolStatusText("Vybráno zařízení – vyplň údaje pro tento zdroj.");
-  });
-}
-
-const protoDeviceSelectEl=formFieldNode("protoDeviceSelect");
-if(protoDeviceSelectEl){
-  protoDeviceSelectEl.addEventListener("change",()=>{
-    resetProtocolTechnicalFieldsForNewDevice();
-    updateProtocolSummary();
-    setProtocolStatusText("Vybrán jiný zdroj – vyplň hodnoty pro tento zdroj.");
-  });
-}
 
 [
   "protoPlace","protoDeviceType","protoSerial","protoPbzLocation","protoPeriod"

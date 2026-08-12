@@ -537,6 +537,17 @@
 .history-detail-row td:last-child{
   overflow-wrap:anywhere;
 }
+.history-detail-row.detail-important-row{
+  background:#fee2e2;
+  border:1px solid #fecaca;
+  border-radius:8px;
+  padding:6px 8px;
+}
+.history-detail-row.detail-important-row span:first-child,
+.history-detail-row.detail-important-row span:last-child{
+  color:#991b1b;
+  font-weight:800;
+}
 .history-photos{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(90px,1fr));

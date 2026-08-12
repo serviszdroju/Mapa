@@ -49,17 +49,22 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   if(typeof window.restoreNormalDetailDrawerShell==="function"){
     try{
       window.restoreNormalDetailDrawerShell();
-      if(d.querySelector("#detailTable") && d.querySelector("#detailTabs")) return true;
+      if(d.querySelector("#detailTable") && d.querySelector("#detailTabs")){
+        if(typeof window.bindDetailShellControls==="function") window.bindDetailShellControls();
+        return true;
+      }
     }catch(e){}
   }
   if(window.szzDrawerNodesHaveDetailShell(window.__normalDrawerNodes)){
     d.replaceChildren(...window.__normalDrawerNodes);
     window.szzCaptureNormalDrawerSnapshot(d);
+    if(typeof window.bindDetailShellControls==="function") window.bindDetailShellControls();
     return true;
   }
   if(window.szzDrawerNodesHaveDetailShell(window.__normalDrawerNodeClones)){
     d.replaceChildren(...window.szzCloneDrawerNodes(window.__normalDrawerNodeClones));
     window.szzCaptureNormalDrawerSnapshot(d);
+    if(typeof window.bindDetailShellControls==="function") window.bindDetailShellControls();
     return true;
   }
   return false;
@@ -124,12 +129,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 
   async function calcAddGps(){
     const st=document.getElementById("onlyNewStatus");
-    const address=String(document.getElementById("onlyNewAddress")?.value || document.querySelector('#newSiteOnlyCard [data-new-key="Adresa_GPS"]')?.value || "").trim();
+    const gpsAddressEl=document.getElementById("onlyNewGpsAddress") || document.querySelector('#newSiteOnlyCard [data-new-key="Adresa_GPS"]');
+    const address=String(gpsAddressEl?.value || document.getElementById("onlyNewAddress")?.value || document.getElementById("onlyNewName")?.value || "").trim();
     const latEl=document.getElementById("onlyNewGpsLat");
     const lonEl=document.getElementById("onlyNewGpsLon");
 
     if(!address){
-      if(st) st.textContent="Vyplň adresu / umístění.";
+      if(st) st.textContent="Vyplň adresu GPS nebo adresu / umístění.";
       return;
     }
 
@@ -148,19 +154,36 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 
       if(!g){
         const region=window.inferRegionFromAddressText(address);
-        window.setRegionFieldValue('#newSiteOnlyCard [data-new-key="Kraj"]',region);
+        window.setRegionFieldValue('#newSiteOnlyCard [data-new-key="Kraj"]',region,{force:true});
         if(st) st.textContent=window.lastGeocodeMessage || (region ? "Adresa nebyla nalezena pro GPS, kraj jsem doplnil podle textu adresy." : "Adresa nebyla nalezena.");
         return;
       }
 
       if(latEl) latEl.value=g.lat;
       if(lonEl) lonEl.value=g.lon;
+      if(gpsAddressEl) gpsAddressEl.value=g.display || address;
       const region=window.inferRegionFromAddressText(g.display || address, g.address || {});
-      window.setRegionFieldValue('#newSiteOnlyCard [data-new-key="Kraj"]',region);
+      window.setRegionFieldValue('#newSiteOnlyCard [data-new-key="Kraj"]',region,{force:true});
       if(st) st.textContent="GPS doplněno.";
     }catch(e){
       if(st) st.textContent="Chyba dopočtu GPS: "+e.message;
     }
+  }
+
+  function syncOnlyNewRegionFromText(options={}){
+    const infer=window.inferRegionFromAddressText;
+    const setRegion=window.setRegionFieldValue;
+    if(typeof infer!=="function" || typeof setRegion!=="function") return "";
+    const text=String(
+      document.getElementById("onlyNewGpsAddress")?.value ||
+      document.getElementById("onlyNewAddress")?.value ||
+      document.getElementById("onlyNewName")?.value ||
+      ""
+    ).trim();
+    if(!text) return "";
+    const region=infer(text);
+    if(region) setRegion('#newSiteOnlyCard [data-new-key="Kraj"]',region,options);
+    return region;
   }
 
   function findAddOnMap(){
@@ -223,8 +246,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
           <div><label>Název</label><input data-new-key="Název" id="onlyNewName"></div>
           <div><label>Adresa / umístění</label><input data-new-key="Adresa / umístění" id="onlyNewAddress"></div>
 
+          <div class="full new-gps-address-field"><label>Adresa GPS</label><div class="new-gps-address-line"><input data-new-key="Adresa_GPS" id="onlyNewGpsAddress"><button class="secondary" type="button" id="calcOnlyGps">Dopočítat GPS</button></div></div>
+
           <div class="full gps-actions">
-            <button class="secondary" type="button" id="calcOnlyGps">Dopočítat GPS</button>
             <button class="secondary" type="button" id="pickOnlyGps">Vybrat na mapě</button>
             <button class="primary" type="button" id="findOnlyGps">Ukázat bod na mapě</button>
           </div>
@@ -232,22 +256,15 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
           <div><label>GPS lat</label><input data-new-key="GPS_lat" id="onlyNewGpsLat" placeholder="49.123456"></div>
           <div><label>GPS lon</label><input data-new-key="GPS_lon" id="onlyNewGpsLon" placeholder="16.123456"></div>
 
-          <div class="full"><label>Umístění zdroje</label><input data-new-key="Adresa_GPS"></div>
-          <div class="full"><label>Historie oprav</label><textarea data-new-key="Historie oprav"></textarea></div>
-          <div class="full"><label>Postup testování</label><textarea data-new-key="Postup testování"></textarea></div>
-          <div class="full"><label>Jistič UPS</label><input data-new-key="Jistič UPS"></div>
           <div class="full"><label>Popis zdroje</label><input data-new-key="Popis_zdroje"></div>
           <div class="full"><label>Výrobní číslo</label><input data-new-key="Zdroj"></div>
 
           <div><label>Kontakt</label><input data-new-key="Kontakt"></div>
           <div><label>Kraj</label><input data-new-key="Kraj"></div>
 
-          <div class="full"><label>Poznámky</label><input data-new-key="Poznámky"></div>
-
           <div><label>Rok výroby</label><input data-new-key="Rok výroby"></div>
           <div><label>Serviska</label><select data-new-key="Serviska"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
 
-          <div><label>Cena FZ</label><input data-new-key="Cena FZ"></div>
           <div><label>Perioda kontrol</label><select data-new-key="Perioda kontrol"><option value="6">6 měsíců</option><option value="12" selected>12 měsíců</option></select></div>
 
           <div class="full"><label>Hlídáme kontroly sami</label><select data-new-key="Hlídáme kontroly sami"><option value="ne" selected>ne</option><option value="ano">ano</option></select></div>
@@ -268,6 +285,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     document.getElementById("pickOnlyGps").onclick=window.startOnlyNewManualGpsPick;
     document.getElementById("findOnlyGps").onclick=findAddOnMap;
     document.getElementById("saveOnlyNew").onclick=saveAddSite;
+    ["onlyNewName","onlyNewAddress","onlyNewGpsAddress"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){
+        el.addEventListener("input",()=>syncOnlyNewRegionFromText());
+        el.addEventListener("change",()=>syncOnlyNewRegionFromText({force:true}));
+      }
+    });
     window.szzAfterPaint(()=>document.getElementById("onlyNewName")?.focus());
   }
 
@@ -283,14 +307,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     let row=buildRowFromRaw(raw);
 
     if(!raw["Kraj"]){
-      raw["Kraj"]=window.inferRegionFromAddressText(raw["Adresa / umístění"] || raw["Název"] || raw["Adresa_GPS"] || "");
+      raw["Kraj"]=window.inferRegionFromAddressText(raw["Adresa_GPS"] || raw["Adresa / umístění"] || raw["Název"] || "");
       row.raw["Kraj"]=raw["Kraj"] || row.raw["Kraj"] || "";
       row.kraj=raw["Kraj"] || row.kraj || "";
     }
 
     if(!Number.isFinite(row.lat) || !Number.isFinite(row.lon)){
       try{
-        const address=raw["Adresa / umístění"] || raw["Adresa_GPS"] || "";
+        const address=raw["Adresa_GPS"] || raw["Adresa / umístění"] || raw["Název"] || "";
         if(address && typeof window.geocodeAddressGeneric==="function"){
           if(st) st.textContent="Dopočítávám GPS...";
           const g=await window.geocodeAddressGeneric(address);
@@ -457,6 +481,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       d.classList.remove("adding-new-site");
       const close=d.querySelector("#closeDrawer");
       if(close) close.onclick=()=>d.classList.remove("open");
+      if(typeof window.bindDetailShellControls==="function"){
+        try{ window.bindDetailShellControls(); }catch(e){}
+      }
       return true;
     }
     return false;
@@ -522,20 +549,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   const FB_USER_FIELDS = [
     {label:"Název", key:"Název", full:true},
     {label:"Adresa / umístění", key:"Adresa / umístění", full:true},
-    {label:"Adresa_GPS", key:"Adresa_GPS", full:true, readonly:true},
+    {label:"Adresa GPS", key:"Adresa_GPS", full:true, gpsAddress:true},
     {label:"Kraj", key:"Kraj", type:"region"},
     {label:"Popis zdroje", key:"Popis_zdroje", full:true},
     {label:"Výrobní číslo", key:"Zdroj"},
     {label:"Kontakt", key:"Kontakt"},
-    {label:"Umístění zdroje", key:"Umístění zdroje", full:true},
-    {label:"Historie oprav", key:"Historie oprav", type:"textarea", full:true},
-    {label:"Postup testování", key:"Postup testování", type:"textarea", full:true},
-    {label:"Jistič UPS", key:"Jistič UPS", type:"textarea", full:true},
-    {label:"Poznámky", key:"Poznámky", type:"textarea", full:true},
     {label:"Perioda kontrol", key:"Perioda kontrol", type:"period"},
     {label:"Hlídáme sami termín", key:"Hlídáme sami termín", type:"yesno"},
     {label:"Smlouva", key:"Smlouva ano/ne", type:"yesno"},
-    {label:"Cena FZ", key:"Cena FZ"},
     {label:"Důležité poznámky", key:"Důležitá poznámka", type:"textarea", full:true, important:true}
   ];
   const FB_HIDDEN_KEYS = ["GPS_lat", "GPS_lon"];
@@ -1023,6 +1044,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(spec.type==="period") return `<div class="${cls}"><label>${esc(spec.label)}</label><select data-fb-key="${esc(k)}"><option value="6">6 měsíců</option><option value="12" selected>12 měsíců</option></select></div>`;
     if(spec.type==="yesno") return `<div class="${cls}"><label>${esc(spec.label)}</label><select data-fb-key="${esc(k)}"><option value="ne" selected>ne</option><option value="ano">ano</option></select></div>`;
     if(spec.type==="textarea") return `<div class="${cls}"><label>${esc(spec.label)}</label><textarea data-fb-key="${esc(k)}"></textarea></div>`;
+    if(spec.gpsAddress) return `<div class="${cls} fbUnifiedGpsAddressField"><label>${esc(spec.label)}</label><div class="fbUnifiedGpsAddressLine"><input data-fb-key="${esc(k)}" id="fbUnifiedGpsAddress"><button class="fbSecondary" id="fbUnifiedGpsInline" type="button">Dopočítat GPS</button></div></div>`;
     if(spec.readonly) return `<div class="${cls}"><label>${esc(spec.label)}</label><input data-fb-key="${esc(k)}" readonly title="Dopočítá se z adresy"></div>`;
     return `<div class="${cls}"><label>${esc(spec.label)}</label><input data-fb-key="${esc(k)}"></div>`;
   }
@@ -1037,15 +1059,23 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         <div class="control-date-box control-date-last"><span>Poslední proběhlá kontrola</span><input id="fbUnifiedLastCheck" type="date"></div>
         <div class="control-date-box control-date-next"><span>Příští plánovaná kontrola</span><input id="fbUnifiedNextCheck" type="date"></div>
       </div>
-      <div class="fbUnifiedActions"><button class="fbSecondary" id="fbUnifiedGps" type="button">Dopočítat GPS</button><button class="fbSecondary" id="fbUnifiedPick" type="button">Vybrat na mapě</button><button class="fbSecondary" id="fbUnifiedFind" type="button">Ukázat bod na mapě</button><button class="fbPrimary" id="fbUnifiedSave" type="button">Uložit bod a otevřít detail</button><button class="fbDanger" id="fbUnifiedClear" type="button">Vymazat formulář</button></div>
+      <div class="fbUnifiedActions"><button class="fbSecondary" id="fbUnifiedPick" type="button">Vybrat na mapě</button><button class="fbSecondary" id="fbUnifiedFind" type="button">Ukázat bod na mapě</button><button class="fbPrimary" id="fbUnifiedSave" type="button">Uložit bod a otevřít detail</button><button class="fbDanger" id="fbUnifiedClear" type="button">Vymazat formulář</button></div>
       <div class="fbUnifiedGrid">${FB_USER_FIELDS.map(field).join("")}${FB_HIDDEN_KEYS.map(k=>`<input type="hidden" data-fb-key="${esc(k)}">`).join("")}</div>`;
     document.body.appendChild(panel);
     document.getElementById("fbUnifiedClose").onclick=closePanel;
-    document.getElementById("fbUnifiedGps").onclick=calcGps;
+    const gpsBtn=document.getElementById("fbUnifiedGpsInline");
+    if(gpsBtn) gpsBtn.onclick=calcGps;
     document.getElementById("fbUnifiedPick").onclick=window.startFbUnifiedManualGpsPick;
     document.getElementById("fbUnifiedFind").onclick=findOnMap;
     document.getElementById("fbUnifiedSave").onclick=savePoint;
     document.getElementById("fbUnifiedClear").onclick=clearForm;
+    ["Název","Adresa / umístění","Adresa_GPS"].forEach(key=>{
+      const el=panel.querySelector(`[data-fb-key="${CSS.escape(key)}"]`);
+      if(el){
+        el.addEventListener("input",()=>syncFbUnifiedRegionFromText());
+        el.addEventListener("change",()=>syncFbUnifiedRegionFromText({force:true}));
+      }
+    });
     const last=document.getElementById("fbUnifiedLastCheck");
     const next=document.getElementById("fbUnifiedNextCheck");
     const period=panel.querySelector('[data-fb-key="Perioda kontrol"]');
@@ -1070,6 +1100,18 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(o)o.classList.remove("open"); if(p)p.classList.remove("open");
   }
   function setField(k,v){ const el=document.querySelector(`#fbUnifiedPanel [data-fb-key="${CSS.escape(k)}"]`); if(el) el.value=v; }
+  function syncFbUnifiedRegionFromText(options={}){
+    const infer=window.inferRegionFromAddressText;
+    const setRegion=window.setRegionFieldValue;
+    if(typeof infer!=="function" || typeof setRegion!=="function") return "";
+    const text=val(document.querySelector('#fbUnifiedPanel [data-fb-key="Adresa_GPS"]')?.value)
+      || val(document.querySelector('#fbUnifiedPanel [data-fb-key="Adresa / umístění"]')?.value)
+      || val(document.querySelector('#fbUnifiedPanel [data-fb-key="Název"]')?.value);
+    if(!text) return "";
+    const region=infer(text);
+    if(region) setRegion('#fbUnifiedPanel [data-fb-key="Kraj"]',region,options);
+    return region;
+  }
   function getRaw(){
     ensurePanel(); const raw={};
     document.querySelectorAll("#fbUnifiedPanel [data-fb-key]").forEach(el=>{const k=el.getAttribute("data-fb-key"); const v=val(el.value); if(v) raw[k]=v;});
@@ -1179,8 +1221,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return row;
   }
   async function calcGps(){
-    const raw=getRaw(); const address=raw["Adresa / umístění"] || raw["Název"];
-    if(!address){status("Vyplň nejdřív adresu / umístění.",true);return;}
+    const raw=getRaw(); const address=raw["Adresa_GPS"] || raw["Adresa / umístění"] || raw["Název"];
+    if(!address){status("Vyplň nejdřív adresu GPS nebo adresu / umístění.",true);return;}
     try{
       status("Dopočítávám GPS...");
       const geocode=window.geocodeAddressGeneric;
@@ -1188,14 +1230,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       const found=typeof geocode==="function" ? await geocode(address) : null;
       if(!found){
         const region=typeof inferRegion==="function" ? inferRegion(address) : "";
-        if(region && !val(raw["Kraj"])) setField("Kraj",region);
+        if(region) setField("Kraj",region);
         status(window.lastGeocodeMessage || (region ? "GPS se nepodařilo dopočítat, kraj jsem doplnil podle textu adresy." : "Adresa nebyla nalezena."),true);
         return;
       }
-      setField("Adresa_GPS",`${found.lat}, ${found.lon}`);
+      setField("Adresa_GPS",found.display || address);
       setField("GPS_lat",found.lat);
       setField("GPS_lon",found.lon);
-      if(!val(raw["Kraj"]) && typeof inferRegion==="function"){
+      if(typeof inferRegion==="function"){
         const region=inferRegion(found.display || address, found.address || {});
         if(region) setField("Kraj",region);
       }
@@ -1717,7 +1759,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     const inferRegion=window.inferRegionFromAddressText;
     const geocode=window.geocodeAddressGeneric;
     if(!raw["Kraj"] && typeof inferRegion==="function"){
-      const address=raw["Adresa / umístění"] || raw["Název"] || raw["Adresa_GPS"] || "";
+	      const address=raw["Adresa_GPS"] || raw["Adresa / umístění"] || raw["Název"] || "";
       let region=inferRegion(address);
       if(!region && address && typeof geocode==="function"){
         try{
@@ -1865,15 +1907,18 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     window.szzCaptureNormalDrawerSnapshot(drawer);
   }
 
-  function restoreNormalDrawerTemplateForSource(){
-    const drawer = document.getElementById("drawer");
-    if(!drawer) return false;
-    if(drawer.querySelector("#newSiteOnlyCard") && window.szzRestoreNormalDrawerSnapshot(drawer)){
-      drawer.classList.remove("adding-new-site");
-      return true;
-    }
-    return false;
-  }
+	  function restoreNormalDrawerTemplateForSource(){
+	    const drawer = document.getElementById("drawer");
+	    if(!drawer) return false;
+	    if(drawer.querySelector("#newSiteOnlyCard") && window.szzRestoreNormalDrawerSnapshot(drawer)){
+	      drawer.classList.remove("adding-new-site");
+	      if(typeof window.bindDetailShellControls==="function"){
+	        try{ window.bindDetailShellControls(); }catch(e){}
+	      }
+	      return true;
+	    }
+	    return false;
+	  }
 
   function returnToSourceDetail(site){
     const key = rowKeySource(site);
@@ -1934,23 +1979,19 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       <div class="card" id="newSiteOnlyCard" data-add-source-form="1">
         <p class="small">Adresa a GPS jsou převzaté z aktuálního místa. Doplň hlavně popis zdroje nebo výrobní číslo.</p>
         <div class="new-only-grid">
-          <div class="full"><label>Název místa</label><input data-new-key="Název" value="${attrSource(name)}"></div>
-          <div class="full"><label>Adresa / umístění</label><input data-new-key="Adresa / umístění" id="onlyNewAddress" value="${attrSource(place)}" readonly></div>
-          <div><label>GPS lat</label><input data-new-key="GPS_lat" id="onlyNewGpsLat" value="${attrSource(lat)}" readonly></div>
-          <div><label>GPS lon</label><input data-new-key="GPS_lon" id="onlyNewGpsLon" value="${attrSource(lon)}" readonly></div>
-          <div class="full"><label>Adresa_GPS</label><input data-new-key="Adresa_GPS" value="${attrSource(place)}" readonly></div>
-          <div><label>Kraj</label><input data-new-key="Kraj" value="${attrSource(region)}" readonly></div>
-          <div><label>Kontakt</label><input data-new-key="Kontakt" value="${attrSource(contact)}"></div>
+	          <div class="full"><label>Název místa</label><input data-new-key="Název" value="${attrSource(name)}"></div>
+	          <div class="full"><label>Adresa / umístění</label><input data-new-key="Adresa / umístění" id="onlyNewAddress" value="${attrSource(place)}" readonly></div>
+	          <div><label>GPS lat</label><input data-new-key="GPS_lat" id="onlyNewGpsLat" value="${attrSource(lat)}" readonly></div>
+	          <div><label>GPS lon</label><input data-new-key="GPS_lon" id="onlyNewGpsLon" value="${attrSource(lon)}" readonly></div>
+	          <div class="full"><label>Adresa GPS</label><input data-new-key="Adresa_GPS" value="${attrSource(place)}" readonly></div>
+	          <div><label>Kraj</label><input data-new-key="Kraj" value="${attrSource(region)}" readonly></div>
+	          <div><label>Kontakt</label><input data-new-key="Kontakt" value="${attrSource(contact)}"></div>
 
-          <div class="full"><label>Popis zdroje</label><input data-new-key="Popis_zdroje" id="addSourceType" placeholder="např. PS 20 000/3f - 45 min."></div>
-          <div class="full"><label>Výrobní číslo</label><input data-new-key="Zdroj" id="addSourceSerial" placeholder="výrobní číslo zdroje"></div>
-          <div class="full"><label>Umístění zdroje</label><input data-new-key="Umístění zdroje" placeholder="např. suterén, rozvodna, serverovna"></div>
-          <div class="full"><label>Historie oprav</label><textarea data-new-key="Historie oprav"></textarea></div>
-          <div class="full"><label>Postup testování</label><textarea data-new-key="Postup testování"></textarea></div>
-          <div class="full"><label>Jistič UPS</label><input data-new-key="Jistič UPS"></div>
+	          <div class="full"><label>Popis zdroje</label><input data-new-key="Popis_zdroje" id="addSourceType" placeholder="např. PS 20 000/3f - 45 min."></div>
+	          <div class="full"><label>Výrobní číslo</label><input data-new-key="Zdroj" id="addSourceSerial" placeholder="výrobní číslo zdroje"></div>
 
-          <div><label>Poslední kontrola</label><input type="date" data-new-key="Poslední_kontrola" value="${attrSource(lastCheck)}"></div>
-          <div><label>Příští kontrola</label><input type="date" data-new-key="Příští_kontrola" value="${attrSource(nextCheck)}"></div>
+	          <div><label>Poslední kontrola</label><input type="date" data-new-key="Poslední_kontrola" value="${attrSource(lastCheck)}"></div>
+	          <div><label>Příští kontrola</label><input type="date" data-new-key="Příští_kontrola" value="${attrSource(nextCheck)}"></div>
           <div><label>Perioda kontrol</label><select data-new-key="Perioda kontrol">
             <option value="6" ${period === "6" ? "selected" : ""}>6 měsíců</option>
             <option value="12" ${period !== "6" ? "selected" : ""}>12 měsíců</option>
@@ -1960,12 +2001,10 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
             <option value="ano">ano</option>
           </select></div>
 
-          <div><label>Rok výroby</label><input data-new-key="Rok výroby"></div>
-          <div><label>Serviska</label><select data-new-key="Serviska"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
-          <div><label>Smlouva</label><select data-new-key="Smlouva ano/ne"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
-          <div><label>Cena FZ</label><input data-new-key="Cena FZ"></div>
-          <div class="full"><label>Poznámky</label><textarea data-new-key="Poznámky"></textarea></div>
-          <div class="full only-red"><label>Důležité poznámky</label><textarea data-new-key="Důležitá poznámka"></textarea></div>
+	          <div><label>Rok výroby</label><input data-new-key="Rok výroby"></div>
+	          <div><label>Serviska</label><select data-new-key="Serviska"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
+	          <div><label>Smlouva</label><select data-new-key="Smlouva ano/ne"><option value=""></option><option value="ano">ano</option><option value="ne">ne</option></select></div>
+	          <div class="full only-red"><label>Důležité poznámky</label><textarea data-new-key="Důležitá poznámka"></textarea></div>
         </div>
 
         <div class="row" style="margin-top:12px">
