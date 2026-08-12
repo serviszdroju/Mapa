@@ -4,17 +4,33 @@ function isLocalFileApp(){
   return window.location.protocol==="file:";
 }
 
+function setTextIfChanged(el,value){
+  if(el && el.textContent!==String(value)) el.textContent=String(value);
+}
+
+function setDisplayIfChanged(el,value){
+  if(el && el.style.display!==value) el.style.display=value;
+}
+
+function setClassNameIfChanged(el,value){
+  if(el && el.className!==value) el.className=value;
+}
+
+function setHandlerIfChanged(el,handler){
+  if(el && typeof handler==="function" && el.onclick!==handler) el.onclick=handler;
+}
+
 function status(message){
   const el=document.getElementById("startupStatus");
-  if(el) el.textContent=message;
+  setTextIfChanged(el,message);
   const gps=document.getElementById("gpsBox");
   if(gps && message){
-    gps.style.display="block";
-    gps.className="notice";
-    gps.textContent=message;
+    setDisplayIfChanged(gps,"block");
+    setClassNameIfChanged(gps,"notice");
+    setTextIfChanged(gps,message);
   }
   const progress=document.getElementById("progress");
-  if(progress && message) progress.textContent=message;
+  if(message) setTextIfChanged(progress,message);
 }
 
 function openHostedApp(){
@@ -56,11 +72,12 @@ function setTopAuthButtonMode(mode){
   if(!topLogout) return;
   const loginMode=mode==="login";
   const handler=isLocalFileApp() ? openHostedApp : (window.startGoogleLogin || window.loginPopup);
-  topLogout.dataset.authMode=loginMode ? "login" : "logout";
-  topLogout.textContent=loginMode ? "Přihlásit technika" : "Odhlásit technika";
-  topLogout.classList.toggle("primary",loginMode);
-  topLogout.classList.toggle("secondary",!loginMode);
-  topLogout.onclick=loginMode ? handler : signOutAndReload;
+  const authMode=loginMode ? "login" : "logout";
+  if(topLogout.dataset.authMode!==authMode) topLogout.dataset.authMode=authMode;
+  setTextIfChanged(topLogout,loginMode ? "Přihlásit technika" : "Odhlásit technika");
+  if(topLogout.classList.contains("primary")!==loginMode) topLogout.classList.toggle("primary",loginMode);
+  if(topLogout.classList.contains("secondary")!==(!loginMode)) topLogout.classList.toggle("secondary",!loginMode);
+  setHandlerIfChanged(topLogout,loginMode ? handler : signOutAndReload);
 }
 
 function bindLoginButtons(){
@@ -69,9 +86,9 @@ function bindLoginButtons(){
   const login=document.getElementById("loginBtn");
   const logout=document.getElementById("logoutBtn");
   const topLogout=document.getElementById("topLogoutBtn");
-  if(startup && typeof handler==="function") startup.onclick=handler;
-  if(login && typeof handler==="function") login.onclick=handler;
-  if(logout) logout.onclick=signOutAndReload;
+  setHandlerIfChanged(startup,handler);
+  setHandlerIfChanged(login,handler);
+  setHandlerIfChanged(logout,signOutAndReload);
   if(topLogout) setTopAuthButtonMode(topLogout.dataset.authMode || (window.currentUser || window.__authReadyUser ? "logout" : "login"));
 }
 
