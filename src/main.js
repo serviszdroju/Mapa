@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-detail-shell-nodes-v311";
+const APP_BUILD_VERSION="2026-08-12-cache-official-document-nodes-v312";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v311-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v312-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7706,6 +7706,18 @@ function detailLastCheckNode(){
 function detailNextCheckNode(){
   return formFieldNode("detailNextCheck");
 }
+function officialProtocolStatusNode(){
+  return formFieldNode("officialProtocolStatus");
+}
+function officialProtocolDataBoxNode(){
+  return formFieldNode("officialProtocolDataBox");
+}
+function officialProtocolSourceInfoNode(){
+  return formFieldNode("officialProtocolSourceInfo");
+}
+function officialManufacturerSelectNode(){
+  return formFieldNode("officialManufacturerSelect");
+}
 
 function setInputValue(id,value){
   const el=formFieldNode(id);
@@ -8483,7 +8495,7 @@ function officialManufacturerTextByKey(key){
 }
 
 function syncOfficialManufacturerHidden(){
-  const select=document.getElementById("officialManufacturerSelect");
+  const select=officialManufacturerSelectNode();
   const key=select?.value || "szz";
   setInputValue("officialManufacturerData",officialManufacturerTextByKey(key));
   return key;
@@ -8601,43 +8613,43 @@ function selectedHistoryProtocol(){
 }
 
 function updateOfficialProtocolSourceInfo(){
-  const info=document.getElementById("officialProtocolSourceInfo");
+  const info=officialProtocolSourceInfoNode();
   if(!info) return;
   const selectedProtocol=selectedHistoryProtocol();
   const protocol=selectedProtocol || latestDisplayedProtocol() || latestLocalProtocolForSite(selectedSite);
   if(protocol){
     const saved=historySavedDateLabel(protocol);
     const checked=historyDateLabel(protocol);
-    info.textContent=[
+    setTextIfChanged(info,[
       selectedProtocol ? "Použije se právě zobrazený protokol" : "Použije se poslední uložený protokol",
       saved ? `uložený ${saved}` : "",
       checked ? `(kontrola ${checked})` : ""
-    ].filter(Boolean).join(" ") + ".";
+    ].filter(Boolean).join(" ") + ".");
   }else{
-    info.textContent="Použije se poslední uložený protokol. Pokud tu ještě není, nejdřív ulož protokol kontroly.";
+    setTextIfChanged(info,"Použije se poslední uložený protokol. Pokud tu ještě není, nejdřív ulož protokol kontroly.");
   }
 }
 
 function resetOfficialProtocolSection(site=selectedSite){
   fillOfficialProtocolInputs(site);
-  const box=document.getElementById("officialProtocolDataBox");
-  const status=document.getElementById("officialProtocolStatus");
-  if(box) box.style.display="none";
-  if(status) status.textContent="";
+  const box=officialProtocolDataBoxNode();
+  const status=officialProtocolStatusNode();
+  setDisplayIfChanged(box,"none");
+  setTextIfChanged(status,"");
   updateOfficialProtocolSourceInfo();
 }
 
 async function saveOfficialProtocolData(options={}){
-  const status=document.getElementById("officialProtocolStatus");
+  const status=officialProtocolStatusNode();
   if(!selectedSite){
-    if(status) status.textContent="Není vybrané místo.";
+    setTextIfChanged(status,"Není vybrané místo.");
     return null;
   }
   const data=officialProtocolInputData();
   if(!safe(data.operator) || !safe(data.objectAddress)){
-    const box=document.getElementById("officialProtocolDataBox");
-    if(box) box.style.display="grid";
-    if(status) status.textContent="Nejdřív ručně vyplň bod a) Provozovatel PBZ a bod b) Adresa objektu. Bod b) se nepřebírá z protokolu ani z detailu.";
+    const box=officialProtocolDataBoxNode();
+    setDisplayIfChanged(box,"grid");
+    setTextIfChanged(status,"Nejdřív ručně vyplň bod a) Provozovatel PBZ a bod b) Adresa objektu. Bod b) se nepřebírá z protokolu ani z detailu.");
     return null;
   }
   writeSiteLocalObject("officialProtocolData",data,selectedSite);
@@ -8658,14 +8670,14 @@ async function saveOfficialProtocolData(options={}){
         savedToFirebase=true;
       }catch(e){
         console.warn("Uložení dat provozovatele selhalo",e);
-        if(!options.silent && status) status.textContent=`Data provozovatele jsou uložená jen lokálně: ${e.message}`;
+        if(!options.silent) setTextIfChanged(status,`Data provozovatele jsou uložená jen lokálně: ${e.message}`);
       }
     }
   }
   const siblingCount=await propagateOfficialProtocolDataToSiblingSources(data,selectedSite,signedUser);
   if(!options.silent){
     const siblingText=siblingCount ? ` Data propsána i do dalších zdrojů na stejném místě: ${siblingCount}.` : "";
-    if(status) status.textContent=(savedToFirebase ? "Data provozovatele uložena." : "Data provozovatele uložena lokálně.") + siblingText;
+    setTextIfChanged(status,(savedToFirebase ? "Data provozovatele uložena." : "Data provozovatele uložena lokálně.") + siblingText);
     showSaveConfirmation(siblingCount ? "Data provozovatele uložena pro celé místo." : "Data provozovatele uložena.");
   }
   return data;
@@ -9448,9 +9460,9 @@ async function preparedOfficialProtocolExport(protocol={},officialData={},mode="
 }
 
 async function exportOfficialProtocol(mode="ok"){
-  const status=document.getElementById("officialProtocolStatus");
+  const status=officialProtocolStatusNode();
   if(!selectedSite){
-    if(status) status.textContent="Není vybrané místo.";
+    setTextIfChanged(status,"Není vybrané místo.");
     return;
   }
   const noteInput=document.getElementById("officialProtocolNote");
@@ -9459,15 +9471,15 @@ async function exportOfficialProtocol(mode="ok"){
   if(data) data.note=noteBefore;
   if(noteInput) noteInput.value=noteBefore;
   if(!safe(data?.operator) || !safe(data?.objectAddress)){
-    const box=document.getElementById("officialProtocolDataBox");
-    if(box) box.style.display="grid";
-    if(status) status.textContent="Nejdřív doplň bod a) Provozovatel PBZ a bod b) Adresa objektu.";
+    const box=officialProtocolDataBoxNode();
+    setDisplayIfChanged(box,"grid");
+    setTextIfChanged(status,"Nejdřív doplň bod a) Provozovatel PBZ a bod b) Adresa objektu.");
     return;
   }
-  if(status) status.textContent="Připravuji doklad z posledního uloženého protokolu...";
+  setTextIfChanged(status,"Připravuji doklad z posledního uloženého protokolu...");
   const protocol=await protocolForOfficialDocument();
   if(!protocol){
-    if(status) status.textContent="Nenalezl jsem uložený protokol, ze kterého se má doklad doplnit.";
+    setTextIfChanged(status,"Nenalezl jsem uložený protokol, ze kterého se má doklad doplnit.");
     showSaveConfirmation("Nejdřív ulož protokol kontroly.");
     return;
   }
@@ -9476,13 +9488,13 @@ async function exportOfficialProtocol(mode="ok"){
     prepared=await preparedOfficialProtocolExport(protocol,data,mode);
   }catch(e){
     console.warn("Export dokladu z RTF šablony selhal",e);
-    if(status) status.textContent=e.message || "Doklad se nepodařilo připravit.";
+    setTextIfChanged(status,e.message || "Doklad se nepodařilo připravit.");
     showSaveConfirmation("Doklad se nepodařilo připravit.");
     return;
   }
   downloadBlobFile(prepared.fileName,prepared.blob);
   if(noteInput) noteInput.value=noteBefore;
-  if(status) status.textContent=mode==="stop" ? "Doklad Stop Stav exportován." : "Doklad provozuschopnosti exportován.";
+  setTextIfChanged(status,mode==="stop" ? "Doklad Stop Stav exportován." : "Doklad provozuschopnosti exportován.");
   showSaveConfirmation("Doklad exportován do Wordu.");
 }
 
@@ -14212,11 +14224,11 @@ if(mailProtocolFormBtn){
 const officialProtocolDataBtn=document.getElementById("officialProtocolDataBtn");
 if(officialProtocolDataBtn){
   officialProtocolDataBtn.addEventListener("click",()=>{
-    const box=document.getElementById("officialProtocolDataBox");
-    if(box) box.style.display=box.style.display==="none" ? "grid" : "none";
+    const box=officialProtocolDataBoxNode();
+    if(box) setDisplayIfChanged(box,box.style.display==="none" ? "grid" : "none");
   });
 }
-const officialManufacturerSelect=document.getElementById("officialManufacturerSelect");
+const officialManufacturerSelect=officialManufacturerSelectNode();
 if(officialManufacturerSelect){
   officialManufacturerSelect.addEventListener("change",syncOfficialManufacturerHidden);
 }
@@ -14224,8 +14236,8 @@ const saveOfficialProtocolDataBtn=document.getElementById("saveOfficialProtocolD
 if(saveOfficialProtocolDataBtn){
   saveOfficialProtocolDataBtn.addEventListener("click",async ()=>{
     const data=await saveOfficialProtocolData();
-    const box=document.getElementById("officialProtocolDataBox");
-    if(data && box) box.style.display="none";
+    const box=officialProtocolDataBoxNode();
+    if(data) setDisplayIfChanged(box,"none");
   });
 }
 const officialProtocolOkBtn=document.getElementById("officialProtocolOkBtn");

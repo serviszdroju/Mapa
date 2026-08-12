@@ -160,6 +160,27 @@ object-fit:contain;
   text-decoration:none;
   line-height:1.15;
 }
+.direct-apk-link{
+  display:block;
+  margin-top:6px;
+  color:#0f172a;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.25;
+  text-align:center;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.startup-card .direct-apk-link{
+  margin-top:8px;
+}
+.app-tools-panel .direct-apk-link{
+  min-height:0 !important;
+  padding:1px 0 4px !important;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
 .app-tools-panel .apk-install-link[aria-disabled="true"]{
   opacity:.55;
   pointer-events:none;

@@ -1,5 +1,5 @@
 let deferredSzzInstallPrompt=window.__szzDeferredInstallPrompt || null;
-const SZZ_ANDROID_APK_URL="https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet.apk?v=release-1";
+const SZZ_ANDROID_APK_URL="./downloads/szz-mapa-tablet-1.0.0.apk";
 let szzApkAvailabilityPromise=null;
 
 function setTextIfChanged(el,value){
@@ -180,12 +180,14 @@ async function isSzzAndroidApkAvailable(force=false){
 }
 
 async function updateSzzApkLinkState(force=false){
-  const link=document.getElementById("downloadApkLink");
-  if(!link) return false;
-  link.href=SZZ_ANDROID_APK_URL;
+  const links=Array.from(document.querySelectorAll(".apk-install-link"));
+  if(!links.length) return false;
+  links.forEach(link=>{ link.href=SZZ_ANDROID_APK_URL; });
   const available=await isSzzAndroidApkAvailable(force);
-  setAttributeIfChanged(link,"aria-disabled",available ? "false" : "true");
-  setTextIfChanged(link,available ? "Stáhnout APK" : "APK se připravuje");
+  links.forEach(link=>{
+    setAttributeIfChanged(link,"aria-disabled",available ? "false" : "true");
+    setTextIfChanged(link,available ? (link.classList.contains("direct-apk-link") ? "Stáhnout instalační APK přímo" : "Stáhnout APK") : "APK se připravuje");
+  });
   return available;
 }
 
@@ -405,14 +407,14 @@ function bindSzzInstallControls(){
       updateSzzApkLinkState(true);
     });
   }
-  const downloadApkLink=document.getElementById("downloadApkLink");
-  if(downloadApkLink && !downloadApkLink.__szzApkBound){
-    downloadApkLink.__szzApkBound=true;
-    downloadApkLink.addEventListener("click",event=>{
+  document.querySelectorAll(".apk-install-link").forEach(link=>{
+    if(link.__szzApkBound) return;
+    link.__szzApkBound=true;
+    link.addEventListener("click",event=>{
       event.preventDefault();
       downloadSzzAndroidApk();
     });
-  }
+  });
   updateSzzInstallButtons();
   renderSzzInstallGuide();
   updateSzzApkLinkState();
