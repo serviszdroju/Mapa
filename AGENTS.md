@@ -424,6 +424,8 @@ Current performance phase 200 decision: cache and coalesce short-lived global of
 
 Current performance phase 201 decision: cache and coalesce short-lived IndexedDB reads of the offline site/source queue, invalidating after queue saves/removes and legacy offline-site storage changes so offline status and site synchronization avoid duplicate `getAll()` reads while newly saved offline points still sync immediately.
 
+Current performance phase 202 decision: resolve offline records back to map rows through the existing `siteRowsByAnyId` index before falling back to full row scans and legacy `recordMatchesSite()` matching, reducing offline sync lookup work while preserving all older matching paths.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

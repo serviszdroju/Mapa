@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-offline-site-queue-cache-v326";
+const APP_BUILD_VERSION="2026-08-12-offline-record-index-lookup-v327";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v326-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v327-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10658,6 +10658,15 @@ function removeLocalStorageArrayItemByKey(key,id){
 
 function siteFromOfflineRecord(record={},cacheSuffix=""){
   const recordKeys=recordIdKeys(record);
+  for(const key of recordKeys){
+    const indexed=findRowByAnyId(key);
+    if(indexed) return indexed;
+  }
+  const suffixKey=safe(cacheSuffix);
+  if(suffixKey){
+    const indexed=findRowByAnyId(suffixKey) || findRowByAnyId(suffixKey.startsWith("firebase_") ? suffixKey.slice("firebase_".length) : `firebase_${suffixKey}`);
+    if(indexed) return indexed;
+  }
   const found=(rows || []).find(row=>{
     try{
       const keys=siteRecordKeys(row);
