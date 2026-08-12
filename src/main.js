@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-gallery-folder-cache-v317";
+const APP_BUILD_VERSION="2026-08-12-local-detail-read-cache-v318";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v317-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v318-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7618,6 +7618,7 @@ window.clearMainProtocolHistoryCache=clearMainProtocolHistoryCache;
 
 function clearDetailHistoryCacheForKind(kind,site=selectedSite){
   const cleanKind=String(kind || "");
+  clearLocalDetailReadCacheForKind(cleanKind,site);
   if(DETAIL_HISTORY_MUTATION_KINDS.has(cleanKind)) clearDetailHistoryCache(site);
   if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearLastProtocolCache(site);
   if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearMainProtocolHistoryCache();
@@ -9679,11 +9680,20 @@ function siteLocalCacheKey(kind,site=selectedSite){
   const key=selectedSiteDocId(site) || detailKey(site) || site?.id || "unknown";
   return `astipMap:${kind}:${key}`;
 }
+function siteLocalDetailReadCacheKey(kind,site=selectedSite){
+  const storageKey=siteLocalCacheKey(kind,site);
+  const detailIdentity=detailLazyKey(site) || detailKey(site) || safe(site && site.id);
+  const sourceIdentity=typeof recordSourceIdentity==="function" ? recordSourceIdentity(site) : "";
+  return [storageKey,detailIdentity,sourceIdentity].map(safe).join("|");
+}
 const LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS=1800;
 const localStorageArrayEntriesCache=new Map();
 const localStorageObjectEntriesCache=new Map();
 const siteLocalArrayReadCache=new Map();
 const siteLocalObjectReadCache=new Map();
+const LOCAL_DETAIL_READ_CACHE_MS=1800;
+const siteLocalProtocolHistoryReadCache=new Map();
+const siteOfflinePhotoReadCache=new Map();
 function cloneLocalStorageArrayEntries(entries=[]){
   return (entries || []).map(entry=>({
     key:entry.key,
@@ -9703,6 +9713,57 @@ function cloneLocalStorageObjectEntries(entries=[]){
 }
 function cloneLocalStorageObjectItem(item){
   return item && typeof item==="object" && !Array.isArray(item) ? {...item} : {};
+}
+function readCachedLocalDetailItems(cache,key,loader){
+  const cleanKey=String(key || "");
+  if(!cleanKey || typeof loader!=="function") return Promise.resolve([]);
+  const now=Date.now();
+  const cached=cache.get(cleanKey);
+  if(cached && now-cached.savedAt<LOCAL_DETAIL_READ_CACHE_MS){
+    if(cached.promise) return cached.promise.then(cloneLocalStorageArrayItems);
+    if(Array.isArray(cached.items)) return Promise.resolve(cloneLocalStorageArrayItems(cached.items));
+  }
+  const promise=Promise.resolve()
+    .then(loader)
+    .then(items=>{
+      const stable=cloneLocalStorageArrayItems(items);
+      cache.set(cleanKey,{savedAt:Date.now(),items:stable,promise:null});
+      return stable;
+    },error=>{
+      cache.delete(cleanKey);
+      throw error;
+    });
+  cache.set(cleanKey,{savedAt:now,items:null,promise});
+  return promise.then(cloneLocalStorageArrayItems);
+}
+function clearLocalDetailReadCache(cache,prefixOrKey=""){
+  const clean=String(prefixOrKey || "");
+  if(!clean){
+    cache.clear();
+    return;
+  }
+  for(const key of cache.keys()){
+    if(key===clean || key.startsWith(clean) || clean.startsWith(key)){
+      cache.delete(key);
+    }
+  }
+}
+function clearLocalDetailReadCaches(){
+  siteLocalProtocolHistoryReadCache.clear();
+  siteOfflinePhotoReadCache.clear();
+}
+function clearLocalDetailReadCacheForKind(kind,site=selectedSite){
+  const cleanKind=String(kind || "");
+  if(!cleanKind){
+    clearLocalDetailReadCaches();
+    return;
+  }
+  if(cleanKind==="protocolHistory" || cleanKind==="protocols"){
+    clearLocalDetailReadCache(siteLocalProtocolHistoryReadCache,site ? siteLocalCacheKey("protocolHistory",site) : "");
+  }
+  if(cleanKind==="offlinePhotos" || cleanKind==="photos"){
+    clearLocalDetailReadCache(siteOfflinePhotoReadCache,site ? siteLocalCacheKey("photos",site) : "");
+  }
 }
 function rememberSiteLocalArrayReadCache(key,items=[],raw=null){
   const clean=String(key || "");
@@ -9764,6 +9825,7 @@ function clearLocalStorageObjectEntriesCache(prefixOrKey=""){
 window.addEventListener("storage",()=>{
   clearLocalStorageArrayEntriesCache();
   clearLocalStorageObjectEntriesCache();
+  clearLocalDetailReadCaches();
 });
 function readSiteLocalArray(kind,site=selectedSite){
   try{
@@ -10013,6 +10075,7 @@ async function saveOfflineProtocolQueueItem(item,site=selectedSite){
   const payload={...item,siteCacheKey:siteLocalCacheKey("protocolHistory",site)};
   try{
     await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.put(payload);});
+    clearLocalDetailReadCacheForKind("protocolHistory",site);
     invalidateOfflineProtocolCountCache();
     return payload;
   }catch(e){
@@ -10061,6 +10124,7 @@ async function removeOfflineProtocolQueueItem(id){
   try{
     await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store)=>{store.delete(cleanId);});
   }catch(e){}
+  clearLocalDetailReadCacheForKind("protocolHistory",null);
   invalidateOfflineProtocolCountCache();
 }
 window.removeOfflineProtocolQueueItem=removeOfflineProtocolQueueItem;
@@ -11632,7 +11696,7 @@ async function readAllLocalAndIndexedProtocolHistoryItems(){
   return uniqueByOfflineId([...localItems,...indexedItems]);
 }
 
-async function readSiteLocalProtocolHistoryItems(site=selectedSite){
+async function computeSiteLocalProtocolHistoryItems(site=selectedSite){
   const localItems=normalizeProtocolHistoryItems(readSiteLocalArray("protocolHistory",site),"localProtocols","local_protocol")
     .filter(item=>recordMatchesSite(item,site));
   let indexedItems=[];
@@ -11645,6 +11709,11 @@ async function readSiteLocalProtocolHistoryItems(site=selectedSite){
     }
   }
   return uniqueByOfflineId([...localItems,...indexedItems]);
+}
+
+async function readSiteLocalProtocolHistoryItems(site=selectedSite){
+  const cacheKey=siteLocalDetailReadCacheKey("protocolHistory",site);
+  return readCachedLocalDetailItems(siteLocalProtocolHistoryReadCache,cacheKey,()=>computeSiteLocalProtocolHistoryItems(site));
 }
 
 async function loadMainProtocolHistoryItems(){
@@ -12666,13 +12735,14 @@ async function saveOfflinePhotoItem(item,site=selectedSite){
   }catch(e){
     appendSiteLocalArray("offlinePhotos",payload,site,50);
   }
+  clearLocalDetailReadCacheForKind("photos",site);
   invalidateOfflinePhotoCountCache();
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("photo");
   return payload;
 }
 
-async function readOfflinePhotoItems(site=selectedSite){
+async function computeOfflinePhotoItems(site=selectedSite){
   const cacheKey=siteLocalCacheKey("photos",site);
   const fallback=readSiteLocalArray("offlinePhotos",site);
   try{
@@ -12694,6 +12764,11 @@ async function readOfflinePhotoItems(site=selectedSite){
   }
 }
 
+async function readOfflinePhotoItems(site=selectedSite){
+  const cacheKey=siteLocalDetailReadCacheKey("photos",site);
+  return readCachedLocalDetailItems(siteOfflinePhotoReadCache,cacheKey,()=>computeOfflinePhotoItems(site));
+}
+
 async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
   const cleanId=safe(id);
   if(!cleanId) return;
@@ -12705,6 +12780,7 @@ async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
   if(explicitCacheKey){
     removeLocalStorageArrayItemByKey(explicitCacheKey.replace("astipMap:photos:","astipMap:offlinePhotos:"),cleanId);
   }
+  clearLocalDetailReadCacheForKind("photos",site);
   invalidateOfflinePhotoCountCache();
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
