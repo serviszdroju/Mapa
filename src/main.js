@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-detail-history-render-cache-v323";
+const APP_BUILD_VERSION="2026-08-12-offline-protocol-queue-cache-v324";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v323-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v324-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10274,7 +10274,20 @@ async function saveOfflineProtocolQueueItem(item,site=selectedSite){
 }
 window.saveOfflineProtocolQueueItem=saveOfflineProtocolQueueItem;
 
-async function readAllOfflineProtocolQueueItems(){
+const OFFLINE_PROTOCOL_QUEUE_READ_CACHE_MS=1200;
+let offlineProtocolQueueAllReadCache={savedAt:0,items:null,promise:null};
+const offlineProtocolQueueSiteReadCache=new Map();
+
+function cloneOfflineProtocolQueueItems(items=[]){
+  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
+}
+
+function clearOfflineProtocolQueueReadCache(){
+  offlineProtocolQueueAllReadCache={savedAt:0,items:null,promise:null};
+  offlineProtocolQueueSiteReadCache.clear();
+}
+
+async function computeAllOfflineProtocolQueueItems(){
   try{
     const items=await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readonly",(store,setResult)=>{
       const req=store.getAll();
@@ -10286,9 +10299,30 @@ async function readAllOfflineProtocolQueueItems(){
     return [];
   }
 }
+
+async function readAllOfflineProtocolQueueItems(){
+  const now=Date.now();
+  if(Array.isArray(offlineProtocolQueueAllReadCache.items) && now-offlineProtocolQueueAllReadCache.savedAt<OFFLINE_PROTOCOL_QUEUE_READ_CACHE_MS){
+    return cloneOfflineProtocolQueueItems(offlineProtocolQueueAllReadCache.items);
+  }
+  if(offlineProtocolQueueAllReadCache.promise){
+    return cloneOfflineProtocolQueueItems(await offlineProtocolQueueAllReadCache.promise);
+  }
+  offlineProtocolQueueAllReadCache.promise=computeAllOfflineProtocolQueueItems()
+    .then(items=>{
+      const cloned=cloneOfflineProtocolQueueItems(items);
+      offlineProtocolQueueAllReadCache={savedAt:Date.now(),items:cloned,promise:null};
+      return cloned;
+    })
+    .catch(e=>{
+      offlineProtocolQueueAllReadCache={savedAt:0,items:null,promise:null};
+      throw e;
+    });
+  return cloneOfflineProtocolQueueItems(await offlineProtocolQueueAllReadCache.promise);
+}
 window.readAllOfflineProtocolQueueItems=readAllOfflineProtocolQueueItems;
 
-async function readOfflineProtocolQueueItems(site=selectedSite){
+async function computeOfflineProtocolQueueItems(site=selectedSite){
   const cacheKey=siteLocalCacheKey("protocolHistory",site);
   let indexed=[];
   try{
@@ -10304,6 +10338,31 @@ async function readOfflineProtocolQueueItems(site=selectedSite){
     });
   }
   return indexed.filter(item=>item && item._offline && item._syncStatus!=="online");
+}
+
+async function readOfflineProtocolQueueItems(site=selectedSite){
+  const cacheKey=siteLocalCacheKey("protocolHistory",site) || detailLazyKey(site);
+  if(!cacheKey) return computeOfflineProtocolQueueItems(site);
+  const now=Date.now();
+  const cached=offlineProtocolQueueSiteReadCache.get(cacheKey);
+  if(cached && Array.isArray(cached.items) && now-cached.savedAt<OFFLINE_PROTOCOL_QUEUE_READ_CACHE_MS){
+    return cloneOfflineProtocolQueueItems(cached.items);
+  }
+  if(cached && cached.promise){
+    return cloneOfflineProtocolQueueItems(await cached.promise);
+  }
+  const promise=computeOfflineProtocolQueueItems(site)
+    .then(items=>{
+      const cloned=cloneOfflineProtocolQueueItems(items);
+      offlineProtocolQueueSiteReadCache.set(cacheKey,{savedAt:Date.now(),items:cloned,promise:null});
+      return cloned;
+    })
+    .catch(e=>{
+      offlineProtocolQueueSiteReadCache.delete(cacheKey);
+      throw e;
+    });
+  offlineProtocolQueueSiteReadCache.set(cacheKey,{savedAt:0,items:null,promise});
+  return cloneOfflineProtocolQueueItems(await promise);
 }
 window.readOfflineProtocolQueueItems=readOfflineProtocolQueueItems;
 
@@ -10358,6 +10417,7 @@ function clearProtocolDraftCountCache(){
 window.clearProtocolDraftCountCache=clearProtocolDraftCountCache;
 function invalidateOfflineProtocolCountCache(){
   offlineProtocolCountCache={count:null,savedAt:0,storageLength:-1};
+  clearOfflineProtocolQueueReadCache();
   invalidateSzzOfflineCountsCache();
 }
 window.addEventListener("storage",event=>{
