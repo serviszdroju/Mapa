@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-history-control-elements-v298";
+const APP_BUILD_VERSION="2026-08-12-delegate-gallery-upload-action-v299";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v298-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v299-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -14285,12 +14285,6 @@ const selectGalleryPhotosBtn=document.getElementById("selectGalleryPhotosBtn");
 if(selectGalleryPhotosBtn && selectGalleryPhotosBtn.tagName==="BUTTON") selectGalleryPhotosBtn.addEventListener("click",()=>document.getElementById("sitePhotosInput")?.click());
 const selectCameraPhotosBtn=document.getElementById("selectCameraPhotosBtn");
 if(selectCameraPhotosBtn && selectCameraPhotosBtn.tagName==="BUTTON") selectCameraPhotosBtn.addEventListener("click",()=>document.getElementById("siteCameraInput")?.click());
-const uploadSitePhotosBtn=document.getElementById("uploadSitePhotosBtn");
-if(uploadSitePhotosBtn){
-  uploadSitePhotosBtn.__photoUploadDirectBound=true;
-  uploadSitePhotosBtn.addEventListener("click",uploadSitePhotos);
-}
-
 document.addEventListener("change",e=>{
   const target=e.target;
   if(!target || (target.id!=="sitePhotosInput" && target.id!=="siteCameraInput")) return;
@@ -14308,7 +14302,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("click",e=>{
   const btn=e.target && e.target.closest ? e.target.closest("#uploadSitePhotosBtn") : null;
-  if(!btn || btn.__photoUploadDirectBound) return;
+  if(!btn) return;
   e.preventDefault();
   uploadSitePhotos();
 });
