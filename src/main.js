@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-main-history-row-cache-v322";
+const APP_BUILD_VERSION="2026-08-12-detail-history-render-cache-v323";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v322-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v323-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7648,6 +7648,7 @@ window.openDetail=function(i){
 }
 let detailHistoryItems=[];
 let detailHistoryIndex=0;
+let detailHistoryRenderSignature="";
 function detailHistoryNode(){
   return formFieldNode("history");
 }
@@ -7727,6 +7728,7 @@ function writeDetailHistoryCache(site=selectedSite,items=[]){
 }
 
 function clearDetailHistoryCache(site=selectedSite){
+  detailHistoryRenderSignature="";
   if(!site){
     detailHistoryCache.clear();
     lastProtocolCache.clear();
@@ -8092,6 +8094,7 @@ function resetDetailLazyLoadState(site){
   detailLazyLoadState={historyLoaded:false,historyLoading:false,photosLoaded:false,photosLoading:false};
   detailHistoryItems=[];
   detailHistoryIndex=0;
+  detailHistoryRenderSignature="";
   sitePhotoItems=[];
   sitePhotoIndex=0;
   sitePhotoRenderSignature="";
@@ -11321,12 +11324,14 @@ function renderHistory(){
   if(!canViewProtocolHistory()){
     detailHistoryItems=[];
     detailHistoryIndex=0;
+    detailHistoryRenderSignature="auth";
     history.textContent="Historii protokolů uvidí přihlášený technik.";
     updateOfficialProtocolSourceInfo();
     return;
   }
 
   if(!detailHistoryItems.length){
+    detailHistoryRenderSignature="empty";
     history.textContent="Zatím žádný záznam.";
     updateOfficialProtocolSourceInfo();
     return;
@@ -11366,6 +11371,26 @@ function renderHistory(){
   ].filter(([,value])=>safe(value));
 
   const photos=d._collection==="protocols" ? [] : (d.photoLinks||[]).filter(Boolean);
+  const renderSignature=[
+    detailLazyKey(selectedSite),
+    canViewProtocolHistory() ? "view" : "no-view",
+    isHistoryAdmin() ? "admin" : "user",
+    detailHistoryIndex,
+    detailHistoryItems.length,
+    safe(d && (d._id || d.id || "")),
+    safe(d && (d._type || "")),
+    safe(d && (d._collection || "")),
+    canExportProtocol ? "export" : "",
+    canDeleteProtocol ? "delete" : "",
+    protocolTimeValue(d),
+    ...rows.flatMap(([label,value])=>[safe(label),safe(value)]),
+    ...photos.map(url=>safe(url))
+  ].map(value=>`${String(value).length}:${value}`).join("\u001f");
+  if(detailHistoryRenderSignature===renderSignature && history.childElementCount) {
+    updateOfficialProtocolSourceInfo();
+    return;
+  }
+  detailHistoryRenderSignature=renderSignature;
   const controls=document.createElement("div");
   controls.className="history-controls";
   const prevBtn=document.createElement("button");

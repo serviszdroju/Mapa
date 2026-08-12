@@ -416,6 +416,8 @@ Current performance phase 196 decision: cache short-lived merged local cross-sit
 
 Current performance phase 197 decision: precompute visible main protocol-history row descriptors once and reuse them for both the unchanged-render signature and DOM rendering, preserving identical row text, metadata, admin visibility, and click behavior while avoiding duplicate title/date/owner calculations.
 
+Current performance phase 198 decision: skip unchanged Protokol detail-history DOM rerenders with a signature based on the active site, visible record, index, admin mode, row values, and attached photo URLs, while clearing the signature on detail reset/history invalidation so navigation, export, mail, delete, and fresh history data remain unchanged.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
