@@ -12,10 +12,26 @@ function isSzzStandaloneView(){
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
 }
 
+function setStyleDisplayIfChanged(el,value){
+  if(el && el.style.display!==value) el.style.display=value;
+}
+
+function setAttributeIfChanged(el,name,value){
+  if(el && el.getAttribute(name)!==String(value)) el.setAttribute(name,String(value));
+}
+
+function setSourceAttributeIfChanged(el,value){
+  if(el && el.getAttribute("src")!==value) el.setAttribute("src",value);
+}
+
+function setHrefAttributeIfChanged(el,value){
+  if(el && el.getAttribute("href")!==value) el.setAttribute("href",value);
+}
+
 function refreshLazyInstallButtonVisibility(){
   const show=!isSzzStandaloneView();
   document.querySelectorAll(".install-app-btn").forEach(button=>{
-    button.style.display=show ? "" : "none";
+    setStyleDisplayIfChanged(button,show ? "" : "none");
   });
 }
 
@@ -40,7 +56,7 @@ function openAppToolsPanel(){
   const appToolsPanel=document.getElementById("appToolsPanel");
   const appToolsToggle=document.getElementById("appToolsToggle");
   if(appToolsPanel) appToolsPanel.classList.add("open");
-  if(appToolsToggle) appToolsToggle.setAttribute("aria-expanded","true");
+  setAttributeIfChanged(appToolsToggle,"aria-expanded","true");
   ensureSzzInstallControls().catch(()=>{});
 }
 
@@ -52,7 +68,7 @@ function bindLazySzzInstallControls(){
     appToolsToggle.addEventListener("click",()=>{
       const open=!appToolsPanel.classList.contains("open");
       appToolsPanel.classList.toggle("open",open);
-      appToolsToggle.setAttribute("aria-expanded",open ? "true" : "false");
+      setAttributeIfChanged(appToolsToggle,"aria-expanded",open ? "true" : "false");
       if(open) ensureSzzInstallControls().catch(()=>{});
     });
   }
@@ -89,11 +105,11 @@ function installSzzLogoAssets(){
   try{
     const logo=document.querySelector(".startup-card .logo-img");
     if(logo && !logo.dataset.logoFileApplied){
-      logo.src=SZZ_LOGO_URL;
+      setSourceAttributeIfChanged(logo,SZZ_LOGO_URL);
       logo.dataset.logoFileApplied="1";
     }
     document.querySelectorAll("[data-szz-logo-copy]").forEach(img=>{
-      img.src=SZZ_LOGO_URL;
+      setSourceAttributeIfChanged(img,SZZ_LOGO_URL);
     });
     let icon=document.querySelector('link[rel="icon"]');
     if(!icon){
@@ -101,15 +117,15 @@ function installSzzLogoAssets(){
       icon.rel="icon";
       document.head.appendChild(icon);
     }
-    icon.type="image/png";
-    icon.href=SZZ_APP_ICON_URL;
+    setAttributeIfChanged(icon,"type","image/png");
+    setHrefAttributeIfChanged(icon,SZZ_APP_ICON_URL);
     let apple=document.querySelector('link[rel="apple-touch-icon"]');
     if(!apple){
       apple=document.createElement("link");
       apple.rel="apple-touch-icon";
       document.head.appendChild(apple);
     }
-    apple.href=SZZ_APP_ICON_URL;
+    setHrefAttributeIfChanged(apple,SZZ_APP_ICON_URL);
   }catch(e){}
 }
 

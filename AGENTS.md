@@ -336,6 +336,8 @@ Current performance phase 156 decision: skip unchanged startup/login/offline-map
 
 Current performance phase 157 decision: skip unchanged text/disabled DOM writes during the main offline data preparation flow, preserving the same Firebase/cache/detail/gallery/offline map synchronization behavior while reducing repeated status UI writes during long offline preparation.
 
+Current performance phase 158 decision: skip unchanged display/attribute/src/href DOM writes in the early shell boot install/logo fallback, preserving the same PWA controls, app tools menu, logo, and icon behavior while reducing repeated startup UI work before the lazy install module takes over.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
