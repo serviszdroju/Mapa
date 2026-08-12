@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-visible-row-index-cache-v328";
+const APP_BUILD_VERSION="2026-08-12-text-normalization-cache-v329";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v328-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v329-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2297,6 +2297,25 @@ function sameArrayValues(a=[],b=[]){
   }
   return true;
 }
+const TEXT_NORM_CACHE_LIMIT=1200;
+const TEXT_NORM_CACHE_MAX_LENGTH=240;
+const simpleNormCache=new Map();
+const searchNormCache=new Map();
+function readTextNormCache(cache,key){
+  if(!cache.has(key)) return undefined;
+  const value=cache.get(key);
+  cache.delete(key);
+  cache.set(key,value);
+  return value;
+}
+function rememberTextNormCache(cache,key,value){
+  cache.set(key,value);
+  if(cache.size>TEXT_NORM_CACHE_LIMIT){
+    const firstKey=cache.keys().next().value;
+    if(firstKey!==undefined) cache.delete(firstKey);
+  }
+  return value;
+}
 const rowKeyLookupCache=new WeakMap();
 function normalizedRowKeyName(n){return String(n).replace(/^\uFEFF/,"").trim().toLowerCase()}
 function normalizedRowKeyLookup(r){
@@ -2316,11 +2335,17 @@ function normalizedRowKeyLookup(r){
 function get(r,n){if(!r)return"";if(r[n]!==undefined)return r[n];const lookup=normalizedRowKeyLookup(r);if(!lookup)return"";const k=lookup.get(normalizedRowKeyName(n));return k!==undefined?r[k]:""}
 function first(r,a){for(const n of a){const v=safe(get(r,n));if(v)return v}return""}
 function simpleNorm(v){
-  return String(v||"").trim().toLowerCase()
+  const text=String(v||"").trim();
+  if(text.length<=TEXT_NORM_CACHE_MAX_LENGTH){
+    const cached=readTextNormCache(simpleNormCache,text);
+    if(cached!==undefined) return cached;
+  }
+  const normalized=text.toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .replace(/[_\/\\,.;:()\-]+/g," ")
     .replace(/\s+/g," ")
     .trim();
+  return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(simpleNormCache,text,normalized) : normalized;
 }
 const rowSimpleKeyLookupCache=new WeakMap();
 function simpleRowKeyLookup(r){
@@ -4158,13 +4183,18 @@ function filtered(){
   return result;
 }
 function searchNorm(v){
-  return safe(v)
-    .toLowerCase()
+  const text=safe(v);
+  if(text.length<=TEXT_NORM_CACHE_MAX_LENGTH){
+    const cached=readTextNormCache(searchNormCache,text);
+    if(cached!==undefined) return cached;
+  }
+  const normalized=text.toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g,"")
     .replace(/[_\/\\,.;:()\-]+/g," ")
     .replace(/\s+/g," ")
     .trim();
+  return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(searchNormCache,text,normalized) : normalized;
 }
 const rawSearchTextCache=new WeakMap();
 function rawSearchText(raw={}){

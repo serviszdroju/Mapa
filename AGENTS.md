@@ -428,6 +428,8 @@ Current performance phase 202 decision: resolve offline records back to map rows
 
 Current performance phase 203 decision: maintain an index from original CSV/Firebase row number to visible row position and use it during single-row Firebase upserts, avoiding a full visible-row `findIndex()` scan while preserving the existing fallback lookup and render/update behavior.
 
+Current performance phase 204 decision: cache repeated short text normalizations for `simpleNorm()` and `searchNorm()` with a small bounded LRU cache, avoiding repeated lowercase/Unicode/regex work for common field names, statuses, regions, IDs, and source labels while leaving long row-search strings uncached to protect memory.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
