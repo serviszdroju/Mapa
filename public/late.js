@@ -1876,7 +1876,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       const found=findRowByAnyId(id,loadedRows);
       const target=found || row;
       if(options.focusMap!==false && Number.isFinite(target.lat)&&Number.isFinite(target.lon) && window.map) window.map.setView([target.lat,target.lon],14);
-      if(options.openDetail!==false && typeof window.openDetailById==="function") setTimeout(()=>window.openDetailById(id),150);
+      if(options.openDetail!==false && typeof window.openDetailById==="function") window.szzAfterTwoPaints(()=>window.openDetailById(id));
       return true;
     }catch(e){
       console.warn("Rychlé zobrazení uloženého bodu selhalo, načítám čistě z Firebase",e);
@@ -1891,7 +1891,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     const found=findRowByAnyId(id,loadedRows);
     if(found){
       if(Number.isFinite(found.lat)&&Number.isFinite(found.lon)) map.setView([found.lat,found.lon],14);
-      setTimeout(()=>window.openDetailById(id),150);
+      window.szzAfterTwoPaints(()=>window.openDetailById(id));
       return true;
     }
 
@@ -2195,7 +2195,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     const key = rowKeySource(site);
     restoreNormalDrawerTemplateForSource();
     if(key && typeof window.openDetailById === "function"){
-      setTimeout(()=>window.openDetailById(key), 0);
+      window.szzAfterPaint(()=>window.openDetailById(key));
     }else{
       const drawer = document.getElementById("drawer");
       if(drawer) drawer.classList.remove("open");
@@ -2253,10 +2253,10 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     document.getElementById("closeOnlyNew").onclick = ()=>returnToSourceDetail(site);
     document.getElementById("cancelOnlyNew").onclick = ()=>returnToSourceDetail(site);
     document.getElementById("saveAddSourceOnly").onclick = ()=>saveAddSourceFromDetail(site);
-    setTimeout(()=>{
+    window.szzAfterPaint(()=>{
       const first = document.getElementById("addSourceType") || document.getElementById("addSourceSerial");
       if(first) first.focus();
-    }, 100);
+    });
   }
 
   function upsertAddedSourceRowLocally(raw, savedId){
@@ -2346,7 +2346,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         restoreNormalDrawerTemplateForSource();
         if(navigator.onLine !== false && typeof window.refreshFirebaseSitesAfterSave === "function") await window.refreshFirebaseSitesAfterSave(savedId, result.row);
         else if(navigator.onLine !== false && typeof window.loadFirebaseSitesUnified === "function") await window.loadFirebaseSitesUnified(savedId);
-        if(typeof window.openDetailById === "function") setTimeout(()=>window.openDetailById(savedId), 250);
+        if(typeof window.openDetailById === "function") window.szzAfterTwoPaints(()=>window.openDetailById(savedId));
         return;
       }
 
@@ -2365,7 +2365,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       }
       restoreNormalDrawerTemplateForSource();
       if((visible || localRow) && typeof window.openDetailById === "function"){
-        setTimeout(()=>window.openDetailById(savedId), 250);
+        window.szzAfterTwoPaints(()=>window.openDetailById(savedId));
       }
     }catch(e){
       if(st) st.textContent = "Chyba uložení nového zdroje: " + e.message;
@@ -2391,7 +2391,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-trim-unused-panel-html-v334";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-frame-based-detail-open-v335";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
