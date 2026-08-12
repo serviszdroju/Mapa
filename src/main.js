@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-record-site-docid-query-v315";
+const APP_BUILD_VERSION="2026-08-12-parallel-local-detail-reads-v316";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v315-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v316-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11200,13 +11200,27 @@ async function loadHistory(siteId){
     return;
   }
   let localHistoryItems=null;
+  let localHistoryItemsPromise=null;
   const readLocalHistoryItemsOnce=async()=>{
     if(localHistoryItems) return localHistoryItems;
-    localHistoryItems=await readSiteLocalProtocolHistoryItems(selectedSite);
+    localHistoryItems=await (localHistoryItemsPromise || readSiteLocalProtocolHistoryItems(selectedSite));
     return localHistoryItems;
   };
+  if(selectedSite){
+    localHistoryItemsPromise=readSiteLocalProtocolHistoryItems(selectedSite)
+      .then(items=>{
+        localHistoryItems=items;
+        return items;
+      })
+      .catch(e=>{
+        console.warn("Lokální historie protokolů nejde načíst",e);
+        localHistoryItems=[];
+        return localHistoryItems;
+      });
+  }
   const showLocalHistoryOnly=async message=>{
     const localItems=await readLocalHistoryItemsOnce();
+    if(!stillSameSite()) return false;
     if(localItems.length){
       localItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
       detailHistoryItems=localItems.slice();
@@ -11240,16 +11254,15 @@ async function loadHistory(siteId){
     renderHistory();
     return;
   }
-  localHistoryItems=await readLocalHistoryItemsOnce();
-  if(!stillSameSite()) return;
-
   try{
-    const [,childProtocols,childRecords]=await Promise.all([
+    const [localItems,,childProtocols,childRecords]=await Promise.all([
+      readLocalHistoryItemsOnce(),
       refreshSiteDataFromFirebase(selectedSite),
       loadSiteChildItems("protocols",selectedSite),
       loadSiteChildItems("serviceRecords",selectedSite)
     ]);
     if(!stillSameSite()) return;
+    localHistoryItems=localItems;
     const {collection,query,where,getDocs,doc,getDoc}=fb.fsMod;
     const items=[];
     const itemDedupe=createRecordIdDedupe(items);
@@ -13728,18 +13741,27 @@ async function loadSitePhotos(site=selectedSite){
     renderSitePhotos(items);
     setSitePhotosStatusText(message || (items.length ? `Načteno fotografií: ${items.length}.` : ""));
   };
+  let offlinePhotosPromise=null;
+  const mergeOfflinePhotosOnce=async()=>{
+    if(!site) return;
+    const offlinePhotos=await (offlinePhotosPromise || readOfflinePhotoItems(site));
+    offlinePhotos.forEach((item,idx)=>{
+      addPhoto({...item,_id:item._id || `offline_photo_${idx}`,storageMode:item.storageMode || "offline",_offline:true});
+    });
+  };
 
   if(site){
     readSiteLocalArray("photos",site).forEach((item,idx)=>{
       addPhoto({...item,_id:item._id || `local_photo_${idx}`});
     });
-    const offlinePhotos=await readOfflinePhotoItems(site);
-    offlinePhotos.forEach((item,idx)=>{
-      addPhoto({...item,_id:item._id || `offline_photo_${idx}`,storageMode:item.storageMode || "offline",_offline:true});
+    offlinePhotosPromise=readOfflinePhotoItems(site).catch(e=>{
+      console.warn("Offline fotografie nejde načíst",e);
+      return [];
     });
   }
 
   if(!firebaseReady || !db || !site){
+    await mergeOfflinePhotosOnce();
     renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "");
     return;
   }
@@ -13748,11 +13770,13 @@ async function loadSitePhotos(site=selectedSite){
   const signedUser=await waitForFirebaseUser();
   if(!stillSameSite()) return;
   if(!signedUser){
+    await mergeOfflinePhotosOnce();
     renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "Čekám na přihlášení, fotografie se načtou po přihlášení.");
     return;
   }
   try{
-    const [,childPhotos]=await Promise.all([
+    const [,,childPhotos]=await Promise.all([
+      mergeOfflinePhotosOnce(),
       refreshSiteDataFromFirebase(site),
       loadSiteChildItems("photos",site)
     ]);
@@ -13947,7 +13971,13 @@ async function getLastProtocol(site=selectedSite){
   const signedUser=await waitForFirebaseUser();
   if(!signedUser) return null;
   try{
-    const [,childProtocols]=await Promise.all([
+    const localProtocolItemsPromise=readSiteLocalProtocolHistoryItems(site)
+      .catch(e=>{
+        console.warn("Lokální poslední protokol nejde načíst",e);
+        return [];
+      });
+    const [localProtocolItems,,childProtocols]=await Promise.all([
+      localProtocolItemsPromise,
       refreshSiteDataFromFirebase(site),
       loadSiteChildItems("protocols",site)
     ]);
@@ -13965,7 +13995,6 @@ async function getLastProtocol(site=selectedSite){
     embeddedProtocols.forEach((item,idx)=>{
       addProtocolItem({...item,_id:item._id || `embedded_protocol_${idx}`});
     });
-    const localProtocolItems=await readSiteLocalProtocolHistoryItems(site);
     localProtocolItems.forEach((item,idx)=>{
       const id=item._id || `local_protocol_${idx}`;
       if(!itemDedupe.has(id)) addProtocolItem({...item,_id:id});
