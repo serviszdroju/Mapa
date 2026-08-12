@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-skip-late-startup-dom-writes-v283";
+const APP_BUILD_VERSION="2026-08-12-skip-auth-visibility-dom-writes-v284";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -794,7 +794,7 @@ if(firebaseReady){
     window.currentUser=user;
     window.__authReadyUser=user;
     const userBox=document.getElementById("userBox");
-    if(userBox) userBox.textContent=user?`Přihlášen: ${user.email}`:"Nepřihlášeno";
+    setTextIfChanged(userBox,user?`Přihlášen: ${user.email}`:"Nepřihlášeno");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode(user ? "logout" : "login");
     if(typeof updateAdminAppControls==="function") updateAdminAppControls();
   }
@@ -803,7 +803,7 @@ if(firebaseReady){
     window.currentUser=null;
     window.__authReadyUser=null;
     const userBox=document.getElementById("userBox");
-    if(userBox) userBox.textContent="Nepřihlášeno";
+    setTextIfChanged(userBox,"Nepřihlášeno");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     if(typeof updateAdminAppControls==="function") updateAdminAppControls();
   }
@@ -1036,7 +1036,7 @@ if(firebaseReady){
     setStartupAuthChecking(false);
     const topLogoutBtn=document.getElementById("topLogoutBtn");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("logout");
-    if(topLogoutBtn) topLogoutBtn.style.display="block";
+    setDisplayIfChanged(topLogoutBtn,"block");
     showApp();
     setProgressStatus("Přihlášení potvrzeno. Načítám body...");
     await loadFirebaseRowsAfterAuth("login");
@@ -1075,7 +1075,7 @@ if(firebaseReady){
         setStartupAuthChecking(false);
         clearSignedUser();
         const topLogoutBtn=document.getElementById("topLogoutBtn");
-        if(topLogoutBtn) topLogoutBtn.style.display="none";
+        setDisplayIfChanged(topLogoutBtn,"none");
         showLogin();
         setStartupStatus("");
       });
@@ -1116,7 +1116,7 @@ if(firebaseReady){
       setStartupAuthChecking(false);
       clearSignedUser();
       const topLogoutBtn=document.getElementById("topLogoutBtn");
-      if(topLogoutBtn) topLogoutBtn.style.display="none";
+      setDisplayIfChanged(topLogoutBtn,"none");
       showLogin();
       if(lastAuthMessage && lastAuthMessage!=="Kontroluji přihlášení..."){
         setStartupStatus(lastAuthMessage);
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v283-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v284-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2518,10 +2518,10 @@ function updateProtocolHistoryVisibility(){
   const showDetail=canViewProtocolHistory();
   const showMain=canViewMainProtocolHistory();
   document.querySelectorAll(".protocol-history-private").forEach(el=>{
-    el.style.display=showDetail ? "" : "none";
+    setDisplayIfChanged(el,showDetail ? "" : "none");
   });
   document.querySelectorAll(".main-protocol-history-private").forEach(el=>{
-    el.style.display=showMain ? "" : "none";
+    setDisplayIfChanged(el,showMain ? "" : "none");
   });
 }
 function updateAdminAppControls(){
