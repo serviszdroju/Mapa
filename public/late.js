@@ -2116,10 +2116,21 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-skip-offline-status-dom-writes-v274";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-12-cache-install-ready-state-v275";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
+const SZZ_INSTALL_OFFLINE_READY_CACHE_MS=1800;
+let szzInstallOfflineReadyCache={raw:null,item:null,savedAt:0};
+function cloneSzzInstallOfflineReady(value={}){
+  return value && typeof value==="object" && !Array.isArray(value) ? {...value} : {};
+}
+function clearSzzInstallOfflineReadyCache(){
+  szzInstallOfflineReadyCache={raw:null,item:null,savedAt:0};
+}
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key===SZZ_INSTALL_OFFLINE_READY_KEY) clearSzzInstallOfflineReadyCache();
+});
 const SZZ_INSTALL_SITE_QUEUE_STORE="siteQueue";
 const SZZ_INSTALL_PROTOCOL_QUEUE_STORE="protocolQueue";
 const SZZ_INSTALL_PROTOCOL_DRAFT_STORE="protocolDrafts";
@@ -2234,8 +2245,18 @@ function szzInstallCachedPostShellUrlsToServiceWorker(registration,urls){
 
 function szzInstallReadOfflineReady(){
   try{
-    const parsed=JSON.parse(localStorage.getItem(SZZ_INSTALL_OFFLINE_READY_KEY) || "{}");
-    return parsed && typeof parsed==="object" ? parsed : {};
+    const raw=localStorage.getItem(SZZ_INSTALL_OFFLINE_READY_KEY) || "";
+    if(
+      szzInstallOfflineReadyCache.raw===raw &&
+      szzInstallOfflineReadyCache.item &&
+      Date.now()-szzInstallOfflineReadyCache.savedAt<SZZ_INSTALL_OFFLINE_READY_CACHE_MS
+    ){
+      return cloneSzzInstallOfflineReady(szzInstallOfflineReadyCache.item);
+    }
+    const parsed=JSON.parse(raw || "{}");
+    const item=parsed && typeof parsed==="object" ? parsed : {};
+    szzInstallOfflineReadyCache={raw,item:cloneSzzInstallOfflineReady(item),savedAt:Date.now()};
+    return item;
   }catch(e){
     return {};
   }
@@ -2243,7 +2264,11 @@ function szzInstallReadOfflineReady(){
 
 function szzInstallWriteOfflineReady(update={}){
   const next={...szzInstallReadOfflineReady(),...update,updatedAt:new Date().toISOString()};
-  try{ localStorage.setItem(SZZ_INSTALL_OFFLINE_READY_KEY,JSON.stringify(next)); }catch(e){}
+  try{
+    const raw=JSON.stringify(next);
+    localStorage.setItem(SZZ_INSTALL_OFFLINE_READY_KEY,raw);
+    szzInstallOfflineReadyCache={raw,item:cloneSzzInstallOfflineReady(next),savedAt:Date.now()};
+  }catch(e){}
   return next;
 }
 

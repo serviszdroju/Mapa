@@ -320,6 +320,8 @@ Current performance phase 148 decision: cache pending offline site/source counts
 
 Current performance phase 149 decision: skip unchanged text/disabled DOM writes in the offline sync status panel, preserving the same displayed state while reducing repeated UI work during focus, storage, and sync refreshes.
 
+Current performance phase 150 decision: cache the `public/late.js` install/offline-ready localStorage state briefly by raw JSON value and refresh it on writes/storage events, reducing repeated parsing during install/offline status fallback checks.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
