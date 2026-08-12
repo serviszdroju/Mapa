@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-harden-source-chooser-add-v295";
+const APP_BUILD_VERSION="2026-08-12-delegate-detail-history-actions-v296";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v295-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v296-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10894,9 +10894,56 @@ async function deleteCurrentHistoryProtocol(){
   }
 }
 
+function bindDetailHistoryActions(history){
+  if(!history || history.__szzHistoryActionClickBound) return;
+  history.__szzHistoryActionClickBound=true;
+  history.addEventListener("click",async event=>{
+    const button=event.target.closest && event.target.closest("button");
+    if(!button || !history.contains(button)) return;
+    const id=button.id || "";
+    if(id==="historyPrevBtn"){
+      detailHistoryIndex--;
+      renderHistory();
+      return;
+    }
+    if(id==="historyNextBtn"){
+      detailHistoryIndex++;
+      renderHistory();
+      return;
+    }
+    if(id==="deleteHistoryProtocolBtn"){
+      await deleteCurrentHistoryProtocol();
+      return;
+    }
+    if(id==="editHistoryProtocolBtn"){
+      editCurrentHistoryProtocol();
+      return;
+    }
+    if(id==="exportHistoryProtocolBtn"){
+      exportProtocolToWord(detailHistoryItems[detailHistoryIndex]);
+      return;
+    }
+    if(id==="mailHistoryProtocolBtn"){
+      if(!confirmProtocolMailSend()) return;
+      button.disabled=true;
+      try{
+        await sendProtocolByMail(detailHistoryItems[detailHistoryIndex]);
+      }catch(e){
+        const st=document.getElementById("protocolStatus");
+        const message=protocolMailErrorText(e);
+        if(st) st.textContent=`Chyba odeslání e-mailu: ${message}`;
+        showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
+      }finally{
+        button.disabled=false;
+      }
+    }
+  });
+}
+
 function renderHistory(){
   const history=document.getElementById("history");
   if(!history) return;
+  bindDetailHistoryActions(history);
   if(!canViewProtocolHistory()){
     detailHistoryItems=[];
     detailHistoryIndex=0;
@@ -11014,35 +11061,8 @@ function renderHistory(){
 
   const prev=document.getElementById("historyPrevBtn");
   const next=document.getElementById("historyNextBtn");
-  if(prev){
-    prev.disabled=detailHistoryIndex<=0;
-    prev.onclick=()=>{detailHistoryIndex--;renderHistory();};
-  }
-  if(next){
-    next.disabled=detailHistoryIndex>=detailHistoryItems.length-1;
-    next.onclick=()=>{detailHistoryIndex++;renderHistory();};
-  }
-  const del=document.getElementById("deleteHistoryProtocolBtn");
-  if(del) del.onclick=deleteCurrentHistoryProtocol;
-  const edit=document.getElementById("editHistoryProtocolBtn");
-  if(edit) edit.onclick=editCurrentHistoryProtocol;
-  const exp=document.getElementById("exportHistoryProtocolBtn");
-  if(exp) exp.onclick=()=>exportProtocolToWord(detailHistoryItems[detailHistoryIndex]);
-  const mail=document.getElementById("mailHistoryProtocolBtn");
-  if(mail) mail.onclick=async()=>{
-    if(!confirmProtocolMailSend()) return;
-    mail.disabled=true;
-    try{
-      await sendProtocolByMail(detailHistoryItems[detailHistoryIndex]);
-    }catch(e){
-      const st=document.getElementById("protocolStatus");
-      const message=protocolMailErrorText(e);
-      if(st) st.textContent=`Chyba odeslání e-mailu: ${message}`;
-      showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
-    }finally{
-      mail.disabled=false;
-    }
-  };
+  if(prev) prev.disabled=detailHistoryIndex<=0;
+  if(next) next.disabled=detailHistoryIndex>=detailHistoryItems.length-1;
   updateOfficialProtocolSourceInfo();
 }
 
