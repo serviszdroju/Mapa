@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-offline-site-count-v273";
+const APP_BUILD_VERSION="2026-08-12-skip-offline-status-dom-writes-v274";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v273-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v274-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12828,7 +12828,7 @@ function renderSzzOfflineAppStatus(counts){
   const syncBtn=document.getElementById("syncNowBtn");
   const setCount=(id,value)=>{
     const el=document.getElementById(id);
-    if(el) el.textContent=String(value || 0);
+    setTextIfChanged(el,String(value || 0));
   };
   setCount("pendingSitesCount",counts?.sites);
   setCount("pendingProtocolsCount",counts?.protocols);
@@ -12840,7 +12840,7 @@ function renderSzzOfflineAppStatus(counts){
   }
   if(card) card.classList.toggle("syncing",syncing);
   if(label){
-    label.textContent=!online
+    const message=!online
       ? "Offline režim"
       : syncing
         ? "Synchronizuji změny"
@@ -12849,13 +12849,19 @@ function renderSzzOfflineAppStatus(counts){
           : drafts
             ? "Jsou uložené koncepty"
             : "Synchronizováno";
+    setTextIfChanged(label,message);
   }
   if(text){
-    if(!online) text.textContent="Práce se ukládá do telefonu. Po připojení se odešle do webu.";
-    else if(syncing) text.textContent="Odesílám lokální změny do Firebase a Cloudinary.";
-    else if(pending) text.textContent=`V telefonu čeká ${pending} změn k odeslání.`;
-    else if(drafts) text.textContent="Rozepsané protokoly jsou uložené lokálně, odešlou se po uložení formuláře.";
-    else text.textContent="Všechny uložené změny jsou spárované s webem.";
+    const message=!online
+      ? "Práce se ukládá do telefonu. Po připojení se odešle do webu."
+      : syncing
+        ? "Odesílám lokální změny do Firebase a Cloudinary."
+        : pending
+          ? `V telefonu čeká ${pending} změn k odeslání.`
+          : drafts
+            ? "Rozepsané protokoly jsou uložené lokálně, odešlou se po uložení formuláře."
+            : "Všechny uložené změny jsou spárované s webem.";
+    setTextIfChanged(text,message);
   }
   if(meta){
     const last=szzSyncTimeLabel(state.lastSyncedAt);
@@ -12865,13 +12871,15 @@ function renderSzzOfflineAppStatus(counts){
     const usageLabel=szzBytesLabel(counts?.storageUsage);
     const storageLabel=counts?.persistentStorage ? "úložiště trvalé" : (counts?.storageSupported ? "úložiště běžné" : "úložiště nezjištěno");
     const offlineLabel=cachedRows ? `Offline data: ${cachedRows} bodů, ${storageLabel}${usageLabel ? `, ${usageLabel}` : ""}.` : `Offline data: ${storageLabel}.`;
-    meta.textContent=error && pending
+    const message=error && pending
       ? `Poslední chyba: ${error}`
       : `Poslední synchronizace: ${last}${lastCount ? `, odesláno ${lastCount}` : ""}. ${offlineLabel}`;
+    setTextIfChanged(meta,message);
   }
   if(syncBtn){
-    syncBtn.disabled=syncing || !online || !pending;
-    syncBtn.textContent=syncing ? "Synchronizuji..." : "Synchronizovat teď";
+    const disabled=syncing || !online || !pending;
+    if(syncBtn.disabled!==disabled) syncBtn.disabled=disabled;
+    setTextIfChanged(syncBtn,syncing ? "Synchronizuji..." : "Synchronizovat teď");
   }
 }
 
