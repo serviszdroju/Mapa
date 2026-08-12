@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-protocol-summary-nodes-v301";
+const APP_BUILD_VERSION="2026-08-12-cache-offline-status-nodes-v302";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v301-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v302-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12944,22 +12944,30 @@ function szzSyncTimeLabel(value){
   return date.toLocaleString("cs-CZ",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 
+const szzOfflineStatusNodeCache={};
+function szzOfflineStatusNode(id){
+  const cached=szzOfflineStatusNodeCache[id];
+  if(cached && cached.isConnected) return cached;
+  const el=document.getElementById(id);
+  if(el) szzOfflineStatusNodeCache[id]=el;
+  return el;
+}
+
 function renderSzzOfflineAppStatus(counts){
-  const card=document.getElementById("appSyncCard");
+  const card=szzOfflineStatusNode("appSyncCard");
   if(!card) return;
   const state=readSzzSyncState();
   const online=navigator.onLine!==false;
   const pending=Number(counts?.pending) || 0;
   const drafts=Number(counts?.drafts) || 0;
   const syncing=state.status==="syncing" && Date.now()-new Date(state.syncStartedAt || 0).getTime()<45000;
-  const dot=document.getElementById("appConnectionDot");
-  const label=document.getElementById("appConnectionLabel");
-  const text=document.getElementById("appSyncText");
-  const meta=document.getElementById("appSyncMeta");
-  const syncBtn=document.getElementById("syncNowBtn");
+  const dot=szzOfflineStatusNode("appConnectionDot");
+  const label=szzOfflineStatusNode("appConnectionLabel");
+  const text=szzOfflineStatusNode("appSyncText");
+  const meta=szzOfflineStatusNode("appSyncMeta");
+  const syncBtn=szzOfflineStatusNode("syncNowBtn");
   const setCount=(id,value)=>{
-    const el=document.getElementById(id);
-    setTextIfChanged(el,String(value || 0));
+    setTextIfChanged(szzOfflineStatusNode(id),String(value || 0));
   };
   setCount("pendingSitesCount",counts?.sites);
   setCount("pendingProtocolsCount",counts?.protocols);
