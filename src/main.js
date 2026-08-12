@@ -58,15 +58,17 @@ const FIREBASE_COMPAT_SCRIPT_URLS=[
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
 ];
+const firebaseCompatScriptPromiseCache=new Map();
 function compatFirebaseReady(){
   return !!(window.firebase && firebase.initializeApp && firebase.auth && firebase.firestore);
 }
 function loadScriptOnce(src){
-  return new Promise((resolve,reject)=>{
-    const absolute=new URL(src,document.baseURI).href;
+  const absolute=new URL(src,document.baseURI).href;
+  if(firebaseCompatScriptPromiseCache.has(absolute)) return firebaseCompatScriptPromiseCache.get(absolute);
+  const promise=new Promise((resolve,reject)=>{
     const existing=Array.from(document.scripts).find(script=>script.src===absolute);
     if(existing){
-      if(existing.dataset.loaded==="1" || compatFirebaseReady()){
+      if(existing.dataset.loaded==="1" || compatFirebaseReady() || existing.readyState==="loaded" || existing.readyState==="complete"){
         resolve();
         return;
       }
@@ -85,7 +87,12 @@ function loadScriptOnce(src){
     },{once:true});
     script.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
     document.head.appendChild(script);
+  }).catch(error=>{
+    firebaseCompatScriptPromiseCache.delete(absolute);
+    throw error;
   });
+  firebaseCompatScriptPromiseCache.set(absolute,promise);
+  return promise;
 }
 function loadCompatFirebaseScripts(){
   if(compatFirebaseReady()) return Promise.resolve(window.firebase);
@@ -304,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-cache-main-compat-app-v268";
+const APP_BUILD_VERSION="2026-08-12-cache-compat-script-loads-v269";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1341,7 +1348,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v268-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v269-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
