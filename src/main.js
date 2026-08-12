@@ -185,8 +185,8 @@ function setStartupAuthChecking(checking){
   const btn=document.getElementById("startupLoginBtn");
   const intro=document.getElementById("startupIntro");
   if(startup) startup.classList.toggle("auth-checking",!!checking);
-  if(btn) btn.style.display=checking ? "none" : "";
-  if(intro) intro.textContent=checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.";
+  setDisplayIfChanged(btn,checking ? "none" : "");
+  setTextIfChanged(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.");
 }
 window.rememberKnownSignedIn=rememberKnownSignedIn;
 window.forgetKnownSignedIn=forgetKnownSignedIn;
@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-skip-install-control-dom-writes-v280";
+const APP_BUILD_VERSION="2026-08-12-skip-startup-dom-writes-v281";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -444,11 +444,11 @@ function showAppShellFast(message=""){
   const loginRow=document.getElementById("mainLoginRow");
   const topLogout=document.getElementById("topLogoutBtn");
   const progress=document.getElementById("progress");
-  if(startup) startup.style.display="none";
-  if(appEl) appEl.style.display="grid";
-  if(loginRow) loginRow.style.display="none";
-  if(topLogout) topLogout.style.display="block";
-  if(progress && message) progress.textContent=message;
+  setDisplayIfChanged(startup,"none");
+  setDisplayIfChanged(appEl,"grid");
+  setDisplayIfChanged(loginRow,"none");
+  setDisplayIfChanged(topLogout,"block");
+  if(message) setTextIfChanged(progress,message);
 }
 
 function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
@@ -461,9 +461,9 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
     const unifiedLoader=window.loadFirebaseSitesUnified;
     const done=loadedRows=>{
       const count=Array.isArray(loadedRows) ? loadedRows.length : 0;
-      if(progress) progress.textContent=count
+      setTextIfChanged(progress,count
         ? `Offline režim. Načteno ${count} bodů z telefonu.`
-        : (message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.");
+        : (message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená."));
     };
     if(typeof directLoader==="function"){
       Promise.resolve(directLoader(null,{offlineBoot:true})).then(done).catch(e=>console.warn("Offline cache bodů se nepodařila načíst",e));
@@ -477,9 +477,9 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
       setTimeout(run,150);
       return;
     }
-    if(progress) progress.textContent=message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.";
+    setTextIfChanged(progress,message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.");
   };
-  if(progress && message) progress.textContent=message;
+  if(message) setTextIfChanged(progress,message);
   run();
 }
 window.loadOfflineRowsFromLocalCacheWhenAvailable=loadOfflineRowsFromLocalCacheWhenAvailable;
@@ -563,12 +563,12 @@ window.addEventListener("load",()=>{
     const message=firebaseConfigured
       ? "Firebase se zatím nepodařilo načíst. Servisní data se z bezpečnostních důvodů načtou až po přihlášení."
       : "Firebase není nastavený – servisní data nejsou v této veřejné verzi dostupná.";
-    if(st) st.textContent=message;
+    setTextIfChanged(st,message);
     const box=document.getElementById("firebaseBox");
     if(box){
-      box.style.display="block";
-      box.className=firebaseConfigured ? "notice" : "notice err";
-      box.textContent=message;
+      setDisplayIfChanged(box,"block");
+      setClassNameIfChanged(box,firebaseConfigured ? "notice" : "notice err");
+      setTextIfChanged(box,message);
     }
     runAfterTwoPaints(()=>showApp());
   }
@@ -596,9 +596,9 @@ if(firebaseReady){
       window.__firebaseUnifiedPrimary=true;
       const box=document.getElementById("firebaseBox");
       if(box){
-        box.style.display="block";
-        box.className="notice";
-        box.textContent="Firebase běží v záložním režimu. Pro úpravy se přihlaš tlačítkem Přihlásit technika.";
+        setDisplayIfChanged(box,"block");
+        setClassNameIfChanged(box,"notice");
+        setTextIfChanged(box,"Firebase běží v záložním režimu. Pro úpravy se přihlaš tlačítkem Přihlásit technika.");
       }
     }else{
       firebaseReady=false;
@@ -608,15 +608,15 @@ if(firebaseReady){
       window.__firebaseUnifiedPrimary=false;
       const box=document.getElementById("firebaseBox");
       if(box){
-        box.style.display="block";
-        box.className="notice err";
-        box.textContent="Firebase knihovny se nepodařilo načíst. Přihlášení zatím není dostupné a veřejný CSV export už není součástí produkčního webu.";
+        setDisplayIfChanged(box,"block");
+        setClassNameIfChanged(box,"notice err");
+        setTextIfChanged(box,"Firebase knihovny se nepodařilo načíst. Přihlášení zatím není dostupné a veřejný CSV export už není součástí produkčního webu.");
       }
     }
     const st=document.getElementById("startupStatus");
-    if(st) st.textContent=compatAvailable
+    setTextIfChanged(st,compatAvailable
       ? "Firebase modul se načetl v záložním režimu. Otevírám mapu."
-      : "Firebase není dostupný. Servisní data se načtou po obnovení přihlášení nebo připojení.";
+      : "Firebase není dostupný. Servisní data se načtou po obnovení přihlášení nebo připojení.");
     runAfterTwoPaints(()=>{
       try{showApp();}catch(err){}
       if(!compatAvailable || navigator.onLine===false){
@@ -668,7 +668,7 @@ if(firebaseReady){
   window.db=db;
   try{ ensureCompatFirebaseApp(); }catch(e){ console.warn("Compat Firebase se nepodařilo inicializovat",e); }
   const firebaseBox=document.getElementById("firebaseBox");
-  if(firebaseBox) firebaseBox.style.display="none";
+  setDisplayIfChanged(firebaseBox,"none");
 
   const AUTH_REDIRECT_PENDING_KEY="astipFirebaseRedirectPending";
   let lastAuthMessage="";
@@ -684,7 +684,7 @@ if(firebaseReady){
   function setStartupStatus(message){
     lastAuthMessage=message || "";
     const st=document.getElementById("startupStatus");
-    if(st) st.textContent=message || "";
+    setTextIfChanged(st,message || "");
     const appEl=document.getElementById("mainApp");
     const appVisible=!!(appEl && appEl.style.display && appEl.style.display!=="none");
     if(appVisible && typeof setProgressStatus==="function") setProgressStatus(message || "");
@@ -766,15 +766,15 @@ if(firebaseReady){
   }
   function setProgressStatus(message){
     const p=document.getElementById("progress");
-    if(p) p.textContent=message || "";
+    setTextIfChanged(p,message || "");
     const gps=document.getElementById("gpsBox");
     if(gps && message){
-      gps.style.display="block";
-      gps.className="notice";
-      gps.textContent=message;
+      setDisplayIfChanged(gps,"block");
+      setClassNameIfChanged(gps,"notice");
+      setTextIfChanged(gps,message);
     }else if(gps && !message && gps.className==="notice"){
-      gps.style.display="none";
-      gps.textContent="";
+      setDisplayIfChanged(gps,"none");
+      setTextIfChanged(gps,"");
     }
   }
   function googleRedirectProvider(){
@@ -933,7 +933,7 @@ if(firebaseReady){
     showApp();
     const topLogoutBtn=document.getElementById("topLogoutBtn");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
-    if(topLogoutBtn) topLogoutBtn.style.display="block";
+    setDisplayIfChanged(topLogoutBtn,"block");
     setProgressStatus(message || "Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
     runWhenIdle(()=>{
       try{
@@ -1173,23 +1173,23 @@ if(firebaseReady){
 function setOfflineMapStatus(message="",state="info"){
   const el=document.getElementById("offlineMapStatus");
   if(!el) return;
-  el.style.display=message ? "block" : "none";
-  el.className=`notice offline-map-status ${state==="error" ? "err" : state==="ok" ? "ok" : ""}`.trim();
-  el.textContent=message;
+  setDisplayIfChanged(el,message ? "block" : "none");
+  setClassNameIfChanged(el,`notice offline-map-status ${state==="error" ? "err" : state==="ok" ? "ok" : ""}`.trim());
+  setTextIfChanged(el,message);
 }
 
 function setOfflineMapButtonState(busy=false,text="Stáhnout mapu do telefonu"){
   const button=document.getElementById("cacheMapTilesBtn");
   if(!button) return;
   if(czechOfflineMapReady()){
-    button.style.display="none";
-    button.disabled=false;
-    button.textContent="Mapa je uložená";
+    setDisplayIfChanged(button,"none");
+    setDisabledIfChanged(button,false);
+    setTextIfChanged(button,"Mapa je uložená");
     return;
   }
-  button.style.display="";
-  button.disabled=!!busy;
-  button.textContent=text;
+  setDisplayIfChanged(button,"");
+  setDisabledIfChanged(button,busy);
+  setTextIfChanged(button,text);
 }
 
 async function cachedAppShellCountIfCurrent(signature){
@@ -1355,7 +1355,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v280-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v281-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -6537,7 +6537,16 @@ function dateInputValueFromAny(v){
   return `${y}-${m}-${day}`;
 }
 function setTextIfChanged(el,text){
-  if(el && el.textContent!==text) el.textContent=text;
+  if(el && el.textContent!==String(text)) el.textContent=String(text);
+}
+function setDisplayIfChanged(el,value){
+  if(el && el.style.display!==value) el.style.display=value;
+}
+function setClassNameIfChanged(el,value){
+  if(el && el.className!==value) el.className=value;
+}
+function setDisabledIfChanged(el,value){
+  if(el && el.disabled!==!!value) el.disabled=!!value;
 }
 
 function showControlDateDisplay(r){
@@ -11276,14 +11285,14 @@ function showApp(){
   const app=document.getElementById("mainApp");
   const loginRow=document.getElementById("mainLoginRow");
   const topLogout=document.getElementById("topLogoutBtn");
-  if(startup) startup.style.display="none";
-  if(app) app.style.display="grid";
-  if(loginRow) loginRow.style.display="none";
+  setDisplayIfChanged(startup,"none");
+  setDisplayIfChanged(app,"grid");
+  setDisplayIfChanged(loginRow,"none");
   if(topLogout){
     const hasUser=!!(currentUser || window.currentUser || window.__authReadyUser);
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode(hasUser ? "logout" : "login");
     const canTryLogin=hasUser || firebaseReady || window.__firebaseConfigured || !!(window.firebase && firebase.auth);
-    topLogout.style.display=canTryLogin ? "block" : "none";
+    setDisplayIfChanged(topLogout,canTryLogin ? "block" : "none");
   }
   runAfterTwoPaints(()=>{ if(window.mobileFixMap) window.mobileFixMap(); if(window.map) window.map.invalidateSize(true); });
 }
@@ -11295,10 +11304,10 @@ function showLogin(){
   const app=document.getElementById("mainApp");
   const loginRow=document.getElementById("mainLoginRow");
   const topLogout=document.getElementById("topLogoutBtn");
-  if(startup) startup.style.display="flex";
-  if(app) app.style.display="none";
-  if(loginRow) loginRow.style.display="none";
-  if(topLogout) topLogout.style.display="none";
+  setDisplayIfChanged(startup,"flex");
+  setDisplayIfChanged(app,"none");
+  setDisplayIfChanged(loginRow,"none");
+  setDisplayIfChanged(topLogout,"none");
 }
 
 function showSaveConfirmation(message="Uloženo."){
