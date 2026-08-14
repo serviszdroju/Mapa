@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-14-offline-site-upsert-v343";
+const APP_BUILD_VERSION="2026-08-15-coalesced-legacy-refresh-v344";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v343-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v344-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -3005,7 +3005,8 @@ window.normalize = normalize;
 window.normalizeSiteRows = normalize;
 window.applySiteEditToRow = applyEditToRow;
 
-async function loadEdits(){
+async function loadEdits(options={}){
+  const renderAfter=options.renderAfter!==false;
   if(!firebaseReady || !db) return;
   if(firebaseUnifiedPrimary){
     editCache={};
@@ -3020,7 +3021,7 @@ async function loadEdits(){
     snap.forEach(d=>editCache[d.id]=d.data());
     if(!firebaseUnifiedPrimary){
       rows=csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
-      render();
+      if(renderAfter) render();
     }
     document.getElementById("editStatus").textContent="Uložené úpravy načteny.";
   }catch(e){
@@ -3479,19 +3480,25 @@ function newSiteToRow(docId, d){
   return applyEditToRow(r);
 }
 
-async function loadExtraSites(){
+async function loadExtraSites(options={}){
+  const renderAfter=options.renderAfter!==false;
   extraSites = [];
-  if(firebaseUnifiedPrimary) return;
-  if(!firebaseReady || !db) return;
+  if(firebaseUnifiedPrimary) return false;
+  if(!firebaseReady || !db) return false;
   try{
     const {collection,getDocs}=fb.fsMod;
     const snap=await getDocs(collection(db,"sites"));
     snap.forEach(docSnap => extraSites.push(newSiteToRow(docSnap.id, docSnap.data())));
     rows = csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
     filters();
-    render();
+    if(renderAfter){
+      render();
+      return true;
+    }
+    return false;
   }catch(e){
     document.getElementById("newSiteStatus").textContent = "Nová místa se nepodařilo načíst: " + e.message;
+    return false;
   }
 }
 
@@ -4138,8 +4145,8 @@ async function deleteSelectedSite(){
       }
     }else{
       await loadDeletedSites();
-      await loadExtraSites();
-      render();
+      const rendered=await loadExtraSites();
+      if(!rendered) render();
     }
     showSaveConfirmation("Bod smazán.");
   }catch(e){
@@ -12598,13 +12605,13 @@ if(mapBackBtn) mapBackBtn.onclick=returnFromMapFocus;
 const mainProtocolHistoryBtn=document.getElementById("mainProtocolHistoryBtn");
 if(mainProtocolHistoryBtn) mainProtocolHistoryBtn.addEventListener("click",openMainProtocolHistoryPanel);
 document.getElementById("reloadEditBtn").onclick=async()=>{
-  await loadEdits();
+  await loadEdits({renderAfter:false});
   await loadDeletedSites();
   if(firebaseUnifiedPrimary && typeof window.loadFirebaseSitesUnified==="function"){
     await window.loadFirebaseSitesUnified();
   }else{
-    await loadExtraSites();
-    render();
+    const rendered=await loadExtraSites();
+    if(!rendered) render();
   }
 };
 document.getElementById("addSiteBtn").onclick=()=>{
