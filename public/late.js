@@ -442,7 +442,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         await window.loadFirebaseSitesUnified();
       }else if(!savedOffline && window.__firebaseUnifiedPrimary !== false && typeof window.loadFirebaseSitesUnified==="function"){
         await window.loadFirebaseSitesUnified();
-      }else if(typeof render==="function") render();
+      }else if(typeof window.render==="function") window.render();
 
       const latlng=[row.lat,row.lon];
       if(visibleAfterReload && window.map){
@@ -458,8 +458,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       console.warn("Rychlé zobrazení nového místa selhalo",e);
       if(savedUnified && typeof window.loadFirebaseSitesUnified==="function"){
         window.loadFirebaseSitesUnified(savedId).catch(()=>{});
-      }else if(typeof render==="function"){
-        render();
+      }else if(typeof window.render==="function"){
+        window.render();
       }
     }
   }
@@ -1630,10 +1630,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       .concat([row]);
     if(typeof window.setFirebaseSiteRows==="function") window.setFirebaseSiteRows(nextRows,docId);
     else{
-      rows=nextRows;
-      window.rows=rows;
+      window.rows=nextRows;
       if(window.markRowsDirty) window.markRowsDirty();
-      if(typeof render==="function") render();
+      if(typeof window.render==="function") window.render();
     }
     saveMapRowsCache(nextRows);
     if(window.showSaveConfirmation) window.showSaveConfirmation("Uloženo offline. Po připojení se odešle do Firebase.");
@@ -1710,7 +1709,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   async function showMapRowsCache(openDocId=null, options={}){
     if(openDocId) return [];
-    if(Array.isArray(rows) && rows.length) return [];
+    if(Array.isArray(window.rows) && window.rows.length) return [];
     const cachedRows=await readMapRowsCacheFast();
     if(!cachedRows.length) return [];
     const label=navigator.onLine===false || options.offlineBoot
@@ -2138,7 +2137,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 
   function rowKeySource(row){
     try{
-      if(typeof detailKey === "function") return detailKey(row);
+      if(typeof window.detailKey === "function") return window.detailKey(row);
     }catch(e){}
     const raw = (row && row.raw) || {};
     return cleanSource((row && (row.firebaseDocId || row.id)) || raw["Firebase_doc_id"] || raw["Klíč_adresy"]);
@@ -2367,8 +2366,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         visible = await window.refreshFirebaseSitesAfterSave(savedId, result && result.row ? result.row : localRow);
       }else if(!savedOffline && typeof window.loadFirebaseSitesUnified === "function"){
         await window.loadFirebaseSitesUnified(savedId);
-      }else if(typeof render === "function"){
-        render();
+      }else if(typeof window.render === "function"){
+        window.render();
       }
       restoreNormalDrawerTemplateForSource();
       if((visible || localRow) && typeof window.openDetailById === "function"){
@@ -2380,7 +2379,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
 
   function openSourceByKey(key){
-    const site = rowBySourceKey(key) || window.selectedSite || selectedSite;
+    const site = rowBySourceKey(key) || window.selectedSite;
     if(site) openAddSourceDetailForm(site);
   }
 
@@ -2398,7 +2397,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-add-source-upsert-bridge-v340";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-late-explicit-globals-v341";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
