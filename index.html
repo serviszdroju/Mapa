@@ -25,8 +25,8 @@ try{
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-Pt3Kn--O.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CKXmCOpW.css">
+  <script type="module" crossorigin src="./assets/index-CrfMlsju.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BrSAzxrd.css">
 </head>
 <body>
 
@@ -36,7 +36,20 @@ try{
     <h1>Servis záložních zdrojů</h1>
     <p id="startupIntro">Kontroluji přihlášení...</p>
     <button class="primary" id="startupLoginBtn" onclick="window.loginPopup()">Přihlásit přes Google</button>
+    <button class="secondary install-app-btn" id="startupInstallAppBtn" type="button" style="display:none;margin-top:10px">Stáhnout aplikaci</button>
+    <a class="direct-apk-link apk-install-link" id="startupDownloadApkLink" href="./downloads/szz-mapa-tablet-1.0.2.apk" download>Stáhnout instalační APK přímo</a>
     <p id="startupStatus" class="small"></p>
+  </div>
+</div>
+
+<div class="install-confirm-backdrop" id="installConfirmDialog" hidden>
+  <div class="install-confirm-box" role="dialog" aria-modal="true" aria-labelledby="installConfirmTitle" aria-describedby="installConfirmText">
+    <h3 id="installConfirmTitle">Opravdu chcete nainstalovat aplikaci?</h3>
+    <p id="installConfirmText">Po potvrzení se otevře instalační okno telefonu. Po dokončení bude ikona mezi aplikacemi v tabletu.</p>
+    <div class="install-confirm-actions">
+      <button class="secondary" id="cancelInstallConfirmBtn" type="button">Zrušit</button>
+      <button class="primary" id="confirmInstallBtn" type="button">Ano, nainstalovat</button>
+    </div>
   </div>
 </div>
 
@@ -44,6 +57,32 @@ try{
 <div class="app-tools">
   <button class="secondary app-tools-toggle" id="appToolsToggle" type="button" aria-expanded="false">Aplikace</button>
   <div class="app-tools-panel" id="appToolsPanel">
+    <button class="secondary install-app-btn" id="installAppBtn" type="button">Stáhnout aplikaci</button>
+    <a class="direct-apk-link apk-install-link" id="panelDownloadApkLink" href="./downloads/szz-mapa-tablet-1.0.2.apk" download>Stáhnout instalační APK přímo</a>
+    <div class="install-guide-card" id="installGuideCard" data-state="checking">
+      <div class="install-guide-top">
+        <strong>Instalace do Androidu</strong>
+        <span id="installGuideBadge">Kontroluji</span>
+      </div>
+      <div class="install-checks" aria-label="Kontrola instalace">
+        <span id="installCheckChrome">Chrome</span>
+        <span id="installCheckSecure">HTTPS</span>
+        <span id="installCheckWorker">Offline</span>
+        <span id="installCheckPrompt">Dialog</span>
+      </div>
+      <ol class="install-guide-steps">
+        <li>Otevři tento web v Android Chromu.</li>
+        <li>Klepni na Stáhnout aplikaci a potvrď systémové instalační okno.</li>
+        <li>Potom připrav offline data, aby se body, protokoly a galerie uložily do tabletu.</li>
+      </ol>
+      <div class="install-guide-actions">
+        <button class="secondary" id="copyInstallUrlBtn" type="button">Zkopírovat odkaz</button>
+        <button class="secondary" id="refreshInstallGuideBtn" type="button">Zkontrolovat</button>
+        <a class="secondary apk-install-link" id="downloadApkLink" href="./downloads/szz-mapa-tablet-1.0.2.apk" download>Stáhnout APK</a>
+      </div>
+      <p class="small" id="installGuideState">Kontroluji, jestli telefon může aplikaci nainstalovat.</p>
+    </div>
+    <div id="appInstallStatus" class="notice offline-map-status"></div>
     <button class="secondary" id="cacheMapTilesBtn" type="button">Stáhnout mapové podklady do telefonu</button>
     <div id="offlineMapStatus" class="notice offline-map-status"></div>
     <div class="app-sync-card" id="appSyncCard">
@@ -450,7 +489,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=parallel-local-detail-reads-v316"></script>
+<script async src="./late.js?v=auth-init-order-v337"></script>
 
 
 
