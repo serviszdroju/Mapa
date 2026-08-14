@@ -73,17 +73,6 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 (function(){
   let onlyNewTempMarker=null;
 
-  function escAdd(s){
-    return String(s ?? "").replace(/[&<>"']/g, m => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    }[m]));
-  }
-
-  function normAdd(s){
-    return String(s||"").trim().toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-  }
-
   function nodeAdd(tag, options={}, children=[]){
     const node=document.createElement(tag);
     if(options.id) node.id=options.id;
@@ -2019,10 +2008,6 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 ;
 /* FINAL FIX: další zdroj z detailu používá samostatný čistý formulář */
 (function(){
-  const escSource = v => String(v ?? "").replace(/[&<>"']/g, m => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[m]));
-  const attrSource = v => escSource(v);
   const cleanSource = v => String(v ?? "").trim();
   const numSource = v => {
     const n = parseFloat(String(v ?? "").replace(",", "."));
@@ -2162,6 +2147,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   function rowBySourceKey(key){
     const wanted = cleanSource(key);
     if(!wanted) return null;
+    try{
+      if(typeof window.findRowByAnyId === "function"){
+        const indexed = window.findRowByAnyId(wanted);
+        if(indexed) return indexed;
+      }
+      const direct = window.siteRowsByAnyId && window.siteRowsByAnyId.get && window.siteRowsByAnyId.get(wanted);
+      if(direct) return direct;
+    }catch(e){}
     return (window.rows || []).find(row=>{
       const raw = (row && row.raw) || {};
       return rowKeySource(row) === wanted
@@ -2391,7 +2384,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-auth-init-order-v337";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-indexed-late-source-lookup-v338";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
