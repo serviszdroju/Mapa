@@ -425,10 +425,23 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       return;
     }
 
-    if(!savedUnified && !savedOffline && Array.isArray(window.rows)){
-      row.i=window.rows.length;
-      window.rows.push(row);
-      if(window.markRowsDirty) window.markRowsDirty();
+    let legacyRowUpserted=false;
+    if(!savedUnified && !savedOffline){
+      if(typeof window.upsertFirebaseSiteRow==="function"){
+        try{
+          const loadedRows=window.upsertFirebaseSiteRow(row,false);
+          const indexed=typeof window.findRowByAnyId==="function" ? window.findRowByAnyId(row.id,loadedRows) : null;
+          if(indexed) row=indexed;
+          legacyRowUpserted=true;
+        }catch(e){
+          console.warn("Rychlá aktualizace nového místa selhala, používám původní vložení",e);
+        }
+      }
+      if(!legacyRowUpserted && Array.isArray(window.rows)){
+        row.i=window.rows.length;
+        window.rows.push(row);
+        if(window.markRowsDirty) window.markRowsDirty();
+      }
     }
 
     if(st) st.textContent="Nové místo uloženo.";
@@ -442,7 +455,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         await window.loadFirebaseSitesUnified();
       }else if(!savedOffline && window.__firebaseUnifiedPrimary !== false && typeof window.loadFirebaseSitesUnified==="function"){
         await window.loadFirebaseSitesUnified();
-      }else if(typeof window.render==="function") window.render();
+      }else if(!legacyRowUpserted && typeof window.render==="function") window.render();
 
       const latlng=[row.lat,row.lon];
       if(visibleAfterReload && window.map){
@@ -2397,7 +2410,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-late-explicit-globals-v341";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-late-add-site-upsert-v342";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
