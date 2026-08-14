@@ -446,6 +446,8 @@ Current performance phase 211 decision: expose the existing indexed row lookup t
 
 Current performance phase 212 decision: expose the already-used main app helper functions and selected-site bridge intentionally for `public/late.js`, so late add-source/save paths can keep using normalized rows, row IDs, cached place/region helpers, filters, and render without falling back to slower reload paths or brittle implicit globals; preserve all UI and data behavior.
 
+Current performance phase 213 decision: route late add-source local row insertion through the existing optimized `upsertFirebaseSiteRow()` path before using the old manual array-filter fallback, so successful saves update `csvRows`, `rows`, lookup indexes, filters, and render caches consistently with less duplicate scanning while preserving offline/Firebase behavior and visible UI.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

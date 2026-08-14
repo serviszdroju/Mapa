@@ -2253,12 +2253,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
 
   function upsertAddedSourceRowLocally(raw, savedId){
-    const cleanId = safe(savedId);
+    const cleanId = typeof window.safe === "function" ? window.safe(savedId) : cleanSource(savedId);
     if(!cleanId || !raw) return null;
     const prepared = {...raw, "Firebase_doc_id": cleanId};
     let normalized = null;
     try{
-      normalized = typeof normalize === "function" ? normalize([prepared])[0] : null;
+      const normalizeRows = window.normalizeSiteRows || window.normalize;
+      normalized = typeof normalizeRows === "function" ? normalizeRows([prepared])[0] : null;
     }catch(e){
       console.warn("Lokální normalizace nového zdroje selhala", e);
     }
@@ -2278,16 +2279,29 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     normalized.firebaseDocId = cleanId;
     normalized.raw = {...(normalized.raw || {}), ...prepared, "Firebase_doc_id": cleanId};
     normalized.firebaseData = {...(normalized.firebaseData || {}), raw: normalized.raw};
-    const localKey = (typeof detailKey === "function" ? detailKey(normalized) : cleanId) || cleanId;
-    rows = (rows || []).filter(row=>{
-      const rowDoc = typeof selectedSiteDocId === "function" ? selectedSiteDocId(row) : safe(row && row.firebaseDocId);
-      const rowKey = typeof detailKey === "function" ? detailKey(row) : safe(row && row.id);
+    if(typeof window.upsertFirebaseSiteRow === "function"){
+      try{
+        const loadedRows = window.upsertFirebaseSiteRow(normalized, false);
+        const indexed = typeof window.findRowByAnyId === "function" ? window.findRowByAnyId(cleanId, loadedRows) : null;
+        window.selectedSite = indexed || normalized;
+        return window.selectedSite;
+      }catch(e){
+        console.warn("Rychlý lokální upsert nového zdroje selhal, používám fallback", e);
+      }
+    }
+    const detailFn = typeof window.detailKey === "function" ? window.detailKey : null;
+    const docIdFn = typeof window.selectedSiteDocId === "function" ? window.selectedSiteDocId : null;
+    const localKey = (detailFn ? detailFn(normalized) : cleanId) || cleanId;
+    const currentRows = Array.isArray(window.rows) ? window.rows : [];
+    window.rows = currentRows.filter(row=>{
+      const rowDoc = docIdFn ? docIdFn(row) : (typeof window.safe === "function" ? window.safe(row && row.firebaseDocId) : cleanSource(row && row.firebaseDocId));
+      const rowKey = detailFn ? detailFn(row) : (typeof window.safe === "function" ? window.safe(row && row.id) : cleanSource(row && row.id));
       return rowDoc !== cleanId && rowKey !== localKey;
     }).concat([normalized]);
-    selectedSite = normalized;
+    window.selectedSite = normalized;
     if(window.markRowsDirty) window.markRowsDirty();
-    if(typeof filters === "function") filters();
-    if(typeof render === "function") render();
+    if(typeof window.filters === "function") window.filters();
+    if(typeof window.render === "function") window.render();
     return normalized;
   }
 
@@ -2384,7 +2398,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-late-global-helper-bridge-v339";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-add-source-upsert-bridge-v340";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
