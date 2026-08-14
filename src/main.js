@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-12-offline-add-frame-open-v336";
+const APP_BUILD_VERSION="2026-08-14-auth-init-order-v337";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -576,6 +576,7 @@ window.addEventListener("load",()=>{
 
 
 if(firebaseReady){
+  (async()=>{
   let appMod=null;
   let authMod=null;
   let fsMod=null;
@@ -1168,6 +1169,13 @@ if(firebaseReady){
     console.warn("Modulární Firebase Auth listener není dostupný; používám pouze záložní compat listener.");
   }
   }
+  })().catch(e=>{
+    console.warn("Firebase inicializace selhala",e);
+    clearExplicitSignOut();
+    setStartupAuthChecking(false);
+    const message=safe(e && (e.code || e.message) || e);
+    setTextIfChanged(document.getElementById("startupStatus"),"Chyba kontroly přihlášení: " + (message || "Google účet se nepodařilo načíst. Zkus přihlášení znovu."));
+  });
 }
 
 function setOfflineMapStatus(message="",state="info"){
@@ -1355,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v336-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v337-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){

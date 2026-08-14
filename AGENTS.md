@@ -476,4 +476,6 @@ Current important-note color decision: important-note rows may keep their red-ti
 
 Current gallery metadata decision: the Galerie detail view must not show the bottom point-information cards for Název, Kraj, Adresa, GPS, Popis zdroje, or Výrobní číslo. Photo action buttons belong above the photo metadata row.
 
+Current startup/auth initialization decision: Firebase/Auth startup must run as a non-blocking async initializer after the fast app shell starts, not as a top-level `await` before shared render/status/detail helper constants are initialized. This prevents startup/auth checks from calling hoisted functions whose later constants are still in the temporal dead zone.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
