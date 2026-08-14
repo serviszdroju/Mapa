@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-coalesced-legacy-refresh-v344";
+const APP_BUILD_VERSION="2026-08-15-fit-bounds-cache-v345";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v344-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v345-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4781,6 +4781,7 @@ let mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
 let sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
 let sidebarSortedGroupsCache={groups:null,signature:"",visibleGroups:[]};
 let renderCountersCache={shown:null,gps:null};
+let fitBoundsPointsCache={signature:"",points:[]};
 const MAP_MARKER_RENDER_LIMIT=900;
 
 function markRowsDirty(){
@@ -4792,6 +4793,7 @@ function markRowsDirty(){
   sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
   sidebarSortedGroupsCache={groups:null,signature:"",visibleGroups:[]};
   renderCountersCache={shown:null,gps:null};
+  fitBoundsPointsCache={signature:"",points:[]};
 }
 
 function installRowsWindowBridge(){
@@ -5712,9 +5714,15 @@ function updateStatusFilterColor(){
 }
 function fit(){
   syncRowIndexes();
-  const pts=[];
-  for(const r of filtered()){
-    if(inCzSk(r)) pts.push([r.lat,r.lon]);
+  const visibleRows=filtered();
+  const signature=`${filteredRowsCache.signature || ""}\u001f${visibleRows.length}`;
+  let pts=fitBoundsPointsCache.signature===signature ? fitBoundsPointsCache.points : null;
+  if(!pts){
+    pts=[];
+    for(const r of visibleRows){
+      if(inCzSk(r)) pts.push([r.lat,r.lon]);
+    }
+    fitBoundsPointsCache={signature,points:pts};
   }
   if(pts.length)map.fitBounds(pts,{padding:[30,30]});
 }
