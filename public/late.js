@@ -1637,17 +1637,34 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     };
     queue.push(queuedItem);
     writeOfflineSiteQueue(queue);
-    const row=rowFromDoc(docId,{raw,createdAt:now,updatedAt:now,manualEntry:true,localOnly:true,offline:true});
-    const nextRows=(Array.isArray(window.rows) ? window.rows : [])
-      .filter(existing=>String(existing.firebaseDocId || existing.raw?.["Firebase_doc_id"] || existing.id || "")!==docId)
-      .concat([row]);
-    if(typeof window.setFirebaseSiteRows==="function") window.setFirebaseSiteRows(nextRows,docId);
-    else{
-      window.rows=nextRows;
-      if(window.markRowsDirty) window.markRowsDirty();
-      if(typeof window.render==="function") window.render();
+    let row=rowFromDoc(docId,{raw,createdAt:now,updatedAt:now,manualEntry:true,localOnly:true,offline:true});
+    let loadedRows=null;
+    if(typeof window.upsertFirebaseSiteRow==="function"){
+      try{
+        loadedRows=window.upsertFirebaseSiteRow(row,docId);
+        const indexed=typeof window.findRowByAnyId==="function" ? window.findRowByAnyId(docId,loadedRows) : null;
+        if(indexed) row=indexed;
+      }catch(e){
+        console.warn("Rychlé offline vložení bodu selhalo, používám původní obnovu řádků",e);
+        loadedRows=null;
+      }
     }
-    saveMapRowsCache(nextRows);
+    if(!Array.isArray(loadedRows)){
+      const nextRows=(Array.isArray(window.rows) ? window.rows : [])
+        .filter(existing=>String(existing.firebaseDocId || existing.raw?.["Firebase_doc_id"] || existing.id || "")!==docId)
+        .concat([row]);
+      if(typeof window.setFirebaseSiteRows==="function") loadedRows=window.setFirebaseSiteRows(nextRows,docId);
+      else{
+        window.rows=nextRows;
+        if(window.markRowsDirty) window.markRowsDirty();
+        if(typeof window.render==="function") window.render();
+        loadedRows=nextRows;
+      }
+    }
+    const cacheRows=Array.isArray(loadedRows) && loadedRows.length
+      ? loadedRows
+      : (Array.isArray(window.rows) && window.rows.length ? window.rows : [row]);
+    saveMapRowsCache(cacheRows);
     if(window.showSaveConfirmation) window.showSaveConfirmation("Uloženo offline. Po připojení se odešle do Firebase.");
     const p=document.getElementById("progress");
     if(p) p.textContent="Nový bod/zdroj je uložený offline a čeká na synchronizaci.";
@@ -2410,7 +2427,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-late-add-site-upsert-v342";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-14-offline-site-upsert-v343";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

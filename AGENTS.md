@@ -452,6 +452,8 @@ Current performance phase 214 decision: remove remaining implicit main-module gl
 
 Current performance phase 215 decision: route the legacy late add-site fallback row insertion through the optimized `upsertFirebaseSiteRow(row,false)` path when available, falling back to the old direct `window.rows.push(row)` only if needed, so row indexes and render caches stay current without an extra render while preserving legacy save behavior.
 
+Current performance phase 216 decision: route offline add-site row insertion through the optimized `upsertFirebaseSiteRow(row,docId)` path before falling back to the old full `setFirebaseSiteRows()` reconstruction, then save the map-row cache from the loaded rows so offline saves avoid unnecessary full-array work while preserving queueing, detail opening, and sync behavior.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
