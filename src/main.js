@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-14-indexed-late-source-lookup-v338";
+const APP_BUILD_VERSION="2026-08-14-late-global-helper-bridge-v339";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v338-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v339-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2293,6 +2293,7 @@ window.cacheVisibleMapTiles=cacheVisibleMapTiles;
 window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 
 function safe(v){return String(v??"").trim()}
+window.safe=safe;
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function num(v){if(v===null||v===undefined||v==="")return null;const n=Number(String(v).trim().replace(",","."));return Number.isFinite(n)?n:null}
 function stableSignaturePart(value){const text=String(value??"");return `${text.length}:${text}`}
@@ -3000,6 +3001,7 @@ function normalize(data){
   });
 }
 
+window.normalize = normalize;
 window.normalizeSiteRows = normalize;
 window.applySiteEditToRow = applyEditToRow;
 
@@ -4381,6 +4383,8 @@ function sitePlaceGroupKey(site){
   const cached=ensureRowPlaceCache(site);
   return cached ? cached.groupKey : computeSitePlaceGroupKey(site);
 }
+window.sitePlaceLabel=sitePlaceLabel;
+window.sitePlaceGroupKey=sitePlaceGroupKey;
 function sortedRowsBySourceLabel(items=[]){
   return (items || []).slice().sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
 }
@@ -4748,6 +4752,7 @@ function renderSourceChooser(site=selectedSite){
 function rowRegion(r){
   return canonicalRegionValue(r && r.kraj) || inferRegionFromAddressText(rowSearchText(r));
 }
+window.rowRegion=rowRegion;
 let siteRowsByAnyId=new Map();
 let siteRowIndexByRef=new WeakMap();
 let siteRowIndexByOriginalIndex=new Map();
@@ -4804,8 +4809,23 @@ function installRowsWindowBridge(){
   }
 }
 
+function installSelectedSiteWindowBridge(){
+  const existingSite=window.selectedSite;
+  if(existingSite && !selectedSite) selectedSite=existingSite;
+  try{
+    Object.defineProperty(window,"selectedSite",{
+      configurable:true,
+      get(){ return selectedSite; },
+      set(nextSite){ selectedSite=nextSite || null; }
+    });
+  }catch(e){
+    window.selectedSite=selectedSite;
+  }
+}
+
 window.markRowsDirty=markRowsDirty;
 installRowsWindowBridge();
+installSelectedSiteWindowBridge();
 
 function rowLookupKeys(r){
   const raw=(r && r.raw) || {};
@@ -5013,6 +5033,7 @@ window.findRowByAnyId=findRowByAnyId;
 function detailKey(r){
   return editCacheKeyForRow(r);
 }
+window.detailKey=detailKey;
 function siteRecordKeys(site=selectedSite){
   const raw=(site && site.raw) || {};
   const docId=safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
@@ -5096,6 +5117,7 @@ function selectedSiteDocId(site=selectedSite){
   const raw=(site && site.raw) || {};
   return safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
 }
+window.selectedSiteDocId=selectedSiteDocId;
 const recordIdKeysCache=new WeakMap();
 function recordIdKeys(record){
   if(!record) return [];
@@ -5551,6 +5573,7 @@ function render(){
   renderSidebarGroups(groups);
   renderCounters(vis.length,rowsGpsCountCache);
 }
+window.render=render;
 function requestRender(){
   if(renderRequested) return;
   renderRequested=true;
@@ -5658,6 +5681,7 @@ function filters(){
   if((currentRegion===""||APP_REGION_OPTIONS.includes(currentRegion))&&kr.value!==currentRegion) kr.value=currentRegion;
   updateStatusFilterColor();
 }
+window.filters=filters;
 function statusFilterClass(v){
   if(v==="Propadlá kontrola") return "status-red";
   if(v==="1–30 dní k termínu") return "status-orange";
