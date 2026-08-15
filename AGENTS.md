@@ -532,4 +532,6 @@ Current performance phase 236 decision: merge local and IndexedDB protocol histo
 
 Current performance phase 237 decision: select the main cross-site protocol history top 80 with a bounded insertion pass instead of filtering, sorting, and slicing the full merged history list, preserving descending protocol time order and first-item tie behavior.
 
+Current performance phase 238 decision: build main protocol history visible rows and render signatures in direct loops instead of `filter().map()` and signature `map().join()` chains, preserving date filtering, admin metadata, processed checkbox state, and row DOM output.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

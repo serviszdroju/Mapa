@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-main-history-top-loop-v363";
+const APP_BUILD_VERSION="2026-08-15-main-history-render-loop-v364";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v363-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v364-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12647,9 +12647,11 @@ function bindMainProtocolHistoryControls({list,dateFilter,clearDate}={}){
 function mainProtocolHistoryVisibleRows(items=[]){
   const adminPart=isAppAdmin() ? "admin" : "user";
   const filterDate=safe(mainProtocolHistoryDateFilter);
-  return (items || [])
-  .filter(item=>!filterDate || mainProtocolControlDateIso(item)===filterDate)
-  .map((item,idx)=>{
+  const rows=[];
+  const source=Array.isArray(items) ? items : [];
+  for(let idx=0;idx<source.length;idx++){
+    const item=source[idx];
+    if(filterDate && mainProtocolControlDateIso(item)!==filterDate) continue;
     const title=protocolGlobalHistoryTitle(item);
     const key=safe(item && (item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : "")));
     const id=safe(item && (item._id || item.id || ""));
@@ -12657,13 +12659,16 @@ function mainProtocolHistoryVisibleRows(items=[]){
     const checked=historyDateLabel(item);
     const owner=safe(item && (item.createdBy || item.technicianEmail || item.updatedBy));
     const processed=isMainProtocolProcessed(item);
-    const meta=adminPart==="admin" ? [
-      saved ? `uloženo ${saved}` : "",
-      checked ? `kontrola ${checked}` : "",
-      processed ? "zpracováno" : "",
-      owner
-    ].filter(Boolean).join(" | ") : "";
-    const signature=[
+    let meta="";
+    if(adminPart==="admin"){
+      const metaParts=[];
+      if(saved) metaParts.push(`uloženo ${saved}`);
+      if(checked) metaParts.push(`kontrola ${checked}`);
+      if(processed) metaParts.push("zpracováno");
+      if(owner) metaParts.push(owner);
+      meta=metaParts.join(" | ");
+    }
+    const signatureParts=[
       id || idx,
       title,
       key,
@@ -12672,15 +12677,23 @@ function mainProtocolHistoryVisibleRows(items=[]){
       owner,
       processed ? "processed" : "open",
       protocolTimeValue(item)
-    ].map(value=>`${String(value).length}:${value}`).join("");
-    return {id,title,key,meta,processed,signature};
-  });
+    ];
+    let signature="";
+    for(const value of signatureParts) signature+=`${String(value).length}:${value}`;
+    rows.push({id,title,key,meta,processed,signature});
+  }
+  return rows;
 }
 
 function mainProtocolHistoryRenderKey(visibleRows=[]){
   const adminPart=isAppAdmin() ? "admin" : "user";
-  const rows=(visibleRows || []).map(row=>row && row.signature ? row.signature : "").join("\u001f");
-  return `${adminPart}\u001e${mainProtocolHistoryDateFilter}\u001e${visibleRows.length}\u001e${rows}`;
+  const source=Array.isArray(visibleRows) ? visibleRows : [];
+  let rows="";
+  for(let i=0;i<source.length;i++){
+    if(i) rows+="\u001f";
+    rows+=source[i] && source[i].signature ? source[i].signature : "";
+  }
+  return `${adminPart}\u001e${mainProtocolHistoryDateFilter}\u001e${source.length}\u001e${rows}`;
 }
 
 function renderMainProtocolHistoryRows(list,items=[]){
