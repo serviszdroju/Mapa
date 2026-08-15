@@ -536,4 +536,6 @@ Current performance phase 238 decision: build main protocol history visible rows
 
 Current performance phase 239 decision: collect and sort per-site detail history matches through `sortedMatchingHistoryItemsForSite()` instead of repeated `items.filter(...).sort(...)` chains, and use a direct first-protocol scan after sorting, preserving Protokol detail ordering, latest-protocol prefill, cache writes, and render behavior.
 
+Current performance phase 240 decision: find the latest matching protocol for `getLastProtocol()` with one direct scan instead of filtering and sorting all candidate protocol records, preserving text fallback queries, latest-protocol cache writes, and first-match tie behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

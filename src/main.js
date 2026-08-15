@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-detail-history-match-loop-v365";
+const APP_BUILD_VERSION="2026-08-15-last-protocol-match-scan-v366";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v365-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v366-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11865,6 +11865,21 @@ function firstProtocolHistoryItem(items=[]){
   return null;
 }
 
+function latestMatchingHistoryItemForSite(items=[],site=selectedSite){
+  const source=Array.isArray(items) ? items : [];
+  let latest=null;
+  let latestTime=0;
+  for(const item of source){
+    if(!recordMatchesSite(item,site)) continue;
+    const time=protocolTimeValue(item);
+    if(!latest || time>latestTime){
+      latest=item;
+      latestTime=time;
+    }
+  }
+  return latest;
+}
+
 async function loadHistory(siteId){
   const history=detailHistoryNode();
   if(!history) return;
@@ -15033,8 +15048,8 @@ async function getLastProtocol(site=selectedSite){
       }
     }
     await runBoundedFirestoreTasks(protocolQueryTasks,6);
-    let matchedItems=items.filter(item=>recordMatchesSite(item,site));
-    if(!matchedItems.length){
+    let latest=latestMatchingHistoryItemForSite(items,site);
+    if(!latest){
       const textQueryTasks=[];
       const textKeys=siteRecordTextKeys(site).slice(0,8);
       for(const value of textKeys){
@@ -15049,10 +15064,8 @@ async function getLastProtocol(site=selectedSite){
         }
       }
       await runBoundedFirestoreTasks(textQueryTasks,6);
-      matchedItems=items.filter(item=>recordMatchesSite(item,site));
+      latest=latestMatchingHistoryItemForSite(items,site);
     }
-    matchedItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
-    const latest=matchedItems[0] || null;
     writeLastProtocolCache(site,latest);
     return latest;
   }catch(e){
