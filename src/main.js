@@ -311,7 +311,11 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-place-group-cache-loops-v352";
+const APP_BUILD_VERSION="2026-08-15-cs-collator-cache-v353";
+const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
+function szzCompareCsBase(a,b){
+  return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
+}
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v352-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v353-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1552,7 +1556,7 @@ function szzRecordUpdatedMs(item={}){
 const szzRawFingerprintCache=new WeakMap();
 const szzOfflineRowFingerprintCache=new WeakMap();
 function szzCachedObjectValuesMatch(keys=[],values=[],source={},currentKeys=[]){
-  const compareKeys=Array.isArray(currentKeys) ? currentKeys : Object.keys(source || {}).sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}));
+  const compareKeys=Array.isArray(currentKeys) ? currentKeys : Object.keys(source || {}).sort(szzCompareCsBase);
   if(!sameArrayValues(keys,compareKeys)) return false;
   for(let i=0;i<keys.length;i++){
     if(values[i]!==source[keys[i]]) return false;
@@ -1561,7 +1565,7 @@ function szzCachedObjectValuesMatch(keys=[],values=[],source={},currentKeys=[]){
 }
 function szzStableRawFingerprint(raw={}){
   const source=raw || {};
-  const keys=Object.keys(source).sort((a,b)=>a.localeCompare(b,"cs",{sensitivity:"base"}));
+  const keys=Object.keys(source).sort(szzCompareCsBase);
   const cacheable=source && (typeof source==="object" || typeof source==="function");
   if(cacheable){
     const cached=szzRawFingerprintCache.get(source);
@@ -4393,7 +4397,7 @@ function sitePlaceGroupKey(site){
 window.sitePlaceLabel=sitePlaceLabel;
 window.sitePlaceGroupKey=sitePlaceGroupKey;
 function sortedRowsBySourceLabel(items=[]){
-  return (items || []).slice().sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
+  return (items || []).slice().sort((a,b)=>szzCompareCsBase(siteSourceLabel(a),siteSourceLabel(b)));
 }
 function cachedRowsByPlaceGroup(key,pool=rows){
   const sourceRows=Array.isArray(pool) ? pool : [];
@@ -4589,7 +4593,7 @@ function groupRowsByPlace(inputRows){
   }
   const groups=[];
   for(const group of mapByKey.values()){
-    group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
+    group.rows=group.rows.sort((a,b)=>szzCompareCsBase(siteSourceLabel(a),siteSourceLabel(b)));
     group._markerRowsSignature=markerRowsSignature(group.rows);
     const representative=groupRepresentative(group.rows) || group.rows[0] || null;
     group._representativeRow=representative;
