@@ -530,4 +530,6 @@ Current performance phase 235 decision: normalize local and IndexedDB protocol h
 
 Current performance phase 236 decision: merge local and IndexedDB protocol history lists with `uniqueByOfflineIdFromLists()` instead of allocating a spread-combined array first, preserving no-id ordering and last-value-wins `_id` deduplication.
 
+Current performance phase 237 decision: select the main cross-site protocol history top 80 with a bounded insertion pass instead of filtering, sorting, and slicing the full merged history list, preserving descending protocol time order and first-item tie behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

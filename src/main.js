@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-offline-merge-loop-v362";
+const APP_BUILD_VERSION="2026-08-15-main-history-top-loop-v363";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v362-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v363-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12468,6 +12468,24 @@ async function readSiteLocalProtocolHistoryItems(site=selectedSite){
   return readCachedLocalDetailItems(siteLocalProtocolHistoryReadCache,cacheKey,()=>computeSiteLocalProtocolHistoryItems(site));
 }
 
+function selectLatestProtocolHistoryItems(items=[],limit=80){
+  const top=[];
+  const maxCount=Math.max(0,Number(limit) || 0);
+  if(!maxCount) return top;
+  for(const item of items || []){
+    if(!isProtocolHistoryItem(item)) continue;
+    const time=protocolTimeValue(item);
+    let insertAt=top.length;
+    while(insertAt>0 && time>top[insertAt-1].time) insertAt--;
+    if(insertAt>=maxCount) continue;
+    top.splice(insertAt,0,{item,time});
+    if(top.length>maxCount) top.length=maxCount;
+  }
+  const out=new Array(top.length);
+  for(let i=0;i<top.length;i++) out[i]=top[i].item;
+  return out;
+}
+
 async function loadMainProtocolHistoryItems(){
   if(!canViewMainProtocolHistory()) return [];
   const cached=readMainProtocolHistoryCache();
@@ -12508,10 +12526,7 @@ async function loadMainProtocolHistoryItems(){
   const [localItems,firebaseItems]=await Promise.all([localItemsPromise,firebaseItemsPromise]);
   localItems.forEach(addItem);
   firebaseItems.forEach(addItem);
-  const finalItems=items
-    .filter(isProtocolHistoryItem)
-    .sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a))
-    .slice(0,80);
+  const finalItems=selectLatestProtocolHistoryItems(items,80);
   writeMainProtocolHistoryCache(finalItems);
   return finalItems.map(cloneDetailHistoryItem);
 }
