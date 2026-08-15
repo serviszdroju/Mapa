@@ -526,4 +526,6 @@ Current performance phase 233 decision: keep deduplication key creation, raw non
 
 Current performance phase 234 decision: compute the latest embedded protocol date with one pass over protocol history instead of mapping, filtering, and sorting the whole array, preserving first-item tie behavior and the existing latestProtocolDate fallback.
 
+Current performance phase 235 decision: normalize local and IndexedDB protocol history with direct loops, and filter site-specific protocol history during normalization instead of creating normalized arrays and then filtering them, preserving `_type`, `_collection`, `_id`, and record matching behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

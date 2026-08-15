@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-latest-date-loop-v360";
+const APP_BUILD_VERSION="2026-08-15-local-protocol-loop-v361";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v360-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v361-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12391,12 +12391,36 @@ function readAllLocalProtocolHistoryItems(){
 }
 
 function normalizeProtocolHistoryItems(items=[],collection="localProtocols",idPrefix=collection){
-  return (items || []).filter(Boolean).map((item,idx)=>({
-    ...item,
-    _type:"Protokol",
-    _collection:item._collection || collection,
-    _id:item._id || `${idPrefix}_${idx}`
-  }));
+  const normalized=[];
+  const source=Array.isArray(items) ? items : [];
+  for(let idx=0;idx<source.length;idx++){
+    const item=source[idx];
+    if(!item) continue;
+    normalized.push({
+      ...item,
+      _type:"Protokol",
+      _collection:item._collection || collection,
+      _id:item._id || `${idPrefix}_${idx}`
+    });
+  }
+  return normalized;
+}
+
+function normalizeProtocolHistoryItemsForSite(items=[],site=selectedSite,collection="localProtocols",idPrefix=collection){
+  const normalized=[];
+  const source=Array.isArray(items) ? items : [];
+  for(let idx=0;idx<source.length;idx++){
+    const item=source[idx];
+    if(!item) continue;
+    const normalizedItem={
+      ...item,
+      _type:"Protokol",
+      _collection:item._collection || collection,
+      _id:item._id || `${idPrefix}_${idx}`
+    };
+    if(recordMatchesSite(normalizedItem,site)) normalized.push(normalizedItem);
+  }
+  return normalized;
 }
 
 async function computeAllLocalAndIndexedProtocolHistoryItems(){
@@ -12417,13 +12441,11 @@ async function readAllLocalAndIndexedProtocolHistoryItems(){
 }
 
 async function computeSiteLocalProtocolHistoryItems(site=selectedSite){
-  const localItems=normalizeProtocolHistoryItems(readSiteLocalArray("protocolHistory",site),"localProtocols","local_protocol")
-    .filter(item=>recordMatchesSite(item,site));
+  const localItems=normalizeProtocolHistoryItemsForSite(readSiteLocalArray("protocolHistory",site),site,"localProtocols","local_protocol");
   let indexedItems=[];
   if(typeof readOfflineProtocolQueueItems==="function"){
     try{
-      indexedItems=normalizeProtocolHistoryItems(await readOfflineProtocolQueueItems(site),"indexedOfflineProtocols","indexed_protocol")
-        .filter(item=>recordMatchesSite(item,site));
+      indexedItems=normalizeProtocolHistoryItemsForSite(await readOfflineProtocolQueueItems(site),site,"indexedOfflineProtocols","indexed_protocol");
     }catch(e){
       console.warn("IndexedDB protokoly pro místo nejde načíst",e);
     }
