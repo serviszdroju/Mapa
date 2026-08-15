@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-detail-table-loop-v356";
+const APP_BUILD_VERSION="2026-08-15-source-chooser-signature-loop-v357";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v356-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v357-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4725,13 +4725,19 @@ function openAddSourceForSiteByKey(key){
   if(row) openAddSourceForSite(row);
 }
 function sourceChooserRenderSignature(site,siblings,activeKey){
-  return [
+  const parts=[
     rowsIndexVersion,
     activeKey,
     sitePlaceGroupKey(site),
     sitePlaceLabel(site),
     markerRowsSignature(siblings)
-  ].map(stableSignaturePart).join("\u001f");
+  ];
+  let signature="";
+  for(let i=0;i<parts.length;i++){
+    if(i) signature+="\u001f";
+    signature+=stableSignaturePart(parts[i]);
+  }
+  return signature;
 }
 function bindSourceChooserClick(box){
   if(!box || box.__szzSourceChooserClickBound) return;
