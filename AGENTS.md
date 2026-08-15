@@ -464,6 +464,8 @@ Current performance phase 220 decision: build marker-row signatures with a singl
 
 Current performance phase 221 decision: finalize place groups with a direct `Map.values()` loop instead of spreading values into a temporary array and mapping over it, preserving group ordering, row sorting, representative rows, marker signatures, and next-check sort values while reducing grouping allocations.
 
+Current performance phase 222 decision: replace callback-heavy loops in place grouping, marker reconciliation, popup source-button HTML assembly, and bounded sidebar selection with direct loops, preserving marker keys, popup markup, sidebar ordering, and visible behavior while reducing short-lived render allocations.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-place-group-loop-v348";
+const APP_BUILD_VERSION="2026-08-15-direct-render-loops-v349";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v348-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v349-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4567,7 +4567,8 @@ function markerRowsSignature(rowsList){
 }
 function groupRowsByPlace(inputRows){
   const mapByKey=new Map();
-  (inputRows || []).forEach(r=>{
+  const sourceRows=Array.isArray(inputRows) ? inputRows : [];
+  for(const r of sourceRows){
     const key=sitePlaceGroupKey(r);
     if(!mapByKey.has(key)){
       mapByKey.set(key,{key,rows:[],lat:null,lon:null,label:sitePlaceLabel(r)});
@@ -4579,7 +4580,7 @@ function groupRowsByPlace(inputRows){
       group.lat=r.lat;
       group.lon=r.lon;
     }
-  });
+  }
   const groups=[];
   for(const group of mapByKey.values()){
     group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
@@ -4628,7 +4629,11 @@ function groupPopupHtml(group){
     const r=primary;
     html=r ? `<b>${esc(r.adresa||"Bez názvu")}</b><br>${esc(siteSourceLabel(r))}<br>${esc(statusText(r))}<br><button onclick="openDetailById(${esc(JSON.stringify(detailKey(r)))})">Detail</button>` : "";
   }else{
-    html=`<b>${esc(group.label || "Místo")}</b><br>${rowsInGroup.length} zdrojů na jednom místě<div class="source-popup-list">${rowsInGroup.map(sourceButtonHtml).join("")}</div>`;
+    let sourceButtonsHtml="";
+    for(const row of rowsInGroup){
+      sourceButtonsHtml+=sourceButtonHtml(row);
+    }
+    html=`<b>${esc(group.label || "Místo")}</b><br>${rowsInGroup.length} zdrojů na jednom místě<div class="source-popup-list">${sourceButtonsHtml}</div>`;
   }
   group._popupHtmlSignature=signature;
   group._popupHtml=html;
@@ -5459,46 +5464,49 @@ function bindMapViewportRendering(){
 function updateMapMarkers(groups){
   if(!layer) return;
   const visibleKeys=new Set();
-  (groups || []).forEach(group=>{
-    if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) return;
+  const sourceGroups=Array.isArray(groups) ? groups : [];
+  for(const group of sourceGroups){
+    if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) continue;
     const key=group.key || `${group.lat},${group.lon}`;
     const fill=groupColor(group.rows);
     const signature=mapMarkerSignature(group,fill);
     visibleKeys.add(key);
     const cached=mapMarkerCache.get(key);
-    if(cached && cached.signature===signature) return;
+    if(cached && cached.signature===signature) continue;
     if(cached && cached.marker){
       try{layer.removeLayer(cached.marker);}catch(e){}
     }
     const marker=buildMapMarkerForGroup(group,fill);
     marker.addTo(layer);
     mapMarkerCache.set(key,{marker,signature});
-  });
-  mapMarkerCache.forEach((cached,key)=>{
-    if(visibleKeys.has(key)) return;
+  }
+  for(const [key,cached] of mapMarkerCache){
+    if(visibleKeys.has(key)) continue;
     if(cached && cached.marker){
       try{layer.removeLayer(cached.marker);}catch(e){}
     }
     mapMarkerCache.delete(key);
-  });
+  }
 }
 const SIDEBAR_GROUP_RENDER_LIMIT=160;
 function topSidebarGroups(groups,limit=SIDEBAR_GROUP_RENDER_LIMIT){
-  const source=groups || [];
+  const source=Array.isArray(groups) ? groups : [];
   if(source.length<=limit){
     return source.slice().sort((a,b)=>groupNextSortValue(a)-groupNextSortValue(b));
   }
   const top=[];
-  source.forEach(group=>{
+  for(const group of source){
     const value=groupNextSortValue(group);
-    if(top.length>=limit && value>=top[top.length-1].value) return;
+    if(top.length>=limit && value>=top[top.length-1].value) continue;
     const item={group,value};
     let insertAt=top.length;
     while(insertAt>0 && value<top[insertAt-1].value) insertAt--;
     top.splice(insertAt,0,item);
     if(top.length>limit) top.pop();
-  });
-  return top.map(item=>item.group);
+  }
+  const result=[];
+  for(const item of top) result.push(item.group);
+  return result;
 }
 function sidebarVisibleGroups(groups,signature){
   if(sidebarSortedGroupsCache.groups===groups && sidebarSortedGroupsCache.signature===signature){
