@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-stable-signature-loop-v355";
+const APP_BUILD_VERSION="2026-08-15-detail-table-loop-v356";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v355-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v356-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7717,13 +7717,25 @@ function shouldWatchSelf(raw){
 
 function detailTableRows(r){
   const raw=rawForSiteFieldLookup(r);
-  return USER_SITE_DATA_FIELDS
-    .filter(spec=>!spec.hideInDetail)
-    .map(spec=>({spec,value:userSiteFieldValue(r,spec,raw)}));
+  const rows=[];
+  for(const spec of USER_SITE_DATA_FIELDS){
+    if(spec.hideInDetail) continue;
+    rows.push({spec,value:userSiteFieldValue(r,spec,raw)});
+  }
+  return rows;
 }
 
 function detailTableSignature(rowsForDetail){
-  return rowsForDetail.map(({spec,value})=>`${String(spec.key).length}:${spec.key}\u001e${String(value).length}:${value}`).join("\u001f");
+  const rows=Array.isArray(rowsForDetail) ? rowsForDetail : [];
+  let signature="";
+  for(let i=0;i<rows.length;i++){
+    const {spec,value}=rows[i];
+    const key=String(spec.key);
+    const text=String(value);
+    if(i) signature+="\u001f";
+    signature+=`${key.length}:${key}\u001e${text.length}:${text}`;
+  }
+  return signature;
 }
 
 function renderDetailTable(table,r){
@@ -7736,7 +7748,7 @@ function renderDetailTable(table,r){
     return;
   }
   const fragment=document.createDocumentFragment();
-  rowsForDetail.forEach(({spec,value})=>{
+  for(const {spec,value} of rowsForDetail){
     const row=document.createElement("div");
     row.className="history-detail-row";
     if(spec.important) row.classList.add("detail-important-row");
@@ -7746,7 +7758,7 @@ function renderDetailTable(table,r){
     valueCell.textContent=userSiteDisplayText(spec,value);
     row.append(label,valueCell);
     fragment.appendChild(row);
-  });
+  }
   table.replaceChildren(fragment);
   table.dataset.detailTableMode="display";
   table.dataset.detailSignature=signature;

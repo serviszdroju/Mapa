@@ -478,6 +478,8 @@ Current performance phase 227 decision: build stable raw-data fingerprints in on
 
 Current performance phase 228 decision: implement the shared `stableSignature()` helper with a direct loop instead of `map(stableSignaturePart).join()`, preserving identical signature separators and length-prefixed parts while reducing allocations across render, grouping, detail, and cache signatures.
 
+Current performance phase 229 decision: build and render read-only Detail tab rows with direct loops instead of `filter().map()`, `map().join()`, and `forEach()`, preserving field order, hidden-field rules, important-row styling, detail table signatures, and displayed values while reducing allocations when opening or refreshing details.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.
