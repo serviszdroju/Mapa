@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-row-index-loops-v351";
+const APP_BUILD_VERSION="2026-08-15-place-group-cache-loops-v352";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v351-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v352-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4399,7 +4399,11 @@ function cachedRowsByPlaceGroup(key,pool=rows){
   const sourceRows=Array.isArray(pool) ? pool : [];
   if(!key) return [];
   if(sourceRows!==rows){
-    return sortedRowsBySourceLabel(sourceRows.filter(r=>sitePlaceGroupKey(r)===key));
+    const matches=[];
+    for(const row of sourceRows){
+      if(sitePlaceGroupKey(row)===key) matches.push(row);
+    }
+    return sortedRowsBySourceLabel(matches);
   }
   if(
     !siteRowsByPlaceGroupCache
@@ -4407,12 +4411,14 @@ function cachedRowsByPlaceGroup(key,pool=rows){
     || siteRowsByPlaceGroupCache.version!==rowsIndexVersion
   ){
     const map=new Map();
-    rows.forEach(row=>{
+    for(const row of rows){
       const groupKey=sitePlaceGroupKey(row);
       if(!map.has(groupKey)) map.set(groupKey,[]);
       map.get(groupKey).push(row);
-    });
-    map.forEach((items,groupKey)=>map.set(groupKey,sortedRowsBySourceLabel(items)));
+    }
+    for(const [groupKey,items] of map){
+      map.set(groupKey,sortedRowsBySourceLabel(items));
+    }
     siteRowsByPlaceGroupCache={rowsRef:rows,version:rowsIndexVersion,map};
   }
   return siteRowsByPlaceGroupCache.map.get(key) || [];
