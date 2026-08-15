@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-dedupe-latest-loop-v358";
+const APP_BUILD_VERSION="2026-08-15-record-match-loop-v359";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v358-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v359-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5250,12 +5250,19 @@ function createRecordIdDedupe(items=[]){
 function recordMatchesSite(record,site=selectedSite){
   if(!record || !site) return false;
   const keySet=siteRecordKeySet(site);
-  if(recordIdKeys(record).some(k=>keySet.has(k))) return true;
+  for(const key of recordIdKeys(record)){
+    if(keySet.has(key)) return true;
+  }
   if(siteHasMultipleSources(site) && !recordSourceMatchesSite(record,site)) return false;
 
   const siteTexts=siteRecordNormTextKeys(site);
   const recordTexts=recordMatchTextKeys(record);
-  return siteTexts.some(a=>recordTexts.some(b=>a===b || (a.length>=10 && b.length>=10 && (a.includes(b) || b.includes(a)))));
+  for(const a of siteTexts){
+    for(const b of recordTexts){
+      if(a===b || (a.length>=10 && b.length>=10 && (a.includes(b) || b.includes(a)))) return true;
+    }
+  }
+  return false;
 }
 function siteRecordTextKeys(site=selectedSite){
   if(!site) return [];
@@ -5962,25 +5969,29 @@ function siteDedupKeysFromRaw(raw){
 function computeSiteDedupKeysFromRaw(raw,parts=siteDedupRawParts(raw || {})){
   const keys=[];
   const seen=new Set();
-  const source=siteDedupValue([
-    parts.sourceType,
-    parts.sourceSerial
-  ].filter(Boolean).join(" "));
+  const sourceParts=[];
+  if(parts.sourceType) sourceParts.push(parts.sourceType);
+  if(parts.sourceSerial) sourceParts.push(parts.sourceSerial);
+  const source=siteDedupValue(sourceParts.join(" "));
+  function addKey(prefix,value){
+    const key=source ? `${prefix}_source:${value}|${source}` : `${prefix}:${value}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+    keys.push(key);
+  }
   function add(prefix,v){
     const n=siteDedupValue(v);
     if(!n || n.length<3) return;
-    const values=[n];
+    addKey(prefix,n);
     const sorted=n.split(" ").filter(Boolean).sort().join(" ");
-    if(sorted && sorted!==n) values.push("sorted:"+sorted);
-    values.forEach(value=>{
-      const key=source ? `${prefix}_source:${value}|${source}` : `${prefix}:${value}`;
-      if(seen.has(key)) return;
-      seen.add(key);
-      keys.push(key);
-    });
+    if(sorted && sorted!==n) addKey(prefix,"sorted:"+sorted);
   }
   add("name", parts.name);
-  [parts.address,parts.gpsAddress,parts.location,parts.sourceLocation,parts.originalAddress].forEach(value=>add("address", value));
+  add("address",parts.address);
+  add("address",parts.gpsAddress);
+  add("address",parts.location);
+  add("address",parts.sourceLocation);
+  add("address",parts.originalAddress);
   return keys;
 }
 const rawNonEmptyValueCountCache=new WeakMap();
@@ -6001,8 +6012,13 @@ function rawNonEmptyValueCount(raw={}){
     }
     if(same) return cached.count;
   }
-  const values=keys.map(key=>source[key]);
-  const count=values.filter(v=>safe(v)).length;
+  const values=new Array(keys.length);
+  let count=0;
+  for(let i=0;i<keys.length;i++){
+    const value=source[keys[i]];
+    values[i]=value;
+    if(safe(value)) count++;
+  }
   rawNonEmptyValueCountCache.set(source,{keys,values,count});
   return count;
 }

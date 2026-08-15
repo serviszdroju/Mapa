@@ -522,4 +522,6 @@ Current performance phase 231 decision: preserve deduplicated site row output in
 
 Current performance phase 232 decision: find the latest displayed/local protocol with one pass instead of sorting full protocol arrays, preserving first-item tie behavior and all local protocol matching fields while reducing work in Doklad/detail refreshes.
 
+Current performance phase 233 decision: keep deduplication key creation, raw non-empty scoring, and legacy record/site matching on direct loops instead of short-lived `filter`/`map`/`some` helper arrays, preserving source-aware duplicate keys and text fallback matching.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
