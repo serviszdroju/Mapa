@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-offline-protocol-sync-scan-v367";
+const APP_BUILD_VERSION="2026-08-15-offline-history-match-helper-v368";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v367-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v368-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1820,7 +1820,7 @@ async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
     });
   }
   await runBoundedFirestoreTasks(tasks,6);
-  if(!items.some(item=>recordMatchesSite(item,site))){
+  if(!hasMatchingHistoryItemForSite(items,site)){
     const {collection,query,where,getDocs}=fb.fsMod;
     const textTasks=[];
     siteRecordTextKeys(site).slice(0,6).forEach(value=>{
@@ -1837,7 +1837,7 @@ async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
     });
     await runBoundedFirestoreTasks(textTasks,4);
   }
-  return items.filter(item=>recordMatchesSite(item,site));
+  return matchingHistoryItemsForSite(items,site);
 }
 
 async function prefetchOfflineDetailsForSite(site,options={}){
@@ -11854,12 +11854,25 @@ function renderHistory(){
   updateOfficialProtocolSourceInfo();
 }
 
-function sortedMatchingHistoryItemsForSite(items=[],site=selectedSite){
+function matchingHistoryItemsForSite(items=[],site=selectedSite){
   const matched=[];
   const source=Array.isArray(items) ? items : [];
   for(const item of source){
     if(recordMatchesSite(item,site)) matched.push(item);
   }
+  return matched;
+}
+
+function hasMatchingHistoryItemForSite(items=[],site=selectedSite){
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(recordMatchesSite(item,site)) return true;
+  }
+  return false;
+}
+
+function sortedMatchingHistoryItemsForSite(items=[],site=selectedSite){
+  const matched=matchingHistoryItemsForSite(items,site);
   matched.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
   return matched;
 }
