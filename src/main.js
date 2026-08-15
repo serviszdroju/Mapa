@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-raw-fingerprint-loop-v354";
+const APP_BUILD_VERSION="2026-08-15-stable-signature-loop-v355";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v354-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v355-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2308,7 +2308,15 @@ window.safe=safe;
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function num(v){if(v===null||v===undefined||v==="")return null;const n=Number(String(v).trim().replace(",","."));return Number.isFinite(n)?n:null}
 function stableSignaturePart(value){const text=String(value??"");return `${text.length}:${text}`}
-function stableSignature(parts=[]){return (Array.isArray(parts)?parts:[]).map(stableSignaturePart).join("\u001f")}
+function stableSignature(parts=[]){
+  const source=Array.isArray(parts) ? parts : [];
+  let signature="";
+  for(let i=0;i<source.length;i++){
+    if(i) signature+="\u001f";
+    signature+=stableSignaturePart(source[i]);
+  }
+  return signature;
+}
 function sameArrayValues(a=[],b=[]){
   if(a===b) return true;
   if(!Array.isArray(a) || !Array.isArray(b) || a.length!==b.length) return false;
