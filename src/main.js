@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-direct-render-loops-v349";
+const APP_BUILD_VERSION="2026-08-15-sidebar-dom-loops-v350";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v349-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v350-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5535,11 +5535,12 @@ function renderSidebarGroups(groups){
     return;
   }
   const fragment=document.createDocumentFragment();
-  sidebarVisibleGroups(groups,signature).forEach(group=>{
+  const visibleGroups=sidebarVisibleGroups(groups,signature);
+  for(const group of visibleGroups){
     const r=groupPrimaryRow(group);
-    if(!r) return;
+    if(!r) continue;
     fragment.appendChild(createSidebarGroupItem(group,r));
-  });
+  }
   const renderedEmpty=!fragment.childNodes.length;
   list.replaceChildren(fragment);
   sidebarRenderCache={groups,signature,renderedEmpty};
@@ -5566,12 +5567,14 @@ function createSidebarGroupItem(group,r){
   if(group.rows.length>1){
     const sources=document.createElement("div");
     sources.className="item-sources";
-    group.rows.slice(0,5).forEach(row=>{
+    const chipLimit=Math.min(group.rows.length,5);
+    for(let i=0;i<chipLimit;i++){
+      const row=group.rows[i];
       const chip=document.createElement("span");
       chip.className="item-source-chip";
       chip.textContent=siteSourceLabel(row);
       sources.appendChild(chip);
-    });
+    }
     if(group.rows.length>5){
       const more=document.createElement("span");
       more.className="item-source-chip";
