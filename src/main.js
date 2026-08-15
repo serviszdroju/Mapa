@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-offline-history-match-helper-v368";
+const APP_BUILD_VERSION="2026-08-15-offline-protocol-ref-count-v369";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v368-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v369-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10979,32 +10979,46 @@ function siteFromOfflineRecord(record={},cacheSuffix=""){
 
 function pendingOfflineProtocolSiteRefs(){
   const byKey=new Map();
-  localStorageArrayEntries("astipMap:protocolHistory:").forEach(entry=>{
-    const offlineItems=entry.items.filter(item=>item && item._offline && item._syncStatus!=="online");
-    if(!offlineItems.length) return;
-    const site=siteFromOfflineRecord(offlineItems[0],entry.suffix);
+  const entries=localStorageArrayEntries("astipMap:protocolHistory:");
+  for(const entry of entries){
+    const pending=pendingOfflineItemSummary(entry.items);
+    if(!pending.count) continue;
+    const site=siteFromOfflineRecord(pending.first,entry.suffix);
     const key=selectedSiteDocId(site) || detailKey(site) || site.id || entry.suffix;
-    byKey.set(key,{site,count:offlineItems.length});
-  });
-  return [...byKey.values()];
+    byKey.set(key,{site,count:pending.count});
+  }
+  return Array.from(byKey.values());
 }
 
 async function pendingOfflineProtocolSiteRefsAsync(){
   const byKey=new Map();
   const indexed=await readAllOfflineProtocolQueueItems();
-  indexed.forEach(item=>{
+  for(const item of indexed){
     const site=siteFromOfflineRecord(item,item.siteCacheKey ? String(item.siteCacheKey).replace("astipMap:protocolHistory:","") : "");
     const key=selectedSiteDocId(site) || detailKey(site) || site.id || item.siteCacheKey || item._id;
     const current=byKey.get(key);
     byKey.set(key,{site,count:(current?.count || 0)+1});
-  });
+  }
   if(!byKey.size){
-    pendingOfflineProtocolSiteRefs().forEach(ref=>{
+    const refs=pendingOfflineProtocolSiteRefs();
+    for(const ref of refs){
       const key=selectedSiteDocId(ref.site) || detailKey(ref.site) || ref.site?.id || "";
       if(key) byKey.set(key,ref);
-    });
+    }
   }
-  return [...byKey.values()];
+  return Array.from(byKey.values());
+}
+
+function pendingOfflineItemSummary(items=[]){
+  const source=Array.isArray(items) ? items : [];
+  let first=null;
+  let count=0;
+  for(const item of source){
+    if(!item || !item._offline || item._syncStatus==="online") continue;
+    if(!first) first=item;
+    count++;
+  }
+  return {first,count};
 }
 
 function matchingPendingOfflineItemsForSite(items=[],site=selectedSite){

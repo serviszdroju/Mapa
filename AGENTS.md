@@ -542,4 +542,6 @@ Current performance phase 241 decision: merge legacy localStorage and IndexedDB 
 
 Current performance phase 242 decision: share direct per-site history matching helpers across offline detail prefetch and detail history sorting, replacing repeated `some()`/`filter()` callback scans while preserving legacy text fallback decisions and returned history item order.
 
+Current performance phase 243 decision: count pending legacy offline protocol site references with one direct scan per localStorage entry instead of building filtered arrays, and use direct loops for IndexedDB/ref merging while preserving first-pending-site inference and per-site pending counts.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
