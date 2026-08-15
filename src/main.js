@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-offline-photo-collect-loop-v371";
+const APP_BUILD_VERSION="2026-08-16-offline-site-queue-scan-v372";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1328,7 +1328,7 @@ function readCachedFirebaseSiteCount(){
       return count;
     }
     const items=Array.isArray(parsed && parsed.items) ? parsed.items : [];
-    const fallbackCount=items.filter(item=>item && item.docId && item.raw).length;
+    const fallbackCount=countOfflineSiteQueueItems(items);
     szzCachedFirebaseSiteCountCache={raw,count:fallbackCount,savedAt:Date.now()};
     return fallbackCount;
   }catch(e){
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v371-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v372-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10518,6 +10518,28 @@ function cloneOfflineSiteQueueItems(items=[]){
   return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
 }
 
+function isOfflineSiteQueueItem(item){
+  return !!(item && item.docId && item.raw);
+}
+
+function offlineSiteQueueItems(items=[]){
+  const out=[];
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(isOfflineSiteQueueItem(item)) out.push(item);
+  }
+  return out;
+}
+
+function countOfflineSiteQueueItems(items=[]){
+  const source=Array.isArray(items) ? items : [];
+  let count=0;
+  for(const item of source){
+    if(isOfflineSiteQueueItem(item)) count++;
+  }
+  return count;
+}
+
 function clearOfflineSiteQueueReadCache(){
   offlineSiteQueueReadCache={savedAt:0,items:null,promise:null};
 }
@@ -10529,7 +10551,7 @@ async function computeOfflineSiteQueueItems(){
       req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
       req.onerror=()=>setResult([]);
     });
-    return (items || []).filter(item=>item && item.docId && item.raw);
+    return offlineSiteQueueItems(items);
   }catch(e){
     return [];
   }
@@ -14103,7 +14125,7 @@ async function readPendingOfflineSitesCount(){
       return remember(szzLegacyOfflineSiteCountCache.count);
     }
     const items=JSON.parse(raw || "[]");
-    const localItems=Array.isArray(items) ? items.filter(item=>item && item.docId && item.raw) : [];
+    const localItems=offlineSiteQueueItems(items);
     const count=uniqueByOfflineId(localItems,"docId").length;
     szzLegacyOfflineSiteCountCache={raw,count,savedAt:Date.now()};
     return remember(count);
