@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-numeric-map-bounds-v346";
+const APP_BUILD_VERSION="2026-08-15-marker-signature-loop-v347";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v346-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v347-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4556,6 +4556,15 @@ function markerRowSignature(row){
   row._markerSignatureValue=value;
   return value;
 }
+function markerRowsSignature(rowsList){
+  let signature="";
+  const list=Array.isArray(rowsList) ? rowsList : [];
+  for(let i=0;i<list.length;i++){
+    if(i) signature+="\u001e";
+    signature+=markerRowSignature(list[i]);
+  }
+  return signature;
+}
 function groupRowsByPlace(inputRows){
   const mapByKey=new Map();
   (inputRows || []).forEach(r=>{
@@ -4573,7 +4582,7 @@ function groupRowsByPlace(inputRows){
   });
   return [...mapByKey.values()].map(group=>{
     group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
-    group._markerRowsSignature=group.rows.map(markerRowSignature).join("\u001e");
+    group._markerRowsSignature=markerRowsSignature(group.rows);
     const representative=groupRepresentative(group.rows) || group.rows[0] || null;
     group._representativeRow=representative;
     group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
@@ -4607,7 +4616,7 @@ function groupPopupHtml(group){
     group.label || "",
     primary ? primary.adresa || "" : "",
     rowsInGroup.length,
-    group._markerRowsSignature || rowsInGroup.map(markerRowSignature).join("\u001e")
+    group._markerRowsSignature || markerRowsSignature(rowsInGroup)
   ]);
   if(group._popupHtmlSignature===signature && group._popupHtml){
     return group._popupHtml;
@@ -4689,7 +4698,7 @@ function sourceChooserRenderSignature(site,siblings,activeKey){
     activeKey,
     sitePlaceGroupKey(site),
     sitePlaceLabel(site),
-    (siblings || []).map(markerRowSignature).join("\u001e")
+    markerRowsSignature(siblings)
   ].map(stableSignaturePart).join("\u001f");
 }
 function bindSourceChooserClick(box){
@@ -5336,7 +5345,7 @@ function mapMarkerSignature(group,fill){
     Number(group.lon).toFixed(6),
     fill,
     group.label || "",
-    group._markerRowsSignature || (group.rows || []).map(markerRowSignature).join("\u001e")
+    group._markerRowsSignature || markerRowsSignature(group.rows)
   ].join("||");
 }
 function attachLazyMarkerPopup(marker,group){
