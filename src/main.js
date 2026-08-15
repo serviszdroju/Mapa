@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-sidebar-dom-loops-v350";
+const APP_BUILD_VERSION="2026-08-15-row-index-loops-v351";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v350-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v351-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4941,14 +4941,16 @@ function rebuildRowLookupCache(){
   const indexByRef=new WeakMap();
   const indexByOriginalIndex=new Map();
   let gpsCount=0;
-  rows.forEach((r,i)=>{
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
     if(r && (typeof r==="object" || typeof r==="function")) indexByRef.set(r,i);
     if(Number.isFinite(r && r.i) && !indexByOriginalIndex.has(r.i)) indexByOriginalIndex.set(r.i,i);
     if(inCzSk(r)) gpsCount++;
-    rowLookupKeys(r).forEach(key=>{
+    const keys=rowLookupKeys(r);
+    for(const key of keys){
       if(!lookup.has(key)) lookup.set(key,r);
-    });
-  });
+    }
+  }
   siteRowsByAnyId=lookup;
   siteRowIndexByRef=indexByRef;
   siteRowIndexByOriginalIndex=indexByOriginalIndex;
@@ -4958,11 +4960,14 @@ function rebuildRowLookupCache(){
 
 function rebuildCsvRowLookupCache(){
   const lookup=new Map();
-  (csvRows || []).forEach((r,i)=>{
-    rowLookupKeys(r).forEach(key=>{
+  const sourceRows=Array.isArray(csvRows) ? csvRows : [];
+  for(let i=0;i<sourceRows.length;i++){
+    const r=sourceRows[i];
+    const keys=rowLookupKeys(r);
+    for(const key of keys){
       if(!lookup.has(key)) lookup.set(key,i);
-    });
-  });
+    }
+  }
   csvRowsByAnyId=lookup;
   indexedCsvRowsRef=csvRows;
   indexedCsvRowsLength=csvRows.length;
@@ -4981,7 +4986,8 @@ function syncRowIndexes(){
     return;
   }
   let indexesChanged=rowsRefChanged || rowsLengthChanged;
-  rows.forEach((r,i)=>{
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
     const beforeIndex=r && r.i;
     const beforeSearchRawRef=r && r._searchRawRef;
     const beforeRegion=r && r._regionNorm;
@@ -4996,7 +5002,7 @@ function syncRowIndexes(){
       r._renderIndexFingerprint=nextFingerprint;
       indexesChanged=true;
     }
-  });
+  }
   if(!indexesChanged){
     indexedRowsRef=rows;
     indexedRowsLength=rows.length;
