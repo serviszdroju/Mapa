@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-marker-signature-loop-v347";
+const APP_BUILD_VERSION="2026-08-15-place-group-loop-v348";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v347-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v348-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4580,14 +4580,16 @@ function groupRowsByPlace(inputRows){
       group.lon=r.lon;
     }
   });
-  return [...mapByKey.values()].map(group=>{
+  const groups=[];
+  for(const group of mapByKey.values()){
     group.rows=group.rows.sort((a,b)=>siteSourceLabel(a).localeCompare(siteSourceLabel(b),"cs",{sensitivity:"base"}));
     group._markerRowsSignature=markerRowsSignature(group.rows);
     const representative=groupRepresentative(group.rows) || group.rows[0] || null;
     group._representativeRow=representative;
     group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
-    return group;
-  });
+    groups.push(group);
+  }
+  return groups;
 }
 function groupPrimaryRow(group){
   return (group && group._representativeRow) || groupRepresentative(group && group.rows) || (group && group.rows && group.rows[0]) || null;
