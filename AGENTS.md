@@ -458,6 +458,8 @@ Current performance phase 217 decision: coalesce legacy edit/deleted/extra-site 
 
 Current performance phase 218 decision: cache the coordinate list used by “Přiblížit na body” by filtered-row signature and row-index version, invalidating through the existing row-dirty path so repeated fit actions avoid rebuilding the same bounds array while preserving current filter and CZ/SK GPS behavior.
 
+Current performance phase 219 decision: select visible map groups with numeric map-bound comparisons instead of allocating a `[lat, lon]` array for every `bounds.contains()` check, falling back to Leaflet `contains()` only if numeric bounds cannot be read; preserve the same viewport padding, marker limit, and CZ/SK GPS filtering.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

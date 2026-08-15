@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-fit-bounds-cache-v345";
+const APP_BUILD_VERSION="2026-08-15-numeric-map-bounds-v346";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
@@ -1363,7 +1363,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v345-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v346-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5377,7 +5377,19 @@ function groupsInsideCurrentMap(groups){
     return out;
   }
   let bounds=null;
-  try{bounds=map.getBounds().pad(0.18);}catch(e){}
+  let minLat=null;
+  let maxLat=null;
+  let minLon=null;
+  let maxLon=null;
+  try{
+    bounds=map.getBounds().pad(0.18);
+    const sw=bounds.getSouthWest();
+    const ne=bounds.getNorthEast();
+    minLat=Math.min(sw.lat,ne.lat);
+    maxLat=Math.max(sw.lat,ne.lat);
+    minLon=Math.min(sw.lng,ne.lng);
+    maxLon=Math.max(sw.lng,ne.lng);
+  }catch(e){}
   if(!bounds || typeof bounds.contains!=="function"){
     for(const group of source){
       pushGroup(group);
@@ -5385,9 +5397,14 @@ function groupsInsideCurrentMap(groups){
     }
     return out;
   }
+  const hasNumericBounds=Number.isFinite(minLat) && Number.isFinite(maxLat) && Number.isFinite(minLon) && Number.isFinite(maxLon);
   for(const group of source){
     if(!groupHasUsableGps(group)) continue;
-    if(!bounds.contains([group.lat,group.lon])) continue;
+    if(hasNumericBounds){
+      if(group.lat<minLat || group.lat>maxLat || group.lon<minLon || group.lon>maxLon) continue;
+    }else if(!bounds.contains([group.lat,group.lon])){
+      continue;
+    }
     out.push(group);
     if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
   }
