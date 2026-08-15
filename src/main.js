@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-local-protocol-loop-v361";
+const APP_BUILD_VERSION="2026-08-15-offline-merge-loop-v362";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v361-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v362-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10473,20 +10473,30 @@ async function withSzzOfflineQueueStore(storeName,mode,callback){
 }
 
 function uniqueByOfflineId(items=[],idKey="_id"){
+  return uniqueByOfflineIdFromLists([items],idKey);
+}
+function uniqueByOfflineIdFromLists(lists=[],idKey="_id"){
   const byId=new Map();
   const withoutId=[];
-  (items || []).forEach(item=>{
-    if(!item) return;
-    const id=safe(item && item[idKey]);
-    if(!id){
-      withoutId.push(item);
-      return;
+  const sourceLists=Array.isArray(lists) ? lists : [];
+  for(const list of sourceLists){
+    const source=Array.isArray(list) ? list : [];
+    for(const item of source){
+      if(!item) continue;
+      const id=safe(item && item[idKey]);
+      if(!id){
+        withoutId.push(item);
+        continue;
+      }
+      byId.set(id,item);
     }
-    byId.set(id,item);
-  });
-  return [...withoutId,...byId.values()];
+  }
+  const out=withoutId.slice();
+  byId.forEach(item=>out.push(item));
+  return out;
 }
 window.uniqueByOfflineId=uniqueByOfflineId;
+window.uniqueByOfflineIdFromLists=uniqueByOfflineIdFromLists;
 
 async function saveOfflineSiteQueueItem(item){
   if(!item || !safe(item.docId)) return null;
@@ -12433,7 +12443,7 @@ async function computeAllLocalAndIndexedProtocolHistoryItems(){
       console.warn("IndexedDB historie protokolů nejde načíst",e);
     }
   }
-  return uniqueByOfflineId([...localItems,...indexedItems]);
+  return uniqueByOfflineIdFromLists([localItems,indexedItems]);
 }
 
 async function readAllLocalAndIndexedProtocolHistoryItems(){
@@ -12450,7 +12460,7 @@ async function computeSiteLocalProtocolHistoryItems(site=selectedSite){
       console.warn("IndexedDB protokoly pro místo nejde načíst",e);
     }
   }
-  return uniqueByOfflineId([...localItems,...indexedItems]);
+  return uniqueByOfflineIdFromLists([localItems,indexedItems]);
 }
 
 async function readSiteLocalProtocolHistoryItems(site=selectedSite){
