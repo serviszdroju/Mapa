@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-source-chooser-signature-loop-v357";
+const APP_BUILD_VERSION="2026-08-15-dedupe-latest-loop-v358";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v357-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v358-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -6049,8 +6049,12 @@ function dedupeSiteRows(inputRows,preferredDocId=null){
     keep.add(item.index);
     keys.forEach(k=>usedKeys.set(k,item));
   }
+  const dedupedRows=[];
+  for(let i=0;i<(inputRows || []).length;i++){
+    if(keep.has(i)) dedupedRows.push(inputRows[i]);
+  }
   return {
-    rows:indexed.filter(item=>keep.has(item.index)).sort((a,b)=>a.index-b.index).map(item=>item.row),
+    rows:dedupedRows,
     duplicateDocIds,
     duplicateRows
   };
@@ -9014,17 +9018,35 @@ function fillOfficialProtocolInputs(site=selectedSite){
 }
 
 function latestDisplayedProtocol(){
-  return detailHistoryItems
-    .filter(isProtocolHistoryItem)
-    .slice()
-    .sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a))[0] || null;
+  let latest=null;
+  let latestTime=-Infinity;
+  for(const item of detailHistoryItems || []){
+    if(!isProtocolHistoryItem(item)) continue;
+    const time=protocolTimeValue(item);
+    if(!latest || time>latestTime){
+      latest=item;
+      latestTime=time;
+    }
+  }
+  return latest;
 }
 
 function latestLocalProtocolForSite(site=selectedSite){
-  return readSiteLocalArray("protocolHistory",site)
-    .map((item,idx)=>({...item,_type:"Protokol",_collection:"localProtocols",_id:item._id || `local_protocol_${idx}`}))
-    .filter(item=>recordMatchesSite(item,site))
-    .sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a))[0] || null;
+  const localItems=readSiteLocalArray("protocolHistory",site);
+  let latest=null;
+  let latestTime=-Infinity;
+  for(let idx=0;idx<localItems.length;idx++){
+    const item=localItems[idx];
+    if(!item) continue;
+    const normalized={...item,_type:"Protokol",_collection:"localProtocols",_id:item._id || `local_protocol_${idx}`};
+    if(!recordMatchesSite(normalized,site)) continue;
+    const time=protocolTimeValue(normalized);
+    if(!latest || time>latestTime){
+      latest=normalized;
+      latestTime=time;
+    }
+  }
+  return latest;
 }
 
 function selectedHistoryProtocol(){

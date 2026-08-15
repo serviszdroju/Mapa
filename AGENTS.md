@@ -518,4 +518,8 @@ Current gallery metadata decision: the Galerie detail view must not show the bot
 
 Current startup/auth initialization decision: Firebase/Auth startup must run as a non-blocking async initializer after the fast app shell starts, not as a top-level `await` before shared render/status/detail helper constants are initialized. This prevents startup/auth checks from calling hoisted functions whose later constants are still in the temporal dead zone.
 
+Current performance phase 231 decision: preserve deduplicated site row output in original input order with a direct keep-set pass instead of filtering, sorting, and mapping the already-prioritized list, keeping duplicate detection and selected preferred rows unchanged.
+
+Current performance phase 232 decision: find the latest displayed/local protocol with one pass instead of sorting full protocol arrays, preserving first-item tie behavior and all local protocol matching fields while reducing work in Doklad/detail refreshes.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
