@@ -474,6 +474,8 @@ Current performance phase 225 decision: build cached rows-by-place-group maps an
 
 Current performance phase 226 decision: reuse one Czech base-sensitivity `Intl.Collator` for repeated key and source-label sorting instead of creating new `localeCompare()` option work inside hot comparators, preserving the same Czech/base ordering while reducing sort overhead during raw fingerprinting, grouping, and source-list rendering.
 
+Current performance phase 227 decision: build stable raw-data fingerprints in one direct loop instead of separate `map()` arrays for values and signature fragments, preserving key order, cached value comparison, and signature text while reducing allocations during offline/incremental row checks.
+
 Current install UX decision: the Android/PWA install area should behave like the original `karolopejlo/Mapa` PWA flow: the main "Stáhnout aplikaci" button calls the browser install prompt directly when Android Chrome exposes it, without a custom confirmation dialog in front of the system prompt. Keep readiness/status copy and a visible APK fallback link, but do not auto-download APK merely because the PWA prompt is unavailable.
 
 Current offline preparation decision: "Připravit offline data" should cache the app shell, Firebase map rows, per-site protocols, service records, gallery metadata, and gallery image URLs for offline use. New site/source records, protocols, and photos must remain saveable offline and synchronize back to Firebase/Cloudinary after reconnecting.

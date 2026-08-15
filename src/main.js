@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-cs-collator-cache-v353";
+const APP_BUILD_VERSION="2026-08-15-raw-fingerprint-loop-v354";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v353-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v354-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1571,8 +1571,15 @@ function szzStableRawFingerprint(raw={}){
     const cached=szzRawFingerprintCache.get(source);
     if(cached && szzCachedObjectValuesMatch(cached.keys,cached.values,source,keys)) return cached.fingerprint;
   }
-  const values=keys.map(key=>source[key]);
-  const fingerprint=keys.map((key,idx)=>stableSignature([key,values[idx]])).join("\u001e");
+  const values=new Array(keys.length);
+  let fingerprint="";
+  for(let idx=0;idx<keys.length;idx++){
+    const key=keys[idx];
+    const value=source[key];
+    values[idx]=value;
+    if(idx) fingerprint+="\u001e";
+    fingerprint+=stableSignature([key,value]);
+  }
   if(cacheable) szzRawFingerprintCache.set(source,{keys,values,fingerprint});
   return fingerprint;
 }
