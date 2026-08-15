@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-offline-protocol-ref-count-v369";
+const APP_BUILD_VERSION="2026-08-15-offline-count-direct-scan-v370";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v369-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v370-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10595,6 +10595,19 @@ function clearOfflineProtocolQueueReadCache(){
   offlineProtocolQueueSiteReadCache.clear();
 }
 
+function isPendingOfflineProtocolItem(item){
+  return !!(item && item._offline && item._syncStatus!=="online");
+}
+
+function pendingOfflineProtocolItems(items=[]){
+  const out=[];
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(isPendingOfflineProtocolItem(item)) out.push(item);
+  }
+  return out;
+}
+
 async function computeAllOfflineProtocolQueueItems(){
   try{
     const items=await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readonly",(store,setResult)=>{
@@ -10602,7 +10615,7 @@ async function computeAllOfflineProtocolQueueItems(){
       req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
       req.onerror=()=>setResult([]);
     });
-    return (items || []).filter(item=>item && item._offline && item._syncStatus!=="online");
+    return pendingOfflineProtocolItems(items);
   }catch(e){
     return [];
   }
@@ -10645,7 +10658,7 @@ async function computeOfflineProtocolQueueItems(site=selectedSite){
       try{return recordMatchesSite(item,site);}catch(e){return false;}
     });
   }
-  return indexed.filter(item=>item && item._offline && item._syncStatus!=="online");
+  return pendingOfflineProtocolItems(indexed);
 }
 
 async function readOfflineProtocolQueueItems(site=selectedSite){
@@ -11014,7 +11027,7 @@ function pendingOfflineItemSummary(items=[]){
   let first=null;
   let count=0;
   for(const item of source){
-    if(!item || !item._offline || item._syncStatus==="online") continue;
+    if(!isPendingOfflineProtocolItem(item)) continue;
     if(!first) first=item;
     count++;
   }
@@ -11025,7 +11038,7 @@ function matchingPendingOfflineItemsForSite(items=[],site=selectedSite){
   const out=[];
   const source=Array.isArray(items) ? items : [];
   for(const item of source){
-    if(item && item._offline && item._syncStatus!=="online" && recordMatchesSite(item,site)) out.push(item);
+    if(isPendingOfflineProtocolItem(item) && recordMatchesSite(item,site)) out.push(item);
   }
   return out;
 }
@@ -13747,6 +13760,19 @@ function cloneOfflinePhotoItems(items=[]){
   return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
 }
 
+function isPendingOfflinePhotoItem(item){
+  return !!(item && (item._offline || item.storageMode==="offline" || item.localOnly));
+}
+
+function countPendingOfflinePhotoItems(items=[]){
+  const source=Array.isArray(items) ? items : [];
+  let count=0;
+  for(const item of source){
+    if(isPendingOfflinePhotoItem(item)) count++;
+  }
+  return count;
+}
+
 function clearOfflinePhotoAllReadCache(){
   offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
 }
@@ -14092,11 +14118,13 @@ async function readPendingOfflineProtocolCount(){
     const indexedItems=await readAllOfflineProtocolQueueItems();
     if(indexedItems.length) return remember(uniqueByOfflineId(indexedItems).length);
     const localItems=[];
-    localStorageArrayEntries("astipMap:protocolHistory:").forEach(entry=>{
-      entry.items
-        .filter(item=>item && item._offline && item._syncStatus!=="online")
-        .forEach(item=>localItems.push(item));
-    });
+    const entries=localStorageArrayEntries("astipMap:protocolHistory:");
+    for(const entry of entries){
+      const items=Array.isArray(entry.items) ? entry.items : [];
+      for(const item of items){
+        if(isPendingOfflineProtocolItem(item)) localItems.push(item);
+      }
+    }
     return remember(uniqueByOfflineId(localItems).length);
   }catch(e){}
   return remember(0);
@@ -14154,9 +14182,10 @@ async function readPendingOfflinePhotoCount(){
   }
   let count=0;
   try{
-    localStorageArrayEntries("astipMap:offlinePhotos:").forEach(entry=>{
-      count+=entry.items.filter(item=>item && (item._offline || item.storageMode==="offline" || item.localOnly)).length;
-    });
+    const entries=localStorageArrayEntries("astipMap:offlinePhotos:");
+    for(const entry of entries){
+      count+=countPendingOfflinePhotoItems(entry.items);
+    }
   }catch(e){}
   return remember(count);
 }
