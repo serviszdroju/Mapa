@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-offline-count-direct-scan-v370";
+const APP_BUILD_VERSION="2026-08-15-offline-photo-collect-loop-v371";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v370-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v371-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -13773,6 +13773,23 @@ function countPendingOfflinePhotoItems(items=[]){
   return count;
 }
 
+function collectPendingOfflinePhotoItems(lists=[]){
+  const out=[];
+  const seen=new Set();
+  const sourceLists=Array.isArray(lists) ? lists : [];
+  for(const list of sourceLists){
+    const source=Array.isArray(list) ? list : [];
+    for(const item of source){
+      if(!isPendingOfflinePhotoItem(item)) continue;
+      const id=safe(item._id);
+      if(id && seen.has(id)) continue;
+      if(id) seen.add(id);
+      if(photoDisplayUrl(item)) out.push(item);
+    }
+  }
+  return out;
+}
+
 function clearOfflinePhotoAllReadCache(){
   offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
 }
@@ -13795,12 +13812,14 @@ async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
 
 async function computeAllOfflinePhotoItems(){
   const fallback=[];
-  localStorageArrayEntries("astipMap:offlinePhotos:").forEach(entry=>{
+  const entries=localStorageArrayEntries("astipMap:offlinePhotos:");
+  for(const entry of entries){
     const siteCacheKey=entry.key.replace("astipMap:offlinePhotos:","astipMap:photos:");
-    entry.items.forEach(item=>{
+    const items=Array.isArray(entry.items) ? entry.items : [];
+    for(const item of items){
       if(item) fallback.push({...item,siteCacheKey:item.siteCacheKey || siteCacheKey});
-    });
-  });
+    }
+  }
   let indexed=[];
   try{
     indexed=await withLocalPhotoStore("readonly",(store,setResult)=>{
@@ -13809,15 +13828,7 @@ async function computeAllOfflinePhotoItems(){
       req.onerror=()=>setResult([]);
     });
   }catch(e){}
-  const seen=new Set();
-  return [...(indexed || []),...fallback]
-    .filter(item=>item && (item._offline || item.storageMode==="offline" || item.localOnly))
-    .filter(item=>{
-      const id=safe(item._id);
-      if(id && seen.has(id)) return false;
-      if(id) seen.add(id);
-      return !!photoDisplayUrl(item);
-    });
+  return collectPendingOfflinePhotoItems([indexed,fallback]);
 }
 
 async function readAllOfflinePhotoItems(){

@@ -546,4 +546,6 @@ Current performance phase 243 decision: count pending legacy offline protocol si
 
 Current performance phase 244 decision: share pending-offline predicates for protocol and photo queues, and count fallback localStorage protocol/photo status items with direct loops instead of temporary `filter()` arrays while preserving the exact pending conditions and deduped counts.
 
+Current performance phase 245 decision: collect all offline photo sync items with a direct IndexedDB-then-legacy loop instead of spread-combining lists and chaining `filter()` calls, preserving first `_id` wins, required display URLs, siteCacheKey fallback, and offline photo sync ordering.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
