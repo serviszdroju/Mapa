@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-main-history-render-loop-v364";
+const APP_BUILD_VERSION="2026-08-15-detail-history-match-loop-v365";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v364-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v365-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11847,6 +11847,24 @@ function renderHistory(){
   updateOfficialProtocolSourceInfo();
 }
 
+function sortedMatchingHistoryItemsForSite(items=[],site=selectedSite){
+  const matched=[];
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(recordMatchesSite(item,site)) matched.push(item);
+  }
+  matched.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
+  return matched;
+}
+
+function firstProtocolHistoryItem(items=[]){
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(item && item._type==="Protokol") return item;
+  }
+  return null;
+}
+
 async function loadHistory(siteId){
   const history=detailHistoryNode();
   if(!history) return;
@@ -11944,10 +11962,9 @@ async function loadHistory(siteId){
     embeddedRecords.forEach((item,idx)=>{
       addHistoryItem({...item,_type:"Servisní záznam",_collection:"embeddedServiceRecords",_id:item._id || `embedded_service_${idx}`});
     });
-    const initialItems=items.filter(item=>recordMatchesSite(item,selectedSite));
+    const initialItems=sortedMatchingHistoryItemsForSite(items,selectedSite);
     if(initialItems.length){
-      initialItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
-      detailHistoryItems=initialItems.slice();
+      detailHistoryItems=initialItems;
       detailHistoryIndex=0;
       renderHistory();
     }
@@ -12016,10 +12033,9 @@ async function loadHistory(siteId){
         };
         const renderMatchingItems=()=>{
           if(!stillSameSite()) return;
-          const finalItems=items.filter(item=>recordMatchesSite(item,selectedSite));
+          const finalItems=sortedMatchingHistoryItemsForSite(items,selectedSite);
           if(finalItems.length<=detailHistoryItems.length) return;
-          finalItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
-          const latestProtocol=finalItems.find(item=>item._type==="Protokol");
+          const latestProtocol=firstProtocolHistoryItem(finalItems);
           if(latestProtocol && selectedSite){
             applyLatestProtocolToSite(latestProtocol,selectedSite);
             showControlDateDisplay(selectedSite);
@@ -12114,7 +12130,7 @@ async function loadHistory(siteId){
     ]);
     if(!stillSameSite()) return;
 
-    const finalItems=items.filter(item=>recordMatchesSite(item,selectedSite));
+    const finalItems=sortedMatchingHistoryItemsForSite(items,selectedSite);
     if(!finalItems.length){
       detailHistoryItems=[];
       detailHistoryIndex=0;
@@ -12124,8 +12140,7 @@ async function loadHistory(siteId){
       return;
     }
 
-    finalItems.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
-    const latestProtocol=finalItems.find(item=>item._type==="Protokol");
+    const latestProtocol=firstProtocolHistoryItem(finalItems);
     if(latestProtocol && selectedSite){
       applyLatestProtocolToSite(latestProtocol,selectedSite);
       showControlDateDisplay(selectedSite);

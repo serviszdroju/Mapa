@@ -534,4 +534,6 @@ Current performance phase 237 decision: select the main cross-site protocol hist
 
 Current performance phase 238 decision: build main protocol history visible rows and render signatures in direct loops instead of `filter().map()` and signature `map().join()` chains, preserving date filtering, admin metadata, processed checkbox state, and row DOM output.
 
+Current performance phase 239 decision: collect and sort per-site detail history matches through `sortedMatchingHistoryItemsForSite()` instead of repeated `items.filter(...).sort(...)` chains, and use a direct first-protocol scan after sorting, preserving Protokol detail ordering, latest-protocol prefill, cache writes, and render behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
