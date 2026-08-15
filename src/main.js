@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-record-match-loop-v359";
+const APP_BUILD_VERSION="2026-08-15-latest-date-loop-v360";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v359-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v360-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11324,11 +11324,17 @@ function protocolTimeValue(item){
 
 function latestProtocolDateFromSiteData(data){
   const protocols=Array.isArray(data?.protocolHistory) ? data.protocolHistory : [];
-  const latest=protocols
-    .map(item=>({item,time:protocolTimeValue(item)}))
-    .filter(x=>Number.isFinite(x.time) && x.time>0)
-    .sort((a,b)=>b.time-a.time)[0];
-  return latest ? protocolDateIso(latest.item) : isoDateFromAny(data?.latestProtocolDate || "");
+  let latestItem=null;
+  let latestTime=-Infinity;
+  for(const item of protocols){
+    const time=protocolTimeValue(item);
+    if(!Number.isFinite(time) || time<=0) continue;
+    if(!latestItem || time>latestTime){
+      latestItem=item;
+      latestTime=time;
+    }
+  }
+  return latestItem ? protocolDateIso(latestItem) : isoDateFromAny(data?.latestProtocolDate || "");
 }
 
 function applyLatestProtocolDateToRaw(raw,data){

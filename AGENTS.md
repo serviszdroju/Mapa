@@ -524,4 +524,6 @@ Current performance phase 232 decision: find the latest displayed/local protocol
 
 Current performance phase 233 decision: keep deduplication key creation, raw non-empty scoring, and legacy record/site matching on direct loops instead of short-lived `filter`/`map`/`some` helper arrays, preserving source-aware duplicate keys and text fallback matching.
 
+Current performance phase 234 decision: compute the latest embedded protocol date with one pass over protocol history instead of mapping, filtering, and sorting the whole array, preserving first-item tie behavior and the existing latestProtocolDate fallback.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
