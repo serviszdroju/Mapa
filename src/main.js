@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-15-last-protocol-match-scan-v366";
+const APP_BUILD_VERSION="2026-08-15-offline-protocol-sync-scan-v367";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v366-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v367-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11007,14 +11007,21 @@ async function pendingOfflineProtocolSiteRefsAsync(){
   return [...byKey.values()];
 }
 
+function matchingPendingOfflineItemsForSite(items=[],site=selectedSite){
+  const out=[];
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(item && item._offline && item._syncStatus!=="online" && recordMatchesSite(item,site)) out.push(item);
+  }
+  return out;
+}
+
 async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
   if(offlineProtocolSyncRunning) return 0;
   if(!site || !firebaseReady || !db || !fb.fsMod || !currentUser || navigator.onLine===false) return 0;
-  const localItems=readSiteLocalArray("protocolHistory",site)
-    .filter(item=>item && item._offline && item._syncStatus!=="online" && recordMatchesSite(item,site));
+  const localItems=readSiteLocalArray("protocolHistory",site);
   const indexedItems=await readOfflineProtocolQueueItems(site);
-  const offlineItems=uniqueByOfflineId([...localItems,...indexedItems])
-    .filter(item=>item && item._offline && item._syncStatus!=="online" && recordMatchesSite(item,site));
+  const offlineItems=matchingPendingOfflineItemsForSite(uniqueByOfflineIdFromLists([localItems,indexedItems]),site);
   if(!offlineItems.length) return 0;
   offlineProtocolSyncRunning=true;
   let synced=0;

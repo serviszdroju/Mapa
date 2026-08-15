@@ -538,4 +538,6 @@ Current performance phase 239 decision: collect and sort per-site detail history
 
 Current performance phase 240 decision: find the latest matching protocol for `getLastProtocol()` with one direct scan instead of filtering and sorting all candidate protocol records, preserving text fallback queries, latest-protocol cache writes, and first-match tie behavior.
 
+Current performance phase 241 decision: merge legacy localStorage and IndexedDB offline protocol queues with `uniqueByOfflineIdFromLists()` and then scan pending site matches once, preserving local/indexed dedupe precedence, sync order, and all offline protocol upload behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
