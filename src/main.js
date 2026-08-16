@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-history-cache-clone-loop-v376";
+const APP_BUILD_VERSION="2026-08-16-offline-prefetch-loop-v377";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v376-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v377-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1382,40 +1382,67 @@ function szzOfflineRowsForPrefetch(inputRows=null){
     return szzOfflineRowsForPrefetchCache.rows;
   }
   const seen=new Set();
-  const prefetchRows=current.filter(row=>{
+  const prefetchRows=[];
+  for(const row of current){
     const id=safe(row && (row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id));
-    if(!id || seen.has(id)) return false;
+    if(!id || seen.has(id)) continue;
     seen.add(id);
-    return true;
-  });
+    prefetchRows.push(row);
+  }
   szzOfflineRowsForPrefetchCache={source:current,length:current.length,indexVersion,rows:prefetchRows};
   return prefetchRows;
 }
 
 function szzEmbeddedItemsForOffline(site,field,typeLabel,collectionLabel,idPrefix){
   const items=Array.isArray(site?.firebaseData?.[field]) ? site.firebaseData[field] : [];
-  return items.map((item,idx)=>({
-    ...item,
-    _type:item?._type || typeLabel || "",
-    _collection:item?._collection || collectionLabel || field,
-    _id:item?._id || `${idPrefix || field}_${idx}`
-  }));
+  const out=[];
+  for(let idx=0;idx<items.length;idx++){
+    const item=items[idx];
+    out.push({
+      ...item,
+      _type:item?._type || typeLabel || "",
+      _collection:item?._collection || collectionLabel || field,
+      _id:item?._id || `${idPrefix || field}_${idx}`
+    });
+  }
+  return out;
+}
+
+function appendOfflineItems(out,items=[]){
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source) out.push(item);
+  return out;
+}
+
+function appendOfflineChildItemsWithMeta(out,items=[],typeLabel="",collectionLabel=""){
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    out.push({
+      ...item,
+      _type:item._type || typeLabel,
+      _collection:item._collection || collectionLabel
+    });
+  }
+  return out;
 }
 
 function szzOfflinePhotoUrls(items=[]){
   const urls=[];
   const seen=new Set();
-  (Array.isArray(items) ? items : []).forEach(item=>{
+  const addUrl=url=>{
+    const clean=safe(url);
+    if(clean && /^https?:\/\//i.test(clean) && !seen.has(clean)){
+      seen.add(clean);
+      urls.push(clean);
+    }
+  };
+  for(const item of (Array.isArray(items) ? items : [])){
     try{
-      [photoDisplayUrl(item),photoThumbUrl(item),photoFullUrl(item)].forEach(url=>{
-        const clean=safe(url);
-        if(clean && /^https?:\/\//i.test(clean) && !seen.has(clean)){
-          seen.add(clean);
-          urls.push(clean);
-        }
-      });
+      addUrl(photoDisplayUrl(item));
+      addUrl(photoThumbUrl(item));
+      addUrl(photoFullUrl(item));
     }catch(e){}
-  });
+  }
   return urls;
 }
 
@@ -1423,13 +1450,13 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
   if(!("caches" in window)) return 0;
   const seen=new Set();
   const unique=[];
-  (Array.isArray(urls) ? urls : []).forEach(url=>{
+  for(const url of (Array.isArray(urls) ? urls : [])){
     const clean=safe(url);
     if(clean && /^https?:\/\//i.test(clean) && !seen.has(clean)){
       seen.add(clean);
       unique.push(clean);
     }
-  });
+  }
   if(!unique.length) return 0;
   const cache=await caches.open(SZZ_RUNTIME_CACHE_NAME);
   let done=0;
@@ -1462,7 +1489,10 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
       }
     }
   };
-  await Promise.allSettled(Array.from({length:Math.min(SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY,unique.length)},()=>worker()));
+  const workers=[];
+  const workerCount=Math.min(SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY,unique.length);
+  for(let i=0;i<workerCount;i++) workers.push(worker());
+  await Promise.allSettled(workers);
   return done;
 }
 
@@ -1865,9 +1895,17 @@ async function prefetchOfflineDetailsForSite(site,options={}){
   const embeddedProtocols=includeEmbedded ? szzEmbeddedItemsForOffline(site,"protocolHistory","Protokol","embeddedProtocols","embedded_protocol") : [];
   const embeddedRecords=includeEmbedded ? szzEmbeddedItemsForOffline(site,"serviceHistory","Servisní záznam","embeddedServiceRecords","embedded_service") : [];
   const embeddedPhotos=includeEmbedded ? szzEmbeddedItemsForOffline(site,"photos","","embeddedPhotos","embedded_photo") : [];
-  const protocols=[...childProtocols.map(item=>({...item,_type:item._type || "Protokol",_collection:item._collection || "siteProtocols"})),...embeddedProtocols,...standaloneProtocols];
-  const serviceRecords=[...childRecords.map(item=>({...item,_type:item._type || "Servisní záznam",_collection:item._collection || "siteServiceRecords"})),...embeddedRecords,...standaloneRecords];
-  const photos=[...childPhotos,...embeddedPhotos];
+  const protocols=[];
+  appendOfflineChildItemsWithMeta(protocols,childProtocols,"Protokol","siteProtocols");
+  appendOfflineItems(protocols,embeddedProtocols);
+  appendOfflineItems(protocols,standaloneProtocols);
+  const serviceRecords=[];
+  appendOfflineChildItemsWithMeta(serviceRecords,childRecords,"Servisní záznam","siteServiceRecords");
+  appendOfflineItems(serviceRecords,embeddedRecords);
+  appendOfflineItems(serviceRecords,standaloneRecords);
+  const photos=[];
+  appendOfflineItems(photos,childPhotos);
+  appendOfflineItems(photos,embeddedPhotos);
   if(protocols.length) mergeSiteLocalArray("protocolHistory",protocols,site,180);
   if(serviceRecords.length) mergeSiteLocalArray("serviceHistory",serviceRecords,site,180);
   if(photos.length) mergeSiteLocalArray("photos",photos,site,180);

@@ -558,4 +558,6 @@ Current performance phase 249 decision: clone localStorage entry caches and Fire
 
 Current performance phase 250 decision: clone detail and main protocol history cache arrays with one shared direct-loop helper instead of repeated `map(cloneDetailHistoryItem)` calls, preserving shallow copies, cache isolation, empty-array fallbacks, and main history return behavior.
 
+Current performance phase 251 decision: build offline prefetch row lists, embedded offline detail items, offline media URL lists, media workers, and merged child/embedded offline detail arrays with direct loops instead of callback/spread-heavy intermediate arrays, preserving row de-dupe, item order, metadata defaults, media cache behavior, and local merge limits.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
