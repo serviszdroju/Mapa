@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-status-local-loop-v382";
+const APP_BUILD_VERSION="2026-08-16-offline-record-lookup-loop-v383";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v382-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v383-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11076,15 +11076,25 @@ function siteFromOfflineRecord(record={},cacheSuffix=""){
     const indexed=findRowByAnyId(suffixKey) || findRowByAnyId(suffixKey.startsWith("firebase_") ? suffixKey.slice("firebase_".length) : `firebase_${suffixKey}`);
     if(indexed) return indexed;
   }
-  const found=(rows || []).find(row=>{
+  let found=null;
+  const rowSource=Array.isArray(rows) ? rows : [];
+  for(const row of rowSource){
     try{
       const keys=siteRecordKeys(row);
-      if(recordKeys.some(key=>keys.includes(key))) return true;
-      return recordMatchesSite(record,row);
+      let keyMatched=false;
+      for(const key of recordKeys){
+        if(keys.includes(key)){
+          keyMatched=true;
+          break;
+        }
+      }
+      if(keyMatched || recordMatchesSite(record,row)){
+        found=row;
+        break;
+      }
     }catch(e){
-      return false;
     }
-  });
+  }
   if(found) return found;
   const docId=safe(record.firebaseDocId || record.siteDocId || (/^[-A-Za-z0-9_]{6,}$/.test(cacheSuffix) && !cacheSuffix.startsWith("firebase_") ? cacheSuffix : ""));
   const siteKey=safe(record.siteKey || record.siteId || cacheSuffix || (docId ? `firebase_${docId}` : "offline_site"));

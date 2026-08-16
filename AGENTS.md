@@ -570,4 +570,6 @@ Current performance phase 254 decision: merge and update per-site local array ca
 
 Current performance phase 255 decision: reuse the shared direct-loop `_id` removal helper for localStorage arrays, per-site arrays, and embedded Firebase child arrays, and count local protocol drafts with a direct loop, preserving removal criteria, JSON writes, cache refreshes, embedded child updates, and offline status totals.
 
+Current performance phase 256 decision: resolve offline record fallback sites with direct row/key loops instead of `rows.find()` plus nested `some/includes` callbacks, preserving lookup order, `findRowByAnyId()` fast paths, record-key matching, text fallback matching, and synthetic offline site fallback creation.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
