@@ -5,6 +5,9 @@ function setDetailTab(tabName,options={}){
   const drawer=document.getElementById("drawer");
   if(!drawer) return;
   if(drawer.classList.contains("adding-new-site") && !options.force) return;
+  if(target!=="protocol" && typeof window.setProtocolFormOpen==="function"){
+    window.setProtocolFormOpen(false,{skipPrefill:true});
+  }
   drawer.dataset.detailTab=target;
   document.querySelectorAll(".detail-tab").forEach(btn=>{
     const active=btn.getAttribute("data-detail-tab")===target;

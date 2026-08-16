@@ -564,4 +564,6 @@ Current performance phase 252 decision: update processed-state protocol history 
 
 Current performance phase 253 decision: build main protocol history local reads and final local/Firebase merges with direct loops instead of nested `forEach()` callbacks, and append per-site processed-state writes with a direct loop, preserving item order, local fallback IDs, dedupe behavior, Firestore writes, and visible history output.
 
+Current responsive protocol decision: the web app must remain usable across phones, tablets, and desktop by keeping the map/left-panel/detail structure adaptive without changing Firebase data flows. Opening `Vyplnit protokol` must put `#protocolForm` into a full-page/full-drawer mode with a persistent `Skrýt protokol` control, and hiding, saving, closing the drawer, or switching tabs must leave that fullscreen state cleanly.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

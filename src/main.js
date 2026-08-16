@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-protocol-history-read-loop-v379";
+const APP_BUILD_VERSION="2026-08-16-responsive-protocol-fullscreen-v380";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v379-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v380-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -3170,7 +3170,10 @@ function getAllKnownDataKeys(){
 function bindDrawerCloseButton(){
   const close=document.getElementById("closeDrawer");
   const drawer=drawerNode();
-  if(close && drawer) close.onclick=()=>drawer.classList.remove("open");
+  if(close && drawer) close.onclick=()=>{
+    setProtocolFormOpen(false,{skipPrefill:true});
+    drawer.classList.remove("open");
+  };
 }
 
 function bindDetailShellControls(){
@@ -7912,7 +7915,7 @@ window.openDetail=function(i){
   const addDataRowBtn=document.getElementById("addDataRowBtn");
   if(addDataRowBtn) addDataRowBtn.onclick=addNewDataRowToTable;
   clearProtocolEditState();
-  const pf=formFieldNode("protocolForm"); if(pf){ pf.style.display="none"; } setTextIfChanged(formFieldNode("toggleProtocolBtn"),"Vyplnit protokol");;
+  setProtocolFormOpen(false,{skipPrefill:true});
   try{
     setInputValue("editName",r.adresa||"");
     setInputValue("editContact",r.kontakt||"");
@@ -8361,15 +8364,12 @@ function editCurrentHistoryProtocol(){
     return;
   }
   if(window.setDetailTab) window.setDetailTab("protocol");
+  setProtocolFormOpen(true,{skipPrefill:true});
   const form=formFieldNode("protocolForm");
-  if(form) form.style.display="block";
-  setTextIfChanged(formFieldNode("toggleProtocolBtn"),"Skrýt protokol");
-  initProtocolClientSignaturePad();
   fillProtocolFormFromHistory(protocol);
   protocolEditState={id:safe(protocol._id), item:{...protocol}, collection:protocol._collection || ""};
   updateProtocolSaveButtonText();
   setProtocolStatusText("Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.");
-  form?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 let detailLazyLoadKey="";
@@ -12935,7 +12935,10 @@ async function openMainProtocolHistoryPanel(){
   drawer.scrollTop=0;
   const shell=renderMainProtocolHistoryShell(drawer);
   const {close,list,dateFilter}=shell;
-  if(close) close.onclick=()=>drawer.classList.remove("open");
+  if(close) close.onclick=()=>{
+    setProtocolFormOpen(false,{skipPrefill:true});
+    drawer.classList.remove("open");
+  };
   bindMainProtocolHistoryListClick(list);
   bindMainProtocolHistoryControls(shell);
   if(dateFilter) dateFilter.value=mainProtocolHistoryDateFilter;
@@ -13168,17 +13171,50 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
 document.getElementById("editBtn").onclick=()=>document.getElementById("editCard").style.display="block";
 document.getElementById("cancelEditBtn").onclick=()=>document.getElementById("editCard").style.display="none";
 
+function setProtocolFormFullscreen(active){
+  const isActive=!!active;
+  document.body.classList.toggle("protocol-form-fullscreen",isActive);
+  const drawer=drawerNode();
+  if(drawer) drawer.classList.toggle("protocol-form-fullscreen",isActive);
+  const btn=formFieldNode("toggleProtocolBtn");
+  if(btn){
+    btn.setAttribute("aria-expanded",isActive ? "true" : "false");
+    btn.setAttribute("aria-label",isActive ? "Skrýt formulář protokolu" : "Otevřít formulář protokolu přes celou stránku");
+  }
+}
+
+function setProtocolFormOpen(open,options={}){
+  const btn=formFieldNode("toggleProtocolBtn");
+  const f=formFieldNode("protocolForm");
+  const nextOpen=!!open;
+  if(!f){
+    if(!nextOpen) setProtocolFormFullscreen(false);
+    return;
+  }
+  f.dataset.protocolOpen=nextOpen ? "1" : "0";
+  f.style.display=nextOpen ? "" : "none";
+  f.setAttribute("aria-hidden",nextOpen ? "false" : "true");
+  setTextIfChanged(btn,nextOpen ? "Skrýt protokol" : "Vyplnit protokol");
+  setProtocolFormFullscreen(nextOpen);
+  if(nextOpen){
+    const drawer=drawerNode();
+    if(drawer) drawer.classList.add("open");
+    if(typeof window.setDetailTab==="function" && drawer && !drawer.classList.contains("adding-new-site")){
+      window.setDetailTab("protocol",{force:true});
+    }
+    initProtocolClientSignaturePad();
+    if(!options.skipPrefill && typeof prefillProtocol==="function") prefillProtocol();
+    requestAnimationFrame(()=>{ try{ f.scrollTo({top:0,behavior:"auto"}); }catch(e){ f.scrollTop=0; } });
+  }
+}
+window.setProtocolFormOpen=setProtocolFormOpen;
+
 function toggleProtocolFormFromButton(){
   const btn=formFieldNode("toggleProtocolBtn");
   const f=formFieldNode("protocolForm");
   if(!btn || !f) return;
-  const open=f.style.display !== "none";
-  f.style.display=open ? "none" : "block";
-  setTextIfChanged(btn,open ? "Vyplnit protokol" : "Skrýt protokol");
-  if(!open){
-    initProtocolClientSignaturePad();
-    if(typeof prefillProtocol==="function") prefillProtocol();
-  }
+  const open=f.dataset.protocolOpen==="1" || f.style.display !== "none";
+  setProtocolFormOpen(!open,{skipPrefill:open});
 }
 
 function bindProtocolToggleButton(){
@@ -13187,6 +13223,13 @@ function bindProtocolToggleButton(){
 }
 
 bindProtocolToggleButton();
+
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape" && document.body.classList.contains("protocol-form-fullscreen")){
+    event.preventDefault();
+    setProtocolFormOpen(false,{skipPrefill:true});
+  }
+});
 
 
 const editFindGpsBtn=document.getElementById("editFindGpsBtn");
@@ -13533,7 +13576,10 @@ function closeProtocolFormAfterSave(){
   if(form){
     form.reset();
     form.style.display="none";
+    form.dataset.protocolOpen="0";
+    form.setAttribute("aria-hidden","true");
   }
+  setProtocolFormFullscreen(false);
   clearProtocolEditState();
   clearProtocolClientSignature();
   protocolPrefillSiteId="";
