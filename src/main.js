@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-protocol-processed-patch-loop-v378";
+const APP_BUILD_VERSION="2026-08-16-protocol-history-read-loop-v379";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v378-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v379-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12538,11 +12538,11 @@ async function saveMainProtocolProcessedRemote(item={},checked=false){
     item.firebaseDocId,
     item.siteId && String(item.siteId).startsWith("firebase_") ? String(item.siteId).slice("firebase_".length) : ""
   ]);
-  siteDocIds.forEach(docId=>{
+  for(const docId of siteDocIds){
     writes.push(setDoc(doc(db,"sitesUnified",docId,"protocols",id),patch,{merge:true}).catch(e=>{
       console.warn("Označení protokolu pod bodem selhalo",docId,e);
     }));
-  });
+  }
   await Promise.all(writes);
   return true;
 }
@@ -12569,11 +12569,14 @@ async function setMainProtocolHistoryProcessed(item={},checked=false){
 function readAllLocalProtocolHistoryItems(){
   const items=[];
   try{
-    localStorageArrayEntries("astipMap:protocolHistory:").forEach(entry=>{
-      entry.items.forEach((item,idx)=>{
+    const entries=localStorageArrayEntries("astipMap:protocolHistory:");
+    for(const entry of entries){
+      const source=Array.isArray(entry.items) ? entry.items : [];
+      for(let idx=0;idx<source.length;idx++){
+        const item=source[idx];
         if(item) items.push({...item,_type:"Protokol",_collection:"localProtocols",_id:item._id || `local_protocol_${idx}`});
-      });
-    });
+      }
+    }
   }catch(e){
     console.warn("Lokální historie protokolů nejde načíst",e);
   }
@@ -12704,8 +12707,8 @@ async function loadMainProtocolHistoryItems(){
     })();
   }
   const [localItems,firebaseItems]=await Promise.all([localItemsPromise,firebaseItemsPromise]);
-  localItems.forEach(addItem);
-  firebaseItems.forEach(addItem);
+  for(const item of localItems) addItem(item);
+  for(const item of firebaseItems) addItem(item);
   const finalItems=selectLatestProtocolHistoryItems(items,80);
   writeMainProtocolHistoryCache(finalItems);
   return cloneDetailHistoryItems(finalItems);

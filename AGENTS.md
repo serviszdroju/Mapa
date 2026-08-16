@@ -562,4 +562,6 @@ Current performance phase 251 decision: build offline prefetch row lists, embedd
 
 Current performance phase 252 decision: update processed-state protocol history arrays with a shared direct-loop patch helper that copies arrays only after a matching item is found, preserving local `_id` matching, main history `_id/id` matching, processed metadata, cache invalidation, and cache timestamps.
 
+Current performance phase 253 decision: build main protocol history local reads and final local/Firebase merges with direct loops instead of nested `forEach()` callbacks, and append per-site processed-state writes with a direct loop, preserving item order, local fallback IDs, dedupe behavior, Firestore writes, and visible history output.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
