@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-gallery-photo-merge-loop-v386";
+const APP_BUILD_VERSION="2026-08-16-gallery-thumbnail-loop-v387";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v386-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v387-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -14789,13 +14789,18 @@ function cloudinaryPhotoFolderPath(folderName){
 
 const sitePhotoFolderGroupsCache=new WeakMap();
 function sitePhotoFolderGroupsFingerprint(items){
-  return (items || []).map((photo,idx)=>[
-    idx,
-    safe(photo && (photo._id || photo.id || "")),
-    photoFolderNameFingerprint(photo),
-    safe(photo && (photo.createdAt || photo.uploadedAt || photo.date || "")),
-    safe(photo && (photo.cloudinaryVersion || photo.version || ""))
-  ].join("\u001f")).join("\u001e");
+  const source=Array.isArray(items) ? items : [];
+  let out="";
+  for(let idx=0;idx<source.length;idx++){
+    const photo=source[idx];
+    if(idx) out+="\u001e";
+    out+=String(idx)
+      +"\u001f"+safe(photo && (photo._id || photo.id || ""))
+      +"\u001f"+photoFolderNameFingerprint(photo)
+      +"\u001f"+safe(photo && (photo.createdAt || photo.uploadedAt || photo.date || ""))
+      +"\u001f"+safe(photo && (photo.cloudinaryVersion || photo.version || ""));
+  }
+  return out;
 }
 
 function sitePhotoFolderGroups(items){
@@ -14806,12 +14811,17 @@ function sitePhotoFolderGroups(items){
     if(cached && cached.fingerprint===fingerprint) return cached.groups;
   }
   const groups=new Map();
-  (items || []).forEach((photo,idx)=>{
+  const source=Array.isArray(items) ? items : [];
+  for(let idx=0;idx<source.length;idx++){
+    const photo=source[idx];
     const folder=photoFolderName(photo);
     if(!groups.has(folder)) groups.set(folder,[]);
     groups.get(folder).push({photo,idx});
-  });
-  const result=Array.from(groups.entries()).map(([folder,photos])=>({folder,photos}));
+  }
+  const result=[];
+  for(const [folder,photos] of groups){
+    result.push({folder,photos});
+  }
   if(canCache) sitePhotoFolderGroupsCache.set(items,{fingerprint,groups:result});
   return result;
 }
@@ -14956,7 +14966,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const folderGroups=sitePhotoFolderGroups(sitePhotoItems);
   const activeFolder=currentFolder || (folderGroups[0] && folderGroups[0].folder) || "";
   const thumbsFragment=document.createDocumentFragment();
-  folderGroups.forEach(group=>{
+  for(const group of folderGroups){
     const groupEl=document.createElement("div");
     groupEl.className=`site-photo-folder-group ${group.folder===activeFolder ? "active" : ""}`.trim();
     const folderName=safe(group.folder) || "Bez názvu složky";
@@ -14968,7 +14978,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     label.textContent=folderName;
     const row=document.createElement("div");
     row.className="site-photo-folder-thumbs";
-    group.photos.forEach(({photo,idx})=>{
+    for(const {photo,idx} of group.photos){
       const button=document.createElement("button");
       button.className=`site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}`.trim();
       button.type="button";
@@ -14981,10 +14991,10 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
       thumbImg.decoding="async";
       button.appendChild(thumbImg);
       row.appendChild(button);
-    });
+    }
     groupEl.append(label,row);
     thumbsFragment.appendChild(groupEl);
-  });
+  }
   thumbs.appendChild(thumbsFragment);
   viewer.appendChild(thumbs);
 
