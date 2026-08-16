@@ -556,4 +556,6 @@ Current performance phase 248 decision: clone local/offline queue item arrays wi
 
 Current performance phase 249 decision: clone localStorage entry caches and Firebase child item caches with direct loops instead of `map()`, preserving entry keys, suffixes, shallow item copies, array item slices, and child item falsy retention.
 
+Current performance phase 250 decision: clone detail and main protocol history cache arrays with one shared direct-loop helper instead of repeated `map(cloneDetailHistoryItem)` calls, preserving shallow copies, cache isolation, empty-array fallbacks, and main history return behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

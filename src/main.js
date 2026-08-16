@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-cache-entry-clone-loop-v375";
+const APP_BUILD_VERSION="2026-08-16-history-cache-clone-loop-v376";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v375-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v376-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7923,6 +7923,15 @@ function cloneDetailHistoryItem(item){
   return item && typeof item==="object" ? {...item} : item;
 }
 
+function cloneDetailHistoryItems(items=[]){
+  const source=Array.isArray(items) ? items : [];
+  const out=[];
+  for(const item of source){
+    out.push(cloneDetailHistoryItem(item));
+  }
+  return out;
+}
+
 function readLastProtocolCache(site=selectedSite){
   const key=detailHistoryCacheKey(site);
   if(!key) return undefined;
@@ -7963,7 +7972,7 @@ function readDetailHistoryCache(site=selectedSite){
     detailHistoryCache.delete(key);
     return null;
   }
-  return Array.isArray(cached.items) ? cached.items.map(cloneDetailHistoryItem) : [];
+  return cloneDetailHistoryItems(cached.items);
 }
 
 function writeDetailHistoryCache(site=selectedSite,items=[]){
@@ -7971,7 +7980,7 @@ function writeDetailHistoryCache(site=selectedSite,items=[]){
   if(!key) return;
   detailHistoryCache.set(key,{
     savedAt:Date.now(),
-    items:Array.isArray(items) ? items.map(cloneDetailHistoryItem) : []
+    items:cloneDetailHistoryItems(items)
   });
 }
 
@@ -8000,14 +8009,14 @@ function readMainProtocolHistoryCache(){
     mainProtocolHistoryCache={key:"",savedAt:0,items:null};
     return null;
   }
-  return mainProtocolHistoryCache.items.map(cloneDetailHistoryItem);
+  return cloneDetailHistoryItems(mainProtocolHistoryCache.items);
 }
 
 function writeMainProtocolHistoryCache(items=[]){
   mainProtocolHistoryCache={
     key:mainProtocolHistoryCacheKey(),
     savedAt:Date.now(),
-    items:Array.isArray(items) ? items.map(cloneDetailHistoryItem) : []
+    items:cloneDetailHistoryItems(items)
   };
 }
 
@@ -12659,7 +12668,7 @@ async function loadMainProtocolHistoryItems(){
   firebaseItems.forEach(addItem);
   const finalItems=selectLatestProtocolHistoryItems(items,80);
   writeMainProtocolHistoryCache(finalItems);
-  return finalItems.map(cloneDetailHistoryItem);
+  return cloneDetailHistoryItems(finalItems);
 }
 
 function renderMainProtocolHistoryShell(drawer){
