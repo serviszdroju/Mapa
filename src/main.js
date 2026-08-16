@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-site-local-array-merge-v381";
+const APP_BUILD_VERSION="2026-08-16-offline-status-local-loop-v382";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v381-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v382-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10360,7 +10360,7 @@ function readSiteLocalArray(kind,site=selectedSite){
     return [];
   }
 }
-function siteLocalArrayWithoutId(items=[],cleanId=""){
+function szzArrayWithoutItemId(items=[],cleanId=""){
   const source=Array.isArray(items) ? items : [];
   if(!cleanId) return source.slice();
   const out=[];
@@ -10388,7 +10388,7 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
       siteAddress:safe(item.siteAddress) || identity.siteAddress,
       siteSource:safe(item.siteSource) || identity.siteSource
     } : {...item};
-    let next=siteLocalArrayWithoutId(arr,id);
+    let next=szzArrayWithoutItemId(arr,id);
     next.push(enrichedItem);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(kind,site);
@@ -10463,7 +10463,7 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
   try{
     const cleanId=safe(id);
     if(!cleanId) return;
-    const next=siteLocalArrayWithoutId(readSiteLocalArray(kind,site),cleanId);
+    const next=szzArrayWithoutItemId(readSiteLocalArray(kind,site),cleanId);
     const key=siteLocalCacheKey(kind,site);
     const raw=JSON.stringify(next);
     localStorage.setItem(key,raw);
@@ -11057,7 +11057,7 @@ function removeLocalStorageArrayItemByKey(key,id){
   try{
     const arr=JSON.parse(localStorage.getItem(key) || "[]");
     if(!Array.isArray(arr)) return;
-    const next=arr.filter(item=>safe(item && item._id)!==cleanId);
+    const next=szzArrayWithoutItemId(arr,cleanId);
     const raw=JSON.stringify(next);
     localStorage.setItem(key,raw);
     clearLocalStorageArrayEntriesCache(key);
@@ -11427,7 +11427,7 @@ async function removeEmbeddedSiteItem(field,id,site=selectedSite){
     }catch(e){
       current=Array.isArray(site?.firebaseData?.[field]) ? site.firebaseData[field].slice() : [];
     }
-    const next=current.filter(item=>safe(item && item._id)!==cleanId);
+    const next=szzArrayWithoutItemId(current,cleanId);
     await setDoc(ref,{[field]:next,updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()},{merge:true});
     if(site){
       site.firebaseData=site.firebaseData || {};
@@ -14365,9 +14365,10 @@ async function readProtocolDraftCount(){
   }catch(e){}
   let count=0;
   try{
-    localStorageObjectEntries("astipMap:protocolDraft:").forEach(entry=>{
+    const entries=localStorageObjectEntries("astipMap:protocolDraft:");
+    for(const entry of entries){
       if(entry && entry.item && entry.item.payload) count++;
-    });
+    }
   }catch(e){}
   protocolDraftCountCache=count;
   protocolDraftCountCacheAt=Date.now();
