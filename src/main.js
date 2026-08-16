@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-clone-loop-v374";
+const APP_BUILD_VERSION="2026-08-16-cache-entry-clone-loop-v375";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v374-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v375-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10148,11 +10148,16 @@ const LOCAL_DETAIL_READ_CACHE_MS=1800;
 const siteLocalProtocolHistoryReadCache=new Map();
 const siteOfflinePhotoReadCache=new Map();
 function cloneLocalStorageArrayEntries(entries=[]){
-  return (entries || []).map(entry=>({
-    key:entry.key,
-    suffix:entry.suffix,
-    items:Array.isArray(entry.items) ? entry.items.slice() : []
-  }));
+  const source=Array.isArray(entries) ? entries : [];
+  const out=[];
+  for(const entry of source){
+    out.push({
+      key:entry.key,
+      suffix:entry.suffix,
+      items:Array.isArray(entry.items) ? entry.items.slice() : []
+    });
+  }
+  return out;
 }
 function cloneLocalStorageArrayItems(items=[]){
   const source=Array.isArray(items) ? items : [];
@@ -10163,11 +10168,16 @@ function cloneLocalStorageArrayItems(items=[]){
   return out;
 }
 function cloneLocalStorageObjectEntries(entries=[]){
-  return (entries || []).map(entry=>({
-    key:entry.key,
-    suffix:entry.suffix,
-    item:entry.item && typeof entry.item==="object" ? {...entry.item} : entry.item
-  }));
+  const source=Array.isArray(entries) ? entries : [];
+  const out=[];
+  for(const entry of source){
+    out.push({
+      key:entry.key,
+      suffix:entry.suffix,
+      item:entry.item && typeof entry.item==="object" ? {...entry.item} : entry.item
+    });
+  }
+  return out;
 }
 function cloneLocalStorageObjectItem(item){
   return item && typeof item==="object" && !Array.isArray(item) ? {...item} : {};
@@ -11174,7 +11184,12 @@ function siteChildItemsCacheKey(kind,site=selectedSite){
 }
 
 function cloneSiteChildItems(items=[]){
-  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item);
+  const source=Array.isArray(items) ? items : [];
+  const out=[];
+  for(const item of source){
+    out.push(item && typeof item==="object" ? {...item} : item);
+  }
+  return out;
 }
 
 function readSiteChildItemsCache(kind,site=selectedSite){

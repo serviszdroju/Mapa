@@ -554,4 +554,6 @@ Current performance phase 247 decision: collect per-site offline gallery photos 
 
 Current performance phase 248 decision: clone local/offline queue item arrays with direct loops instead of `map()` plus optional `filter(Boolean)`, preserving object shallow copies, falsy retention for local array cache clones, and falsy dropping for offline site/protocol/photo queue clones.
 
+Current performance phase 249 decision: clone localStorage entry caches and Firebase child item caches with direct loops instead of `map()`, preserving entry keys, suffixes, shallow item copies, array item slices, and child item falsy retention.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
