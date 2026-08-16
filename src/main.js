@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-site-offline-photo-loop-v373";
+const APP_BUILD_VERSION="2026-08-16-offline-clone-loop-v374";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v373-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v374-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10155,7 +10155,12 @@ function cloneLocalStorageArrayEntries(entries=[]){
   }));
 }
 function cloneLocalStorageArrayItems(items=[]){
-  return Array.isArray(items) ? items.map(item=>item && typeof item==="object" ? {...item} : item) : [];
+  const source=Array.isArray(items) ? items : [];
+  const out=[];
+  for(const item of source){
+    out.push(item && typeof item==="object" ? {...item} : item);
+  }
+  return out;
 }
 function cloneLocalStorageObjectEntries(entries=[]){
   return (entries || []).map(entry=>({
@@ -10515,7 +10520,13 @@ const OFFLINE_SITE_QUEUE_READ_CACHE_MS=1200;
 let offlineSiteQueueReadCache={savedAt:0,items:null,promise:null};
 
 function cloneOfflineSiteQueueItems(items=[]){
-  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
+  const source=Array.isArray(items) ? items : [];
+  const out=[];
+  for(const item of source){
+    if(!item) continue;
+    out.push(typeof item==="object" ? {...item} : item);
+  }
+  return out;
 }
 
 function isOfflineSiteQueueItem(item){
@@ -10609,7 +10620,13 @@ let offlineProtocolQueueAllReadCache={savedAt:0,items:null,promise:null};
 const offlineProtocolQueueSiteReadCache=new Map();
 
 function cloneOfflineProtocolQueueItems(items=[]){
-  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
+  const source=Array.isArray(items) ? items : [];
+  const out=[];
+  for(const item of source){
+    if(!item) continue;
+    out.push(typeof item==="object" ? {...item} : item);
+  }
+  return out;
 }
 
 function clearOfflineProtocolQueueReadCache(){
@@ -13772,7 +13789,13 @@ const OFFLINE_PHOTO_ALL_READ_CACHE_MS=1200;
 let offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
 
 function cloneOfflinePhotoItems(items=[]){
-  return (items || []).map(item=>item && typeof item==="object" ? {...item} : item).filter(Boolean);
+  const source=Array.isArray(items) ? items : [];
+  const out=[];
+  for(const item of source){
+    if(!item) continue;
+    out.push(typeof item==="object" ? {...item} : item);
+  }
+  return out;
 }
 
 function isPendingOfflinePhotoItem(item){
