@@ -566,4 +566,6 @@ Current performance phase 253 decision: build main protocol history local reads 
 
 Current responsive protocol decision: the web app must remain usable across phones, tablets, and desktop by keeping the map/left-panel/detail structure adaptive without changing Firebase data flows. Opening `Vyplnit protokol` must put `#protocolForm` into a full-page/full-drawer mode with a persistent `Skrýt protokol` control, and hiding, saving, closing the drawer, or switching tabs must leave that fullscreen state cleanly.
 
+Current performance phase 254 decision: merge and update per-site local array caches with direct one-pass ID filtering and duplicate-aware incoming item assembly instead of repeated `filter()` calls per item, preserving append/remove behavior, metadata enrichment, `_id` fallback generation, last-incoming-wins dedupe, localStorage writes, cache invalidation, and merge limits.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

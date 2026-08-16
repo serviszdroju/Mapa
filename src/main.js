@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-responsive-protocol-fullscreen-v380";
+const APP_BUILD_VERSION="2026-08-16-site-local-array-merge-v381";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v380-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v381-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10360,6 +10360,15 @@ function readSiteLocalArray(kind,site=selectedSite){
     return [];
   }
 }
+function siteLocalArrayWithoutId(items=[],cleanId=""){
+  const source=Array.isArray(items) ? items : [];
+  if(!cleanId) return source.slice();
+  const out=[];
+  for(const item of source){
+    if(safe(item && item._id)!==cleanId) out.push(item);
+  }
+  return out;
+}
 function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
   try{
     const arr=readSiteLocalArray(kind,site);
@@ -10379,7 +10388,8 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
       siteAddress:safe(item.siteAddress) || identity.siteAddress,
       siteSource:safe(item.siteSource) || identity.siteSource
     } : {...item};
-    let next=(id ? arr.filter(x=>safe(x && x._id)!==id) : arr).concat([enrichedItem]);
+    let next=siteLocalArrayWithoutId(arr,id);
+    next.push(enrichedItem);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(kind,site);
     const raw=JSON.stringify(next);
@@ -10396,11 +10406,14 @@ function mergeSiteLocalArray(kind,items=[],site=selectedSite,limit=120){
   try{
     const cleanKind=safe(kind);
     if(!cleanKind) return [];
-    const incoming=(Array.isArray(items) ? items : []).filter(item=>item && typeof item==="object");
-    if(!incoming.length) return readSiteLocalArray(cleanKind,site);
+    const incoming=Array.isArray(items) ? items : [];
     const identity=siteRecordIdentity(site);
-    let next=readSiteLocalArray(cleanKind,site).slice();
-    incoming.forEach((item,idx)=>{
+    const enrichedItems=[];
+    const incomingIds=new Set();
+    const lastIncomingIndexById=new Map();
+    for(let idx=0;idx<incoming.length;idx++){
+      const item=incoming[idx];
+      if(!item || typeof item!=="object") continue;
       const id=safe(item._id || item.id) || `${cleanKind}_${Date.now()}_${idx}`;
       const enriched={
         ...item,
@@ -10417,9 +10430,20 @@ function mergeSiteLocalArray(kind,items=[],site=selectedSite,limit=120){
         siteAddress:safe(item.siteAddress) || identity.siteAddress,
         siteSource:safe(item.siteSource) || identity.siteSource
       };
-      next=next.filter(existing=>safe(existing && existing._id)!==id);
-      next.push(enriched);
-    });
+      lastIncomingIndexById.set(id,enrichedItems.length);
+      incomingIds.add(id);
+      enrichedItems.push({id,item:enriched});
+    }
+    if(!enrichedItems.length) return readSiteLocalArray(cleanKind,site);
+    const current=readSiteLocalArray(cleanKind,site);
+    let next=[];
+    for(const existing of current){
+      if(!incomingIds.has(safe(existing && existing._id))) next.push(existing);
+    }
+    for(let idx=0;idx<enrichedItems.length;idx++){
+      const entry=enrichedItems[idx];
+      if(lastIncomingIndexById.get(entry.id)===idx) next.push(entry.item);
+    }
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(cleanKind,site);
     const raw=JSON.stringify(next);
@@ -10439,7 +10463,7 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
   try{
     const cleanId=safe(id);
     if(!cleanId) return;
-    const next=readSiteLocalArray(kind,site).filter(item=>safe(item && item._id)!==cleanId);
+    const next=siteLocalArrayWithoutId(readSiteLocalArray(kind,site),cleanId);
     const key=siteLocalCacheKey(kind,site);
     const raw=JSON.stringify(next);
     localStorage.setItem(key,raw);
