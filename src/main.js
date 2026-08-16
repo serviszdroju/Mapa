@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-prefetch-loop-v377";
+const APP_BUILD_VERSION="2026-08-16-protocol-processed-patch-loop-v378";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v377-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v378-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12463,6 +12463,19 @@ function mainProtocolProcessedRemotePatch(checked){
   };
 }
 
+function patchProtocolProcessedItems(items,cleanId,patch,includeIdFallback=true){
+  const source=Array.isArray(items) ? items : [];
+  let next=null;
+  for(let i=0;i<source.length;i++){
+    const item=source[i];
+    const itemId=includeIdFallback ? safe(item && (item._id || item.id)) : safe(item && item._id);
+    if(itemId!==cleanId) continue;
+    if(!next) next=source.slice();
+    next[i]={...item,...patch};
+  }
+  return next || source;
+}
+
 function updateLocalProtocolHistoryProcessed(id,checked){
   const cleanId=safe(id);
   if(!cleanId) return 0;
@@ -12474,13 +12487,8 @@ function updateLocalProtocolHistoryProcessed(id,checked){
       if(!key || !key.startsWith("astipMap:protocolHistory:")) continue;
       const arr=JSON.parse(localStorage.getItem(key) || "[]");
       if(!Array.isArray(arr)) continue;
-      let touched=false;
-      const next=arr.map(item=>{
-        if(safe(item && item._id)!==cleanId) return item;
-        touched=true;
-        return {...item,...patch};
-      });
-      if(!touched) continue;
+      const next=patchProtocolProcessedItems(arr,cleanId,patch,false);
+      if(next===arr) continue;
       const raw=JSON.stringify(next);
       localStorage.setItem(key,raw);
       clearLocalStorageArrayEntriesCache(key);
@@ -12542,15 +12550,9 @@ async function saveMainProtocolProcessedRemote(item={},checked=false){
 function updateMainProtocolHistoryProcessedState(id,checked){
   const cleanId=safe(id);
   const patch=mainProtocolProcessedLocalPatch(checked);
-  mainProtocolHistoryCurrentItems=mainProtocolHistoryCurrentItems.map(item=>{
-    if(safe(item && (item._id || item.id))!==cleanId) return item;
-    return {...item,...patch};
-  });
+  mainProtocolHistoryCurrentItems=patchProtocolProcessedItems(mainProtocolHistoryCurrentItems,cleanId,patch,true);
   if(Array.isArray(mainProtocolHistoryCache.items)){
-    mainProtocolHistoryCache.items=mainProtocolHistoryCache.items.map(item=>{
-      if(safe(item && (item._id || item.id))!==cleanId) return item;
-      return {...item,...patch};
-    });
+    mainProtocolHistoryCache.items=patchProtocolProcessedItems(mainProtocolHistoryCache.items,cleanId,patch,true);
     mainProtocolHistoryCache.savedAt=Date.now();
   }
 }
