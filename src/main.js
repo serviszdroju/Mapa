@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-site-count-v385";
+const APP_BUILD_VERSION="2026-08-16-gallery-photo-merge-loop-v386";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v385-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v386-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -15006,7 +15006,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
 
   const infoStrip=document.createElement("div");
   infoStrip.className="site-photo-info-strip";
-  photoInfoRows.forEach(([label,value])=>{
+  for(const [label,value] of photoInfoRows){
     const pill=document.createElement("div");
     pill.className="site-photo-info-pill";
     const labelEl=document.createElement("span");
@@ -15015,7 +15015,7 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     valueEl.textContent=safe(value);
     pill.append(labelEl,valueEl);
     infoStrip.appendChild(pill);
-  });
+  }
   viewer.appendChild(infoStrip);
 
   if(photoMeta.meta){
@@ -15049,15 +15049,18 @@ async function loadSitePhotos(site=selectedSite){
   const mergeOfflinePhotosOnce=async()=>{
     if(!site) return;
     const offlinePhotos=await (offlinePhotosPromise || readOfflinePhotoItems(site));
-    offlinePhotos.forEach((item,idx)=>{
+    for(let idx=0;idx<offlinePhotos.length;idx++){
+      const item=offlinePhotos[idx];
       addPhoto({...item,_id:item._id || `offline_photo_${idx}`,storageMode:item.storageMode || "offline",_offline:true});
-    });
+    }
   };
 
   if(site){
-    readSiteLocalArray("photos",site).forEach((item,idx)=>{
+    const localPhotos=readSiteLocalArray("photos",site);
+    for(let idx=0;idx<localPhotos.length;idx++){
+      const item=localPhotos[idx];
       addPhoto({...item,_id:item._id || `local_photo_${idx}`});
-    });
+    }
     offlinePhotosPromise=readOfflinePhotoItems(site).catch(e=>{
       console.warn("Offline fotografie nejde načíst",e);
       return [];
@@ -15086,12 +15089,14 @@ async function loadSitePhotos(site=selectedSite){
     ]);
     if(!stillSameSite()) return;
     const embeddedPhotos=Array.isArray(site?.firebaseData?.photos) ? site.firebaseData.photos : [];
-    embeddedPhotos.forEach((item,idx)=>{
+    for(let idx=0;idx<embeddedPhotos.length;idx++){
+      const item=embeddedPhotos[idx];
       addPhoto({...item,_id:item._id || `embedded_photo_${idx}`});
-    });
-    childPhotos.forEach((item,idx)=>{
+    }
+    for(let idx=0;idx<childPhotos.length;idx++){
+      const item=childPhotos[idx];
       addPhoto({...item,_id:item._id || `site_photo_${idx}`});
-    });
+    }
     renderLoaded();
   }catch(e){
     if(items.length){

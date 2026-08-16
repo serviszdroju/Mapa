@@ -576,4 +576,6 @@ Current performance phase 257 decision: count pending offline protocols directly
 
 Current performance phase 258 decision: count pending offline sites directly with Set-based `docId` dedupe and the existing offline-site queue predicate instead of building filtered arrays before dedupe, preserving IndexedDB-first behavior, legacy localStorage fallback counts, raw cache reuse, and displayed offline site totals.
 
+Current performance phase 259 decision: merge gallery photo sources and render compact photo info pills with direct loops instead of callback `forEach()` passes, preserving local/offline/embedded/Firebase source order, fallback photo IDs, dedupe behavior, status messages, and gallery markup.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
