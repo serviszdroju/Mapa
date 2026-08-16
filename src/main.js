@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-site-queue-scan-v372";
+const APP_BUILD_VERSION="2026-08-16-site-offline-photo-loop-v373";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v372-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v373-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -13757,16 +13757,9 @@ async function computeOfflinePhotoItems(site=selectedSite){
       req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
       req.onerror=()=>setResult([]);
     });
-    const all=[...(items || []),...fallback];
-    const seen=new Set();
-    return all.filter(item=>{
-      const id=safe(item && item._id);
-      if(id && seen.has(id)) return false;
-      if(id) seen.add(id);
-      return !!photoDisplayUrl(item);
-    });
+    return collectDisplayablePhotoItemsFromLists([items,fallback]);
   }catch(e){
-    return fallback.filter(item=>!!photoDisplayUrl(item));
+    return displayablePhotoItems(fallback);
   }
 }
 
@@ -13793,6 +13786,31 @@ function countPendingOfflinePhotoItems(items=[]){
     if(isPendingOfflinePhotoItem(item)) count++;
   }
   return count;
+}
+
+function displayablePhotoItems(items=[]){
+  const out=[];
+  const source=Array.isArray(items) ? items : [];
+  for(const item of source){
+    if(photoDisplayUrl(item)) out.push(item);
+  }
+  return out;
+}
+
+function collectDisplayablePhotoItemsFromLists(lists=[]){
+  const out=[];
+  const seen=new Set();
+  const sourceLists=Array.isArray(lists) ? lists : [];
+  for(const list of sourceLists){
+    const source=Array.isArray(list) ? list : [];
+    for(const item of source){
+      const id=safe(item && item._id);
+      if(id && seen.has(id)) continue;
+      if(id) seen.add(id);
+      if(photoDisplayUrl(item)) out.push(item);
+    }
+  }
+  return out;
 }
 
 function collectPendingOfflinePhotoItems(lists=[]){

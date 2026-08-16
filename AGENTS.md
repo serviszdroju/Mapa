@@ -550,4 +550,6 @@ Current performance phase 245 decision: collect all offline photo sync items wit
 
 Current performance phase 246 decision: share offline-site queue predicates and scan helpers for Firebase row cache fallback, IndexedDB offline site queue reads, and legacy pending-site counts, replacing repeated `filter()` allocations while preserving the exact `docId` plus `raw` validity rule and deduped site counts.
 
+Current performance phase 247 decision: collect per-site offline gallery photos with direct IndexedDB-then-localStorage loops instead of spread-combining and filtering arrays, preserving first `_id` wins, required display URLs, and the fallback-only behavior when IndexedDB photo reads fail.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
