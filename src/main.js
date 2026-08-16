@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-protocol-count-v384";
+const APP_BUILD_VERSION="2026-08-16-offline-site-count-v385";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v384-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v385-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -14335,14 +14335,13 @@ async function readPendingOfflineSitesCount(){
   };
   try{
     const indexedItems=await readOfflineSiteQueueItems();
-    if(indexedItems.length) return remember(uniqueByOfflineId(indexedItems,"docId").length);
+    if(indexedItems.length) return remember(countUniqueOfflineItems(indexedItems,"docId",isOfflineSiteQueueItem));
     const raw=localStorage.getItem(SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY) || "";
     if(szzLegacyOfflineSiteCountCache.raw===raw && Date.now()-szzLegacyOfflineSiteCountCache.savedAt<SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS){
       return remember(szzLegacyOfflineSiteCountCache.count);
     }
     const items=JSON.parse(raw || "[]");
-    const localItems=offlineSiteQueueItems(items);
-    const count=uniqueByOfflineId(localItems,"docId").length;
+    const count=countUniqueOfflineItems(items,"docId",isOfflineSiteQueueItem);
     szzLegacyOfflineSiteCountCache={raw,count,savedAt:Date.now()};
     return remember(count);
   }catch(e){

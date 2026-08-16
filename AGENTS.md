@@ -574,4 +574,6 @@ Current performance phase 256 decision: resolve offline record fallback sites wi
 
 Current performance phase 257 decision: count pending offline protocols directly with Set-based `_id` dedupe and no intermediate pending-item array, preserving IndexedDB/localStorage fallback ordering, duplicate `_id` collapse, no-`_id` item counting, cache timing, and displayed offline protocol totals.
 
+Current performance phase 258 decision: count pending offline sites directly with Set-based `docId` dedupe and the existing offline-site queue predicate instead of building filtered arrays before dedupe, preserving IndexedDB-first behavior, legacy localStorage fallback counts, raw cache reuse, and displayed offline site totals.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
