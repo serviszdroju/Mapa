@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-offline-record-lookup-loop-v383";
+const APP_BUILD_VERSION="2026-08-16-offline-protocol-count-v384";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v383-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v384-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10561,6 +10561,18 @@ async function withSzzOfflineQueueStore(storeName,mode,callback){
 function uniqueByOfflineId(items=[],idKey="_id"){
   return uniqueByOfflineIdFromLists([items],idKey);
 }
+function countUniqueOfflineItems(items=[],idKey="_id",predicate=null){
+  const source=Array.isArray(items) ? items : [];
+  const byId=new Set();
+  let withoutId=0;
+  for(const item of source){
+    if(!item || (predicate && !predicate(item))) continue;
+    const id=safe(item && item[idKey]);
+    if(id) byId.add(id);
+    else withoutId++;
+  }
+  return byId.size+withoutId;
+}
 function uniqueByOfflineIdFromLists(lists=[],idKey="_id"){
   const byId=new Map();
   const withoutId=[];
@@ -13958,6 +13970,22 @@ function countPendingOfflinePhotoItems(items=[]){
   return count;
 }
 
+function countPendingOfflineProtocolEntries(entries=[]){
+  const byId=new Set();
+  let withoutId=0;
+  const sourceEntries=Array.isArray(entries) ? entries : [];
+  for(const entry of sourceEntries){
+    const items=Array.isArray(entry && entry.items) ? entry.items : [];
+    for(const item of items){
+      if(!isPendingOfflineProtocolItem(item)) continue;
+      const id=safe(item && item._id);
+      if(id) byId.add(id);
+      else withoutId++;
+    }
+  }
+  return byId.size+withoutId;
+}
+
 function displayablePhotoItems(items=[]){
   const out=[];
   const source=Array.isArray(items) ? items : [];
@@ -14337,16 +14365,9 @@ async function readPendingOfflineProtocolCount(){
   };
   try{
     const indexedItems=await readAllOfflineProtocolQueueItems();
-    if(indexedItems.length) return remember(uniqueByOfflineId(indexedItems).length);
-    const localItems=[];
+    if(indexedItems.length) return remember(countUniqueOfflineItems(indexedItems));
     const entries=localStorageArrayEntries("astipMap:protocolHistory:");
-    for(const entry of entries){
-      const items=Array.isArray(entry.items) ? entry.items : [];
-      for(const item of items){
-        if(isPendingOfflineProtocolItem(item)) localItems.push(item);
-      }
-    }
-    return remember(uniqueByOfflineId(localItems).length);
+    return remember(countPendingOfflineProtocolEntries(entries));
   }catch(e){}
   return remember(0);
 }
