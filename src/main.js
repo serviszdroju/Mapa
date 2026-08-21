@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-16-gallery-thumbnail-loop-v387";
+const APP_BUILD_VERSION="2026-08-21-phone-source-protocol-v388";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v387-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v388-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4673,8 +4673,39 @@ function cachedPlaceGroups(inputRows){
   placeGroupsCache={sourceRows:inputRows,signature,groups};
   return groups;
 }
+let sourcePopupLastHandledKey="";
+let sourcePopupLastHandledAt=0;
+function activateSourcePopupButton(sourceBtn,event){
+  if(!sourceBtn) return false;
+  const key=sourceBtn.getAttribute("data-source-popup-key");
+  if(!key) return false;
+  if(event){
+    if(event.cancelable) event.preventDefault();
+    event.stopPropagation();
+    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+    try{
+      if(typeof L!=="undefined" && L.DomEvent) L.DomEvent.stopPropagation(event);
+    }catch(e){}
+  }
+  const now=Date.now();
+  if(sourcePopupLastHandledKey===key && now-sourcePopupLastHandledAt<450) return true;
+  sourcePopupLastHandledKey=key;
+  sourcePopupLastHandledAt=now;
+  window.openDetailById(key);
+  try{
+    if(map && typeof map.closePopup==="function") map.closePopup();
+  }catch(e){}
+  return true;
+}
+function handleSourcePopupActivation(event){
+  const target=event && event.target;
+  const sourceBtn=target && target.closest ? target.closest("[data-source-popup-key]") : null;
+  if(sourceBtn) activateSourcePopupButton(sourceBtn,event);
+}
+document.addEventListener("click",handleSourcePopupActivation,true);
+document.addEventListener("touchend",handleSourcePopupActivation,{capture:true,passive:false});
 function sourceButtonHtml(row){
-  return `<button class="source-popup-btn" type="button" onclick="openDetailById(${esc(JSON.stringify(detailKey(row)))})">${esc(siteSourceLabel(row))}<small>${esc(statusText(row))}</small></button>`;
+  return `<button class="source-popup-btn" type="button" data-source-popup-key="${esc(detailKey(row))}">${esc(siteSourceLabel(row))}<small>${esc(statusText(row))}</small></button>`;
 }
 function groupPopupHtml(group){
   if(!group) return "";
@@ -4693,7 +4724,7 @@ function groupPopupHtml(group){
   let html="";
   if(rowsInGroup.length<=1){
     const r=primary;
-    html=r ? `<b>${esc(r.adresa||"Bez názvu")}</b><br>${esc(siteSourceLabel(r))}<br>${esc(statusText(r))}<br><button onclick="openDetailById(${esc(JSON.stringify(detailKey(r)))})">Detail</button>` : "";
+    html=r ? `<b>${esc(r.adresa||"Bez názvu")}</b><br>${esc(siteSourceLabel(r))}<br>${esc(statusText(r))}<br><button class="source-popup-btn source-popup-detail-btn" type="button" data-source-popup-key="${esc(detailKey(r))}">Detail</button>` : "";
   }else{
     let sourceButtonsHtml="";
     for(const row of rowsInGroup){

@@ -566,6 +566,8 @@ Current performance phase 253 decision: build main protocol history local reads 
 
 Current responsive protocol decision: the web app must remain usable across phones, tablets, and desktop by keeping the map/left-panel/detail structure adaptive without changing Firebase data flows. Opening `Vyplnit protokol` must put `#protocolForm` into a full-page/full-drawer mode with a persistent `Skrýt protokol` control, and hiding, saving, closing the drawer, or switching tabs must leave that fullscreen state cleanly.
 
+Current phone source/protocol decision: on phones, multi-source map popups and the top detail source chooser must remain easy to operate when one place has more than two sources. Use touch-safe source buttons keyed by `data-source-popup-key`, keep the detail source chooser horizontally scrollable on small screens, and keep the fullscreen protocol form in a compact one-column layout without a sticky bottom action footer on phones.
+
 Current performance phase 254 decision: merge and update per-site local array caches with direct one-pass ID filtering and duplicate-aware incoming item assembly instead of repeated `filter()` calls per item, preserving append/remove behavior, metadata enrichment, `_id` fallback generation, last-incoming-wins dedupe, localStorage writes, cache invalidation, and merge limits.
 
 Current performance phase 255 decision: reuse the shared direct-loop `_id` removal helper for localStorage arrays, per-site arrays, and embedded Firebase child arrays, and count local protocol drafts with a direct loop, preserving removal criteria, JSON writes, cache refreshes, embedded child updates, and offline status totals.

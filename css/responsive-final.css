@@ -207,10 +207,26 @@ aside,
     padding:calc(10px + env(safe-area-inset-top)) 12px 10px !important;
   }
   .source-chooser{
-    margin:10px;
+    margin:8px 10px 6px !important;
+    padding:8px !important;
   }
   .source-chooser-buttons{
-    grid-template-columns:1fr;
+    display:flex !important;
+    grid-template-columns:none !important;
+    gap:6px !important;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding:1px 2px 6px;
+    scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;
+  }
+  .source-chooser-button{
+    flex:0 0 min(72vw,260px);
+    min-width:min(72vw,260px);
+    min-height:50px;
+    padding:8px 9px;
+    scroll-snap-align:start;
+    touch-action:manipulation;
   }
   .detail-tabs{
     margin:8px 10px 10px !important;
@@ -236,6 +252,11 @@ aside,
     gap:4px;
     padding:5px;
   }
+  .source-chooser-button{
+    flex-basis:min(78vw,240px);
+    min-width:min(78vw,240px);
+    font-size:12px;
+  }
   .detail-tab{
     min-width:0;
     min-height:38px;
@@ -259,6 +280,28 @@ aside,
   #protocolForm .checkgrid2,
   .checkgrid2{
     grid-template-columns:1fr !important;
+  }
+}
+@media(max-width:760px){
+  .leaflet-popup-content{
+    max-width:min(82vw,320px) !important;
+    margin:10px 12px !important;
+    line-height:1.25;
+  }
+  .source-popup-list{
+    max-height:min(46dvh,320px);
+    overflow:auto;
+    overscroll-behavior:contain;
+    padding-right:2px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .source-popup-btn{
+    min-height:44px;
+    padding:10px 11px;
+    touch-action:manipulation;
+  }
+  .source-popup-btn small{
+    font-size:11px;
   }
 }
 @media(max-width:920px) and (orientation:landscape) and (max-height:540px){
@@ -382,21 +425,68 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
 }
 @media(max-width:620px){
   body.protocol-form-fullscreen #protocolCard{
-    grid-template-columns:1fr;
-    grid-template-rows:auto auto auto minmax(0,1fr);
-    padding-left:10px !important;
-    padding-right:10px !important;
+    grid-template-columns:minmax(0,1fr) auto !important;
+    grid-template-rows:auto minmax(0,1fr);
+    gap:6px 8px !important;
+    padding:calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom)) !important;
+    background:#fff !important;
   }
-  body.protocol-form-fullscreen #protocolCard h3,
-  body.protocol-form-fullscreen #toggleProtocolBtn,
-  body.protocol-form-fullscreen #protocolCard > .small,
-  body.protocol-form-fullscreen #protocolForm{
+  body.protocol-form-fullscreen #protocolCard h3{
     grid-column:1;
+    min-height:38px;
+    font-size:15px;
+    line-height:1.18;
   }
   body.protocol-form-fullscreen #toggleProtocolBtn{
-    justify-self:stretch;
+    grid-column:2;
+    justify-self:end;
+    width:auto;
+    min-width:92px;
+    min-height:38px !important;
+    padding:0 12px !important;
+    font-size:14px !important;
+    box-shadow:none !important;
+  }
+  body.protocol-form-fullscreen #protocolCard > .small{
+    display:none !important;
+  }
+  body.protocol-form-fullscreen #protocolForm{
+    grid-column:1 / -1;
+    grid-template-columns:1fr !important;
+    gap:7px !important;
+    padding:6px 2px calc(12px + env(safe-area-inset-bottom)) !important;
+    background:#fff !important;
+  }
+  body.protocol-form-fullscreen #protocolForm h4{
+    margin:12px 0 4px !important;
+    padding-top:9px;
+    border-top:1px solid #e2e8f0;
+    font-size:14px;
+    line-height:1.2;
+  }
+  body.protocol-form-fullscreen #protocolForm .protocol-summary,
+  body.protocol-form-fullscreen #protocolForm .edit-grid,
+  body.protocol-form-fullscreen #protocolForm .checkgrid2{
+    grid-template-columns:1fr !important;
+  }
+  body.protocol-form-fullscreen #protocolForm input,
+  body.protocol-form-fullscreen #protocolForm select,
+  body.protocol-form-fullscreen #protocolForm textarea{
+    font-size:16px !important;
+    min-height:44px !important;
+  }
+  body.protocol-form-fullscreen #protocolForm textarea{
+    min-height:86px !important;
   }
   body.protocol-form-fullscreen #protocolForm .row:last-of-type{
+    position:static !important;
     grid-template-columns:1fr !important;
+    padding:8px 0 2px !important;
+    background:transparent !important;
+    backdrop-filter:none !important;
+  }
+  body.protocol-form-fullscreen #protocolForm .row:last-of-type button{
+    width:100%;
+    min-height:44px !important;
   }
 }
