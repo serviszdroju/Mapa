@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-word-matched-pdf-v400";
+const APP_BUILD_VERSION="2026-08-21-stop-status-sync-v401";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1368,7 +1368,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v400-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v401-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -7697,12 +7697,45 @@ function mapStatusRawPatchFromStatePatch(patch={},currentRaw={}){
     rawPatch["Stav pro mapu"]=active ? "Kontrola objednaná" : "";
   }
   if(Object.prototype.hasOwnProperty.call(patch,"stopped")){
-    const active=patch.stopped === true;
-    rawPatch["Stop Stav"]=active ? "ANO" : "NE";
-    if(active) rawPatch["Stav pro mapu"]="Stop Stav";
-    else if(simpleNorm(currentRaw["Stav pro mapu"]).includes("stop")) rawPatch["Stav pro mapu"]="";
+    applyStopStatusRawPatch(rawPatch,patch.stopped === true,currentRaw);
   }
   return rawPatch;
+}
+const STOP_STATUS_FLAG_KEYS=["Stop Stav","Stop stav","Stop_stav","Stop","Zdroj ve Stop Stavu","Odstaveno","Mimo provoz"];
+const STOP_STATUS_TEXT_KEYS=["Stav pro mapu","Stav_kontroly","Stav kontroly","Status"];
+const STOP_STATUS_COLOR_KEYS=["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"];
+function rawStatusTextLooksStopped(value){
+  const text=simpleNorm(value);
+  return text.includes("stop") || text.includes("mimo provoz");
+}
+function rawStatusColorLooksStopped(value){
+  const compact=simpleNorm(value).replace(/[^a-z0-9#]/g,"");
+  const cleanHex=compact.replace(/^#/,"");
+  return ["64748b","94a3b8"].includes(cleanHex) || ["seda","gray","grey"].some(word=>compact.includes(word));
+}
+function applyStopStatusRawPatch(target={},active=false,currentRaw={}){
+  STOP_STATUS_FLAG_KEYS.forEach(key=>{
+    target[key]=active ? "ANO" : "NE";
+  });
+  if(active){
+    target["Stav pro mapu"]="Stop Stav";
+    target["Stav_kontroly"]="Stop Stav";
+    target["Status"]="Stop Stav";
+    target["Barva bodu"]="#64748b";
+    target["Barva_bodu"]="#64748b";
+    return target;
+  }
+  STOP_STATUS_TEXT_KEYS.forEach(key=>{
+    if(rawStatusTextLooksStopped(currentRaw[key]) || rawStatusTextLooksStopped(target[key])){
+      target[key]="";
+    }
+  });
+  STOP_STATUS_COLOR_KEYS.forEach(key=>{
+    if(rawStatusColorLooksStopped(currentRaw[key]) || rawStatusColorLooksStopped(target[key])){
+      target[key]="";
+    }
+  });
+  return target;
 }
 function rowWithMapStatusPatch(row,patch={},firebaseDocId=""){
   if(!row || !isFirebaseUnifiedRow(row)) return row;
@@ -7837,9 +7870,11 @@ async function toggleStopFromDetail(){
   try{
     const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const existingEdit=editCache[selectedKey] || editCache[selectedSite.id] || {};
+    const currentRaw={...(selectedSite.raw || {}),...((existingEdit.rawEdits && typeof existingEdit.rawEdits==="object") ? existingEdit.rawEdits : {})};
+    const statusPatch=mapStatusRawPatchFromStatePatch({stopped},currentRaw);
     const edit={
       stopped,
-      rawEdits:{...(existingEdit.rawEdits || {}),"Stop Stav":stopped ? "ANO" : "NE"},
+      rawEdits:{...(existingEdit.rawEdits || {}),...statusPatch},
       updatedBy:currentUser.email,
       updatedAt:new Date().toISOString()
     };
@@ -7847,7 +7882,7 @@ async function toggleStopFromDetail(){
     const firebaseDocId=selectedSite.firebaseDocId || (selectedSite.raw && selectedSite.raw["Firebase_doc_id"]) || "";
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
       const mergedRaw={...(selectedSite.raw||{}), Firebase_doc_id:firebaseDocId};
-      mergedRaw["Stop Stav"]=stopped ? "ANO" : "NE";
+      Object.assign(mergedRaw,mapStatusRawPatchFromStatePatch({stopped},mergedRaw));
       if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
       await setDoc(doc(db,"sitesUnified",firebaseDocId),{
         raw:mergedRaw,
@@ -12886,13 +12921,9 @@ function applyProtocolFieldsToRaw(raw,protocol={}){
     out["Dostupnost"]=availabilitySummary;
   }
   if(state==="stop"){
-    out["Stop Stav"]="ANO";
-    out["Stop stav"]="ANO";
-    out["Stav pro mapu"]="Stop Stav";
+    applyStopStatusRawPatch(out,true,out);
   }else if(state==="ok"){
-    out["Stop Stav"]="NE";
-    out["Stop stav"]="NE";
-    if(simpleNorm(out["Stav pro mapu"]).includes("stop")) out["Stav pro mapu"]="";
+    applyStopStatusRawPatch(out,false,out);
   }
   appendProtocolNoteToRepairHistory(out,protocol);
   return out;
@@ -12913,7 +12944,7 @@ function applyProtocolFieldsToSite(protocol,site=selectedSite){
 }
 
 function clearManualStatusRaw(raw={}){
-  raw["Stop Stav"]="NE";
+  applyStopStatusRawPatch(raw,false,raw);
   raw["Kontrola objednaná"]="NE";
   raw["Objednáno"]="NE";
   raw["Objednaná oprava"]="NE";

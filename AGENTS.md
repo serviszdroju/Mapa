@@ -596,4 +596,6 @@ Current performance phase 260 decision: build gallery folder fingerprints, folde
 
 Current protocol export decision: generated PDF protocols must mirror the Word export layout, typography, table structure, spacing, labels, signatures, and field order as closely as the browser renderer allows. The internal "Předán protokol ke zpracování" handoff state is UI/history workflow metadata and must not be rendered into exported Word/PDF protocols or sent customer attachments.
 
+Current stop-status sync decision: `Stop Stav` must bridge both ways with the legacy `karolopejlo.github.io/Mapa` site the same way as `Kontrola objednaná`. Toggling stop on/off must write explicit yes/no values to all stop aliases (`Stop Stav`, `Stop stav`, `Stop_stav`, `Stop`, `Zdroj ve Stop Stavu`, `Odstaveno`, `Mimo provoz`) and clear stop-only map/status/color fields when turning it off, so refreshes cannot resurrect a stale stop state from `Stav pro mapu` or legacy `siteEdits`.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
