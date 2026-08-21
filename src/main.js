@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-protocol-handoff-persist-v397";
+const APP_BUILD_VERSION="2026-08-21-ordered-control-live-status-v398";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1368,7 +1368,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v397-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v398-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2548,8 +2548,8 @@ function stopFlagFromRaw(raw){
     const v=get(raw||{},k);
     if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("stop") || simpleNorm(v).includes("mimo provoz");
   }
-  const stav=first(raw||{},["Stav","Stav_kontroly","Stav pro mapu","Status"]);
-  return simpleNorm(stav).includes("stop") || simpleNorm(stav).includes("mimo provoz");
+  const text=mapStatusRawText(raw);
+  return text.includes("stop") || text.includes("mimo provoz") || mapStatusColorMatches(raw,["64748b","94a3b8"],["seda","gray","grey"]);
 }
 const MAP_STATUS_RAW_KEYS=[
   "Kontrola objednaná",
@@ -2578,7 +2578,10 @@ const MAP_STATUS_RAW_KEYS=[
   "Stav pro mapu",
   "Status",
   "Barva bodu",
-  "Barva_bodu"
+  "Barva_bodu",
+  "Barva",
+  "Marker color",
+  "MarkerColor"
 ];
 function restoreFirebaseMapStatusRawValues(target={},source={}){
   const out=target || {};
@@ -2589,12 +2592,34 @@ function restoreFirebaseMapStatusRawValues(target={},source={}){
   });
   return out;
 }
+function mapStatusRawText(raw={}){
+  return MAP_STATUS_RAW_KEYS
+    .map(key=>get(raw || {},key))
+    .filter(value=>safe(value))
+    .map(simpleNorm)
+    .join(" | ");
+}
+function mapStatusColorValue(raw={}){
+  return simpleNorm(first(raw || {},["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"]));
+}
+function mapStatusColorMatches(raw={},hexValues=[],words=[]){
+  const color=mapStatusColorValue(raw);
+  if(!color) return false;
+  const compact=color.replace(/[^a-z0-9#]/g,"");
+  const cleanHex=compact.replace(/^#/,"");
+  return hexValues.includes(cleanHex) || words.some(word=>compact.includes(word));
+}
+function mapStatusRawFingerprint(raw={}){
+  return MAP_STATUS_RAW_KEYS
+    .map(key=>safe(get(raw || {},key)))
+    .map(value=>`${value.length}:${value}`)
+    .join("\u001e");
+}
 function orderedFlagFromRaw(raw){
   const explicit=yesNoFlagFromRaw(raw||{},["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"]);
   if(explicit!==null) return explicit;
-  const stav=first(raw||{},["Stav","Stav_kontroly","Stav kontroly","Stav pro mapu","Status"]);
-  const text=simpleNorm(stav);
-  return text.includes("objednan") && !text.includes("oprava");
+  const text=mapStatusRawText(raw);
+  return (text.includes("objednan") && !text.includes("oprava")) || mapStatusColorMatches(raw,["eab308","facc15"],["zluta","yellow"]);
 }
 function repairOrderFlagFromRaw(raw){
   const keys=["Objednaná oprava","Objednana oprava","Oprava objednaná","Oprava objednana","Objednáno oprava","Objednano oprava","Repair ordered"];
@@ -2602,13 +2627,12 @@ function repairOrderFlagFromRaw(raw){
     const v=get(raw||{},k);
     if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("objednan");
   }
-  const stav=first(raw||{},["Stav","Stav_kontroly","Stav kontroly","Stav pro mapu","Status"]);
   const text=[
-    stav,
+    mapStatusRawText(raw),
     get(raw||{},"Poznámky"),
     get(raw||{},"Poznámky_mapy")
   ].map(simpleNorm).join(" | ");
-  return text.includes("objednana oprava") || text.includes("objednana servisni oprava") || text.includes("oprava objednana");
+  return text.includes("objednana oprava") || text.includes("objednana servisni oprava") || text.includes("oprava objednana") || mapStatusColorMatches(raw,["2563eb","3b82f6"],["modra","blue"]);
 }
 const APP_REGION_OPTIONS = [
   "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
@@ -2855,16 +2879,7 @@ function rowScheduleFingerprint(r){
     r && r.ordered,
     r && r.repairOrdered,
     r && r.noOrder,
-    raw["Stop Stav"],
-    raw["Stop stav"],
-    raw["Stop_stav"],
-    raw["Kontrola objednaná"],
-    raw["Kontrola_objednaná"],
-    raw["Objednáno"],
-    raw["Objednano"],
-    raw["Objednaná oprava"],
-    raw["Objednana oprava"],
-    raw["Oprava objednaná"],
+    mapStatusRawFingerprint(raw),
     first(raw,LAST_CHECK_KEYS),
     first(raw,NEXT_CHECK_KEYS),
     raw["Hlídáme sami termín"],
@@ -4418,7 +4433,7 @@ function filtered(){
   const compactQuery=qn ? qn.replace(/\s+/g,"") : "";
 
   const result=rows.filter(r=>{
-    const st=r._statusText || statusText(r);
+    const st=s ? statusText(r) : (r._statusText || statusText(r));
 
     const okQ = !qn || rowMatchesSearch(r,qn,compactQuery);
     const okK = !kn || (r._regionNorm || regionTextNorm(rowRegion(r))) === kn;
@@ -7624,10 +7639,12 @@ async function saveAllDataEdits(){
       nextRows[index]=updated;
       rows=nextRows;
       window.rows=rows;
+      markRowsDirty();
       selectedSite=updated;
     }else{
       rows=rows.map(r=>matchesSelectedEditRow(r) ? applyDataEditToRow(r) : r);
       window.rows=rows;
+      markRowsDirty();
       selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyDataEditToRow(selectedSite);
     }
     saveFirebaseRowsCacheForRows(rows);
@@ -7706,10 +7723,12 @@ function updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,fallbackSite
     nextRows[index]=updated;
     rows=nextRows;
     window.rows=rows;
+    markRowsDirty();
     return updated;
   }
   rows=rows.map(row=>detailKey(row)===selectedKey ? {...applyEditToRow(rowWithMapStatusPatch(row,patch,firebaseDocId)),...patch} : row);
   window.rows=rows;
+  markRowsDirty();
   return (lookupKey && findRowByAnyId(lookupKey)) || (fallbackSite ? {...fallbackSite,...patch} : null);
 }
 
