@@ -152,8 +152,8 @@
   gap:4px;
   margin:10px 0 12px;
   padding:4px;
-  background:#e5e7eb;
-  border:1px solid var(--border);
+  background:#94a3b8;
+  border:1px solid #94a3b8;
   border-radius:8px;
   box-shadow:none;
 }
@@ -163,8 +163,8 @@
   padding:4px 3px;
   border:1px solid transparent;
   border-radius:6px;
-  background:#dbe1ea;
-  color:#475569;
+  background:#64748b;
+  color:#fff;
   font-weight:800;
   font-size:11px;
   line-height:1.05;
@@ -172,13 +172,13 @@
   cursor:pointer;
 }
 .detail-tab:hover{
-  background:#edf1f6;
-  color:#0f172a;
+  background:#475569;
+  color:#fff;
 }
 .detail-tab.active{
   background:#fff;
   color:#0f172a;
-  border-color:#cbd5e1;
+  border-color:#fff;
   box-shadow:none;
 }
 .detail-tab-hidden{

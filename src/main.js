@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-legacy-sync-protocol-mail-v393";
+const APP_BUILD_VERSION="2026-08-21-legacy-sync-map-reopen-v394";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v393-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v394-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2550,6 +2550,13 @@ function stopFlagFromRaw(raw){
   const stav=first(raw||{},["Stav","Stav_kontroly","Stav pro mapu","Status"]);
   return simpleNorm(stav).includes("stop") || simpleNorm(stav).includes("mimo provoz");
 }
+function orderedFlagFromRaw(raw){
+  const explicit=yesNoFlagFromRaw(raw||{},["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"]);
+  if(explicit!==null) return explicit;
+  const stav=first(raw||{},["Stav","Stav_kontroly","Stav kontroly","Stav pro mapu","Status"]);
+  const text=simpleNorm(stav);
+  return text.includes("objednan") && !text.includes("oprava");
+}
 function repairOrderFlagFromRaw(raw){
   const keys=["Objednaná oprava","Objednana oprava","Oprava objednaná","Oprava objednana","Objednáno oprava","Objednano oprava","Repair ordered"];
   for(const k of keys){
@@ -2805,10 +2812,20 @@ function rowScheduleFingerprint(r){
   return [
     r && r.posledni,
     r && r.pristi,
+    r && r.stopped,
     r && r.ordered,
     r && r.repairOrdered,
-    r && r.stopped,
     r && r.noOrder,
+    raw["Stop Stav"],
+    raw["Stop stav"],
+    raw["Stop_stav"],
+    raw["Kontrola objednaná"],
+    raw["Kontrola_objednaná"],
+    raw["Objednáno"],
+    raw["Objednano"],
+    raw["Objednaná oprava"],
+    raw["Objednana oprava"],
+    raw["Oprava objednaná"],
     first(raw,LAST_CHECK_KEYS),
     first(raw,NEXT_CHECK_KEYS),
     raw["Hlídáme sami termín"],
@@ -2841,7 +2858,11 @@ function ensureRowScheduleCache(r){
   let status="OK / ostatní";
   let markerColor="#16a34a";
   let priority=10;
-  if(r.repairOrdered === true){
+  if(r.stopped === true){
+    status="Stop Stav";
+    markerColor="#64748b";
+    priority=80;
+  }else if(r.repairOrdered === true){
     status="Objednaná oprava";
     markerColor="#2563eb";
     priority=45;
@@ -2849,10 +2870,6 @@ function ensureRowScheduleCache(r){
     status="Kontrola objednaná";
     markerColor="#eab308";
     priority=50;
-  }else if(r.stopped === true){
-    status="Stop Stav";
-    markerColor="#64748b";
-    priority=30;
   }else if(Number.isFinite(days) && days < 0){
     status="Propadlá kontrola";
     markerColor="#dc2626";
@@ -3015,7 +3032,12 @@ function editCacheKeysForRow(r){
     raw["Původní klíč adresy"],
     raw["Původní_klic_adresy"],
     raw["Puvodni ID_mista"],
-    raw["Puvodni_klic_adresy"]
+    raw["Puvodni_klic_adresy"],
+    raw["Název"],
+    raw["Adresa / umístění"],
+    raw["Adresa_GPS"],
+    raw["Umístění"],
+    raw["Původní adresa / umístění"]
   ].forEach(add);
   return keys;
 }
@@ -3044,9 +3066,16 @@ function legacyEditCacheKeysFromEntry(docId,entry={}){
     entry.siteId,
     entry.siteLegacyId,
     entry.siteKey,
+    entry.siteName,
+    entry.siteAddress,
+    entry.place,
     rawEdits["Firebase_doc_id"],
     rawEdits["Klíč_adresy"],
-    rawEdits["ID_mista"]
+    rawEdits["ID_mista"],
+    rawEdits["Název"],
+    rawEdits["Adresa / umístění"],
+    rawEdits["Adresa_GPS"],
+    rawEdits["Umístění"]
   ].forEach(add);
   if(Array.isArray(entry.siteKeys)) entry.siteKeys.forEach(add);
   return keys;
@@ -3116,7 +3145,7 @@ function applyEditToRow(r){
     lat:Number.isFinite(lat) ? lat : r.lat,
     lon:Number.isFinite(lon) ? lon : r.lon,
     gpsAddress:e.gpsAddress || r.gpsAddress,
-    ordered:e.ordered !== undefined ? e.ordered === true : r.ordered,
+    ordered:e.ordered !== undefined ? e.ordered === true : orderedFlagFromRaw(updatedRaw),
     repairOrdered:e.repairOrdered !== undefined ? e.repairOrdered === true : repairOrderFlagFromRaw(updatedRaw),
     stopped:e.stopped !== undefined ? e.stopped === true : stopFlagFromRaw(updatedRaw),
     noOrder:rawWatch !== null ? rawWatch === true : (e.noOrder === true ? true : e.noOrder === false ? false : isNoOrderSite({...r, raw:updatedRaw})),
@@ -3150,7 +3179,7 @@ function normalize(data){
       dni:first(raw,["Dní do kontroly","Dní_do_kontroly"]),
       stav:first(raw,["Stav_kontroly","Stav pro mapu"]),
       barva:first(raw,["Barva bodu","Barva_bodu"]),
-      ordered:(first(raw,["Kontrola objednaná","Kontrola_objednaná","Objednáno","Objednano"]).toLowerCase()==="ano" || (first(raw,["Stav pro mapu"]).toLowerCase().includes("objednan") && !simpleNorm(first(raw,["Stav pro mapu"])).includes("oprava"))),
+      ordered:orderedFlagFromRaw(raw),
       repairOrdered:repairOrderFlagFromRaw(raw),
       stopped:stopFlagFromRaw(raw),
       noOrder:explicitWatchSelfFromRaw(raw)===true
@@ -5606,19 +5635,24 @@ function mapMarkerSignature(group,fill){
 function attachLazyMarkerPopup(marker,group){
   marker.on("click",event=>{
     const rowsInGroup=(group && Array.isArray(group.rows)) ? group.rows : [];
+    try{
+      if(event && typeof L!=="undefined" && L.DomEvent) L.DomEvent.stop(event);
+    }catch(_e){}
     if(rowsInGroup.length<=1){
       const row=rowsInGroup[0] || groupPrimaryRow(group);
       const key=row ? detailKey(row) : "";
       if(key){
-        try{
-          if(event && typeof L!=="undefined" && L.DomEvent) L.DomEvent.stop(event);
-        }catch(_e){}
         window.openDetailById(key);
         try{ if(map && typeof map.closePopup==="function") map.closePopup(); }catch(_e){}
         return;
       }
     }
-    marker.bindPopup(groupPopupHtml(group),sourcePopupOptions(group)).openPopup();
+    try{
+      if(marker.getPopup && marker.getPopup()) marker.unbindPopup();
+    }catch(_e){}
+    resetSourcePopupActivationGuard();
+    marker.bindPopup(groupPopupHtml(group),sourcePopupOptions(group));
+    marker.openPopup();
   });
   return marker;
 }
@@ -6965,10 +6999,17 @@ function shouldSkipLegacySiteEdits(site=selectedSite){
   return false;
 }
 
+function legacySiteEditDocKey(value){
+  const key=safe(value);
+  if(!key || key.includes("/")) return "";
+  return key;
+}
+
 async function saveLegacySiteEditIfNeeded(selectedKey,edit,site=selectedSite){
   if(shouldSkipLegacySiteEdits(site)) return false;
   const {doc,setDoc}=fb.fsMod;
   const identity=siteRecordIdentity(site);
+  const raw=(site && site.raw) || {};
   const payload={
     ...(edit || {}),
     firebaseDocId:identity.firebaseDocId || "",
@@ -6990,8 +7031,13 @@ async function saveLegacySiteEditIfNeeded(selectedKey,edit,site=selectedSite){
     identity.siteLegacyId,
     identity.siteDocId,
     identity.firebaseDocId,
-    ...(identity.siteKeys || [])
-  ]).slice(0,10);
+    ...(identity.siteKeys || []),
+    raw["Název"],
+    raw["Adresa / umístění"],
+    raw["Adresa_GPS"],
+    raw["Umístění"],
+    raw["Původní adresa / umístění"]
+  ].map(legacySiteEditDocKey)).slice(0,20);
   for(const key of keys){
     await setDoc(doc(db,"siteEdits",key),payload,{merge:true});
     setLegacyEditCacheEntry(key,payload);
@@ -13589,6 +13635,7 @@ function mainProtocolHistoryVisibleRows(items=[]){
     const processed=isMainProtocolProcessed(item);
     const workflow=mainProtocolWorkflowState(item);
     const workflowLabel=mainProtocolWorkflowLabel(item);
+    const showProcessedControl=processed || workflow==="handoff";
     const sourceState=protocolSourceStateLabel(item);
     const sourceTest=protocolSourceTestMethodLabel(item.sourceTestMethod || item.testMethod);
     let meta="";
@@ -13608,6 +13655,7 @@ function mainProtocolHistoryVisibleRows(items=[]){
       owner,
       processed ? "processed" : "open",
       workflow,
+      showProcessedControl ? "processed-control" : "no-processed-control",
       workflowLabel,
       sourceState,
       sourceTest,
@@ -13615,7 +13663,7 @@ function mainProtocolHistoryVisibleRows(items=[]){
     ];
     let signature="";
     for(const value of signatureParts) signature+=`${String(value).length}:${value}`;
-    rows.push({id,title,key,meta,processed,workflow,workflowLabel,signature});
+    rows.push({id,title,key,meta,processed,workflow,workflowLabel,showProcessedControl,signature});
   }
   return rows;
 }
@@ -13643,26 +13691,29 @@ function renderMainProtocolHistoryRows(list,items=[]){
   if(mainProtocolHistoryRenderSignature===renderSignature && list.childElementCount) return;
   mainProtocolHistoryRenderSignature=renderSignature;
   const fragment=document.createDocumentFragment();
-  visibleRows.forEach(({id,title,key,meta,processed,workflow,workflowLabel})=>{
+  visibleRows.forEach(({id,title,key,meta,processed,workflow,workflowLabel,showProcessedControl})=>{
     const row=document.createElement("div");
     row.className=`main-history-row ${workflow || (processed ? "processed" : "idle")}`.trim();
     const top=document.createElement("div");
     top.className="main-history-row-main";
-    const processedLabel=document.createElement("label");
-    processedLabel.className="main-history-processed";
-    const checkbox=document.createElement("input");
-    checkbox.type="checkbox";
-    checkbox.checked=processed;
-    checkbox.disabled=!id || !canViewAllMainProtocolHistory();
-    checkbox.dataset.mainHistoryProcessed=id;
-    const processedText=document.createElement("span");
-    processedText.textContent="Zpracováno";
-    processedLabel.append(checkbox,processedText);
     const button=document.createElement("button");
     button.type="button";
     button.dataset.historySiteKey=key;
     button.textContent=title;
-    top.append(processedLabel,button);
+    if(showProcessedControl){
+      const processedLabel=document.createElement("label");
+      processedLabel.className="main-history-processed";
+      const checkbox=document.createElement("input");
+      checkbox.type="checkbox";
+      checkbox.checked=processed;
+      checkbox.disabled=!id || !canViewAllMainProtocolHistory();
+      checkbox.dataset.mainHistoryProcessed=id;
+      const processedText=document.createElement("span");
+      processedText.textContent="Zpracováno";
+      processedLabel.append(checkbox,processedText);
+      top.append(processedLabel);
+    }
+    top.append(button);
     row.appendChild(top);
     if(meta){
       const small=document.createElement("small");

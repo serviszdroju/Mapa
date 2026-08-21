@@ -38,18 +38,16 @@ aside{
 }
 .sidebar-brand{
   margin:3px 0 10px;
-  height:104px;
   padding:0;
-  overflow:hidden;
   background:transparent;
   border:0;
   border-radius:0;
 }
 .sidebar-logo-img{
-  width:100%;
-  height:100%;
-  max-height:none;
-  object-fit:cover;
+  width:min(220px,85%);
+  height:auto;
+  max-height:96px;
+  object-fit:contain;
   object-position:center;
   filter:drop-shadow(0 8px 14px rgba(15,23,42,.10));
 }
@@ -411,12 +409,12 @@ button:active{transform:translateY(0)}
   box-shadow:0 12px 26px rgba(37,99,235,.12);
 }
 .source-chooser-button.active{
-  background:linear-gradient(180deg,#475569,#334155);
-  color:#fff;
-  border-color:#334155;
-  box-shadow:0 14px 30px rgba(15,23,42,.22);
+  background:#dbeafe;
+  color:#0f172a;
+  border-color:#60a5fa;
+  box-shadow:0 0 0 2px rgba(37,99,235,.16),0 10px 22px rgba(37,99,235,.16);
 }
-.source-chooser-button.active small{color:#e2e8f0}
+.source-chooser-button.active small{color:#334155}
 .source-chooser-button.stop-source{
   background:#fee2e2;
   color:#991b1b;
@@ -429,12 +427,12 @@ button:active{transform:translateY(0)}
 }
 .source-chooser-button.stop-source small{color:#991b1b}
 .source-chooser-button.stop-source.active{
-  background:linear-gradient(180deg,#dc2626,#991b1b);
-  color:#fff;
-  border-color:#991b1b;
-  box-shadow:0 16px 32px rgba(153,27,27,.24);
+  background:#fecaca;
+  color:#7f1d1d;
+  border-color:#ef4444;
+  box-shadow:0 0 0 2px rgba(220,38,38,.16),0 10px 22px rgba(153,27,27,.16);
 }
-.source-chooser-button.stop-source.active small{color:#fee2e2}
+.source-chooser-button.stop-source.active small{color:#7f1d1d}
 .source-chooser-button[data-add-source]{
   background:#f8fafc;
   color:#334155;
@@ -454,9 +452,9 @@ button:active{transform:translateY(0)}
   gap:4px;
   margin:7px 0 8px;
   padding:4px;
-  border:1px solid #d7dee8;
+  border:1px solid #94a3b8;
   border-radius:8px;
-  background:#e5e7eb;
+  background:#94a3b8;
   box-shadow:none;
 }
 .detail-tab{
@@ -464,21 +462,21 @@ button:active{transform:translateY(0)}
   min-height:29px;
   border-radius:6px;
   border:1px solid transparent;
-  color:#475569;
-  background:#dbe1ea;
+  color:#fff;
+  background:#64748b;
   font-size:11px;
   line-height:1.05;
   padding:4px 3px;
   white-space:nowrap;
 }
 .detail-tab:hover{
-  background:#edf1f6;
-  color:#334155;
+  background:#475569;
+  color:#fff;
 }
 .detail-tab.active{
   background:#fff;
   color:#0f172a;
-  border-color:#cbd5e1;
+  border-color:#fff;
   box-shadow:none;
 }
 .control-dates-strong{

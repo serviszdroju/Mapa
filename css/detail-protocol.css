@@ -610,6 +610,9 @@
   gap:8px;
   align-items:start;
 }
+.main-history-row-main button:only-child{
+  grid-column:1/-1;
+}
 .main-history-processed{
   display:flex;
   align-items:center;

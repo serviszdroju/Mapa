@@ -14,7 +14,8 @@ export default defineConfig({
         const patched=html
           .replace(/<link rel="manifest" href="\.\/assets\/manifest-[^"]+\.webmanifest">/, '<link rel="manifest" href="./manifest.webmanifest">')
           .replace(/<link rel="icon" href="\.\/assets\/szz-app-icon-192-[^"]+\.png" type="image\/png">/, '<link rel="icon" href="./szz-app-icon-192.png" type="image/png">')
-          .replace(/<link rel="apple-touch-icon" href="\.\/assets\/szz-app-icon-192-[^"]+\.png">/, '<link rel="apple-touch-icon" href="./szz-app-icon-192.png">');
+          .replace(/<link rel="apple-touch-icon" href="\.\/assets\/szz-app-icon-192-[^"]+\.png">/, '<link rel="apple-touch-icon" href="./szz-app-icon-192.png">')
+          .replace(/src="\.\/assets\/szz-logo-display-[^"]+\.png"/g, 'src="./szz-logo-display.png"');
         if(patched!==html) writeFileSync(indexFile,patched);
       },
     },
