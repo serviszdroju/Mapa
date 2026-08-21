@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-protocol-pdf-note-v402";
+const APP_BUILD_VERSION="2026-08-21-map-status-parity-v403";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1368,7 +1368,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v402-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v403-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2548,8 +2548,8 @@ function stopFlagFromRaw(raw){
     const v=get(raw||{},k);
     if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("stop") || simpleNorm(v).includes("mimo provoz");
   }
-  const text=mapStatusRawText(raw);
-  return text.includes("stop") || text.includes("mimo provoz") || mapStatusColorMatches(raw,["64748b","94a3b8"],["seda","gray","grey"]);
+  const stav=first(raw||{},["Stav","Stav_kontroly","Stav pro mapu","Status"]);
+  return simpleNorm(stav).includes("stop") || simpleNorm(stav).includes("mimo provoz");
 }
 const MAP_STATUS_RAW_KEYS=[
   "Kontrola objednaná",
@@ -2619,7 +2619,7 @@ function orderedFlagFromRaw(raw){
   const explicit=yesNoFlagFromRaw(raw||{},["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"]);
   if(explicit!==null) return explicit;
   const text=mapStatusRawText(raw);
-  return (text.includes("objednan") && !text.includes("oprava")) || mapStatusColorMatches(raw,["eab308","facc15"],["zluta","yellow"]);
+  return text.includes("objednan") && !text.includes("oprava");
 }
 function repairOrderFlagFromRaw(raw){
   const keys=["Objednaná oprava","Objednana oprava","Oprava objednaná","Oprava objednana","Objednáno oprava","Objednano oprava","Repair ordered"];
@@ -2632,7 +2632,7 @@ function repairOrderFlagFromRaw(raw){
     get(raw||{},"Poznámky"),
     get(raw||{},"Poznámky_mapy")
   ].map(simpleNorm).join(" | ");
-  return text.includes("objednana oprava") || text.includes("objednana servisni oprava") || text.includes("oprava objednana") || mapStatusColorMatches(raw,["2563eb","3b82f6"],["modra","blue"]);
+  return text.includes("objednana oprava") || text.includes("objednana servisni oprava") || text.includes("oprava objednana");
 }
 const APP_REGION_OPTIONS = [
   "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
@@ -3251,22 +3251,19 @@ window.applySiteEditToRow = applyEditToRow;
 async function loadEdits(options={}){
   const renderAfter=options.renderAfter!==false;
   if(!firebaseReady || !db) return;
+  if(firebaseUnifiedPrimary){
+    editCache={};
+    const st=document.getElementById("editStatus");
+    if(st && /Úpravy se nepodařilo|Uložené úpravy/.test(st.textContent || "")) st.textContent="";
+    return;
+  }
   try{
     const {collection,getDocs}=fb.fsMod;
     const snap=await getDocs(collection(db,"siteEdits"));
     editCache={};
     snap.forEach(d=>setLegacyEditCacheEntry(d.id,d.data()));
-    if(firebaseUnifiedPrimary){
-      if(rows.length){
-        rows=rows.map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
-        window.rows=rows;
-        markRowsDirty();
-        if(renderAfter) render();
-      }
-    }else{
-      rows=csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
-      if(renderAfter) render();
-    }
+    rows=csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
+    if(renderAfter) render();
     const st=document.getElementById("editStatus");
     if(st) st.textContent="Uložené úpravy načteny.";
   }catch(e){
@@ -4787,6 +4784,32 @@ function groupColor(groupRows){
   const rep=groupRepresentative(groupRows);
   return rep ? color(rep) : "#16a34a";
 }
+function mapStatusParitySnapshot(inputRows=rows){
+  const groups=groupRowsByPlace(inputRows || []);
+  return groups
+    .filter(groupHasUsableGps)
+    .map(group=>{
+      const rep=groupPrimaryRow(group);
+      return {
+        key:String(group.key || ""),
+        label:String(group.label || ""),
+        lat:Number.isFinite(group.lat) ? Number(group.lat.toFixed(6)) : null,
+        lon:Number.isFinite(group.lon) ? Number(group.lon.toFixed(6)) : null,
+        count:(group.rows || []).length,
+        color:groupColor(group.rows || []),
+        status:rep ? statusText(rep) : "",
+        representative:rep ? detailKey(rep) : "",
+        sources:(group.rows || []).map(row=>({
+          key:detailKey(row),
+          source:siteSourceLabel(row),
+          color:color(row),
+          status:statusText(row)
+        }))
+      };
+    })
+    .sort((a,b)=>a.key.localeCompare(b.key,"cs",{sensitivity:"base"}));
+}
+window.szzMapStatusParitySnapshot=mapStatusParitySnapshot;
 function markerRowSignature(row){
   if(!row) return "";
   const detail=detailKey(row);
@@ -7687,14 +7710,48 @@ function mapStatusRawPatchFromStatePatch(patch={},currentRaw={}){
   if(Object.prototype.hasOwnProperty.call(patch,"repairOrdered")){
     const active=patch.repairOrdered === true;
     rawPatch["Objednaná oprava"]=active ? "ANO" : "NE";
-    if(active) rawPatch["Stav pro mapu"]="Objednaná oprava";
+    rawPatch["Objednana oprava"]=active ? "ANO" : "NE";
+    rawPatch["Oprava objednaná"]=active ? "ANO" : "NE";
+    rawPatch["Oprava objednana"]=active ? "ANO" : "NE";
+    if(active){
+      rawPatch["Stav pro mapu"]="Objednaná oprava";
+      rawPatch["Stav_kontroly"]="Objednaná oprava";
+      rawPatch["Status"]="Objednaná oprava";
+      rawPatch["Barva bodu"]="#2563eb";
+      rawPatch["Barva_bodu"]="#2563eb";
+    }
     else if(simpleNorm(currentRaw["Stav pro mapu"]).includes("oprava")) rawPatch["Stav pro mapu"]="";
+    if(!active){
+      ["Stav_kontroly","Stav kontroly","Status"].forEach(key=>{
+        if(simpleNorm(currentRaw[key]).includes("oprava")) rawPatch[key]="";
+      });
+      ["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"].forEach(key=>{
+        if(mapStatusColorMatches({[key]:currentRaw[key]},["2563eb","3b82f6"],["modra","blue"])) rawPatch[key]="";
+      });
+    }
   }
   if(Object.prototype.hasOwnProperty.call(patch,"ordered")){
     const active=patch.ordered === true;
     rawPatch["Kontrola objednaná"]=active ? "ANO" : "NE";
+    rawPatch["Kontrola_objednaná"]=active ? "ANO" : "NE";
+    rawPatch["Kontrola objednana"]=active ? "ANO" : "NE";
     rawPatch["Objednáno"]=active ? "ANO" : "NE";
+    rawPatch["Objednano"]=active ? "ANO" : "NE";
     rawPatch["Stav pro mapu"]=active ? "Kontrola objednaná" : "";
+    if(active){
+      rawPatch["Stav_kontroly"]="Kontrola objednaná";
+      rawPatch["Status"]="Kontrola objednaná";
+      rawPatch["Barva bodu"]="#eab308";
+      rawPatch["Barva_bodu"]="#eab308";
+    }else{
+      ["Stav_kontroly","Stav kontroly","Status"].forEach(key=>{
+        const text=simpleNorm(currentRaw[key]);
+        if(text.includes("objednan") && !text.includes("oprava")) rawPatch[key]="";
+      });
+      ["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"].forEach(key=>{
+        if(mapStatusColorMatches({[key]:currentRaw[key]},["eab308","facc15"],["zluta","yellow"])) rawPatch[key]="";
+      });
+    }
   }
   if(Object.prototype.hasOwnProperty.call(patch,"stopped")){
     applyStopStatusRawPatch(rawPatch,patch.stopped === true,currentRaw);
@@ -7776,9 +7833,11 @@ async function toggleRepairFromDetail(){
   try{
     const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const existingEdit=editCache[selectedKey] || editCache[selectedSite.id] || {};
+    const currentRaw={...(selectedSite.raw || {}),...((existingEdit.rawEdits && typeof existingEdit.rawEdits==="object") ? existingEdit.rawEdits : {})};
+    const statusPatch=mapStatusRawPatchFromStatePatch({repairOrdered},currentRaw);
     const edit={
       repairOrdered,
-      rawEdits:{...(existingEdit.rawEdits || {}),"Objednaná oprava":repairOrdered ? "ANO" : "NE"},
+      rawEdits:{...(existingEdit.rawEdits || {}),...statusPatch},
       updatedBy:currentUser.email,
       updatedAt:new Date().toISOString()
     };
@@ -7786,8 +7845,7 @@ async function toggleRepairFromDetail(){
     const firebaseDocId=selectedSite.firebaseDocId || (selectedSite.raw && selectedSite.raw["Firebase_doc_id"]) || "";
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
       const mergedRaw={...(selectedSite.raw||{}), Firebase_doc_id:firebaseDocId};
-      mergedRaw["Objednaná oprava"]=repairOrdered ? "ANO" : "NE";
-      if(!repairOrdered && simpleNorm(mergedRaw["Stav pro mapu"]).includes("oprava")) mergedRaw["Stav pro mapu"]="";
+      Object.assign(mergedRaw,mapStatusRawPatchFromStatePatch({repairOrdered},mergedRaw));
       if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
       await setDoc(doc(db,"sitesUnified",firebaseDocId),{
         raw:mergedRaw,
@@ -7820,14 +7878,11 @@ async function toggleOrderedFromDetail(){
   try{
     const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const existingEdit=editCache[selectedKey] || editCache[selectedSite.id] || {};
+    const currentRaw={...(selectedSite.raw || {}),...((existingEdit.rawEdits && typeof existingEdit.rawEdits==="object") ? existingEdit.rawEdits : {})};
+    const statusPatch=mapStatusRawPatchFromStatePatch({ordered},currentRaw);
     const edit={
       ordered,
-      rawEdits:{
-        ...(existingEdit.rawEdits || {}),
-        "Kontrola objednaná":ordered ? "ANO" : "NE",
-        "Objednáno":ordered ? "ANO" : "NE",
-        "Stav pro mapu":ordered ? "Kontrola objednaná" : ""
-      },
+      rawEdits:{...(existingEdit.rawEdits || {}),...statusPatch},
       updatedBy:currentUser.email,
       updatedAt:new Date().toISOString()
     };
@@ -7835,9 +7890,7 @@ async function toggleOrderedFromDetail(){
     const firebaseDocId=selectedSite.firebaseDocId || (selectedSite.raw && selectedSite.raw["Firebase_doc_id"]) || "";
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
       const mergedRaw={...(selectedSite.raw||{}), Firebase_doc_id:firebaseDocId};
-      mergedRaw["Kontrola objednaná"]=ordered ? "ANO" : "NE";
-      mergedRaw["Objednáno"]=ordered ? "ANO" : "NE";
-      mergedRaw["Stav pro mapu"]=ordered ? "Kontrola objednaná" : "";
+      Object.assign(mergedRaw,mapStatusRawPatchFromStatePatch({ordered},mergedRaw));
       if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
       await setDoc(doc(db,"sitesUnified",firebaseDocId),{
         raw:mergedRaw,
