@@ -1,4 +1,4 @@
-const DETAIL_TAB_NAMES=["data","protocol","gallery","document"];
+const DETAIL_TAB_NAMES=["data","protocol","gallery","attachments","document"];
 
 function setDetailTab(tabName,options={}){
   const target=DETAIL_TAB_NAMES.includes(tabName) ? tabName : "data";

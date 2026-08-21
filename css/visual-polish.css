@@ -36,10 +36,21 @@ aside{
   max-width:320px;
   padding:10px 10px 14px;
 }
-.sidebar-brand{margin:3px 0 10px}
+.sidebar-brand{
+  margin:3px 0 10px;
+  height:104px;
+  padding:0;
+  overflow:hidden;
+  background:#e5e7eb;
+  border:1px solid #d1d5db;
+  border-radius:10px;
+}
 .sidebar-logo-img{
-  width:min(178px,72%);
-  max-height:72px;
+  width:100%;
+  height:100%;
+  max-height:none;
+  object-fit:contain;
+  object-position:center;
   filter:drop-shadow(0 8px 14px rgba(15,23,42,.10));
 }
 .app-tools{margin:2px 0 4px}
