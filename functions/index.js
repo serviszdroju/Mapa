@@ -7,7 +7,6 @@ const SMTP_PORT = defineSecret("SMTP_PORT");
 const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
 
-const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
 const DEFAULT_MAIL_SUBJECT = "Protokol zkoušky provozuschopnosti záložního zdroje";
 const MAX_ATTACHMENT_BYTES = 14 * 1024 * 1024;
@@ -16,17 +15,18 @@ function stringValue(value) {
   return String(value || "").trim();
 }
 
-function cleanFileName(value, fallbackExtension) {
+function cleanFileName(value) {
   const name = stringValue(value).replace(/[\\/:*?"<>|]/g, "-").slice(0, 180);
-  const extension = fallbackExtension === ".docx" ? ".docx" : ".pdf";
-  return name.toLowerCase().endsWith(extension) ? name : `protokol${extension}`;
+  if (!name) return "protokol.pdf";
+  if (name.toLowerCase().endsWith(".pdf")) return name;
+  if (name.toLowerCase().endsWith(".docx")) return `${name.slice(0, -5)}.pdf`;
+  return `${name}.pdf`;
 }
 
-function attachmentMime(data) {
-  const requested = stringValue(data.contentType || data.mimeType).toLowerCase();
-  const name = stringValue(data.fileName).toLowerCase();
-  if (requested === DOCX_MIME || name.endsWith(".docx")) return DOCX_MIME;
-  return PDF_MIME;
+function isPdfBuffer(buffer) {
+  return Buffer.isBuffer(buffer)
+    && buffer.length >= 5
+    && buffer.subarray(0, 5).toString("ascii") === "%PDF-";
 }
 
 function astipEmail(request) {
@@ -67,8 +67,9 @@ exports.sendProtocolMail = onCall({
   if (!attachment.length || attachment.length > MAX_ATTACHMENT_BYTES) {
     throw new HttpsError("invalid-argument", "Priloha je prazdna nebo prilis velka.");
   }
-  const contentType = attachmentMime(data);
-  const extension = contentType === DOCX_MIME ? ".docx" : ".pdf";
+  if (!isPdfBuffer(attachment)) {
+    throw new HttpsError("invalid-argument", "Priloha protokolu musi byt PDF.");
+  }
 
   const port = Number(SMTP_PORT.value() || 587);
   const smtpUser = SMTP_USER.value();
@@ -89,9 +90,9 @@ exports.sendProtocolMail = onCall({
     subject,
     text: body,
     attachments: [{
-      filename: cleanFileName(data.fileName, extension),
+      filename: cleanFileName(data.fileName),
       content: attachment,
-      contentType
+      contentType: PDF_MIME
     }]
   });
 
