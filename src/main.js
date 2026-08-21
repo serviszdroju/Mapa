@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-stop-status-sync-v401";
+const APP_BUILD_VERSION="2026-08-21-protocol-pdf-note-v402";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1368,7 +1368,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v401-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v402-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -11187,11 +11187,17 @@ function protocolPdfDrawBlank(state,after=60){
   state.y+=protocolPdfDxa(after)+protocolPdfWordFontPx(4);
 }
 
-function protocolPdfDrawFormField(state,label,value,width=9630){
-  protocolPdfDrawTable(state,[
+function protocolPdfDrawFormField(state,label,value,width=9630,options={}){
+  const rows=[
     [{text:label,bold:true,size:18,fill:"F2F2F2"}],
     [{text:protocolExportValue(value) || " ",size:20,height:330}]
-  ],[width]);
+  ];
+  if(options.keepWithNextDxa){
+    const prepared=protocolPdfPreparedTableRows(state.ctx,rows,[width]);
+    const tableHeight=prepared.reduce((sum,row)=>sum+row.height,0);
+    protocolPdfEnsureSpace(state,tableHeight+protocolPdfDxa(20)+protocolPdfWordFontPx(4)+protocolPdfDxa(options.keepWithNextDxa));
+  }
+  protocolPdfDrawTable(state,rows,[width]);
   protocolPdfDrawBlank(state,20);
 }
 
@@ -11301,8 +11307,7 @@ async function renderProtocolPdfPageCanvases(protocol={}){
   protocolPdfDrawFormField(state,"10) Dostupnost:",protocolAvailabilityText(protocol));
   protocolPdfDrawFormField(state,"11) Perioda zkoušky provozuschopnosti:",protocolPeriodText(protocol));
   protocolPdfDrawFormField(state,"12) Zařízení pracuje ve vyhovujících podmínkách (odůvodnění):",protocolConditionsText(protocol));
-  protocolPdfDrawFormField(state,"13) Poznámky:",protocol.notes || protocol.issues);
-  protocolPdfDrawFormField(state,"14) Poznámka pro zákazníka:",protocol.customerNote || protocol.noteForCustomer);
+  protocolPdfDrawFormField(state,"14) Poznámka pro zákazníka:",protocol.customerNote || protocol.noteForCustomer,9630,{keepWithNextDxa:650});
   protocolPdfDrawFormField(state,"Stav zdroje po kontrole:",data.sourceState);
   protocolPdfDrawSignatureGrid(state,protocol,clientImage,techImage);
   state.pages.forEach((page,idx)=>{

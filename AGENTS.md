@@ -598,4 +598,6 @@ Current protocol export decision: generated PDF protocols must mirror the Word e
 
 Current stop-status sync decision: `Stop Stav` must bridge both ways with the legacy `karolopejlo.github.io/Mapa` site the same way as `Kontrola objednaná`. Toggling stop on/off must write explicit yes/no values to all stop aliases (`Stop Stav`, `Stop stav`, `Stop_stav`, `Stop`, `Zdroj ve Stop Stavu`, `Odstaveno`, `Mimo provoz`) and clear stop-only map/status/color fields when turning it off, so refreshes cannot resurrect a stale stop state from `Stav pro mapu` or legacy `siteEdits`.
 
+Current protocol PDF note decision: generated PDF protocols must omit point `13) Poznámky`; those internal notes stay out of the customer PDF attachment. Point `14) Poznámka pro zákazníka` remains in the PDF and should be kept with enough following space so it does not render as an awkward orphaned block at a page break.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
