@@ -1,10 +1,8 @@
 # Odesilani protokolu e-mailem
 
 Tlacitko `Poslat na mail` ve strance vola Firebase Function `sendProtocolMail`.
-Funkce odesle Word protokol na:
-
-- `iva.glozova@astip.cz`
-- kopie `jan.soldan@astip.cz`
+Stranka se nejdriv zepta na cilovy e-mail a funkce odesle Word protokol pouze
+na zadanou adresu.
 
 ## Dulezite omezeni Firebase
 

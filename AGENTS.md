@@ -172,6 +172,8 @@ Current performance phase 75 decision: deduplicate merged gallery photo sources 
 
 Current logo/icon decision: Android/PWA launcher icons must be generated directly from `Tipo_SZZ_logo3.png`. Use opaque white-background `szz-app-icon-192/512.png` for regular icons and separate padded `szz-app-icon-maskable-192/512.png` for maskable Android icons so the battery/SZZ mark is not cropped or shown on a dark transparent background.
 
+Current mobile/detail workflow decision: the visible SZZ logo in the left web panel must not have a grey field; it should fill its existing logo area without distortion. Grey treatment belongs only to installed/tablet app icons. Map markers for sources in Stop Stav must be grey, not red. Detail tabs must fit on one row as compact grey buttons with the active tab white, ordered Detail, Protokol, Galerie, Doklad, Přílohy. The protocol handoff control belongs under the saved protocol history actions after "Poslat na mail", not inside the protocol form.
+
 Current performance phase 76 decision: cache the sorted, capped sidebar place-group list for the current grouped-row signature so repeated sidebar refreshes reuse the same top 160 groups without re-sorting the full group array, while preserving ordering, DOM structure, and visible list limit.
 
 Current performance phase 77 decision: cache per-site record-key Sets and normalized text match arrays by the already-cached key-array reference instead of rebuilding stable signatures on every legacy `recordMatchesSite()` call, preserving the same identifier and text matching coverage.

@@ -7,8 +7,6 @@ const SMTP_PORT = defineSecret("SMTP_PORT");
 const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
 
-const MAIL_TO = "iva.glozova@astip.cz";
-const MAIL_CC = "jan.soldan@astip.cz";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
@@ -26,6 +24,11 @@ function astipEmail(request) {
   return email.endsWith("@astip.cz") ? email : "";
 }
 
+function validRecipientEmail(value) {
+  const email = stringValue(value).toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+
 exports.sendProtocolMail = onCall({
   region: "europe-west1",
   invoker: "public",
@@ -39,6 +42,10 @@ exports.sendProtocolMail = onCall({
   }
 
   const data = request.data || {};
+  const recipientEmail = validRecipientEmail(data.recipientEmail || data.toEmail || data.to);
+  if (!recipientEmail) {
+    throw new HttpsError("invalid-argument", "Chybi platny e-mail prijemce.");
+  }
   const subject = stringValue(data.subject) || "Protokol zkousky provozuschopnosti";
   const body = stringValue(data.body) || "V priloze posilam vyexportovany protokol.";
   const fileBase64 = stringValue(data.fileBase64);
@@ -66,8 +73,7 @@ exports.sendProtocolMail = onCall({
   await transporter.sendMail({
     from: `"SZZ servisni mapa" <${smtpUser}>`,
     replyTo: senderEmail,
-    to: MAIL_TO,
-    cc: MAIL_CC,
+    to: recipientEmail,
     subject,
     text: body,
     attachments: [{
@@ -79,7 +85,6 @@ exports.sendProtocolMail = onCall({
 
   return {
     ok: true,
-    to: MAIL_TO,
-    cc: MAIL_CC
+    to: recipientEmail
   };
 });

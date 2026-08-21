@@ -128,7 +128,7 @@ try{
 <div><span class="dot" style="background:#f97316"></span> 1–30 dní k termínu</div>
 <div><span class="dot" style="background:#eab308"></span> Kontrola objednaná</div>
 <div><span class="dot" style="background:#2563eb"></span> Objednaná oprava</div>
-<div><span class="dot" style="background:#dc2626"></span> Stop Stav</div>
+<div><span class="dot" style="background:#64748b"></span> Stop Stav</div>
 <div><span class="dot" style="background:#16a34a"></span> Vše ostatní</div>
 </div>
 <div class="stats"><div class="stat"><b id="shownCount">0</b><span>zobrazeno</span></div><div class="stat" id="gpsStatBox" style="display:none"><b id="gpsCount">0</b><span>s GPS</span></div></div>
@@ -145,8 +145,8 @@ try{
   <button class="detail-tab active" type="button" data-detail-tab="data" role="tab" aria-selected="true">Detail</button>
   <button class="detail-tab" type="button" data-detail-tab="protocol" role="tab" aria-selected="false">Protokol</button>
   <button class="detail-tab" type="button" data-detail-tab="gallery" role="tab" aria-selected="false">Galerie</button>
-  <button class="detail-tab" type="button" data-detail-tab="attachments" role="tab" aria-selected="false">Přílohy</button>
   <button class="detail-tab" type="button" data-detail-tab="document" role="tab" aria-selected="false">Doklad</button>
+  <button class="detail-tab" type="button" data-detail-tab="attachments" role="tab" aria-selected="false">Přílohy</button>
 </div>
 
 <div class="card" id="protocolCard" data-detail-panel="protocol">
@@ -333,16 +333,15 @@ try{
           <option value="empty">zdroj byl odzkoušen na prázdno</option>
         </select>
       </div>
-      <label class="checkrow proto-processing-row" for="protoHandoffProcessing">
-        <input type="checkbox" id="protoHandoffProcessing">
-        <span>Předán protokol ke zpracování</span>
-      </label>
     </div>
 
     <div class="edit-grid">
       <div><label>Za objednavatele</label><input id="protoClientSign" placeholder="čitelně + podpis"></div>
       <div><label>Kontrolu provedl</label><input id="protoTechSign"></div>
-      <div class="signature-pad-wrap">
+      <div class="signature-pad-toggle-row">
+        <button class="secondary" type="button" id="toggleClientSignatureBtn">Podpis zákazníka</button>
+      </div>
+      <div class="signature-pad-wrap" id="protoClientSignaturePanel" hidden>
         <label>Elektronický podpis objednavatele</label>
         <canvas id="protoClientSignaturePad" width="900" height="260"></canvas>
         <div class="signature-pad-actions">
@@ -404,7 +403,7 @@ try{
 <div class="card site-attachments-card" id="siteAttachmentsCard" data-detail-panel="attachments">
   <h3>Přílohy</h3>
   <div class="site-attachment-upload">
-    <label class="secondary attachment-picker-btn" for="siteAttachmentsInput" id="selectSiteAttachmentsBtn" role="button" tabindex="0">Vybrat přílohy</label>
+    <label class="secondary attachment-picker-btn" for="siteAttachmentsInput" id="selectSiteAttachmentsBtn" role="button" tabindex="0">Vybrat přílohu</label>
     <input id="siteAttachmentsInput" type="file" multiple aria-label="Vybrat přílohy">
     <button class="primary" type="button" id="uploadSiteAttachmentsBtn">Uložit přílohy</button>
   </div>
@@ -533,7 +532,7 @@ Protokol na: ..."></textarea>
 <script type="module" src="./src/detail-tabs.js"></script>
 <script type="module" src="./src/hosted-login.js"></script>
 <script type="module" src="./src/main.js"></script>
-<script async src="./late.js?v=protocol-state-attachments-v392"></script>
+<script async src="./late.js?v=legacy-sync-protocol-mail-v393"></script>
 
 
 

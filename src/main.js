@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-protocol-state-attachments-v392";
+const APP_BUILD_VERSION="2026-08-21-legacy-sync-protocol-mail-v393";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v392-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v393-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2851,8 +2851,8 @@ function ensureRowScheduleCache(r){
     priority=50;
   }else if(r.stopped === true){
     status="Stop Stav";
-    markerColor="#dc2626";
-    priority=75;
+    markerColor="#64748b";
+    priority=30;
   }else if(Number.isFinite(days) && days < 0){
     status="Propadlá kontrola";
     markerColor="#dc2626";
@@ -2978,10 +2978,91 @@ function isNoOrderSite(r){
 function editCacheKeyForRow(r){
   return String((r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]) || r.id)) || "");
 }
+function legacyEditCacheEntryTime(entry={}){
+  return timeValueFromAny(entry.updatedAt || entry.savedAt || entry.createdAt || 0);
+}
+function mergeLegacyEditEntries(entries=[]){
+  const source=(entries || []).filter(Boolean);
+  if(!source.length) return null;
+  source.sort((a,b)=>legacyEditCacheEntryTime(a)-legacyEditCacheEntryTime(b));
+  const merged={rawEdits:{}};
+  source.forEach(entry=>{
+    const rawEdits=entry.rawEdits && typeof entry.rawEdits==="object" ? entry.rawEdits : {};
+    Object.assign(merged,entry);
+    merged.rawEdits={...(merged.rawEdits || {}),...rawEdits};
+  });
+  return merged;
+}
+function editCacheKeysForRow(r){
+  const raw=(r && r.raw) || {};
+  const keys=[];
+  const add=value=>{
+    const key=safe(value);
+    if(key && !keys.includes(key)) keys.push(key);
+  };
+  add(editCacheKeyForRow(r));
+  try{ rowLookupKeys(r).forEach(add); }catch(_e){}
+  try{ siteRecordKeys(r).forEach(add); }catch(_e){}
+  [
+    r && r.id,
+    r && r.firebaseDocId,
+    raw["Firebase_doc_id"],
+    raw["Klíč_adresy"],
+    raw["ID_mista"],
+    raw["Původní ID_mista"],
+    raw["Původní_id_mista"],
+    raw["Původní Klíč_adresy"],
+    raw["Původní klíč adresy"],
+    raw["Původní_klic_adresy"],
+    raw["Puvodni ID_mista"],
+    raw["Puvodni_klic_adresy"]
+  ].forEach(add);
+  return keys;
+}
+function editCacheEntryForRow(r){
+  const entries=[];
+  const seen=new Set();
+  editCacheKeysForRow(r).forEach(key=>{
+    const entry=editCache[key];
+    if(!entry || seen.has(entry)) return;
+    seen.add(entry);
+    entries.push(entry);
+  });
+  return mergeLegacyEditEntries(entries);
+}
+function legacyEditCacheKeysFromEntry(docId,entry={}){
+  const rawEdits=(entry && entry.rawEdits) || {};
+  const keys=[];
+  const add=value=>{
+    const key=safe(value);
+    if(key && !keys.includes(key)) keys.push(key);
+  };
+  add(docId);
+  [
+    entry.firebaseDocId,
+    entry.siteDocId,
+    entry.siteId,
+    entry.siteLegacyId,
+    entry.siteKey,
+    rawEdits["Firebase_doc_id"],
+    rawEdits["Klíč_adresy"],
+    rawEdits["ID_mista"]
+  ].forEach(add);
+  if(Array.isArray(entry.siteKeys)) entry.siteKeys.forEach(add);
+  return keys;
+}
+function setLegacyEditCacheEntry(docId,entry){
+  const payload=entry && typeof entry==="object" ? entry : {};
+  legacyEditCacheKeysFromEntry(docId,payload).forEach(key=>{
+    const existing=editCache[key];
+    if(!existing || legacyEditCacheEntryTime(payload)>=legacyEditCacheEntryTime(existing)){
+      editCache[key]=payload;
+    }
+  });
+}
 
 function applyEditToRow(r){
-  const cacheKey=editCacheKeyForRow(r);
-  const e=editCache[cacheKey] || editCache[r.id];
+  const e=editCacheEntryForRow(r);
   if(!e) return r;
 
   const rawEdits = e.rawEdits || {};
@@ -3085,22 +3166,24 @@ window.applySiteEditToRow = applyEditToRow;
 async function loadEdits(options={}){
   const renderAfter=options.renderAfter!==false;
   if(!firebaseReady || !db) return;
-  if(firebaseUnifiedPrimary){
-    editCache={};
-    const st=document.getElementById("editStatus");
-    if(st && /Úpravy se nepodařilo|Uložené úpravy/.test(st.textContent || "")) st.textContent="";
-    return;
-  }
   try{
     const {collection,getDocs}=fb.fsMod;
     const snap=await getDocs(collection(db,"siteEdits"));
     editCache={};
-    snap.forEach(d=>editCache[d.id]=d.data());
-    if(!firebaseUnifiedPrimary){
+    snap.forEach(d=>setLegacyEditCacheEntry(d.id,d.data()));
+    if(firebaseUnifiedPrimary){
+      if(rows.length){
+        rows=rows.map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
+        window.rows=rows;
+        markRowsDirty();
+        if(renderAfter) render();
+      }
+    }else{
       rows=csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
       if(renderAfter) render();
     }
-    document.getElementById("editStatus").textContent="Uložené úpravy načteny.";
+    const st=document.getElementById("editStatus");
+    if(st) st.textContent="Uložené úpravy načteny.";
   }catch(e){
     console.warn("Úpravy se nepodařilo načíst",e);
     const st=document.getElementById("editStatus");
@@ -5521,7 +5604,20 @@ function mapMarkerSignature(group,fill){
   ].join("||");
 }
 function attachLazyMarkerPopup(marker,group){
-  marker.on("click",()=>{
+  marker.on("click",event=>{
+    const rowsInGroup=(group && Array.isArray(group.rows)) ? group.rows : [];
+    if(rowsInGroup.length<=1){
+      const row=rowsInGroup[0] || groupPrimaryRow(group);
+      const key=row ? detailKey(row) : "";
+      if(key){
+        try{
+          if(event && typeof L!=="undefined" && L.DomEvent) L.DomEvent.stop(event);
+        }catch(_e){}
+        window.openDetailById(key);
+        try{ if(map && typeof map.closePopup==="function") map.closePopup(); }catch(_e){}
+        return;
+      }
+    }
     marker.bindPopup(groupPopupHtml(group),sourcePopupOptions(group)).openPopup();
   });
   return marker;
@@ -5537,8 +5633,8 @@ function sourcePopupOptions(group){
       options.maxWidth=popupWidth;
       options.minWidth=Math.min(popupWidth,rowsCount>1 ? 230 : 180);
       options.maxHeight=Math.max(128,Math.min(190,Math.floor(mapHeight*0.55)));
-      options.autoPan=true;
-      options.keepInView=true;
+      options.autoPan=false;
+      options.keepInView=false;
       if(typeof L!=="undefined" && L.point){
         options.autoPanPaddingTopLeft=L.point(10,10);
         options.autoPanPaddingBottomRight=L.point(10,10);
@@ -6564,9 +6660,8 @@ async function propagateSharedPlaceEditsToSiblingSources(siblingRows=[],sharedRa
           updatedBy:currentUser?.email || "",
           updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
         },{merge:true});
-      }else{
-        await saveLegacySiteEditIfNeeded(selectedKey,edit,sibling);
       }
+      await saveLegacySiteEditIfNeeded(selectedKey,edit,sibling);
       editCache[selectedKey]={...(editCache[selectedKey] || editCache[sibling.id] || {}), ...edit};
       if(docId) editCache[docId]={...(editCache[docId] || {}), ...edit};
       saved++;
@@ -6632,6 +6727,7 @@ async function saveSelectedSiteGpsPosition(lat,lon,found={},address=""){
       updatedBy:currentUser.email,
       updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
     },{merge:true});
+    await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
   }else if(firebaseReady && currentUser){
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
   }
@@ -6866,13 +6962,40 @@ function isFirebaseUnifiedRow(r){
 }
 
 function shouldSkipLegacySiteEdits(site=selectedSite){
-  return !!(firebaseUnifiedPrimary && selectedSiteDocId(site) && isFirebaseUnifiedRow(site));
+  return false;
 }
 
 async function saveLegacySiteEditIfNeeded(selectedKey,edit,site=selectedSite){
   if(shouldSkipLegacySiteEdits(site)) return false;
   const {doc,setDoc}=fb.fsMod;
-  await setDoc(doc(db,"siteEdits",selectedKey),edit,{merge:true});
+  const identity=siteRecordIdentity(site);
+  const payload={
+    ...(edit || {}),
+    firebaseDocId:identity.firebaseDocId || "",
+    siteDocId:identity.siteDocId || "",
+    siteId:identity.siteId || "",
+    siteLegacyId:identity.siteLegacyId || "",
+    siteKey:identity.siteKey || "",
+    siteKeys:identity.siteKeys || [],
+    sourceGroupKey:identity.sourceGroupKey || "",
+    sourceIdentity:identity.sourceIdentity || "",
+    siteName:identity.siteName || "",
+    siteAddress:identity.siteAddress || "",
+    siteSource:identity.siteSource || ""
+  };
+  const keys=uniqueNonEmptyStrings([
+    selectedKey,
+    identity.siteKey,
+    identity.siteId,
+    identity.siteLegacyId,
+    identity.siteDocId,
+    identity.firebaseDocId,
+    ...(identity.siteKeys || [])
+  ]).slice(0,10);
+  for(const key of keys){
+    await setDoc(doc(db,"siteEdits",key),payload,{merge:true});
+    setLegacyEditCacheEntry(key,payload);
+  }
   return true;
 }
 
@@ -8393,6 +8516,7 @@ function drawSavedProtocolSignature(dataUrl){
   const canvas=protocolSignatureCanvas();
   const ctx=protocolSignatureContext();
   if(!canvas || !ctx || !safe(dataUrl)) return;
+  setProtocolClientSignaturePanelOpen(true);
   const img=new Image();
   img.onload=()=>{
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -8448,7 +8572,6 @@ function fillProtocolFormFromHistory(protocol={}){
   setProtocolFieldValue("protoCustomerNote",protocol.customerNote || protocol.noteForCustomer || "");
   setProtocolFieldValue("protoSourceState",protocolSourceStateValue(protocol));
   setProtocolFieldValue("protoSourceTestMethod",protocol.sourceTestMethod || protocol.testMethod || "");
-  setInputChecked("protoHandoffProcessing",protocolHandoffForProcessing(protocol));
   setProtocolFieldValue("protoClientSign",protocol.clientSign || protocol.customer || "");
   setProtocolFieldValue("protoTechSign",protocol.techSign || protocol.technician || protocol.createdBy || protocol.technicianEmail || currentUser?.email || "");
   updateProtocolSourceStateUi();
@@ -8871,17 +8994,27 @@ function base64ToBytes(base64){
   return bytes;
 }
 
-function protocolSignatureImageBytes(protocol={}){
-  const dataUrl=safe(protocol.clientSignatureDataUrl || protocol.clientSignature || "");
+function imageBytesFromPngDataUrl(dataUrl=""){
   const match=dataUrl.match(/^data:image\/png;base64,(.+)$/);
   if(!match) return null;
   try{return base64ToBytes(match[1]);}catch(e){return null;}
 }
 
+function protocolSignatureImageBytes(protocol={}){
+  return imageBytesFromPngDataUrl(safe(protocol.clientSignatureDataUrl || protocol.clientSignature || ""));
+}
+
+function protocolTechnicianSignatureImageBytes(protocol={}){
+  return imageBytesFromPngDataUrl(safe(protocol.techSignatureDataUrl || protocol.technicianSignatureDataUrl || ""));
+}
+
 function wordSignatureImageRun(relId="rIdSignature",options={}){
   const cx=Number(options.cx) || 2600000;
   const cy=Number(options.cy) || 760000;
-  return `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="7" name="Podpis objednavatele"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="7" name="podpis-objednavatele.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+  const docId=Number(options.docId) || 7;
+  const name=wordXmlEscape(options.name || "Podpis objednavatele");
+  const fileName=wordXmlEscape(options.fileName || "podpis.png");
+  return `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${docId}" name="${name}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docId}" name="${fileName}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
 }
 
 function wordClientSignatureCellXml(protocol={},options={}){
@@ -8889,14 +9022,29 @@ function wordClientSignatureCellXml(protocol={},options={}){
   const parts=[];
   if(safe(protocol.clientSign)) parts.push(wordParagraph(protocol.clientSign,{size:compact ? 16 : 18,after:compact ? 0 : 30}));
   if(protocolSignatureImageBytes(protocol)){
-    const imageOptions=compact ? {cx:3800000,cy:1100000} : {};
+    const imageOptions=compact ? {cx:3800000,cy:1100000,name:"Podpis objednavatele",fileName:"podpis-objednavatele.png"} : {name:"Podpis objednavatele",fileName:"podpis-objednavatele.png"};
     parts.push(wordParagraphXml(wordSignatureImageRun("rIdSignature",imageOptions),{after:0}));
   }
   return parts.join("") || wordParagraph(" ",{size:18,after:0});
 }
 
-function wordSignatureGrid(protocol={}){
+function wordTechnicianSignatureCellXml(protocol={}){
   const tech=protocol.techSign || protocol.technician || currentUser?.displayName || currentUser?.email || "";
+  const parts=[];
+  if(safe(tech)) parts.push(wordParagraph(tech,{size:18,after:protocolTechnicianSignatureImageBytes(protocol) ? 20 : 0}));
+  if(protocolTechnicianSignatureImageBytes(protocol)){
+    parts.push(wordParagraphXml(wordSignatureImageRun("rIdTechSignature",{
+      cx:3400000,
+      cy:980000,
+      docId:8,
+      name:"Podpis technika",
+      fileName:"podpis-technika.png"
+    }),{after:0}));
+  }
+  return parts.join("") || wordParagraph(" ",{size:18,after:0});
+}
+
+function wordSignatureGrid(protocol={}){
   return wordTable([
     [
       {text:"Za objednavatele:",bold:true,size:18,fill:"F2F2F2"},
@@ -8904,7 +9052,7 @@ function wordSignatureGrid(protocol={}){
     ],
     [
       {xml:wordClientSignatureCellXml(protocol),height:1050},
-      {text:protocolExportValue(tech) || " ",size:20,height:1050}
+      {xml:wordTechnicianSignatureCellXml(protocol),height:1050}
     ]
   ],[4815,4815]) + wordParagraph("(čitelně + podpis)",{size:16,after:35});
 }
@@ -9105,8 +9253,13 @@ function buildProtocolWordEntries(protocol={}){
   const now=new Date().toISOString();
   const title=`Protokol ${protocol.siteName || protocol.place || ""}`.trim();
   const signatureBytes=protocolSignatureImageBytes(protocol);
-  const imageContentType=signatureBytes ? '<Default Extension="png" ContentType="image/png"/>' : "";
-  const imageRel=signatureBytes ? '<Relationship Id="rIdSignature" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/client-signature.png"/>' : "";
+  const techSignatureBytes=protocolTechnicianSignatureImageBytes(protocol);
+  const hasPngImage=!!(signatureBytes || techSignatureBytes);
+  const imageContentType=hasPngImage ? '<Default Extension="png" ContentType="image/png"/>' : "";
+  const imageRel=[
+    signatureBytes ? '<Relationship Id="rIdSignature" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/client-signature.png"/>' : "",
+    techSignatureBytes ? '<Relationship Id="rIdTechSignature" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/technician-signature.png"/>' : ""
+  ].join("");
   const entries=[
     {name:"[Content_Types].xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${imageContentType}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`},
     {name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`},
@@ -9118,6 +9271,7 @@ function buildProtocolWordEntries(protocol={}){
     {name:"docProps/app.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Servis záložních zdrojů - mapa FZ</Application></Properties>`}
   ];
   if(signatureBytes) entries.push({name:"word/media/client-signature.png",data:signatureBytes});
+  if(techSignatureBytes) entries.push({name:"word/media/technician-signature.png",data:techSignatureBytes});
   return entries;
 }
 
@@ -10241,8 +10395,21 @@ async function exportOfficialProtocol(mode="ok"){
   showSaveConfirmation("Doklad exportován do Wordu.");
 }
 
-function confirmProtocolMailSend(){
-  return confirm("Opravdu chcete odeslat protokol na mail iva.glozova@astip.cz?");
+function validProtocolMailRecipient(email){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safe(email));
+}
+
+function promptProtocolMailRecipient(protocol={}){
+  const suggested=safe(protocol.mailRecipient || protocol.customerEmail || protocol.email || "");
+  const value=window.prompt("Zadej e-mail, na který se má protokol odeslat:",suggested);
+  if(value===null) return "";
+  const email=safe(value).toLowerCase();
+  if(!email) return "";
+  if(!validProtocolMailRecipient(email)){
+    alert("Zadaný e-mail nemá platný tvar.");
+    return "";
+  }
+  return email;
 }
 
 let protocolWordZipModulePromise=null;
@@ -10269,12 +10436,70 @@ function downloadBlobFile(filename,blob){
   },0);
 }
 
+const technicianSignatureDataUrlCache=new Map();
+function technicianSignatureEmail(protocol={}){
+  return safe(protocol.technicianEmail || protocol.createdBy || protocol.updatedBy || currentUserEmail()).toLowerCase();
+}
+function technicianSignatureDocIds(email=""){
+  const clean=safe(email).toLowerCase();
+  if(!clean) return [];
+  return uniqueNonEmptyStrings([
+    clean,
+    clean.replace(/[/.#[\]$]/g,"_"),
+    simpleNorm(clean).replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")
+  ]);
+}
+async function loadTechnicianSignatureDataUrl(protocol={}){
+  const email=technicianSignatureEmail(protocol);
+  if(!email || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return "";
+  if(technicianSignatureDataUrlCache.has(email)) return technicianSignatureDataUrlCache.get(email) || "";
+  const remember=value=>{
+    const dataUrl=safe(value);
+    technicianSignatureDataUrlCache.set(email,dataUrl);
+    return dataUrl;
+  };
+  const pickSignature=data=>{
+    if(!data || typeof data!=="object") return "";
+    return safe(data.signatureDataUrl || data.technicianSignatureDataUrl || data.dataUrl || data.pngDataUrl || "");
+  };
+  try{
+    const {doc,getDoc,collection,query,where,limit:getLimit,getDocs}=fb.fsMod;
+    for(const docId of technicianSignatureDocIds(email)){
+      try{
+        const snap=await getDoc(doc(db,"technicianSignatures",docId));
+        if(snap.exists()){
+          const found=pickSignature(snap.data());
+          if(found) return remember(found);
+        }
+      }catch(_e){}
+    }
+    if(query && where && getDocs){
+      const constraints=[where("email","==",email)];
+      if(getLimit) constraints.push(getLimit(1));
+      const snap=await getDocs(query(collection(db,"technicianSignatures"),...constraints));
+      let found="";
+      snap.forEach(docSnap=>{
+        if(!found) found=pickSignature(docSnap.data());
+      });
+      if(found) return remember(found);
+    }
+  }catch(e){
+    console.warn("Podpis technika se nepodařilo načíst",e);
+  }
+  return remember("");
+}
+async function enrichProtocolWithTechnicianSignature(protocol={}){
+  if(protocolTechnicianSignatureImageBytes(protocol)) return protocol;
+  const dataUrl=await loadTechnicianSignatureDataUrl(protocol);
+  return dataUrl ? {...protocol,techSignatureDataUrl:dataUrl,technicianSignatureDataUrl:dataUrl} : protocol;
+}
+
 async function preparedProtocolExport(protocol){
   if(!protocol) return null;
-  const filled={
+  const filled=await enrichProtocolWithTechnicianSignature({
     ...protocol,
     createdBy:protocol.createdBy || protocol.technicianEmail || currentUser?.email || ""
-  };
+  });
   const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
   const fileName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
   return {
@@ -10338,26 +10563,32 @@ function blobToBase64(blob){
   });
 }
 
-async function sendProtocolByMail(protocol){
+async function sendProtocolByMail(protocol,recipientEmail=""){
   if(!protocol){
     showSaveConfirmation("Není vybraný protokol k poslání.");
     return;
+  }
+  const toEmail=safe(recipientEmail).toLowerCase();
+  if(!validProtocolMailRecipient(toEmail)){
+    throw new Error("Zadej platný e-mail příjemce.");
   }
   const mailReady=await ensureMailFunctions();
   if(!firebaseReady || !mailReady || !fb.fnMod || !mailFunctions){
     throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
   }
   const prepared=await preparedProtocolExport(protocol);
-  setProtocolStatusText("Odesílám protokol na mail...");
+  setProtocolStatusText(`Odesílám protokol na ${toEmail}...`);
   const sendMail=fb.fnMod.httpsCallable(mailFunctions,"sendProtocolMail");
   await sendMail({
+    recipientEmail:toEmail,
+    toEmail,
     subject:protocolMailSubject(prepared.filled),
     body:protocolMailBody(prepared.filled,prepared.fileName),
     fileName:prepared.fileName,
     fileBase64:await blobToBase64(prepared.blob)
   });
-  setProtocolStatusText("Protokol byl odeslán na iva.glozova@astip.cz, kopie na jan.soldan@astip.cz.");
-  showSaveConfirmation("Protokol odeslán na mail.");
+  setProtocolStatusText(`Protokol byl odeslán na ${toEmail}.`);
+  showSaveConfirmation(`Protokol odeslán na ${toEmail}.`);
 }
 
 function protocolMailErrorText(error){
@@ -12114,10 +12345,11 @@ function bindDetailHistoryActions(history){
       return;
     }
     if(id==="mailHistoryProtocolBtn"){
-      if(!confirmProtocolMailSend()) return;
+      const recipient=promptProtocolMailRecipient(detailHistoryItems[detailHistoryIndex]);
+      if(!recipient) return;
       button.disabled=true;
       try{
-        await sendProtocolByMail(detailHistoryItems[detailHistoryIndex]);
+        await sendProtocolByMail(detailHistoryItems[detailHistoryIndex],recipient);
       }catch(e){
         const message=protocolMailErrorText(e);
         setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
@@ -12125,6 +12357,23 @@ function bindDetailHistoryActions(history){
       }finally{
         button.disabled=false;
       }
+    }
+  });
+  history.addEventListener("change",async event=>{
+    const input=event.target && event.target.closest ? event.target.closest("#historyHandoffProtocolCheck") : null;
+    if(!input || !history.contains(input)) return;
+    const item=detailHistoryItems[detailHistoryIndex];
+    input.disabled=true;
+    try{
+      await setDetailHistoryProtocolHandoff(item,input.checked);
+      showSaveConfirmation(input.checked ? "Protokol předán ke zpracování." : "Předání protokolu zrušeno.");
+      renderHistory();
+    }catch(e){
+      input.checked=!input.checked;
+      setProtocolStatusText(`Chyba uložení předání: ${e.message}`);
+      showSaveConfirmation("Předání se nepodařilo uložit.");
+    }finally{
+      input.disabled=false;
     }
   });
 }
@@ -12283,6 +12532,17 @@ function renderHistory(){
       addAction("secondary","editHistoryProtocolBtn","Upravit protokol");
       addAction("secondary","exportHistoryProtocolBtn","Exportovat do Wordu");
       addAction("secondary","mailHistoryProtocolBtn","Poslat na mail");
+      const handoffLabel=document.createElement("label");
+      handoffLabel.className="history-handoff-processing";
+      handoffLabel.htmlFor="historyHandoffProtocolCheck";
+      const handoffInput=document.createElement("input");
+      handoffInput.type="checkbox";
+      handoffInput.id="historyHandoffProtocolCheck";
+      handoffInput.checked=protocolHandoffForProcessing(d);
+      const handoffText=document.createElement("span");
+      handoffText.textContent="Předán protokol ke zpracování";
+      handoffLabel.append(handoffInput,handoffText);
+      actions.appendChild(handoffLabel);
     }
     if(canDeleteProtocol) addAction("danger","deleteHistoryProtocolBtn","Smazat protokol");
     itemEl.appendChild(actions);
@@ -12825,6 +13085,27 @@ function mainProtocolProcessedRemotePatch(checked){
     updatedAt:serverTime
   };
 }
+function protocolHandoffLocalPatch(checked){
+  return {
+    handoffForProcessing:!!checked,
+    submittedForProcessing:!!checked,
+    processingHandoff:checked ? "ano" : "ne",
+    handoffAt:checked ? new Date().toISOString() : null,
+    handoffBy:checked ? currentUserEmail() : ""
+  };
+}
+function protocolHandoffRemotePatch(checked){
+  const serverTime=fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString();
+  return {
+    handoffForProcessing:!!checked,
+    submittedForProcessing:!!checked,
+    processingHandoff:checked ? "ano" : "ne",
+    handoffAt:checked ? serverTime : null,
+    handoffBy:checked ? currentUserEmail() : "",
+    updatedBy:currentUserEmail(),
+    updatedAt:serverTime
+  };
+}
 
 function patchProtocolProcessedItems(items,cleanId,patch,includeIdFallback=true){
   const source=Array.isArray(items) ? items : [];
@@ -12927,6 +13208,100 @@ async function setMainProtocolHistoryProcessed(item={},checked=false){
   updateLocalProtocolHistoryProcessed(id,checked);
   await updateOfflineProtocolQueueProcessed(id,checked);
   updateMainProtocolHistoryProcessedState(id,checked);
+}
+
+function updateLocalProtocolHistoryHandoff(id,checked){
+  const cleanId=safe(id);
+  if(!cleanId) return 0;
+  const patch=protocolHandoffLocalPatch(checked);
+  let changed=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || !key.startsWith("astipMap:protocolHistory:")) continue;
+      const arr=JSON.parse(localStorage.getItem(key) || "[]");
+      if(!Array.isArray(arr)) continue;
+      const next=patchProtocolProcessedItems(arr,cleanId,patch,false);
+      if(next===arr) continue;
+      const raw=JSON.stringify(next);
+      localStorage.setItem(key,raw);
+      clearLocalStorageArrayEntriesCache(key);
+      rememberSiteLocalArrayReadCache(key,next,raw);
+      changed++;
+    }
+  }catch(e){
+    console.warn("Lokální předání protokolu ke zpracování selhalo",e);
+  }
+  return changed;
+}
+
+async function updateOfflineProtocolQueueHandoff(id,checked){
+  const cleanId=safe(id);
+  if(!cleanId || typeof withSzzOfflineQueueStore!=="function") return false;
+  const patch=protocolHandoffLocalPatch(checked);
+  try{
+    return await withSzzOfflineQueueStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,"readwrite",(store,setResult)=>{
+      const req=store.get(cleanId);
+      req.onsuccess=()=>{
+        const item=req.result;
+        if(!item){
+          setResult(false);
+          return;
+        }
+        store.put({...item,...patch});
+        setResult(true);
+      };
+      req.onerror=()=>setResult(false);
+    });
+  }catch(e){
+    return false;
+  }
+}
+
+async function saveProtocolHandoffRemote(item={},checked=false){
+  const id=safe(item._id || item.id);
+  if(!id || !firebaseReady || !db || !fb.fsMod || !currentUser || navigator.onLine===false) return false;
+  if(item._offline || /local|indexed/i.test(safe(item._collection))) return false;
+  const {doc,setDoc}=fb.fsMod;
+  const patch=protocolHandoffRemotePatch(checked);
+  const writes=[
+    setDoc(doc(db,"protocols",id),patch,{merge:true})
+  ];
+  const siteDocIds=uniqueNonEmptyStrings([
+    item.siteDocId,
+    item.firebaseDocId,
+    selectedSiteDocId(selectedSite),
+    item.siteId && String(item.siteId).startsWith("firebase_") ? String(item.siteId).slice("firebase_".length) : ""
+  ]);
+  for(const docId of siteDocIds){
+    writes.push(setDoc(doc(db,"sitesUnified",docId,"protocols",id),patch,{merge:true}).catch(e=>{
+      console.warn("Předání protokolu pod bodem selhalo",docId,e);
+    }));
+  }
+  await Promise.all(writes);
+  return true;
+}
+
+function updateDetailHistoryProtocolHandoffState(id,checked){
+  const cleanId=safe(id);
+  const patch=protocolHandoffLocalPatch(checked);
+  detailHistoryItems=patchProtocolProcessedItems(detailHistoryItems,cleanId,patch,true);
+  mainProtocolHistoryCurrentItems=patchProtocolProcessedItems(mainProtocolHistoryCurrentItems,cleanId,patch,true);
+  if(Array.isArray(mainProtocolHistoryCache.items)){
+    mainProtocolHistoryCache.items=patchProtocolProcessedItems(mainProtocolHistoryCache.items,cleanId,patch,true);
+    mainProtocolHistoryCache.savedAt=Date.now();
+  }
+  clearDetailHistoryCacheForKind("protocols",selectedSite);
+  clearLocalDetailReadCacheForKind("protocolHistory",selectedSite);
+}
+
+async function setDetailHistoryProtocolHandoff(item={},checked=false){
+  const id=safe(item._id || item.id);
+  if(!id) throw new Error("Protokol nemá ID.");
+  await saveProtocolHandoffRemote(item,checked);
+  updateLocalProtocolHistoryHandoff(id,checked);
+  await updateOfflineProtocolQueueHandoff(id,checked);
+  updateDetailHistoryProtocolHandoffState(id,checked);
 }
 
 function readAllLocalProtocolHistoryItems(){
@@ -13723,6 +14098,20 @@ let protoClientSignatureDirty=false;
 function protocolSignatureCanvas(){
   return formFieldNode("protoClientSignaturePad");
 }
+function protocolClientSignaturePanel(){
+  return formFieldNode("protoClientSignaturePanel");
+}
+function setProtocolClientSignaturePanelOpen(open){
+  const panel=protocolClientSignaturePanel();
+  const btn=formFieldNode("toggleClientSignatureBtn");
+  const visible=!!open;
+  if(panel){
+    panel.hidden=!visible;
+    panel.setAttribute("aria-hidden",visible ? "false" : "true");
+  }
+  if(btn) btn.textContent=visible ? "Skrýt podpis zákazníka" : "Podpis zákazníka";
+  if(visible) requestAnimationFrame(()=>initProtocolClientSignaturePad());
+}
 function protocolSignaturePoint(e,canvas){
   const rect=canvas.getBoundingClientRect();
   return {
@@ -13799,6 +14188,13 @@ function initProtocolClientSignaturePad(){
     scheduleProtocolDraftSave();
   };
 }
+document.addEventListener("click",event=>{
+  const btn=event.target && event.target.closest ? event.target.closest("#toggleClientSignatureBtn") : null;
+  if(!btn) return;
+  event.preventDefault();
+  const panel=protocolClientSignaturePanel();
+  setProtocolClientSignaturePanelOpen(panel ? panel.hidden : true);
+});
 function protocolClientSignatureDataUrl(){
   const canvas=protocolSignatureCanvas();
   if(!canvas || !protoClientSignatureDirty) return "";
@@ -13949,6 +14345,7 @@ function resetProtocolFormForSelectedSite(siteId){
   const form=formFieldNode("protocolForm");
   if(form) form.reset();
   clearProtocolClientSignature();
+  setProtocolClientSignaturePanelOpen(false);
   protocolPrefillSiteId=key;
 }
 
@@ -13963,6 +14360,7 @@ function closeProtocolFormAfterSave(){
   setProtocolFormFullscreen(false);
   clearProtocolEditState();
   clearProtocolClientSignature();
+  setProtocolClientSignaturePanelOpen(false);
   protocolPrefillSiteId="";
   updateProtocolSummary();
   setTextIfChanged(formFieldNode("toggleProtocolBtn"),"Vyplnit protokol");
@@ -16164,8 +16562,8 @@ function protocolPayload(){
     sourceStateLabel:protocolSourceStateLabel({sourceState:val("protoSourceState")}),
     sourceTestMethod:val("protoSourceTestMethod"),
     sourceTestMethodLabel:protocolSourceTestMethodLabel(val("protoSourceTestMethod")),
-    handoffForProcessing:checkbox("protoHandoffProcessing"),
-    submittedForProcessing:checkbox("protoHandoffProcessing"),
+    handoffForProcessing:protocolHandoffForProcessing(original),
+    submittedForProcessing:protocolHandoffForProcessing(original),
     clientSign:val("protoClientSign"),
     clientSignatureDataUrl:signature,
     techSign:val("protoTechSign") || (currentUser?.displayName || currentUser?.email || lastKnownUserEmail() || ""),
@@ -16197,10 +16595,11 @@ if(mailProtocolFormBtn){
     }
     const payload=protocolPayload();
     payload.createdBy=currentUser?.email || payload.technicianEmail || "";
-    if(!confirmProtocolMailSend()) return;
+    const recipient=promptProtocolMailRecipient(payload);
+    if(!recipient) return;
     mailProtocolFormBtn.disabled=true;
     try{
-      await sendProtocolByMail(payload);
+      await sendProtocolByMail(payload,recipient);
     }catch(e){
       const message=protocolMailErrorText(e);
       setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
