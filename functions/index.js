@@ -8,15 +8,25 @@ const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+const PDF_MIME = "application/pdf";
+const DEFAULT_MAIL_SUBJECT = "Protokol zkoušky provozuschopnosti záložního zdroje";
+const MAX_ATTACHMENT_BYTES = 14 * 1024 * 1024;
 
 function stringValue(value) {
   return String(value || "").trim();
 }
 
-function cleanFileName(value) {
+function cleanFileName(value, fallbackExtension) {
   const name = stringValue(value).replace(/[\\/:*?"<>|]/g, "-").slice(0, 180);
-  return name.endsWith(".docx") ? name : "protokol.docx";
+  const extension = fallbackExtension === ".docx" ? ".docx" : ".pdf";
+  return name.toLowerCase().endsWith(extension) ? name : `protokol${extension}`;
+}
+
+function attachmentMime(data) {
+  const requested = stringValue(data.contentType || data.mimeType).toLowerCase();
+  const name = stringValue(data.fileName).toLowerCase();
+  if (requested === DOCX_MIME || name.endsWith(".docx")) return DOCX_MIME;
+  return PDF_MIME;
 }
 
 function astipEmail(request) {
@@ -46,17 +56,19 @@ exports.sendProtocolMail = onCall({
   if (!recipientEmail) {
     throw new HttpsError("invalid-argument", "Chybi platny e-mail prijemce.");
   }
-  const subject = stringValue(data.subject) || "Protokol zkousky provozuschopnosti";
+  const subject = stringValue(data.subject) || DEFAULT_MAIL_SUBJECT;
   const body = stringValue(data.body) || "V priloze posilam vyexportovany protokol.";
   const fileBase64 = stringValue(data.fileBase64);
   if (!fileBase64) {
-    throw new HttpsError("invalid-argument", "Chybi Word protokol k odeslani.");
+    throw new HttpsError("invalid-argument", "Chybi protokol k odeslani.");
   }
 
   const attachment = Buffer.from(fileBase64, "base64");
   if (!attachment.length || attachment.length > MAX_ATTACHMENT_BYTES) {
     throw new HttpsError("invalid-argument", "Priloha je prazdna nebo prilis velka.");
   }
+  const contentType = attachmentMime(data);
+  const extension = contentType === DOCX_MIME ? ".docx" : ".pdf";
 
   const port = Number(SMTP_PORT.value() || 587);
   const smtpUser = SMTP_USER.value();
@@ -71,15 +83,15 @@ exports.sendProtocolMail = onCall({
   });
 
   await transporter.sendMail({
-    from: `"SZZ servisni mapa" <${smtpUser}>`,
+    from: `"Servis záložních zdrojů" <${smtpUser}>`,
     replyTo: senderEmail,
     to: recipientEmail,
     subject,
     text: body,
     attachments: [{
-      filename: cleanFileName(data.fileName),
+      filename: cleanFileName(data.fileName, extension),
       content: attachment,
-      contentType: DOCX_MIME
+      contentType
     }]
   });
 

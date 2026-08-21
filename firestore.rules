@@ -8,6 +8,10 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@astip\\.cz$');
     }
 
+    function ownEmail() {
+      return request.auth.token.email;
+    }
+
     match /sitesUnified/{docId} {
       allow read, write: if astipUser();
     }
@@ -30,6 +34,16 @@ service cloud.firestore {
 
     match /protocols/{docId} {
       allow read, write: if astipUser();
+    }
+
+    match /technicianSignatures/{docId} {
+      allow read: if astipUser()
+        && (docId == ownEmail() || resource.data.email == ownEmail());
+      allow create, update: if astipUser()
+        && docId == ownEmail()
+        && request.resource.data.email == ownEmail();
+      allow delete: if astipUser()
+        && docId == ownEmail();
     }
   }
 }

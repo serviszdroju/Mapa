@@ -905,6 +905,73 @@
   margin:0;
   accent-color:#64748b;
 }
+.technician-signature-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2600;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(15,23,42,.42);
+}
+.technician-signature-overlay[hidden]{
+  display:none !important;
+}
+.technician-signature-dialog{
+  width:min(760px,100%);
+  max-height:calc(100vh - 36px);
+  overflow:auto;
+  padding:16px;
+  border:1px solid #dbe4ef;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 22px 70px rgba(15,23,42,.24);
+}
+.technician-signature-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.technician-signature-head h3{
+  margin:0;
+  font-size:18px;
+  line-height:1.2;
+}
+.technician-signature-head p{
+  margin:4px 0 0;
+  color:#64748b;
+  font-size:13px;
+}
+.technician-signature-dialog canvas{
+  display:block;
+  width:100%;
+  height:180px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+  touch-action:none;
+}
+.technician-signature-actions{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+.technician-signature-status{
+  min-height:18px;
+  margin:8px 0 0;
+  color:#64748b;
+}
+@media (max-width:560px){
+  .technician-signature-dialog{
+    padding:12px;
+  }
+  .technician-signature-actions{
+    grid-template-columns:1fr;
+  }
+}
 .site-attachments-preview{
   display:grid;
   gap:5px;

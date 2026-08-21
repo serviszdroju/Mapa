@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-ordered-control-live-status-v398";
+const APP_BUILD_VERSION="2026-08-21-mail-pdf-tech-signature-v399";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1368,7 +1368,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v398-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v399-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10574,6 +10574,7 @@ function downloadBlobFile(filename,blob){
 }
 
 const technicianSignatureDataUrlCache=new Map();
+const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
 function technicianSignatureEmail(protocol={}){
   return safe(protocol.technicianEmail || protocol.createdBy || protocol.updatedBy || currentUserEmail()).toLowerCase();
 }
@@ -10603,7 +10604,7 @@ async function loadTechnicianSignatureDataUrl(protocol={}){
     const {doc,getDoc,collection,query,where,limit:getLimit,getDocs}=fb.fsMod;
     for(const docId of technicianSignatureDocIds(email)){
       try{
-        const snap=await getDoc(doc(db,"technicianSignatures",docId));
+        const snap=await getDoc(doc(db,TECHNICIAN_SIGNATURE_COLLECTION,docId));
         if(snap.exists()){
           const found=pickSignature(snap.data());
           if(found) return remember(found);
@@ -10613,7 +10614,7 @@ async function loadTechnicianSignatureDataUrl(protocol={}){
     if(query && where && getDocs){
       const constraints=[where("email","==",email)];
       if(getLimit) constraints.push(getLimit(1));
-      const snap=await getDocs(query(collection(db,"technicianSignatures"),...constraints));
+      const snap=await getDocs(query(collection(db,TECHNICIAN_SIGNATURE_COLLECTION),...constraints));
       let found="";
       snap.forEach(docSnap=>{
         if(!found) found=pickSignature(docSnap.data());
@@ -10631,12 +10632,229 @@ async function enrichProtocolWithTechnicianSignature(protocol={}){
   return dataUrl ? {...protocol,techSignatureDataUrl:dataUrl,technicianSignatureDataUrl:dataUrl} : protocol;
 }
 
-async function preparedProtocolExport(protocol){
+function technicianSignatureCurrentEmail(){
+  return currentUserEmail();
+}
+
+async function saveCurrentTechnicianSignature(dataUrl=""){
+  const email=technicianSignatureCurrentEmail();
+  if(!email) throw new Error("Nejdřív se přihlaš jako technik.");
+  if(!firebaseReady || !db || !fb.fsMod) throw new Error("Firebase není dostupný.");
+  const cleanDataUrl=safe(dataUrl);
+  if(!cleanDataUrl.startsWith("data:image/png;base64,")) throw new Error("Podpis se nepodařilo připravit.");
+  const {doc,setDoc,serverTimestamp}=fb.fsMod;
+  await setDoc(doc(db,TECHNICIAN_SIGNATURE_COLLECTION,email),{
+    email,
+    signatureDataUrl:cleanDataUrl,
+    technicianSignatureDataUrl:cleanDataUrl,
+    updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString(),
+    updatedBy:email
+  },{merge:true});
+  technicianSignatureDataUrlCache.set(email,cleanDataUrl);
+  return cleanDataUrl;
+}
+
+async function deleteCurrentTechnicianSignature(){
+  const email=technicianSignatureCurrentEmail();
+  if(!email) throw new Error("Nejdřív se přihlaš jako technik.");
+  if(!firebaseReady || !db || !fb.fsMod) throw new Error("Firebase není dostupný.");
+  const {doc,deleteDoc}=fb.fsMod;
+  await deleteDoc(doc(db,TECHNICIAN_SIGNATURE_COLLECTION,email));
+  technicianSignatureDataUrlCache.set(email,"");
+}
+
+function signatureCanvasPoint(e,canvas){
+  const rect=canvas.getBoundingClientRect();
+  return {
+    x:(e.clientX-rect.left)*(canvas.width/rect.width),
+    y:(e.clientY-rect.top)*(canvas.height/rect.height)
+  };
+}
+
+function setupSignatureCanvasDrawing(canvas,onDirty){
+  if(!canvas || canvas.dataset.signatureDrawingReady==="1") return;
+  canvas.dataset.signatureDrawingReady="1";
+  const ctx=canvas.getContext("2d");
+  if(!ctx) return;
+  ctx.lineWidth=4;
+  ctx.lineCap="round";
+  ctx.lineJoin="round";
+  ctx.strokeStyle="#0f172a";
+  let drawing=false;
+  let last=null;
+  const markDirty=()=>{ if(typeof onDirty==="function") onDirty(); };
+  const start=e=>{
+    e.preventDefault();
+    drawing=true;
+    last=signatureCanvasPoint(e,canvas);
+    ctx.beginPath();
+    ctx.arc(last.x,last.y,2,0,Math.PI*2);
+    ctx.fillStyle="#0f172a";
+    ctx.fill();
+    markDirty();
+    try{canvas.setPointerCapture(e.pointerId);}catch(_e){}
+  };
+  const move=e=>{
+    if(!drawing || !last) return;
+    e.preventDefault();
+    const point=signatureCanvasPoint(e,canvas);
+    ctx.beginPath();
+    ctx.moveTo(last.x,last.y);
+    ctx.lineTo(point.x,point.y);
+    ctx.stroke();
+    last=point;
+    markDirty();
+  };
+  const stop=e=>{
+    if(!drawing) return;
+    e.preventDefault();
+    drawing=false;
+    last=null;
+    try{canvas.releasePointerCapture(e.pointerId);}catch(_e){}
+  };
+  canvas.addEventListener("pointerdown",start);
+  canvas.addEventListener("pointermove",move);
+  canvas.addEventListener("pointerup",stop);
+  canvas.addEventListener("pointercancel",stop);
+  canvas.addEventListener("pointerleave",stop);
+}
+
+function clearSignatureCanvas(canvas){
+  if(!canvas) return;
+  const ctx=canvas.getContext("2d");
+  if(ctx) ctx.clearRect(0,0,canvas.width,canvas.height);
+}
+
+function signatureCanvasIsBlank(canvas){
+  if(!canvas) return true;
+  const blank=document.createElement("canvas");
+  blank.width=canvas.width;
+  blank.height=canvas.height;
+  try{return canvas.toDataURL("image/png")===blank.toDataURL("image/png");}catch(e){return false;}
+}
+
+async function drawSignatureDataUrlOnCanvas(canvas,dataUrl=""){
+  if(!canvas || !safe(dataUrl)) return false;
+  const ctx=canvas.getContext("2d");
+  if(!ctx) return false;
+  const img=await loadDataUrlImage(dataUrl);
+  if(!img) return false;
+  clearSignatureCanvas(canvas);
+  drawImageContained(ctx,img,18,18,canvas.width-36,canvas.height-36);
+  return true;
+}
+
+function technicianSignatureDialogNodes(){
+  const overlay=document.getElementById("technicianSignatureOverlay");
+  return {
+    overlay,
+    canvas:document.getElementById("technicianSignaturePad"),
+    status:document.getElementById("technicianSignatureStatus")
+  };
+}
+
+function ensureTechnicianSignatureDialog(){
+  let {overlay}=technicianSignatureDialogNodes();
+  if(overlay) return overlay;
+  overlay=document.createElement("div");
+  overlay.id="technicianSignatureOverlay";
+  overlay.className="technician-signature-overlay";
+  overlay.hidden=true;
+  overlay.innerHTML=`
+    <div class="technician-signature-dialog" role="dialog" aria-modal="true" aria-labelledby="technicianSignatureTitle">
+      <div class="technician-signature-head">
+        <div>
+          <h3 id="technicianSignatureTitle">Podpis technika</h3>
+          <p>Podpis se uloží jen k tvému přihlášenému účtu.</p>
+        </div>
+        <button class="secondary" type="button" id="closeTechnicianSignatureBtn">Zavřít</button>
+      </div>
+      <canvas id="technicianSignaturePad" width="900" height="260"></canvas>
+      <div class="technician-signature-actions">
+        <button class="primary" type="button" id="saveTechnicianSignatureBtn">Uložit podpis</button>
+        <button class="secondary" type="button" id="clearTechnicianSignatureBtn">Vymazat podpis</button>
+        <button class="secondary" type="button" id="cancelTechnicianSignatureBtn">Zavřít</button>
+      </div>
+      <p class="small technician-signature-status" id="technicianSignatureStatus"></p>
+    </div>`;
+  document.body.appendChild(overlay);
+  const nodes=technicianSignatureDialogNodes();
+  const close=()=>{overlay.hidden=true;};
+  document.getElementById("closeTechnicianSignatureBtn").onclick=close;
+  document.getElementById("cancelTechnicianSignatureBtn").onclick=close;
+  overlay.addEventListener("click",event=>{
+    if(event.target===overlay) close();
+  });
+  setupSignatureCanvasDrawing(nodes.canvas,()=>{
+    if(nodes.status) nodes.status.textContent="Podpis je upravený, ulož ho tlačítkem Uložit podpis.";
+  });
+  document.getElementById("saveTechnicianSignatureBtn").onclick=async()=>{
+    const current=technicianSignatureDialogNodes();
+    try{
+      if(signatureCanvasIsBlank(current.canvas)){
+        if(current.status) current.status.textContent="Nejdřív se podepiš do pole.";
+        return;
+      }
+      const dataUrl=current.canvas.toDataURL("image/png");
+      if(current.status) current.status.textContent="Ukládám podpis...";
+      await saveCurrentTechnicianSignature(dataUrl);
+      if(current.status) current.status.textContent="Podpis uložen. Bude se vkládat do nově generovaných protokolů.";
+      showSaveConfirmation("Podpis technika uložen.");
+    }catch(e){
+      if(current.status) current.status.textContent=`Chyba uložení podpisu: ${e.message}`;
+    }
+  };
+  document.getElementById("clearTechnicianSignatureBtn").onclick=async()=>{
+    const current=technicianSignatureDialogNodes();
+    try{
+      clearSignatureCanvas(current.canvas);
+      if(current.status) current.status.textContent="Mažu uložený podpis...";
+      await deleteCurrentTechnicianSignature();
+      if(current.status) current.status.textContent="Podpis vymazán.";
+      showSaveConfirmation("Podpis technika vymazán.");
+    }catch(e){
+      if(current.status) current.status.textContent=`Chyba vymazání podpisu: ${e.message}`;
+    }
+  };
+  return overlay;
+}
+
+async function openTechnicianSignatureDialog(){
+  const email=technicianSignatureCurrentEmail();
+  if(!email){
+    setProtocolStatusText("Nejdřív se přihlaš jako technik.");
+    return;
+  }
+  const overlay=ensureTechnicianSignatureDialog();
+  overlay.hidden=false;
+  const {canvas,status}=technicianSignatureDialogNodes();
+  clearSignatureCanvas(canvas);
+  if(status) status.textContent="Načítám uložený podpis...";
+  try{
+    const existing=await loadTechnicianSignatureDataUrl({technicianEmail:email});
+    if(existing){
+      await drawSignatureDataUrlOnCanvas(canvas,existing);
+      if(status) status.textContent="Uložený podpis je načtený.";
+    }else if(status){
+      status.textContent="Zatím nemáš uložený podpis. Podepiš se a dej Uložit podpis.";
+    }
+  }catch(e){
+    if(status) status.textContent="Podpis se nepodařilo načíst, můžeš ho zadat znovu.";
+  }
+}
+window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
+
+async function preparedProtocolFilled(protocol){
   if(!protocol) return null;
-  const filled=await enrichProtocolWithTechnicianSignature({
+  return enrichProtocolWithTechnicianSignature({
     ...protocol,
     createdBy:protocol.createdBy || protocol.technicianEmail || currentUser?.email || ""
   });
+}
+
+async function preparedProtocolExport(protocol){
+  if(!protocol) return null;
+  const filled=await preparedProtocolFilled(protocol);
   const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
   const fileName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
   return {
@@ -10665,7 +10883,7 @@ async function exportProtocolToWord(protocol){
 }
 
 function protocolMailSubject(protocol={}){
-  return "SZZ kontrola záložního zdroje";
+  return "Protokol zkoušky provozuschopnosti záložního zdroje";
 }
 
 function protocolMailSenderName(protocol={}){
@@ -10720,6 +10938,301 @@ function blobToBase64(blob){
   });
 }
 
+function protocolPdfFileNameFromWord(fileName=""){
+  const clean=safe(fileName);
+  return clean.toLowerCase().endsWith(".docx")
+    ? `${clean.slice(0,-5)}.pdf`
+    : (clean.toLowerCase().endsWith(".pdf") ? clean : "protokol.pdf");
+}
+
+function loadDataUrlImage(dataUrl=""){
+  return new Promise((resolve,reject)=>{
+    const src=safe(dataUrl);
+    if(!src) return resolve(null);
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error("Obrázek podpisu se nepodařilo načíst."));
+    img.src=src;
+  });
+}
+
+function drawImageContained(ctx,img,x,y,w,h){
+  if(!ctx || !img || !img.width || !img.height) return;
+  const scale=Math.min(w/img.width,h/img.height);
+  const iw=img.width*scale;
+  const ih=img.height*scale;
+  ctx.drawImage(img,x+(w-iw)/2,y+(h-ih)/2,iw,ih);
+}
+
+function wrapCanvasText(ctx,text,maxWidth){
+  const paragraphs=String(text || "").split(/\r?\n/);
+  const lines=[];
+  paragraphs.forEach(paragraph=>{
+    const words=paragraph.split(/\s+/).filter(Boolean);
+    if(!words.length){
+      lines.push("");
+      return;
+    }
+    let line="";
+    words.forEach(word=>{
+      const test=line ? `${line} ${word}` : word;
+      if(ctx.measureText(test).width<=maxWidth){
+        line=test;
+        return;
+      }
+      if(line) lines.push(line);
+      line=word;
+      while(ctx.measureText(line).width>maxWidth && line.length>1){
+        let cut=line.length;
+        while(cut>1 && ctx.measureText(line.slice(0,cut)).width>maxWidth) cut--;
+        lines.push(line.slice(0,cut));
+        line=line.slice(cut);
+      }
+    });
+    lines.push(line);
+  });
+  return lines;
+}
+
+function protocolPdfRows(protocol={}){
+  const site=selectedSite || {};
+  const deviceType=protocol.deviceType || protocol.selectedDevice || protocol.siteSource || site.zdroj || "";
+  const place=protocol.place || protocol.siteAddress || protocol.siteName || site.adresa || "";
+  return [
+    ["Datum provedení kontroly zdroje", protocolDisplayDate(protocol.date || protocol.checkDate || protocol.createdAt)],
+    ["Kontrolované zařízení - Typ", deviceType],
+    ["Výrobní č.", protocol.serial],
+    ["Plomba", protocol.seal],
+    ["1) Místo kontroly", place],
+    ["2) Provozovatel zařízení", protocol.operator],
+    ["3) Objednatel zkoušky provozuschopnosti", protocol.customer],
+    ["4) Umístění PBZ v objektu", protocol.pbzLocation],
+    ["Počet baterií / kapacita / sady / pom. bat.", [
+      protocol.batteryCount ? `${protocol.batteryCount} ks` : "",
+      protocol.capacityAh ? `${protocol.capacityAh} Ah` : "",
+      protocol.setCount ? `${protocol.setCount} sad` : "",
+      protocol.auxBatteryAh ? `${protocol.auxBatteryAh} Ah` : "",
+      protocol.temperature ? `${protocol.temperature} °C` : "",
+      protocol.seal2 ? `plomba: ${protocol.seal2}` : ""
+    ].filter(Boolean).join(", ")],
+    ["Měření AC", [
+      protocol.inputVac && `vstup ${protocol.inputVac} Vac`,
+      protocol.output1Vac && `výstup 1 ${protocol.output1Vac} Vac`,
+      protocol.output2Vac && `výstup 2 ${protocol.output2Vac} Vac`,
+      protocol.backup1Vac && `výstup zál. 1 ${protocol.backup1Vac} Vac`,
+      protocol.backup2Vac && `výstup zál. 2 ${protocol.backup2Vac} Vac`
+    ].filter(Boolean).join(", ")],
+    ["Měření DC", [
+      protocol.mainBatVdc && `hl. bat. ${protocol.mainBatVdc} Vdc`,
+      protocol.auxBatVdc && `pom. bat. ${protocol.auxBatVdc} Vdc`,
+      protocol.unbalance1 && `rozvážení 1 ${protocol.unbalance1} Vdc`,
+      protocol.unbalance2 && `rozvážení 2 ${protocol.unbalance2} Vdc`,
+      protocol.resetDiagnostics && `reset diagnostiky: ${protocol.resetDiagnostics}`
+    ].filter(Boolean).join(", ")],
+    ["5) Umístění jističů UPS a zál. zařízení v objektu", protocol.breakersLocation],
+    ["6) Typ a umístění zálohovaných zařízení v objektu", protocolBackedDevicesText(protocol)],
+    ["7) Umístění zálohovaných zařízení", protocol.controlLocation],
+    ["Postup testování", protocol.testProcedure],
+    ["8) Parkování a vstup do objektu, předepsané OOPP", protocolAccessText(protocol)],
+    ["9) Kontakty", protocol.contacts],
+    ["10) Dostupnost", protocolAvailabilityText(protocol)],
+    ["11) Perioda zkoušky provozuschopnosti", protocolPeriodText(protocol)],
+    ["12) Zařízení pracuje ve vyhovujících podmínkách", protocolConditionsText(protocol)],
+    ["13) Poznámky", protocol.notes || protocol.issues],
+    ["14) Poznámka pro zákazníka", protocol.customerNote || protocol.noteForCustomer],
+    ["Stav zdroje po kontrole", [
+      protocolSourceStateLabel(protocol),
+      protocolSourceStateValue(protocol)==="ok" ? protocolSourceTestMethodLabel(protocol.sourceTestMethod || protocol.testMethod) : ""
+    ].filter(Boolean).join(" - ")],
+    ["Předán protokol ke zpracování", protocolHandoffForProcessing(protocol) ? "ano" : "ne"]
+  ].filter(([,value])=>safe(value));
+}
+
+async function renderProtocolPdfPageCanvases(protocol={}){
+  const pageWidth=1240;
+  const pageHeight=1754;
+  const margin=78;
+  const pages=[];
+  const clientImage=await loadDataUrlImage(protocol.clientSignatureDataUrl || protocol.clientSignature || "").catch(()=>null);
+  const techImage=await loadDataUrlImage(protocol.techSignatureDataUrl || protocol.technicianSignatureDataUrl || "").catch(()=>null);
+  let canvas=null;
+  let ctx=null;
+  let y=0;
+  const startPage=()=>{
+    canvas=document.createElement("canvas");
+    canvas.width=pageWidth;
+    canvas.height=pageHeight;
+    ctx=canvas.getContext("2d");
+    ctx.fillStyle="#fff";
+    ctx.fillRect(0,0,pageWidth,pageHeight);
+    ctx.strokeStyle="#d1d5db";
+    ctx.lineWidth=2;
+    ctx.strokeRect(32,32,pageWidth-64,pageHeight-64);
+    ctx.fillStyle="#0f172a";
+    ctx.font="400 22px Arial, sans-serif";
+    y=margin;
+    pages.push({canvas,ctx});
+  };
+  const ensureSpace=height=>{
+    if(!ctx || y+height>pageHeight-margin-40) startPage();
+  };
+  const drawTextLines=(lines,x,startY,lineHeight)=>{
+    lines.forEach((line,idx)=>ctx.fillText(line,x,startY+(idx*lineHeight)));
+  };
+  const drawParagraph=(text,options={})=>{
+    ctx.font=`${options.bold ? "700" : "400"} ${options.size || 22}px Arial, sans-serif`;
+    const lines=wrapCanvasText(ctx,text,pageWidth-margin*2);
+    const lineHeight=options.lineHeight || Math.round((options.size || 22)*1.35);
+    const height=lines.length*lineHeight+(options.after || 18);
+    ensureSpace(height);
+    ctx.fillStyle=options.color || "#0f172a";
+    drawTextLines(lines,margin,y,lineHeight);
+    y+=height;
+  };
+  const drawField=(label,value)=>{
+    const width=pageWidth-margin*2;
+    ctx.font="700 20px Arial, sans-serif";
+    const labelLines=wrapCanvasText(ctx,label,width-24);
+    ctx.font="400 21px Arial, sans-serif";
+    const valueLines=wrapCanvasText(ctx,protocolExportValue(value) || " ",width-24);
+    const labelHeight=Math.max(34,labelLines.length*25+12);
+    const valueHeight=Math.max(38,valueLines.length*27+16);
+    const height=labelHeight+valueHeight+8;
+    ensureSpace(height);
+    ctx.strokeStyle="#9ca3af";
+    ctx.lineWidth=1;
+    ctx.fillStyle="#f3f4f6";
+    ctx.fillRect(margin,y,width,labelHeight);
+    ctx.strokeRect(margin,y,width,labelHeight);
+    ctx.fillStyle="#111827";
+    ctx.font="700 20px Arial, sans-serif";
+    drawTextLines(labelLines,margin+12,y+24,25);
+    ctx.fillStyle="#fff";
+    ctx.fillRect(margin,y+labelHeight,width,valueHeight);
+    ctx.strokeRect(margin,y+labelHeight,width,valueHeight);
+    ctx.fillStyle="#111827";
+    ctx.font="400 21px Arial, sans-serif";
+    drawTextLines(valueLines,margin+12,y+labelHeight+28,27);
+    y+=height;
+  };
+  startPage();
+  drawParagraph("Potvrzení o provedené zkoušce provozuschopnosti",{bold:true,size:30,lineHeight:38,after:22});
+  drawParagraph("Tento formulář slouží zároveň jako objednávka zkoušky provozuschopnosti. Kontrolu záložního zdroje na PBZ dle Vyhl. 246/2001 Sb. §6, §7 provedl: Servis záložních zdrojů s.r.o., IČ: 09391126",{size:18,lineHeight:25,after:22});
+  protocolPdfRows(protocol).forEach(([label,value])=>drawField(label,value));
+
+  const signatureHeight=210;
+  ensureSpace(signatureHeight+40);
+  const colGap=22;
+  const colWidth=(pageWidth-margin*2-colGap)/2;
+  const signatureY=y;
+  [["Za objednavatele:",protocol.clientSign || protocol.customer || "",clientImage],["Kontrolu provedl:",protocol.techSign || protocol.technician || currentUser?.displayName || currentUser?.email || "",techImage]].forEach(([label,name,img],idx)=>{
+    const x=margin+idx*(colWidth+colGap);
+    ctx.fillStyle="#f3f4f6";
+    ctx.fillRect(x,signatureY,colWidth,36);
+    ctx.strokeStyle="#9ca3af";
+    ctx.strokeRect(x,signatureY,colWidth,signatureHeight);
+    ctx.fillStyle="#111827";
+    ctx.font="700 20px Arial, sans-serif";
+    ctx.fillText(label,x+12,signatureY+25);
+    ctx.font="400 19px Arial, sans-serif";
+    if(safe(name)) ctx.fillText(safe(name),x+12,signatureY+66);
+    if(img) drawImageContained(ctx,img,x+12,signatureY+76,colWidth-24,108);
+  });
+  y+=signatureHeight+18;
+  drawParagraph("(čitelně + podpis)",{size:17,color:"#64748b",after:0});
+  pages.forEach((page,idx)=>{
+    const pctx=page.ctx;
+    pctx.fillStyle="#64748b";
+    pctx.font="400 16px Arial, sans-serif";
+    pctx.fillText(`Strana ${idx+1} / ${pages.length}`,pageWidth-margin,pageHeight-42);
+  });
+  return pages.map(page=>({
+    width:page.canvas.width,
+    height:page.canvas.height,
+    dataUrl:page.canvas.toDataURL("image/jpeg",0.86)
+  }));
+}
+
+function bytesFromDataUrl(dataUrl=""){
+  const base64=safe(dataUrl).split(",").pop() || "";
+  return base64ToBytes(base64);
+}
+
+function textBytes(text){
+  return new TextEncoder().encode(String(text || ""));
+}
+
+function concatBytes(chunks=[]){
+  const total=chunks.reduce((sum,chunk)=>sum+chunk.length,0);
+  const out=new Uint8Array(total);
+  let offset=0;
+  chunks.forEach(chunk=>{
+    out.set(chunk,offset);
+    offset+=chunk.length;
+  });
+  return out;
+}
+
+function buildPdfFromJpegPages(pages=[]){
+  const pageW=595.28;
+  const pageH=841.89;
+  const count=pages.length;
+  const chunks=[];
+  const offsets=[];
+  let position=0;
+  const push=chunk=>{
+    const bytes=typeof chunk==="string" ? textBytes(chunk) : chunk;
+    chunks.push(bytes);
+    position+=bytes.length;
+  };
+  const objectCount=2+(count*3);
+  const objectBody=(num,parts)=>{
+    offsets[num]=position;
+    push(`${num} 0 obj\n`);
+    (Array.isArray(parts) ? parts : [parts]).forEach(push);
+    push("\nendobj\n");
+  };
+  push("%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n");
+  objectBody(1,"<< /Type /Catalog /Pages 2 0 R >>");
+  const kids=Array.from({length:count},(_,idx)=>`${3+(idx*3)} 0 R`).join(" ");
+  objectBody(2,`<< /Type /Pages /Kids [${kids}] /Count ${count} >>`);
+  pages.forEach((page,idx)=>{
+    const pageObj=3+(idx*3);
+    const imageObj=pageObj+1;
+    const contentObj=pageObj+2;
+    const imageName=`Im${idx+1}`;
+    const imageBytes=bytesFromDataUrl(page.dataUrl);
+    const content=`q\n${pageW.toFixed(2)} 0 0 ${pageH.toFixed(2)} 0 0 cm\n/${imageName} Do\nQ`;
+    objectBody(pageObj,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] /Resources << /XObject << /${imageName} ${imageObj} 0 R >> >> /Contents ${contentObj} 0 R >>`);
+    objectBody(imageObj,[`<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`,imageBytes,"\nendstream"]);
+    objectBody(contentObj,`<< /Length ${textBytes(content).length} >>\nstream\n${content}\nendstream`);
+  });
+  const xrefStart=position;
+  push(`xref\n0 ${objectCount+1}\n`);
+  push("0000000000 65535 f \n");
+  for(let i=1;i<=objectCount;i++) push(`${String(offsets[i] || 0).padStart(10,"0")} 00000 n \n`);
+  push(`trailer\n<< /Size ${objectCount+1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+  return concatBytes(chunks);
+}
+
+async function buildProtocolPdfBlob(protocol={}){
+  const pages=await renderProtocolPdfPageCanvases(protocol);
+  return new Blob([buildPdfFromJpegPages(pages)],{type:"application/pdf"});
+}
+
+async function preparedProtocolPdfExport(protocol){
+  if(!protocol) return null;
+  const filled=await preparedProtocolFilled(protocol);
+  const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
+  const wordName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
+  const fileName=protocolPdfFileNameFromWord(wordName);
+  return {
+    filled,
+    fileName,
+    blob:await buildProtocolPdfBlob(filled)
+  };
+}
+
 async function sendProtocolByMail(protocol,recipientEmail=""){
   if(!protocol){
     showSaveConfirmation("Není vybraný protokol k poslání.");
@@ -10733,8 +11246,9 @@ async function sendProtocolByMail(protocol,recipientEmail=""){
   if(!firebaseReady || !mailReady || !fb.fnMod || !mailFunctions){
     throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
   }
-  const prepared=await preparedProtocolExport(protocol);
-  setProtocolStatusText(`Odesílám protokol na ${toEmail}...`);
+  setProtocolStatusText("Připravuji PDF protokol pro e-mail...");
+  const prepared=await preparedProtocolPdfExport(protocol);
+  setProtocolStatusText(`Odesílám PDF protokol na ${toEmail}...`);
   const sendMail=fb.fnMod.httpsCallable(mailFunctions,"sendProtocolMail");
   await sendMail({
     recipientEmail:toEmail,
@@ -10742,6 +11256,7 @@ async function sendProtocolByMail(protocol,recipientEmail=""){
     subject:protocolMailSubject(prepared.filled),
     body:protocolMailBody(prepared.filled,prepared.fileName),
     fileName:prepared.fileName,
+    contentType:"application/pdf",
     fileBase64:await blobToBase64(prepared.blob)
   });
   setProtocolStatusText(`Protokol byl odeslán na ${toEmail}.`);
@@ -12515,6 +13030,10 @@ function bindDetailHistoryActions(history){
         button.disabled=false;
       }
     }
+    if(id==="technicianSignatureBtn"){
+      await openTechnicianSignatureDialog();
+      return;
+    }
   });
   history.addEventListener("change",async event=>{
     const input=event.target && event.target.closest ? event.target.closest("#historyHandoffProtocolCheck") : null;
@@ -12611,6 +13130,7 @@ function renderHistory(){
     safe(d && (d._collection || "")),
     canExportProtocol ? "export" : "",
     canDeleteProtocol ? "delete" : "",
+    canExportProtocol ? "tech-signature" : "",
     protocolState,
     protocolStateText,
     protocolTestText,
@@ -12706,6 +13226,7 @@ function renderHistory(){
       actions.appendChild(handoffLabel);
     }
     if(canDeleteProtocol) addAction("danger","deleteHistoryProtocolBtn","Smazat protokol");
+    if(canExportProtocol) addAction("secondary","technicianSignatureBtn","Podpis technika");
     itemEl.appendChild(actions);
   }
   history.replaceChildren(controls,itemEl);
