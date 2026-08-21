@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-legacy-sync-map-reopen-v394";
+const APP_BUILD_VERSION="2026-08-21-protocol-mail-phone-v395";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v394-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v395-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -10574,15 +10574,30 @@ async function exportProtocolToWord(protocol){
 }
 
 function protocolMailSubject(protocol={}){
-  const date=protocolDisplayDate(protocol.date || protocol.checkDate || protocol.createdAt);
-  const place=safe(protocol.place || protocol.siteAddress || protocol.siteName || selectedSite?.adresa || "");
-  return ["Protokol zkoušky provozuschopnosti",date,place].filter(Boolean).join(" - ");
+  return "SZZ kontrola záložního zdroje";
+}
+
+function protocolMailSenderName(protocol={}){
+  const email=currentUserEmail();
+  const fromEmail=email ? email.split("@")[0].replace(/[._-]+/g," ").trim() : "";
+  return safe(
+    currentUser?.displayName ||
+    protocol.senderName ||
+    protocol.technician ||
+    protocol.techSign ||
+    protocol.technicianName ||
+    fromEmail ||
+    protocol.technicianEmail ||
+    protocol.createdBy ||
+    ""
+  );
 }
 
 function protocolMailBody(protocol={},fileName=""){
   const date=protocolDisplayDate(protocol.date || protocol.checkDate || protocol.createdAt);
   const place=safe(protocol.place || protocol.siteAddress || protocol.siteName || selectedSite?.adresa || "");
   const device=safe(protocol.deviceType || protocol.selectedDevice || protocol.siteSource || selectedSite?.zdroj || "");
+  const senderName=protocolMailSenderName(protocol);
   return [
     "Dobrý den,",
     "",
@@ -10593,7 +10608,12 @@ function protocolMailBody(protocol={},fileName=""){
     device ? `Zařízení: ${device}` : null,
     fileName ? `Soubor: ${fileName}` : null,
     "",
-    "S pozdravem"
+    "S pozdravem",
+    senderName || null,
+    "",
+    "Servis záložních zdrojů s.r.o.",
+    "IČ: 09391126  DIČ: CZ09391126",
+    "sídlo: Božetěchova 3003/133, 612 00 Brno, Česká republika"
   ].filter(line=>line!==null).join("\n");
 }
 
@@ -12579,7 +12599,7 @@ function renderHistory(){
       addAction("secondary","exportHistoryProtocolBtn","Exportovat do Wordu");
       addAction("secondary","mailHistoryProtocolBtn","Poslat na mail");
       const handoffLabel=document.createElement("label");
-      handoffLabel.className="history-handoff-processing";
+      handoffLabel.className="secondary history-handoff-processing";
       handoffLabel.htmlFor="historyHandoffProtocolCheck";
       const handoffInput=document.createElement("input");
       handoffInput.type="checkbox";
@@ -13978,16 +13998,33 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
 document.getElementById("editBtn").onclick=()=>document.getElementById("editCard").style.display="block";
 document.getElementById("cancelEditBtn").onclick=()=>document.getElementById("editCard").style.display="none";
 
+function shouldUseProtocolFormFullscreen(){
+  if(typeof window==="undefined") return false;
+  const width=Number(window.innerWidth) || 0;
+  const height=Number(window.innerHeight) || 0;
+  const minSide=Math.min(width || Infinity,height || Infinity);
+  const maxSide=Math.max(width,height);
+  const narrow=window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
+  const phoneLandscape=window.matchMedia && window.matchMedia("(pointer: coarse)").matches && minSide<=480 && maxSide<=980;
+  return !!(narrow || phoneLandscape);
+}
+
 function setProtocolFormFullscreen(active){
-  const isActive=!!active;
+  const isActive=!!active && shouldUseProtocolFormFullscreen();
   document.body.classList.toggle("protocol-form-fullscreen",isActive);
   const drawer=drawerNode();
   if(drawer) drawer.classList.toggle("protocol-form-fullscreen",isActive);
   const btn=formFieldNode("toggleProtocolBtn");
   if(btn){
-    btn.setAttribute("aria-expanded",isActive ? "true" : "false");
-    btn.setAttribute("aria-label",isActive ? "Skrýt formulář protokolu" : "Otevřít formulář protokolu přes celou stránku");
+    btn.setAttribute("aria-expanded",active ? "true" : "false");
+    btn.setAttribute("aria-label",active ? "Skrýt formulář protokolu" : "Otevřít formulář protokolu");
   }
+}
+
+function refreshProtocolFormFullscreenMode(){
+  const f=formFieldNode("protocolForm");
+  const open=!!f && (f.dataset.protocolOpen==="1" || f.style.display !== "none");
+  setProtocolFormFullscreen(open);
 }
 
 function setProtocolFormOpen(open,options={}){
@@ -14037,6 +14074,15 @@ document.addEventListener("keydown",event=>{
     setProtocolFormOpen(false,{skipPrefill:true});
   }
 });
+
+window.addEventListener("resize",()=>{
+  if(document.body.classList.contains("protocol-form-fullscreen")){
+    refreshProtocolFormFullscreenMode();
+  }else{
+    const f=formFieldNode("protocolForm");
+    if(f && f.dataset.protocolOpen==="1" && shouldUseProtocolFormFullscreen()) refreshProtocolFormFullscreenMode();
+  }
+},{passive:true});
 
 
 const editFindGpsBtn=document.getElementById("editFindGpsBtn");
