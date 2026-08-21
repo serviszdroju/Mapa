@@ -568,6 +568,8 @@ Current responsive protocol decision: the web app must remain usable across phon
 
 Current phone source/protocol decision: on phones, multi-source map popups and the top detail source chooser must remain easy to operate when one place has more than two sources. Use touch-safe source buttons keyed by `data-source-popup-key`, keep map popups small enough to fit inside the mobile map with an internal vertical scroll, keep the detail source chooser as a compact vertical scroll list rather than a horizontal strip, make source type text smaller so the source rows are shorter, and keep the fullscreen protocol form fixed to the viewport width with no horizontal page movement.
 
+Current phone detail reopen decision: after closing the detail drawer on phones, the closed drawer must not intercept map or sidebar taps. Closing detail should clear transient protocol fullscreen, map-focus, Leaflet popup, and source-popup debounce state, and reopening by ID should fall back to current row lookup keys if a cached row reference is stale.
+
 Current performance phase 254 decision: merge and update per-site local array caches with direct one-pass ID filtering and duplicate-aware incoming item assembly instead of repeated `filter()` calls per item, preserving append/remove behavior, metadata enrichment, `_id` fallback generation, last-incoming-wins dedupe, localStorage writes, cache invalidation, and merge limits.
 
 Current performance phase 255 decision: reuse the shared direct-loop `_id` removal helper for localStorage arrays, per-site arrays, and embedded Firebase child arrays, and count local protocol drafts with a direct loop, preserving removal criteria, JSON writes, cache refreshes, embedded child updates, and offline status totals.

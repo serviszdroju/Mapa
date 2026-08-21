@@ -548,7 +548,10 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(isTemporaryForm && window.szzRestoreNormalDrawerSnapshot(d)){
       d.classList.remove("adding-new-site");
       const close=d.querySelector("#closeDrawer");
-      if(close) close.onclick=()=>d.classList.remove("open");
+      if(close) close.onclick=()=>{
+        if(typeof window.closeDetailDrawer==="function") window.closeDetailDrawer();
+        else d.classList.remove("open");
+      };
       if(typeof window.bindDetailShellControls==="function"){
         try{ window.bindDetailShellControls(); }catch(e){}
       }
@@ -2427,7 +2430,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-21-phone-source-compact-v390";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-21-phone-detail-reopen-v391";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

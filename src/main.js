@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-phone-source-compact-v390";
+const APP_BUILD_VERSION="2026-08-21-phone-detail-reopen-v391";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v390-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v391-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -3170,10 +3170,7 @@ function getAllKnownDataKeys(){
 function bindDrawerCloseButton(){
   const close=document.getElementById("closeDrawer");
   const drawer=drawerNode();
-  if(close && drawer) close.onclick=()=>{
-    setProtocolFormOpen(false,{skipPrefill:true});
-    drawer.classList.remove("open");
-  };
+  if(close && drawer) close.onclick=()=>closeDetailDrawer();
 }
 
 function bindDetailShellControls(){
@@ -4675,6 +4672,11 @@ function cachedPlaceGroups(inputRows){
 }
 let sourcePopupLastHandledKey="";
 let sourcePopupLastHandledAt=0;
+function resetSourcePopupActivationGuard(){
+  sourcePopupLastHandledKey="";
+  sourcePopupLastHandledAt=0;
+}
+window.resetSourcePopupActivationGuard=resetSourcePopupActivationGuard;
 function activateSourcePopupButton(sourceBtn,event){
   if(!sourceBtn) return false;
   const key=sourceBtn.getAttribute("data-source-popup-key");
@@ -5457,9 +5459,36 @@ Object.assign(window,{
   setRegionFieldValue
 });
 window.openDetailById=function(id){
-  const row=findRowByAnyId(id);
-  const idx=rowIndexForRow(row);
-  if(idx>=0) return window.openDetail(idx);
+  const wanted=String(id || "").trim();
+  if(!wanted) return false;
+  syncRowIndexes();
+  const row=findRowByAnyId(wanted);
+  let idx=rowIndexForRow(row);
+  if(idx<0 && row){
+    const keys=rowLookupKeys(row);
+    for(const key of keys){
+      for(let i=0;i<rows.length;i++){
+        if(rowMatchesAnyLookupKey(rows[i],key)){
+          idx=i;
+          break;
+        }
+      }
+      if(idx>=0) break;
+    }
+  }
+  if(idx<0){
+    for(let i=0;i<rows.length;i++){
+      if(rowMatchesAnyLookupKey(rows[i],wanted)){
+        idx=i;
+        break;
+      }
+    }
+  }
+  if(idx>=0){
+    window.openDetail(idx);
+    return true;
+  }
+  return false;
 };
 let mapMarkerCache=new Map();
 function mapMarkerSignature(group,fill){
@@ -6008,6 +6037,30 @@ window.showSelectedSiteOnMap=showSelectedSiteOnMap;
 window.showMapFocusLocation=showMapFocusLocation;
 window.returnFromMapFocus=returnFromMapFocus;
 window.beginManualGpsPick=beginManualGpsPick;
+function closeDetailDrawer(){
+  try{ setProtocolFormOpen(false,{skipPrefill:true}); }catch(e){
+    try{ setProtocolFormFullscreen(false); }catch(_e){}
+  }
+  const drawer=drawerNode();
+  if(drawer){
+    drawer.classList.remove("open");
+    drawer.classList.remove("protocol-form-fullscreen");
+  }
+  document.body.classList.remove("protocol-form-fullscreen");
+  if(document.body.classList.contains("map-focus-mode") && !manualGpsPickHandler){
+    mapFocusDetailKey="";
+    mapFocusReturnHandler=null;
+    setMapFocusMode(false);
+  }
+  if(typeof window.resetSourcePopupActivationGuard==="function"){
+    window.resetSourcePopupActivationGuard();
+  }
+  try{
+    if(map && typeof map.closePopup==="function") map.closePopup();
+  }catch(e){}
+  invalidateMapAfterPaint();
+}
+window.closeDetailDrawer=closeDetailDrawer;
 const siteDedupKeysCache=new WeakMap();
 function siteDedupValue(v){
   const text=safe(v);

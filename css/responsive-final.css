@@ -142,6 +142,12 @@ aside,
 .drawer{
   min-width:0;
 }
+.drawer:not(.open){
+  pointer-events:none;
+}
+.drawer.open{
+  pointer-events:auto;
+}
 @media(max-width:1180px){
   .app{
     grid-template-columns:clamp(300px,34vw,360px) minmax(0,1fr);
