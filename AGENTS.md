@@ -578,6 +578,8 @@ Current protocol mail/mobile decision: sending a protocol by e-mail should use t
 
 Current ordered-control map parity decision: the `Kontrola objednaná` map/filter state must match the original `karolopejlo.github.io/Mapa` behavior. For Firebase-first rows, map status flags (`Kontrola objednaná`, `Objednaná oprava`, `Stop Stav`, `Stav pro mapu`, and related aliases) are authoritative from the primary `sitesUnified.raw` row and should not be overridden by legacy `siteEdits`; legacy edits may still fill non-status detail fields. Marker/status priority should follow the old web: overdue, due soon, ordered control, ordered repair, stop state, then normal/watch-self.
 
+Current protocol handoff decision: the "Předán protokol ke zpracování" checkbox shown under the Protokol tab in detail history must remain checked until the technician explicitly unchecks it. Persist the last local choice by protocol ID, write it to Firebase/local/offline copies when possible, and render the checked state with a grey active button treatment.
+
 Current performance phase 254 decision: merge and update per-site local array caches with direct one-pass ID filtering and duplicate-aware incoming item assembly instead of repeated `filter()` calls per item, preserving append/remove behavior, metadata enrichment, `_id` fallback generation, last-incoming-wins dedupe, localStorage writes, cache invalidation, and merge limits.
 
 Current performance phase 255 decision: reuse the shared direct-loop `_id` removal helper for localStorage arrays, per-site arrays, and embedded Firebase child arrays, and count local protocol drafts with a direct loop, preserving removal criteria, JSON writes, cache refreshes, embedded child updates, and offline status totals.

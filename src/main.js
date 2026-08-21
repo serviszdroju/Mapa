@@ -311,7 +311,8 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-ordered-map-parity-v396";
+const APP_BUILD_VERSION="2026-08-21-protocol-handoff-persist-v397";
+const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1368,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v396-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v397-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -12500,6 +12501,8 @@ function bindDetailHistoryActions(history){
     const input=event.target && event.target.closest ? event.target.closest("#historyHandoffProtocolCheck") : null;
     if(!input || !history.contains(input)) return;
     const item=detailHistoryItems[detailHistoryIndex];
+    const label=input.closest(".history-handoff-processing");
+    if(label) label.classList.toggle("is-checked",input.checked);
     input.disabled=true;
     try{
       await setDetailHistoryProtocolHandoff(item,input.checked);
@@ -12507,6 +12510,7 @@ function bindDetailHistoryActions(history){
       renderHistory();
     }catch(e){
       input.checked=!input.checked;
+      if(label) label.classList.toggle("is-checked",input.checked);
       setProtocolStatusText(`Chyba uložení předání: ${e.message}`);
       showSaveConfirmation("Předání se nepodařilo uložit.");
     }finally{
@@ -12544,6 +12548,7 @@ function renderHistory(){
   const protocolState=protocolSourceStateValue(d);
   const protocolStateText=protocolSourceStateLabel(d);
   const protocolTestText=protocolSourceTestMethodLabel(d.sourceTestMethod || d.testMethod);
+  const protocolHandoffChecked=protocolHandoffForProcessing(d);
   const rows=[
     ["Typ záznamu", d._type || "Záznam"],
     ["Datum", historyDateLabel(d)],
@@ -12557,7 +12562,7 @@ function renderHistory(){
     ["Výsledek", d.result || d.conditions || ""],
     ["Stav zdroje", protocolStateText],
     ["Odzkoušení zdroje", protocolTestText],
-    ["Předáno ke zpracování", protocolHandoffForProcessing(d) ? "ano" : "ne"],
+    ["Předáno ke zpracování", protocolHandoffChecked ? "ano" : "ne"],
     ["Reset diagnostiky", d.resetDiagnostics || ""],
     ["Baterie", [d.batteryCount ? `${d.batteryCount} ks` : "", d.capacityAh ? `${d.capacityAh} Ah` : "", d.setCount ? `${d.setCount} sad` : ""].filter(Boolean).join(", ")],
     ["Měření AC", [d.inputVac&&`vstup ${d.inputVac} Vac`, d.output1Vac&&`výstup 1 ${d.output1Vac} Vac`, d.output2Vac&&`výstup 2 ${d.output2Vac} Vac`].filter(Boolean).join(", ")],
@@ -12590,7 +12595,7 @@ function renderHistory(){
     protocolState,
     protocolStateText,
     protocolTestText,
-    protocolHandoffForProcessing(d) ? "handoff" : "",
+    protocolHandoffChecked ? "handoff" : "",
     protocolTimeValue(d),
     ...rows.flatMap(([label,value])=>[safe(label),safe(value)]),
     ...photos.map(url=>safe(url))
@@ -12670,12 +12675,12 @@ function renderHistory(){
       addAction("secondary","exportHistoryProtocolBtn","Exportovat do Wordu");
       addAction("secondary","mailHistoryProtocolBtn","Poslat na mail");
       const handoffLabel=document.createElement("label");
-      handoffLabel.className="secondary history-handoff-processing";
+      handoffLabel.className=`secondary history-handoff-processing${protocolHandoffChecked ? " is-checked" : ""}`;
       handoffLabel.htmlFor="historyHandoffProtocolCheck";
       const handoffInput=document.createElement("input");
       handoffInput.type="checkbox";
       handoffInput.id="historyHandoffProtocolCheck";
-      handoffInput.checked=protocolHandoffForProcessing(d);
+      handoffInput.checked=protocolHandoffChecked;
       const handoffText=document.createElement("span");
       handoffText.textContent="Předán protokol ke zpracování";
       handoffLabel.append(handoffInput,handoffText);
@@ -13164,12 +13169,102 @@ function protocolSourceTestMethodLabel(value){
   return safe(value);
 }
 
-function protocolHandoffForProcessing(protocol={}){
-  if(protocol.handoffForProcessing === true || protocol.submittedForProcessing === true) return true;
-  const raw=safe(protocol.handoffForProcessing || protocol.submittedForProcessing || protocol.processingHandoff);
-  const normalized=simpleNorm(raw);
-  return normalized==="ano" || normalized==="true" || normalized==="1" || normalized.includes("predan");
+let protocolHandoffOverridesCacheRaw=null;
+let protocolHandoffOverridesCache=null;
+
+function clearProtocolHandoffOverridesCache(){
+  protocolHandoffOverridesCacheRaw=null;
+  protocolHandoffOverridesCache=null;
 }
+
+function readProtocolHandoffOverrides(){
+  try{
+    const raw=localStorage.getItem(SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) || "{}";
+    if(protocolHandoffOverridesCache && protocolHandoffOverridesCacheRaw===raw) return protocolHandoffOverridesCache;
+    const parsed=JSON.parse(raw);
+    protocolHandoffOverridesCache=parsed && typeof parsed==="object" && !Array.isArray(parsed) ? parsed : {};
+    protocolHandoffOverridesCacheRaw=raw;
+    return protocolHandoffOverridesCache;
+  }catch(e){
+    protocolHandoffOverridesCache={};
+    protocolHandoffOverridesCacheRaw="";
+    return protocolHandoffOverridesCache;
+  }
+}
+
+function writeProtocolHandoffOverrides(overrides={}){
+  try{
+    const source=overrides && typeof overrides==="object" && !Array.isArray(overrides) ? {...overrides} : {};
+    const entries=Object.entries(source);
+    if(entries.length>500){
+      entries.sort((a,b)=>Date.parse(b[1]?.updatedAt || "")-Date.parse(a[1]?.updatedAt || ""));
+      const trimmed={};
+      entries.slice(0,500).forEach(([key,value])=>{ trimmed[key]=value; });
+      Object.keys(source).forEach(key=>delete source[key]);
+      Object.assign(source,trimmed);
+    }
+    const raw=JSON.stringify(source);
+    localStorage.setItem(SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY,raw);
+    protocolHandoffOverridesCache=source;
+    protocolHandoffOverridesCacheRaw=raw;
+  }catch(e){
+    console.warn("Lokální stav předání protokolu se nepodařilo uložit",e);
+  }
+}
+
+function protocolHandoffItemId(protocol={}){
+  return safe(protocol && (protocol._id || protocol.id || protocol.protocolId || protocol.protocolDocId));
+}
+
+function protocolHandoffOverrideValue(protocol={}){
+  const id=protocolHandoffItemId(protocol);
+  if(!id) return null;
+  const overrides=readProtocolHandoffOverrides();
+  if(!Object.prototype.hasOwnProperty.call(overrides,id)) return null;
+  const entry=overrides[id];
+  if(entry===true || entry===false) return entry;
+  if(entry && typeof entry==="object" && typeof entry.checked==="boolean") return entry.checked;
+  return null;
+}
+
+function rememberProtocolHandoffOverride(id,checked,item={}){
+  const cleanId=safe(id);
+  if(!cleanId) return;
+  const overrides={...readProtocolHandoffOverrides()};
+  overrides[cleanId]={
+    checked:!!checked,
+    updatedAt:new Date().toISOString(),
+    by:currentUserEmail(),
+    siteDocId:safe(item.siteDocId || item.firebaseDocId || selectedSiteDocId(selectedSite)),
+    siteKey:safe(item.siteKey || item.siteId || selectedSite?.id || "")
+  };
+  writeProtocolHandoffOverrides(overrides);
+}
+
+function protocolHandoffFieldValue(value){
+  if(value===true) return true;
+  if(value===false) return false;
+  const raw=safe(value);
+  if(!raw) return null;
+  const normalized=simpleNorm(raw);
+  if(normalized==="ne" || normalized==="false" || normalized==="0" || normalized.includes("nepredan")) return false;
+  if(normalized==="ano" || normalized==="true" || normalized==="1" || normalized.includes("predan")) return true;
+  return null;
+}
+
+function protocolHandoffForProcessing(protocol={}){
+  const override=protocolHandoffOverrideValue(protocol);
+  if(override!==null) return override;
+  for(const value of [protocol.handoffForProcessing,protocol.submittedForProcessing,protocol.processingHandoff]){
+    const parsed=protocolHandoffFieldValue(value);
+    if(parsed!==null) return parsed;
+  }
+  return false;
+}
+
+window.addEventListener("storage",event=>{
+  if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
+});
 
 function mainProtocolHistoryItemOwnerEmail(item={}){
   return safe(item.createdBy || item.technicianEmail || item.techEmail || item.updatedBy).toLowerCase();
@@ -13428,6 +13523,15 @@ function updateDetailHistoryProtocolHandoffState(id,checked){
     mainProtocolHistoryCache.items=patchProtocolProcessedItems(mainProtocolHistoryCache.items,cleanId,patch,true);
     mainProtocolHistoryCache.savedAt=Date.now();
   }
+  if(selectedSite?.firebaseData){
+    if(Array.isArray(selectedSite.firebaseData.protocolHistory)){
+      selectedSite.firebaseData.protocolHistory=patchProtocolProcessedItems(selectedSite.firebaseData.protocolHistory,cleanId,patch,true);
+    }
+    if(Array.isArray(selectedSite.firebaseData.protocolRefs)){
+      selectedSite.firebaseData.protocolRefs=patchProtocolProcessedItems(selectedSite.firebaseData.protocolRefs,cleanId,patch,true);
+    }
+  }
+  if(typeof clearSiteChildItemsCache==="function") clearSiteChildItemsCache("protocols",selectedSite);
   clearDetailHistoryCacheForKind("protocols",selectedSite);
   clearLocalDetailReadCacheForKind("protocolHistory",selectedSite);
 }
@@ -13436,6 +13540,7 @@ async function setDetailHistoryProtocolHandoff(item={},checked=false){
   const id=safe(item._id || item.id);
   if(!id) throw new Error("Protokol nemá ID.");
   await saveProtocolHandoffRemote(item,checked);
+  rememberProtocolHandoffOverride(id,checked,item);
   updateLocalProtocolHistoryHandoff(id,checked);
   await updateOfflineProtocolQueueHandoff(id,checked);
   updateDetailHistoryProtocolHandoffState(id,checked);

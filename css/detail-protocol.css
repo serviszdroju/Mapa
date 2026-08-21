@@ -893,11 +893,17 @@
   text-align:center;
   cursor:pointer;
 }
+.history-handoff-processing.is-checked{
+  background:#e2e8f0;
+  border-color:#94a3b8;
+  color:#334155;
+}
 .history-handoff-processing input{
   min-height:0;
   width:16px;
   height:16px;
   margin:0;
+  accent-color:#64748b;
 }
 .site-attachments-preview{
   display:grid;
