@@ -225,8 +225,8 @@ aside,
   .source-chooser-button{
     width:100%;
     min-width:0;
-    min-height:50px;
-    padding:8px 9px;
+    min-height:44px;
+    padding:6px 8px;
     scroll-snap-align:none;
     touch-action:manipulation;
   }
@@ -284,6 +284,36 @@ aside,
   }
 }
 @media(max-width:760px){
+  .source-chooser{
+    padding:6px !important;
+  }
+  .source-chooser-title{
+    margin-bottom:5px;
+    font-size:11px !important;
+    line-height:1.15;
+  }
+  .source-chooser-title::before{
+    width:7px;
+    height:7px;
+    box-shadow:0 0 0 3px #dbeafe;
+  }
+  .source-chooser-buttons{
+    gap:4px !important;
+    max-height:min(28dvh,190px);
+    padding:0 2px 4px 0;
+  }
+  .source-chooser-button{
+    min-height:38px;
+    padding:5px 7px;
+    border-radius:7px;
+    font-size:11px !important;
+    line-height:1.12;
+  }
+  .source-chooser-button small{
+    margin-top:1px;
+    font-size:10px;
+    line-height:1.08;
+  }
   .leaflet-popup.source-popup{
     max-width:calc(100vw - 22px) !important;
   }
@@ -317,6 +347,31 @@ aside,
   }
   .source-popup-btn small{
     font-size:11px;
+  }
+}
+@media(max-width:560px){
+  .source-chooser{
+    margin:6px 9px 5px !important;
+    padding:5px !important;
+  }
+  .source-chooser-title{
+    margin-bottom:4px;
+    font-size:10px !important;
+  }
+  .source-chooser-buttons{
+    gap:4px !important;
+    max-height:min(26dvh,168px);
+  }
+  .source-chooser-button{
+    min-height:34px;
+    padding:4px 6px;
+    font-size:10.5px !important;
+    line-height:1.08;
+  }
+  .source-chooser-button small{
+    margin-top:1px;
+    font-size:9.5px;
+    line-height:1.05;
   }
 }
 @media(max-width:920px) and (orientation:landscape) and (max-height:540px){
