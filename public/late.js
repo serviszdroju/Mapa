@@ -649,6 +649,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 
   function markFirebaseSitesNetworkLoad(){
     firebaseSitesLastNetworkLoadAt = Date.now();
+    window.__szzFirebaseSitesLastNetworkLoadAt = firebaseSitesLastNetworkLoadAt;
+    window.__szzFirebaseRowsNetworkLoaded = true;
   }
 
   function firebaseSitesNetworkIsFresh(maxAge=FIREBASE_BACKGROUND_REFRESH_MIN_MS){
@@ -2015,7 +2017,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       }
     }
     const mig=document.getElementById("migrateCsvFirebaseBtn"); if(mig) mig.onclick=migrateCsvToFirebase;
-    const reload=document.getElementById("reloadFirebaseSitesBtn"); if(reload) reload.onclick=()=>loadFirebaseSites();
+    const reload=document.getElementById("reloadFirebaseSitesBtn"); if(reload) reload.onclick=()=>loadFirebaseSites(null,{force:true,skipLocalCache:true,skipFirestoreCache:true});
     try{ if(typeof loadExtraSites==="function") loadExtraSites=async function(){}; }catch(e){}
   }
   if(!document.__firebaseUnifiedAddCaptureBound){
@@ -2430,7 +2432,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-21-map-status-parity-v403";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-21-map-render-parity-v404";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

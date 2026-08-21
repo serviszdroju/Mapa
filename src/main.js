@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-map-status-parity-v403";
+const APP_BUILD_VERSION="2026-08-21-map-render-parity-v404";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -974,6 +974,10 @@ if(firebaseReady){
   }
   let postLoginLoadToken=0;
   let postLoginLoadPromise=null;
+  function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
+    const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
+    return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
+  }
   async function loadFirebaseRowsAfterAuth(reason="auth"){
     if(postLoginLoadPromise) return postLoginLoadPromise;
     postLoginLoadPromise=loadFirebaseRowsAfterAuthInner(reason).finally(()=>{postLoginLoadPromise=null;});
@@ -990,16 +994,16 @@ if(firebaseReady){
       return false;
     }
     for(let attempt=1; attempt<=4; attempt++){
-      if(Array.isArray(rows) && rows.length){
+      if(firebaseRowsWereLoadedFromNetwork()){
         resetFirebaseRowsAutoReload();
         setProgressStatus("");
         return true;
       }
       setProgressStatus(`Načítám body z Firebase (${attempt}/4)...`);
       try{
-        const loaded=await window.loadFirebaseSitesUnified();
+        const loaded=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true,skipFirestoreCache:true});
         if(token!==postLoginLoadToken) return false;
-        if((Array.isArray(loaded) && loaded.length) || (Array.isArray(rows) && rows.length)){
+        if((Array.isArray(loaded) && loaded.length) || firebaseRowsWereLoadedFromNetwork()){
           resetFirebaseRowsAutoReload();
           setProgressStatus("");
           try{fit();}catch(e){}
@@ -1368,7 +1372,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v403-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v404-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -4785,7 +4789,11 @@ function groupColor(groupRows){
   return rep ? color(rep) : "#16a34a";
 }
 function mapStatusParitySnapshot(inputRows=rows){
-  const groups=groupRowsByPlace(inputRows || []);
+  const mapRows=[];
+  for(const row of inputRows || []){
+    if(inCzSk(row)) mapRows.push(row);
+  }
+  const groups=groupRowsByPlace(mapRows);
   return groups
     .filter(groupHasUsableGps)
     .map(group=>{
@@ -5114,7 +5122,6 @@ let sidebarRenderCache={groups:null,signature:"",renderedEmpty:false};
 let sidebarSortedGroupsCache={groups:null,signature:"",visibleGroups:[]};
 let renderCountersCache={shown:null,gps:null};
 let fitBoundsPointsCache={signature:"",points:[]};
-const MAP_MARKER_RENDER_LIMIT=900;
 
 function markRowsDirty(){
   rowsIndexDirty=true;
@@ -5773,71 +5780,20 @@ function buildMapMarkerForGroup(group,fill){
 function groupHasUsableGps(group){
   return group && Number.isFinite(group.lat) && Number.isFinite(group.lon) && group.lat>=47 && group.lat<=51.5 && group.lon>=12 && group.lon<=23;
 }
-function groupsInsideCurrentMap(groups){
-  const source=groups || [];
+function mapMarkerGroups(groups){
+  const source=Array.isArray(groups) ? groups : [];
   const out=[];
-  const pushGroup=group=>{
-    if(!groupHasUsableGps(group)) return;
-    out.push(group);
-  };
-  if(!map || typeof map.getBounds!=="function"){
-    for(const group of source){
-      pushGroup(group);
-      if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
-    }
-    return out;
-  }
-  let bounds=null;
-  let minLat=null;
-  let maxLat=null;
-  let minLon=null;
-  let maxLon=null;
-  try{
-    bounds=map.getBounds().pad(0.18);
-    const sw=bounds.getSouthWest();
-    const ne=bounds.getNorthEast();
-    minLat=Math.min(sw.lat,ne.lat);
-    maxLat=Math.max(sw.lat,ne.lat);
-    minLon=Math.min(sw.lng,ne.lng);
-    maxLon=Math.max(sw.lng,ne.lng);
-  }catch(e){}
-  if(!bounds || typeof bounds.contains!=="function"){
-    for(const group of source){
-      pushGroup(group);
-      if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
-    }
-    return out;
-  }
-  const hasNumericBounds=Number.isFinite(minLat) && Number.isFinite(maxLat) && Number.isFinite(minLon) && Number.isFinite(maxLon);
   for(const group of source){
-    if(!groupHasUsableGps(group)) continue;
-    if(hasNumericBounds){
-      if(group.lat<minLat || group.lat>maxLat || group.lon<minLon || group.lon>maxLon) continue;
-    }else if(!bounds.contains([group.lat,group.lon])){
-      continue;
-    }
-    out.push(group);
-    if(out.length>=MAP_MARKER_RENDER_LIMIT) break;
+    if(groupHasUsableGps(group)) out.push(group);
   }
   return out;
 }
-function currentMapBoundsKey(){
-  if(!map || typeof map.getBounds!=="function") return "no-map";
-  try{
-    const bounds=map.getBounds().pad(0.18);
-    const sw=bounds.getSouthWest();
-    const ne=bounds.getNorthEast();
-    return `${Number(sw.lat).toFixed(4)},${Number(sw.lng).toFixed(4)},${Number(ne.lat).toFixed(4)},${Number(ne.lng).toFixed(4)}`;
-  }catch(e){
-    return "bounds-error";
-  }
-}
 function renderMapGroups(groups){
-  const boundsKey=currentMapBoundsKey();
+  const boundsKey="all";
   if(mapRenderCache.groups===groups && mapRenderCache.rowsVersion===rowsIndexVersion && mapRenderCache.boundsKey===boundsKey && mapMarkerCache.size){
     return;
   }
-  const visibleGroups=groupsInsideCurrentMap(groups);
+  const visibleGroups=mapMarkerGroups(groups);
   mapRenderCache={groups,rowsVersion:rowsIndexVersion,boundsKey};
   updateMapMarkers(visibleGroups);
 }
@@ -6010,10 +5966,15 @@ function render(){
   if(rows.length) resetFirebaseRowsAutoReload();
   bindMapViewportRendering();
   const vis=filtered();
-  const groups=cachedPlaceGroups(vis);
-  lastVisiblePlaceGroups=groups;
-  renderMapGroups(groups);
-  renderSidebarGroups(groups);
+  const gpsRows=[];
+  for(const r of vis){
+    if(inCzSk(r)) gpsRows.push(r);
+  }
+  const mapGroups=cachedPlaceGroups(gpsRows);
+  const sidebarGroups=cachedPlaceGroups(vis);
+  lastVisiblePlaceGroups=mapGroups;
+  renderMapGroups(mapGroups);
+  renderSidebarGroups(sidebarGroups);
   renderCounters(vis.length,rowsGpsCountCache);
 }
 window.render=render;
@@ -17896,7 +17857,8 @@ async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();
   await loadDeletedSites();
   if(typeof window.loadFirebaseSitesUnified==="function"){
-    await window.loadFirebaseSitesUnified();
+    const loadOptions=navigator.onLine===false ? {} : {force:true,skipLocalCache:true,skipFirestoreCache:true};
+    await window.loadFirebaseSitesUnified(null,loadOptions);
     return true;
   }
   return false;
