@@ -211,21 +211,23 @@ aside,
     padding:8px !important;
   }
   .source-chooser-buttons{
-    display:flex !important;
-    grid-template-columns:none !important;
+    display:grid !important;
+    grid-template-columns:1fr !important;
     gap:6px !important;
-    overflow-x:auto;
-    overflow-y:hidden;
-    padding:1px 2px 6px;
-    scroll-snap-type:x proximity;
+    max-height:min(32dvh,230px);
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:1px 3px 6px 1px;
+    scroll-snap-type:none;
     -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
   }
   .source-chooser-button{
-    flex:0 0 min(72vw,260px);
-    min-width:min(72vw,260px);
+    width:100%;
+    min-width:0;
     min-height:50px;
     padding:8px 9px;
-    scroll-snap-align:start;
+    scroll-snap-align:none;
     touch-action:manipulation;
   }
   .detail-tabs{
@@ -253,8 +255,7 @@ aside,
     padding:5px;
   }
   .source-chooser-button{
-    flex-basis:min(78vw,240px);
-    min-width:min(78vw,240px);
+    min-width:0;
     font-size:12px;
   }
   .detail-tab{
@@ -283,14 +284,28 @@ aside,
   }
 }
 @media(max-width:760px){
+  .leaflet-popup.source-popup{
+    max-width:calc(100vw - 22px) !important;
+  }
+  .leaflet-popup.source-popup .leaflet-popup-content-wrapper{
+    max-width:calc(100vw - 22px);
+    max-height:min(38dvh,220px);
+    overflow:hidden;
+  }
   .leaflet-popup-content{
-    max-width:min(82vw,320px) !important;
-    margin:10px 12px !important;
+    max-width:min(78vw,286px) !important;
+    margin:9px 10px !important;
     line-height:1.25;
+    overflow:hidden;
+  }
+  .leaflet-popup.source-popup .leaflet-popup-content{
+    width:min(270px,calc(100vw - 56px)) !important;
+    max-height:min(32dvh,185px);
   }
   .source-popup-list{
-    max-height:min(46dvh,320px);
-    overflow:auto;
+    max-height:min(20dvh,118px);
+    overflow-x:hidden;
+    overflow-y:auto;
     overscroll-behavior:contain;
     padding-right:2px;
     -webkit-overflow-scrolling:touch;
@@ -322,18 +337,25 @@ aside,
 }
 body.protocol-form-fullscreen{
   overflow:hidden !important;
+  width:100vw !important;
+  width:100dvw !important;
+  max-width:100vw !important;
+  max-width:100dvw !important;
 }
 body.protocol-form-fullscreen #drawer{
   position:fixed !important;
   inset:0 !important;
   width:100vw !important;
-  max-width:none !important;
+  width:100dvw !important;
+  max-width:100vw !important;
+  max-width:100dvw !important;
   height:100dvh !important;
   padding:0 !important;
   border-left:0 !important;
   background:#f8fafc !important;
   transform:translateX(0) !important;
   overflow:hidden !important;
+  overflow-x:hidden !important;
   z-index:6500 !important;
 }
 body.protocol-form-fullscreen #drawer > .drawer-head,
@@ -346,6 +368,9 @@ body.protocol-form-fullscreen #protocolCard{
   position:fixed !important;
   inset:0 !important;
   width:100vw !important;
+  width:100dvw !important;
+  max-width:100vw !important;
+  max-width:100dvw !important;
   height:100dvh !important;
   margin:0 !important;
   padding:calc(10px + env(safe-area-inset-top)) clamp(10px,2vw,18px) calc(10px + env(safe-area-inset-bottom)) !important;
@@ -357,6 +382,7 @@ body.protocol-form-fullscreen #protocolCard{
   grid-template-rows:auto auto minmax(0,1fr);
   gap:8px 10px;
   overflow:hidden !important;
+  overflow-x:hidden !important;
   z-index:6600 !important;
 }
 body.protocol-form-fullscreen #protocolCard h3{
@@ -393,8 +419,19 @@ body.protocol-form-fullscreen #protocolForm{
   margin:0 !important;
   padding:10px clamp(2px,1vw,8px) calc(24px + env(safe-area-inset-bottom));
   overflow:auto !important;
+  overflow-x:hidden !important;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;
+  width:100%;
+  max-width:100%;
+}
+body.protocol-form-fullscreen #protocolForm > *,
+body.protocol-form-fullscreen #protocolForm input,
+body.protocol-form-fullscreen #protocolForm select,
+body.protocol-form-fullscreen #protocolForm textarea,
+body.protocol-form-fullscreen #protocolForm canvas{
+  min-width:0;
+  max-width:100%;
 }
 body.protocol-form-fullscreen #protocolForm h4{
   margin-top:10px !important;
@@ -423,7 +460,7 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     grid-column:1 / -1;
   }
 }
-@media(max-width:620px){
+@media(max-width:760px){
   body.protocol-form-fullscreen #protocolCard{
     grid-template-columns:minmax(0,1fr) auto !important;
     grid-template-rows:auto minmax(0,1fr);
@@ -434,8 +471,10 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   body.protocol-form-fullscreen #protocolCard h3{
     grid-column:1;
     min-height:38px;
+    min-width:0;
     font-size:15px;
     line-height:1.18;
+    overflow-wrap:anywhere;
   }
   body.protocol-form-fullscreen #toggleProtocolBtn{
     grid-column:2;
@@ -452,10 +491,12 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   }
   body.protocol-form-fullscreen #protocolForm{
     grid-column:1 / -1;
-    grid-template-columns:1fr !important;
+    grid-template-columns:minmax(0,1fr) !important;
     gap:7px !important;
     padding:6px 2px calc(12px + env(safe-area-inset-bottom)) !important;
     background:#fff !important;
+    width:100% !important;
+    max-width:100% !important;
   }
   body.protocol-form-fullscreen #protocolForm h4{
     margin:12px 0 4px !important;
@@ -466,8 +507,11 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   }
   body.protocol-form-fullscreen #protocolForm .protocol-summary,
   body.protocol-form-fullscreen #protocolForm .edit-grid,
-  body.protocol-form-fullscreen #protocolForm .checkgrid2{
-    grid-template-columns:1fr !important;
+  body.protocol-form-fullscreen #protocolForm .checkgrid2,
+  body.protocol-form-fullscreen #protocolForm .row{
+    grid-template-columns:minmax(0,1fr) !important;
+    width:100%;
+    max-width:100%;
   }
   body.protocol-form-fullscreen #protocolForm input,
   body.protocol-form-fullscreen #protocolForm select,
@@ -480,7 +524,7 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   }
   body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     position:static !important;
-    grid-template-columns:1fr !important;
+    grid-template-columns:minmax(0,1fr) !important;
     padding:8px 0 2px !important;
     background:transparent !important;
     backdrop-filter:none !important;

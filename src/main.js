@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-phone-source-protocol-v388";
+const APP_BUILD_VERSION="2026-08-21-phone-popup-fixed-width-v389";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v388-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v389-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -5473,9 +5473,30 @@ function mapMarkerSignature(group,fill){
 }
 function attachLazyMarkerPopup(marker,group){
   marker.on("click",()=>{
-    marker.bindPopup(groupPopupHtml(group)).openPopup();
+    marker.bindPopup(groupPopupHtml(group),sourcePopupOptions(group)).openPopup();
   });
   return marker;
+}
+function sourcePopupOptions(group){
+  const rowsCount=(group && Array.isArray(group.rows)) ? group.rows.length : 0;
+  const options={className:rowsCount>1 ? "source-popup source-popup-multi" : "source-popup"};
+  try{
+    if(typeof window!=="undefined" && window.matchMedia && window.matchMedia("(max-width: 760px)").matches){
+      const mapEl=map && typeof map.getContainer==="function" ? map.getContainer() : null;
+      const mapHeight=mapEl && mapEl.clientHeight ? mapEl.clientHeight : window.innerHeight;
+      const popupWidth=Math.max(210,Math.min(286,window.innerWidth-52));
+      options.maxWidth=popupWidth;
+      options.minWidth=Math.min(popupWidth,rowsCount>1 ? 230 : 180);
+      options.maxHeight=Math.max(128,Math.min(190,Math.floor(mapHeight*0.55)));
+      options.autoPan=true;
+      options.keepInView=true;
+      if(typeof L!=="undefined" && L.point){
+        options.autoPanPaddingTopLeft=L.point(10,10);
+        options.autoPanPaddingBottomRight=L.point(10,10);
+      }
+    }
+  }catch(e){}
+  return options;
 }
 function buildMapMarkerForGroup(group,fill){
   if(group.rows.length>1){
