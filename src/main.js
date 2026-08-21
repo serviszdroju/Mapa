@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-protocol-mail-phone-v395";
+const APP_BUILD_VERSION="2026-08-21-ordered-map-parity-v396";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
   return SZZ_CS_BASE_COLLATOR.compare(String(a ?? ""),String(b ?? ""));
@@ -1367,7 +1367,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v395-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v396-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2550,6 +2550,44 @@ function stopFlagFromRaw(raw){
   const stav=first(raw||{},["Stav","Stav_kontroly","Stav pro mapu","Status"]);
   return simpleNorm(stav).includes("stop") || simpleNorm(stav).includes("mimo provoz");
 }
+const MAP_STATUS_RAW_KEYS=[
+  "Kontrola objednaná",
+  "Kontrola_objednaná",
+  "Kontrola objednana",
+  "Objednáno",
+  "Objednano",
+  "Ordered",
+  "Objednaná oprava",
+  "Objednana oprava",
+  "Oprava objednaná",
+  "Oprava objednana",
+  "Objednáno oprava",
+  "Objednano oprava",
+  "Repair ordered",
+  "Stop Stav",
+  "Stop stav",
+  "Stop_stav",
+  "Stop",
+  "Zdroj ve Stop Stavu",
+  "Odstaveno",
+  "Mimo provoz",
+  "Stav",
+  "Stav_kontroly",
+  "Stav kontroly",
+  "Stav pro mapu",
+  "Status",
+  "Barva bodu",
+  "Barva_bodu"
+];
+function restoreFirebaseMapStatusRawValues(target={},source={}){
+  const out=target || {};
+  const raw=source || {};
+  MAP_STATUS_RAW_KEYS.forEach(key=>{
+    if(Object.prototype.hasOwnProperty.call(raw,key)) out[key]=raw[key];
+    else delete out[key];
+  });
+  return out;
+}
 function orderedFlagFromRaw(raw){
   const explicit=yesNoFlagFromRaw(raw||{},["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"]);
   if(explicit!==null) return explicit;
@@ -2858,11 +2896,7 @@ function ensureRowScheduleCache(r){
   let status="OK / ostatní";
   let markerColor="#16a34a";
   let priority=10;
-  if(r.stopped === true){
-    status="Stop Stav";
-    markerColor="#64748b";
-    priority=80;
-  }else if(r.repairOrdered === true){
+  if(r.repairOrdered === true){
     status="Objednaná oprava";
     markerColor="#2563eb";
     priority=45;
@@ -2870,6 +2904,10 @@ function ensureRowScheduleCache(r){
     status="Kontrola objednaná";
     markerColor="#eab308";
     priority=50;
+  }else if(r.stopped === true){
+    status="Stop Stav";
+    markerColor="#64748b";
+    priority=30;
   }else if(Number.isFinite(days) && days < 0){
     status="Propadlá kontrola";
     markerColor="#dc2626";
@@ -3095,12 +3133,14 @@ function applyEditToRow(r){
   if(!e) return r;
 
   const rawEdits = e.rawEdits || {};
+  const firebaseStatusFromPrimaryRaw=isFirebaseUnifiedRow(r);
   const hasRawEdit=(key)=>Object.prototype.hasOwnProperty.call(rawEdits,key);
   const importantNoteAliases=["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky","dulezita poznamka"];
   const editedImportantNoteKey=importantNoteAliases.find(hasRawEdit);
   const lat = num(e.gpsLat) ?? num((e.rawEdits||{})["GPS_lat"]);
   const lon = num(e.gpsLon) ?? num((e.rawEdits||{})["GPS_lon"]);
   const updatedRaw = {...r.raw, ...rawEdits};
+  if(firebaseStatusFromPrimaryRaw) restoreFirebaseMapStatusRawValues(updatedRaw,r.raw || {});
   const rawWatch = explicitWatchSelfFromRaw(rawEdits);
   if(rawWatch !== null) applyWatchSelfAliases(updatedRaw, rawWatch ? "ano" : "ne");
 
@@ -3112,9 +3152,9 @@ function applyEditToRow(r){
   if(e.gpsAddress) updatedRaw["Upravená Adresa_GPS"] = e.gpsAddress;
   if(e.lastCheck) updatedRaw["Upravená poslední kontrola"] = e.lastCheck;
   if(e.nextCheck) updatedRaw["Upravená další kontrola"] = e.nextCheck;
-  if(e.ordered !== undefined) updatedRaw["Kontrola objednaná"] = e.ordered ? "ANO" : "NE";
-  if(e.repairOrdered !== undefined) updatedRaw["Objednaná oprava"] = e.repairOrdered ? "ANO" : "NE";
-  if(e.stopped !== undefined) updatedRaw["Stop Stav"] = e.stopped ? "ANO" : "NE";
+  if(!firebaseStatusFromPrimaryRaw && e.ordered !== undefined) updatedRaw["Kontrola objednaná"] = e.ordered ? "ANO" : "NE";
+  if(!firebaseStatusFromPrimaryRaw && e.repairOrdered !== undefined) updatedRaw["Objednaná oprava"] = e.repairOrdered ? "ANO" : "NE";
+  if(!firebaseStatusFromPrimaryRaw && e.stopped !== undefined) updatedRaw["Stop Stav"] = e.stopped ? "ANO" : "NE";
   if(Number.isFinite(lat)) updatedRaw["Upravené GPS_lat"] = String(lat);
   if(Number.isFinite(lon)) updatedRaw["Upravené GPS_lon"] = String(lon);
   const regionValue=canonicalRegionValue(rawEdits["Kraj"] || r.kraj) || inferRegionFromAddressText([
@@ -3145,9 +3185,9 @@ function applyEditToRow(r){
     lat:Number.isFinite(lat) ? lat : r.lat,
     lon:Number.isFinite(lon) ? lon : r.lon,
     gpsAddress:e.gpsAddress || r.gpsAddress,
-    ordered:e.ordered !== undefined ? e.ordered === true : orderedFlagFromRaw(updatedRaw),
-    repairOrdered:e.repairOrdered !== undefined ? e.repairOrdered === true : repairOrderFlagFromRaw(updatedRaw),
-    stopped:e.stopped !== undefined ? e.stopped === true : stopFlagFromRaw(updatedRaw),
+    ordered:!firebaseStatusFromPrimaryRaw && e.ordered !== undefined ? e.ordered === true : orderedFlagFromRaw(updatedRaw),
+    repairOrdered:!firebaseStatusFromPrimaryRaw && e.repairOrdered !== undefined ? e.repairOrdered === true : repairOrderFlagFromRaw(updatedRaw),
+    stopped:!firebaseStatusFromPrimaryRaw && e.stopped !== undefined ? e.stopped === true : stopFlagFromRaw(updatedRaw),
     noOrder:rawWatch !== null ? rawWatch === true : (e.noOrder === true ? true : e.noOrder === false ? false : isNoOrderSite({...r, raw:updatedRaw})),
     edit:e
   };
@@ -7624,19 +7664,50 @@ function updateStopButton(){
   btn.className=selectedSite.stopped === true ? "secondary stop-toggle-active" : "secondary";
 }
 
+function mapStatusRawPatchFromStatePatch(patch={},currentRaw={}){
+  const rawPatch={};
+  if(Object.prototype.hasOwnProperty.call(patch,"repairOrdered")){
+    const active=patch.repairOrdered === true;
+    rawPatch["Objednaná oprava"]=active ? "ANO" : "NE";
+    if(active) rawPatch["Stav pro mapu"]="Objednaná oprava";
+    else if(simpleNorm(currentRaw["Stav pro mapu"]).includes("oprava")) rawPatch["Stav pro mapu"]="";
+  }
+  if(Object.prototype.hasOwnProperty.call(patch,"ordered")){
+    const active=patch.ordered === true;
+    rawPatch["Kontrola objednaná"]=active ? "ANO" : "NE";
+    rawPatch["Objednáno"]=active ? "ANO" : "NE";
+    rawPatch["Stav pro mapu"]=active ? "Kontrola objednaná" : "";
+  }
+  if(Object.prototype.hasOwnProperty.call(patch,"stopped")){
+    const active=patch.stopped === true;
+    rawPatch["Stop Stav"]=active ? "ANO" : "NE";
+    if(active) rawPatch["Stav pro mapu"]="Stop Stav";
+    else if(simpleNorm(currentRaw["Stav pro mapu"]).includes("stop")) rawPatch["Stav pro mapu"]="";
+  }
+  return rawPatch;
+}
+function rowWithMapStatusPatch(row,patch={},firebaseDocId=""){
+  if(!row || !isFirebaseUnifiedRow(row)) return row;
+  const raw=row.raw || {};
+  const rawPatch=mapStatusRawPatchFromStatePatch(patch,raw);
+  if(!Object.keys(rawPatch).length) return row;
+  const nextRaw={...raw,...rawPatch};
+  if(firebaseDocId) nextRaw["Firebase_doc_id"]=firebaseDocId;
+  return {...row, raw:nextRaw, firebaseDocId:firebaseDocId || row.firebaseDocId};
+}
 function updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,fallbackSite=null,patch={}){
   const lookupKey=safe(firebaseDocId || selectedKey);
   const existing=(lookupKey && findRowByAnyId(lookupKey)) || fallbackSite;
   const index=rowIndexForRow(existing);
   if(existing && index>=0){
     const nextRows=rows.slice();
-    const updated=applyEditToRow(existing);
+    const updated={...applyEditToRow(rowWithMapStatusPatch(existing,patch,firebaseDocId)),...patch};
     nextRows[index]=updated;
     rows=nextRows;
     window.rows=rows;
     return updated;
   }
-  rows=rows.map(row=>detailKey(row)===selectedKey ? applyEditToRow(row) : row);
+  rows=rows.map(row=>detailKey(row)===selectedKey ? {...applyEditToRow(rowWithMapStatusPatch(row,patch,firebaseDocId)),...patch} : row);
   window.rows=rows;
   return (lookupKey && findRowByAnyId(lookupKey)) || (fallbackSite ? {...fallbackSite,...patch} : null);
 }
