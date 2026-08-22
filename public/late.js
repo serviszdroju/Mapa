@@ -657,6 +657,21 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return !!firebaseSitesLastNetworkLoadAt && Date.now()-firebaseSitesLastNetworkLoadAt < maxAge;
   }
 
+  function firebaseSitesMayUseLocalCache(opts={}, signedUser=null){
+    if(opts.skipLocalCache) return false;
+    if(opts.offlineCacheOnly) return true;
+    if(navigator.onLine===false) return true;
+    if(opts.allowOnlineCache === true) return true;
+    return !signedUser;
+  }
+
+  function firebaseSitesMayUseFirestoreCache(opts={}){
+    if(opts.skipFirestoreCache) return false;
+    if(opts.offlineCacheOnly) return true;
+    if(navigator.onLine===false) return true;
+    return opts.allowOnlineCache === true;
+  }
+
   function canRunFirebaseSitesBackgroundRefresh(openDocId=null){
     if(openDocId) return false;
     if(navigator.onLine===false) return false;
@@ -1745,6 +1760,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   async function showMapRowsCache(openDocId=null, options={}){
     if(openDocId) return [];
     if(Array.isArray(window.rows) && window.rows.length) return [];
+    if(navigator.onLine!==false && !options.offlineBoot && !options.allowOnlineCache){
+      return [];
+    }
     const cachedRows=await readMapRowsCacheFast();
     if(!cachedRows.length) return [];
     const label=navigator.onLine===false || options.offlineBoot
@@ -1853,7 +1871,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         if(!opts.offlineCacheOnly && !opts.retryAuth) setTimeout(()=>loadFirebaseSites(openDocId,{retryAuth:true}),1200);
         return [];
       }
-      if(!opts.skipLocalCache){
+      if(firebaseSitesMayUseLocalCache(opts,signedUser)){
         const cachedRows=await showMapRowsCache(openDocId);
         if(cachedRows.length && !opts.force){
           scheduleFirebaseSitesBackgroundRefresh(openDocId,80);
@@ -1861,7 +1879,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         }
       }
       const collectionRef=database.collection(FB_COLLECTION);
-      if(!opts.skipFirestoreCache && !openDocId && database.mode==="modular" && typeof collectionRef.getCached==="function"){
+      if(firebaseSitesMayUseFirestoreCache(opts) && !openDocId && database.mode==="modular" && typeof collectionRef.getCached==="function"){
         try{
           const cachedSnap=await collectionRef.getCached();
           const cachedRows=rowsFromSnapshot(cachedSnap);
@@ -2031,7 +2049,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   try{
     const auth=compatAuth();
     if(auth && auth.onAuthStateChanged){
-      auth.onAuthStateChanged(user=>{ if(user) loadFirebaseSites(null,{auto:true}); });
+      auth.onAuthStateChanged(user=>{ if(user) loadFirebaseSites(null,{auto:true,force:true,skipLocalCache:true,skipFirestoreCache:true}); });
     }
   }catch(e){}
   window.loadFirebaseSitesUnified=loadFirebaseSites;
@@ -2432,7 +2450,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-21-map-render-parity-v404";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-22-status-source-v405";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

@@ -311,7 +311,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-21-map-render-parity-v404";
+const APP_BUILD_VERSION="2026-08-22-status-source-v405";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1372,7 +1372,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v404-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v405-runtime";
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -2587,6 +2587,10 @@ const MAP_STATUS_RAW_KEYS=[
   "Marker color",
   "MarkerColor"
 ];
+const ORDERED_STATUS_FLAG_KEYS=["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"];
+const REPAIR_STATUS_FLAG_KEYS=["Objednaná oprava","Objednana oprava","Oprava objednaná","Oprava objednana","Objednáno oprava","Objednano oprava","Repair ordered"];
+const MAP_STATUS_TEXT_KEYS=["Stav pro mapu","Stav_kontroly","Stav kontroly","Status"];
+const MAP_STATUS_COLOR_KEYS=["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"];
 function restoreFirebaseMapStatusRawValues(target={},source={}){
   const out=target || {};
   const raw=source || {};
@@ -2620,19 +2624,19 @@ function mapStatusRawFingerprint(raw={}){
     .join("\u001e");
 }
 function orderedFlagFromRaw(raw){
-  const explicit=yesNoFlagFromRaw(raw||{},["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"]);
+  const explicit=yesNoFlagFromRaw(raw||{},ORDERED_STATUS_FLAG_KEYS);
   if(explicit!==null) return explicit;
-  const text=mapStatusRawText(raw);
+  const text=simpleNorm(first(raw||{},["Stav pro mapu"]));
   return text.includes("objednan") && !text.includes("oprava");
 }
 function repairOrderFlagFromRaw(raw){
-  const keys=["Objednaná oprava","Objednana oprava","Oprava objednaná","Oprava objednana","Objednáno oprava","Objednano oprava","Repair ordered"];
-  for(const k of keys){
+  for(const k of REPAIR_STATUS_FLAG_KEYS){
     const v=get(raw||{},k);
     if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("objednan");
   }
+  const stav=first(raw||{},["Stav","Stav_kontroly","Stav kontroly","Stav pro mapu","Status"]);
   const text=[
-    mapStatusRawText(raw),
+    stav,
     get(raw||{},"Poznámky"),
     get(raw||{},"Poznámky_mapy")
   ].map(simpleNorm).join(" | ");
@@ -7666,62 +7670,89 @@ function updateStopButton(){
   btn.className=selectedSite.stopped === true ? "secondary stop-toggle-active" : "secondary";
 }
 
+function setRawFlagKeys(target={},keys=[],active=false){
+  keys.forEach(key=>{
+    target[key]=active ? "ANO" : "NE";
+  });
+  return target;
+}
+function rawStatusTextLooksOrdered(value){
+  const text=simpleNorm(value);
+  return text.includes("objednan") && !text.includes("oprava");
+}
+function rawStatusTextLooksRepairOrdered(value){
+  const text=simpleNorm(value);
+  return text.includes("oprava") && text.includes("objednan");
+}
+function rawStatusColorLooksOrdered(value){
+  return mapStatusColorMatches({"Barva bodu":value},["eab308","facc15"],["zluta","yellow"]);
+}
+function rawStatusColorLooksRepairOrdered(value){
+  return mapStatusColorMatches({"Barva bodu":value},["2563eb","3b82f6"],["modra","blue"]);
+}
+function clearRawStatusTextWhere(target={},currentRaw={},predicate=()=>false){
+  MAP_STATUS_TEXT_KEYS.forEach(key=>{
+    if(predicate(currentRaw[key]) || predicate(target[key])) target[key]="";
+  });
+  return target;
+}
+function clearRawStatusColorWhere(target={},currentRaw={},predicate=()=>false){
+  MAP_STATUS_COLOR_KEYS.forEach(key=>{
+    if(predicate(currentRaw[key]) || predicate(target[key])) target[key]="";
+  });
+  return target;
+}
+function setCanonicalRawStatus(target={},status="",color=""){
+  target["Stav pro mapu"]=status;
+  target["Stav_kontroly"]=status;
+  target["Status"]=status;
+  if(color){
+    target["Barva bodu"]=color;
+    target["Barva_bodu"]=color;
+  }
+  return target;
+}
+
 function mapStatusRawPatchFromStatePatch(patch={},currentRaw={}){
   const rawPatch={};
   if(Object.prototype.hasOwnProperty.call(patch,"repairOrdered")){
     const active=patch.repairOrdered === true;
-    rawPatch["Objednaná oprava"]=active ? "ANO" : "NE";
-    rawPatch["Objednana oprava"]=active ? "ANO" : "NE";
-    rawPatch["Oprava objednaná"]=active ? "ANO" : "NE";
-    rawPatch["Oprava objednana"]=active ? "ANO" : "NE";
+    setRawFlagKeys(rawPatch,REPAIR_STATUS_FLAG_KEYS,active);
     if(active){
-      rawPatch["Stav pro mapu"]="Objednaná oprava";
-      rawPatch["Stav_kontroly"]="Objednaná oprava";
-      rawPatch["Status"]="Objednaná oprava";
-      rawPatch["Barva bodu"]="#2563eb";
-      rawPatch["Barva_bodu"]="#2563eb";
+      setRawFlagKeys(rawPatch,ORDERED_STATUS_FLAG_KEYS,false);
+      applyStopStatusRawPatch(rawPatch,false,currentRaw);
+      setCanonicalRawStatus(rawPatch,"Objednaná oprava","#2563eb");
     }
-    else if(simpleNorm(currentRaw["Stav pro mapu"]).includes("oprava")) rawPatch["Stav pro mapu"]="";
     if(!active){
-      ["Stav_kontroly","Stav kontroly","Status"].forEach(key=>{
-        if(simpleNorm(currentRaw[key]).includes("oprava")) rawPatch[key]="";
-      });
-      ["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"].forEach(key=>{
-        if(mapStatusColorMatches({[key]:currentRaw[key]},["2563eb","3b82f6"],["modra","blue"])) rawPatch[key]="";
-      });
+      clearRawStatusTextWhere(rawPatch,currentRaw,rawStatusTextLooksRepairOrdered);
+      clearRawStatusColorWhere(rawPatch,currentRaw,rawStatusColorLooksRepairOrdered);
     }
   }
   if(Object.prototype.hasOwnProperty.call(patch,"ordered")){
     const active=patch.ordered === true;
-    rawPatch["Kontrola objednaná"]=active ? "ANO" : "NE";
-    rawPatch["Kontrola_objednaná"]=active ? "ANO" : "NE";
-    rawPatch["Kontrola objednana"]=active ? "ANO" : "NE";
-    rawPatch["Objednáno"]=active ? "ANO" : "NE";
-    rawPatch["Objednano"]=active ? "ANO" : "NE";
-    rawPatch["Stav pro mapu"]=active ? "Kontrola objednaná" : "";
+    setRawFlagKeys(rawPatch,ORDERED_STATUS_FLAG_KEYS,active);
     if(active){
-      rawPatch["Stav_kontroly"]="Kontrola objednaná";
-      rawPatch["Status"]="Kontrola objednaná";
-      rawPatch["Barva bodu"]="#eab308";
-      rawPatch["Barva_bodu"]="#eab308";
+      setRawFlagKeys(rawPatch,REPAIR_STATUS_FLAG_KEYS,false);
+      applyStopStatusRawPatch(rawPatch,false,currentRaw);
+      setCanonicalRawStatus(rawPatch,"Kontrola objednaná","#eab308");
     }else{
-      ["Stav_kontroly","Stav kontroly","Status"].forEach(key=>{
-        const text=simpleNorm(currentRaw[key]);
-        if(text.includes("objednan") && !text.includes("oprava")) rawPatch[key]="";
-      });
-      ["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"].forEach(key=>{
-        if(mapStatusColorMatches({[key]:currentRaw[key]},["eab308","facc15"],["zluta","yellow"])) rawPatch[key]="";
-      });
+      clearRawStatusTextWhere(rawPatch,currentRaw,rawStatusTextLooksOrdered);
+      clearRawStatusColorWhere(rawPatch,currentRaw,rawStatusColorLooksOrdered);
     }
   }
   if(Object.prototype.hasOwnProperty.call(patch,"stopped")){
-    applyStopStatusRawPatch(rawPatch,patch.stopped === true,currentRaw);
+    const active=patch.stopped === true;
+    if(active){
+      setRawFlagKeys(rawPatch,ORDERED_STATUS_FLAG_KEYS,false);
+      setRawFlagKeys(rawPatch,REPAIR_STATUS_FLAG_KEYS,false);
+    }
+    applyStopStatusRawPatch(rawPatch,active,currentRaw);
   }
   return rawPatch;
 }
 const STOP_STATUS_FLAG_KEYS=["Stop Stav","Stop stav","Stop_stav","Stop","Zdroj ve Stop Stavu","Odstaveno","Mimo provoz"];
-const STOP_STATUS_TEXT_KEYS=["Stav pro mapu","Stav_kontroly","Stav kontroly","Status"];
-const STOP_STATUS_COLOR_KEYS=["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"];
+const STOP_STATUS_TEXT_KEYS=MAP_STATUS_TEXT_KEYS;
+const STOP_STATUS_COLOR_KEYS=MAP_STATUS_COLOR_KEYS;
 function rawStatusTextLooksStopped(value){
   const text=simpleNorm(value);
   return text.includes("stop") || text.includes("mimo provoz");
@@ -12963,11 +12994,18 @@ function applyProtocolFieldsToSite(protocol,site=selectedSite){
 }
 
 function clearManualStatusRaw(raw={}){
-  applyStopStatusRawPatch(raw,false,raw);
-  raw["Kontrola objednaná"]="NE";
-  raw["Objednáno"]="NE";
-  raw["Objednaná oprava"]="NE";
-  raw["Stav pro mapu"]="";
+  const patch=mapStatusRawPatchFromStatePatch({ordered:false,repairOrdered:false,stopped:false},raw);
+  Object.assign(raw,patch);
+  clearRawStatusTextWhere(raw,raw,value=>
+    rawStatusTextLooksOrdered(value) ||
+    rawStatusTextLooksRepairOrdered(value) ||
+    rawStatusTextLooksStopped(value)
+  );
+  clearRawStatusColorWhere(raw,raw,value=>
+    rawStatusColorLooksOrdered(value) ||
+    rawStatusColorLooksRepairOrdered(value) ||
+    rawStatusColorLooksStopped(value)
+  );
   return raw;
 }
 
