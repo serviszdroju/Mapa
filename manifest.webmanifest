@@ -9,7 +9,7 @@
   "categories": ["business", "productivity", "utilities"],
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#d1d5db",
+  "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "orientation": "any",
   "prefer_related_applications": false,
