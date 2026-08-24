@@ -626,4 +626,6 @@ Current performance phase 265 decision: continue the monolith split by moving sh
 
 Current performance phase 266 decision: continue the monolith split by moving date parsing/formatting, control-period inference, computed next-check status, no-order matching, and cached row schedule state into `src/schedule-status.js`; keep the same exported helper names in `src/main.js` so map markers, filters, details, protocols, documents, and offline behavior use identical schedule/status logic.
 
+Current performance phase 267 decision: continue the monolith split by moving region normalization, region inference, house-number checks, and Nominatim/Photon geocoding helpers into `src/geocode-utils.js`; preserve the same exported helper names and `window.lastGeocodeMessage` side effect so address-to-GPS, GPS edits, new-site flows, filters, and diagnostics behave unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
