@@ -650,4 +650,6 @@ Current performance phase 277 decision: continue the monolith split by moving Cz
 
 Current performance phase 278 decision: improve first-login/cache-first startup by doing the first Firebase row download in place, saving it to the offline map cache, scheduling detail prefetch in the background, and quietly warming persistent storage/app-shell cache before PWA install; keep the UI shell, manual offline preparation, existing Firebase data flows, and explicit sync behavior unchanged.
 
+Current Android install phase 279 decision: simplify the visible left-panel install action into a direct APK download link (`downloads/szz-servis-zdroju-android.apk`) styled like the existing app action; keep the PWA warmup/background service-worker logic available for non-direct install flows, but do not bind the direct APK link to the PWA prompt handler.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

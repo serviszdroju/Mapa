@@ -129,6 +129,15 @@ function startSzzApkFallbackDownload(){
 function updateSzzInstallButtons(){
   const button=document.getElementById("appDownloadLink");
   if(!button) return;
+  if(button.dataset.directDownload==="apk"){
+    setHrefAttributeIfChanged(button,SZZ_ANDROID_APK_URL);
+    button.setAttribute("download","szz-servis-zdroju-android.apk");
+    button.removeAttribute("disabled");
+    setAttributeIfChanged(button,"aria-disabled","false");
+    setTextIfChanged(button,"Stáhnout aplikaci");
+    button.classList.remove("install-ready");
+    return;
+  }
   const installed=isSzzStandaloneApp();
   button.disabled=installed || szzInstallBusy;
   button.setAttribute("aria-disabled",installed || szzInstallBusy ? "true" : "false");
@@ -331,6 +340,11 @@ async function startSzzPwaInstall(event){
 
 function bindSzzPwaInstallButton(){
   const button=document.getElementById("appDownloadLink");
+  if(button && button.dataset.directDownload==="apk"){
+    setHrefAttributeIfChanged(button,SZZ_ANDROID_APK_URL);
+    button.setAttribute("download","szz-servis-zdroju-android.apk");
+    return;
+  }
   if(button && !button.__szzPwaInstallBound){
     button.__szzPwaInstallBound=true;
     button.removeAttribute("href");
