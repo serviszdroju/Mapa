@@ -110,6 +110,11 @@ import {
   MAP_TILE_URL_TEMPLATE,
   visibleMapTileUrlsForMap
 } from "./map-tile-utils.js";
+import {
+  clearSzzLocalStateObjectCache,
+  readSzzLocalStateObject,
+  writeSzzLocalStateObject
+} from "./local-state-cache.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -135,7 +140,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-map-tile-utils-module-v423";
+const APP_BUILD_VERSION="2026-08-24-local-state-cache-module-v424";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1078,7 +1083,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v423-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v424-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1717,50 +1722,11 @@ async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
   return totals;
 }
 
-const SZZ_LOCAL_STATE_CACHE_MS=1800;
-const szzLocalStateObjectCache=new Map();
-function cloneSzzLocalStateObject(value={}){
-  return value && typeof value==="object" && !Array.isArray(value) ? {...value} : {};
-}
-function clearSzzLocalStateObjectCache(key=""){
-  const clean=safe(key);
-  if(!clean){
-    szzLocalStateObjectCache.clear();
-    return;
-  }
-  szzLocalStateObjectCache.delete(clean);
-}
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_OFFLINE_READY_KEY || event.key===SZZ_SYNC_STATE_KEY){
     clearSzzLocalStateObjectCache(event.key || "");
   }
 });
-function readSzzLocalStateObject(key){
-  try{
-    const cleanKey=safe(key);
-    if(!cleanKey) return {};
-    const raw=localStorage.getItem(cleanKey) || "";
-    const cached=szzLocalStateObjectCache.get(cleanKey);
-    if(cached && cached.raw===raw && Date.now()-cached.savedAt<SZZ_LOCAL_STATE_CACHE_MS){
-      return cloneSzzLocalStateObject(cached.item);
-    }
-    const parsed=JSON.parse(raw || "{}");
-    const item=parsed && typeof parsed==="object" ? parsed : {};
-    szzLocalStateObjectCache.set(cleanKey,{raw,item:cloneSzzLocalStateObject(item),savedAt:Date.now()});
-    return item;
-  }catch(e){
-    return {};
-  }
-}
-function writeSzzLocalStateObject(key,item={}){
-  const cleanKey=safe(key);
-  if(!cleanKey) return cloneSzzLocalStateObject(item);
-  const next=cloneSzzLocalStateObject(item);
-  const raw=JSON.stringify(next);
-  localStorage.setItem(cleanKey,raw);
-  szzLocalStateObjectCache.set(cleanKey,{raw,item:cloneSzzLocalStateObject(next),savedAt:Date.now()});
-  return next;
-}
 
 function readSzzOfflineReadyState(){
   return readSzzLocalStateObject(SZZ_OFFLINE_READY_KEY);

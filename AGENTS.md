@@ -638,4 +638,6 @@ Current performance phase 271 decision: continue the monolith split by moving st
 
 Current performance phase 272 decision: continue the monolith split by moving map tile URL constants, tile coordinate math, bounds-to-tile URL generation, and map-instance tile URL calculation into `src/map-tile-utils.js`; keep the offline cache button/status flow in `src/main.js`.
 
+Current performance phase 273 decision: continue the monolith split by moving generic cached localStorage object reads/writes into `src/local-state-cache.js`; keep storage-event invalidation wiring and offline/sync state wrappers in `src/main.js` because they depend on app-specific storage keys.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
