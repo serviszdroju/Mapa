@@ -121,6 +121,9 @@ import {
   runWhenIdle,
   szzYieldToBrowser
 } from "./scheduler-utils.js";
+import {
+  dateInputValueFromAny
+} from "./date-input-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -146,7 +149,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-scheduler-utils-module-v425";
+const APP_BUILD_VERSION="2026-08-24-date-input-utils-module-v426";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1053,7 +1056,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v425-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v426-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -5848,14 +5851,6 @@ function warrantyValueFixed(value){
   return clean;
 }
 
-function dateInputValueFromAny(v){
-  const d=v instanceof Date ? v : parseDateValue(v);
-  if(!d || isNaN(d.getTime())) return "";
-  const y=d.getFullYear();
-  const m=String(d.getMonth()+1).padStart(2,"0");
-  const day=String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
 function setTextIfChanged(el,text){
   if(el && el.textContent!==String(text)) el.textContent=String(text);
 }
