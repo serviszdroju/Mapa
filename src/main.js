@@ -161,6 +161,9 @@ import {
   createRecordIdDedupe,
   recordIdKeys
 } from "./record-id-utils.js";
+import {
+  createRecordTextHelpers
+} from "./record-text-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -186,7 +189,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-record-id-utils-module-v441";
+const APP_BUILD_VERSION="2026-08-24-record-text-utils-module-v442";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1122,7 +1125,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v441-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v442-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -3497,6 +3500,14 @@ const {
   uniqueNonEmptyStrings
 });
 window.selectedSiteDocId=selectedSiteDocId;
+const {
+  siteRecordTextKeys,
+  siteRecordNormTextKeys,
+  recordMatchTextKeys
+}=createRecordTextHelpers({
+  getSelectedSite:()=>selectedSite,
+  searchNorm
+});
 
 function rowRenderFingerprint(r){
   if(!r) return "";
@@ -3678,93 +3689,6 @@ function recordMatchesSite(record,site=selectedSite){
     }
   }
   return false;
-}
-function siteRecordTextKeys(site=selectedSite){
-  if(!site) return [];
-  const raw=site.raw || {};
-  const siteAddress=site.adresa;
-  const siteGpsAddress=site.gpsAddress;
-  const rawName=raw["Název"];
-  const rawAddress=raw["Adresa / umístění"];
-  const rawGpsAddress=raw["Adresa_GPS"];
-  const rawPlace=raw["Umístění"];
-  const rawSourcePlace=raw["Umístění zdroje"];
-  if(
-    site && typeof site==="object" &&
-    site._recordTextRawRef===raw &&
-    site._recordTextSiteAddress===siteAddress &&
-    site._recordTextSiteGpsAddress===siteGpsAddress &&
-    site._recordTextRawName===rawName &&
-    site._recordTextRawAddress===rawAddress &&
-    site._recordTextRawGpsAddress===rawGpsAddress &&
-    site._recordTextRawPlace===rawPlace &&
-    site._recordTextRawSourcePlace===rawSourcePlace &&
-    Array.isArray(site._recordTextKeysCache)
-  ){
-    return site._recordTextKeysCache;
-  }
-  const keys=[
-    siteAddress,
-    siteGpsAddress,
-    rawName,
-    rawAddress,
-    rawGpsAddress,
-    rawPlace,
-    rawSourcePlace
-  ]
-    .map(x=>String(x || "").trim())
-    .filter((x,idx,arr)=>x.length>=4 && arr.indexOf(x)===idx);
-  if(site && typeof site==="object"){
-    site._recordTextRawRef=raw;
-    site._recordTextSiteAddress=siteAddress;
-    site._recordTextSiteGpsAddress=siteGpsAddress;
-    site._recordTextRawName=rawName;
-    site._recordTextRawAddress=rawAddress;
-    site._recordTextRawGpsAddress=rawGpsAddress;
-    site._recordTextRawPlace=rawPlace;
-    site._recordTextRawSourcePlace=rawSourcePlace;
-    site._recordTextKeysCache=keys;
-  }
-  return keys;
-}
-function siteRecordNormTextKeys(site=selectedSite){
-  const keys=siteRecordTextKeys(site);
-  if(site && typeof site==="object" && site._recordNormTextKeysRef===keys && Array.isArray(site._recordNormTextKeysCache)){
-    return site._recordNormTextKeysCache;
-  }
-  const normalized=keys.map(searchNorm).filter(x=>x.length>=4);
-  if(site && typeof site==="object"){
-    site._recordNormTextKeysRef=keys;
-    site._recordNormTextKeysCache=normalized;
-  }
-  return normalized;
-}
-const recordMatchTextCache=new WeakMap();
-function recordMatchTextKeys(record){
-  if(!record) return [];
-  const values=[record.siteName,record.siteAddress,record.place,record.pbzLocation];
-  if(record && (typeof record==="object" || typeof record==="function")){
-    const cached=recordMatchTextCache.get(record);
-    if(
-      cached &&
-      cached.siteName===record.siteName &&
-      cached.siteAddress===record.siteAddress &&
-      cached.place===record.place &&
-      cached.pbzLocation===record.pbzLocation
-    ){
-      return cached.keys;
-    }
-    const keys=values.map(searchNorm).filter(x=>x.length>=4);
-    recordMatchTextCache.set(record,{
-      siteName:record.siteName,
-      siteAddress:record.siteAddress,
-      place:record.place,
-      pbzLocation:record.pbzLocation,
-      keys
-    });
-    return keys;
-  }
-  return values.map(searchNorm).filter(x=>x.length>=4);
 }
 Object.assign(window,{
   geocodeAddressGeneric,
