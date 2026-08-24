@@ -620,4 +620,6 @@ Current performance phase 262 decision: continue the monolith split by moving Fi
 
 Current performance phase 263 decision: continue the monolith split by moving map/watch-self status parsing, status raw-key constants, status fingerprints, and status alias helpers into `src/map-status.js`; keep the same imported function names and window compatibility hooks so map coloring, filters, detail rows, edits, protocols, and offline matching keep their existing behavior.
 
+Current performance phase 264 decision: continue the monolith split by moving original pink-place signatures plus static region/status/admin/history option lists into `src/app-options.js`; keep authorization sets, filter setup, original pink matching, and `window.appRegionOptions` behavior unchanged in `src/main.js`.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

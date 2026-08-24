@@ -1,4 +1,12 @@
 import {
+  APP_ADMIN_EMAILS,
+  APP_ALLOWED_EMAILS,
+  APP_PROTOCOL_HISTORY_EMAILS,
+  APP_REGION_OPTIONS,
+  APP_STATUS_FILTER_OPTIONS,
+  ORIGINAL_PINK_PLACE_SIGNATURES
+} from "./app-options.js";
+import {
   AUTH_RESTORE_GRACE_MS,
   CLOUDINARY_PHOTOS,
   authBootStartedAt,
@@ -59,125 +67,9 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const ORIGINAL_PINK_PLACE_SIGNATURES = [
-  ["6vrmki",["1e6czpv","cr7vq4","yu2gnx"]],
-  ["higs6y",["1j9lg23","nfilqo","1b7yg2j","14kyml8","1aa9uym","1faa9l8"]],
-  ["1s03s0l",["1u7m7c8","1g22zp4","w65g5a"]],
-  ["1efrdsi",["176i0pa","od9cga","1hh4ahk","10nzhrc","14pohr8"]],
-  ["18h2ule",["176i0pa","1lstc6x","1lp6mx5","16mgxvl","zybcnz","y2ofdq"]],
-  ["lm0fak",["176i0pa","1l5y5td","iwee0x","1nsvkdj"]],
-  ["b51m4l",["lhw3ca","ehkfsp"]],
-  ["dy93se",["lhw3ca","1s8tv0v","wivq38","9ygcft","15zb019"]],
-  ["1hjlzw1",["lhw3ca","xtqkvi"]],
-  ["h8gz3x",["lhw3ca","14g8vl1"]],
-  ["9rmeig",["lhw3ca","ezwic3","2yu6tf"]],
-  ["2zhzhk",["lhw3ca","1avwabv"]],
-  ["4am6y2",["lhw3ca","sb4pit"]],
-  ["a7dg1o",["lhw3ca","6rk1oh"]],
-  ["w7ljts",["lhw3ca","myg6ry"]],
-  ["gavtle",["lhw3ca","10sqgf2"]],
-  ["1h724e0",["lhw3ca","1q6slpq","w7toxf","1i7y2b8"]],
-  ["yuyqmg",["1l4fkd3","f0x6ue","1w5y23g","hj0i8j","4cuscl","1nliijn"]],
-  ["3ygyub",["f6r7xv","j11nzl","d3n3um"]],
-  ["1wy8y7l",["wfeom3","16aetmf","a31zoh"]],
-  ["1h6jzed",["1k57qej","mj7kgp"]],
-  ["4we63n",["1vwvt4s","3ihptp","1rar0hm","10o9acx"]],
-  ["19uf2fe",["8tsfs","13n73r4","4dz2ww","1tyauuk"]],
-  ["u8zx48",["8tsfs","13n73r4","13p18i2","wsa76l"]],
-  ["1bjc8i7",["52sgxi","nzpd32","2grid5","1oekbmc"]],
-  ["edil9r",["19eotm","1wra6dj","6rbfzx","rx07jb","1xktyys","1rirt7k","1d7ro4e"]],
-  ["flomx7",["1hdn7vg","1hganrp","1xu8g25","1ddi60u"]],
-  ["1t5gs8",["fdr91f","af5v5o","8v165","1aovow0"]],
-  ["ze38vb",["x42rmd","1c5wgpg","zcszi0"]],
-  ["1719v4j",["10mu7op","72t3ir","gtg5hx"]],
-  ["1jkul9k",["t7jo1n","af5v5o","awerna","65wfw7","cx2aef"]],
-  ["1lko6z7",["x275p4","1in443b","17vdzxo","eiinb"]],
-  ["1mm4mm4",["tie0vw","15cbzkf","sgv8lg","v6rih0"]],
-  ["1mbmohv",["np884z","1wog1by","1jpvanj"]],
-  ["1cwxsub",["1o7hwae","cc0474","3nb4bb"]],
-  ["113ke6",["19masxz","vkdgkh","m436rx","lu3l2y"]],
-  ["1bjmspd",["19masxz","pwbbjb","1pnmdj5","oscwrf","1mcyjpz"]],
-  ["3nazi1",["1veon3y","zv4u8w","hkthcs"]],
-  ["is8s17",["z6uabh","oq2eya","1jv24h8"]],
-  ["171jmzh",["583z67","1smu937","1h60fkq","14ku3yu","1ff95z3"]],
-  ["a81hrh",["x4usxh","11ymqgz","1bwywao","elfvki"]],
-  ["19tclqq",["169ur0f","1mtg2ub","1gehror"]],
-  ["p2r0or",["169ur0f","8j03r7"]],
-  ["pfojsd",["169ur0f","2sq1rg"]],
-  ["19o01c6",["6bleu1","af5v5o","1w54qy2","3tk6mr","10dc24q"]],
-  ["17kb978",["1boa2rw","1sq0pcb","1c4uwe0","1au2yy9"]],
-  ["hbc9tk",["1boa2rw","1hd3mzr"]],
-  ["k4ie5p",["1boa2rw","15x4orr","13vwpcg","1gsez7d"]],
-  ["12cmhj1",["1boa2rw","4cjpu8"]],
-  ["626ggt",["yc1wgi","s6ky9g"]],
-  ["1fzswca",["1dr35gp","j10qav","i0tgik","3lo2u3"]],
-  ["b16fwv",["ks4ha","14lc1of","56h7bg"]],
-  ["1b9nk9v",["yhjxbb","j781kc","y4flug","1iekoig","9v0mz7","1m2yy10"]],
-  ["m1zx9i",["2tdlaj","3ysiw2","1987r0f","18e8xxi"]],
-  ["1qg0w9r",["2tdlaj","3ysiw2","18o8jmh","17u9qjk"]],
-  ["59o2s",["nmic5s","19hwwhd","rkryn1","18gt4ix"]],
-  ["1y1o8n1",["1qg1jpq","1mx48wc","1cku7mf"]],
-  ["2t6ryi",["1qg1jpq","18klsyp","19k21tn","1pj9dj2"]],
-  ["13dfsrn",["1qg1jpq","13vjk9e"]],
-  ["zfggna",["qqyvyr","1s5b7tk","18bqfj4","1pkj6of","10ayd74"]],
-  ["15flziq",["taf3cp","af5v5o","t99sum","tth9ht","1y8gvq5","1nb1hqp"]],
-  ["187yc68",["1atpxi5","1hvljlw"]],
-  ["1jsvvg0",["1atpxi5","fzcife","1rnewwu","1diwk9p"]],
-  ["1tovic5",["1atpxi5","oyisx1","iarna","1s9y1ty","emyv0h"]],
-  ["1uyjn1r",["1atpxi5","1ysu37f"]],
-  ["25gy73",["1atpxi5","1hcq5pd","1e44sy1","9rpksm"]],
-  ["1i3hb5p",["1atpxi5","wuhtnk","16no619","1n2kfoz","i0tstb"]],
-  ["mgb5z9",["1atpxi5","bm8oi3","1k7n7e9","1b834te","bcqho"]],
-  ["e3dzgl",["1atpxi5","1ccgwrb","yu2gnx"]],
-  ["v11sz2",["1atpxi5","1r2ulbu"]],
-  ["3tql97",["1atpxi5","1fuw726"]],
-  ["502vi3",["1atpxi5","1lml086","e9x7dy","10mx5gy","wwp5vg"]],
-  ["mf2o2t",["1atpxi5","1lml086","izk56j","10mx5gy","wwp5vg"]],
-  ["jttefr",["1atpxi5","1k79mk6","16617g6","179d3gw"]],
-  ["19669yg",["1atpxi5","1gevc2r"]],
-  ["1d06c24",["1atpxi5","4hkefu","yv2vks","1wog1by","billhk"]],
-  ["8r5zw4",["1atpxi5","508upz","553fn7"]],
-  ["1frn4g0",["1atpxi5","sggs01","osvryw","1gouza0"]],
-  ["1krnsn6",["1atpxi5","ah6gry"]],
-  ["ol88fc",["1atpxi5","1ur02ay","euzlyi"]],
-  ["ldaybi",["1atpxi5","taf3cp","byipny"]],
-  ["39621j",["1atpxi5","zwg0bi","1ndbn4f"]],
-  ["1j6vl7y",["1atpxi5","af5v5o","1quojj7"]],
-  ["1j8gzq6",["1atpxi5","9cp1m9"]],
-  ["yng5ta",["1atpxi5","ccd3qy","yu2gnx","1tlcmtv","gj5lef"]],
-  ["jpb6d7",["1atpxi5","1fmu9ut","xbj2dt","f3w0gv","10mx5gy","wwp5vg"]],
-  ["stou4z",["1atpxi5","1f0ig44","1fzvyv7"]],
-  ["liw9gm",["1atpxi5","1x0vjcv","yu2gnx"]],
-  ["mjnncs",["1atpxi5","e6zsgv","nmetue"]],
-  ["1fjmozl",["1atpxi5","dtplis","ebdrgo"]],
-  ["1mxg13j",["1atpxi5","fr1m2v","1xzrbod","e1k0pi"]],
-  ["1mthen3",["1atpxi5","1n4vjcb"]],
-  ["l71hwi",["1atpxi5","12rt4bu","1du6z5e","hqxnnk"]],
-  ["114c8sm",["1atpxi5","10mx5gy","1jhus6u","1lml086","1f6mnn7","1fmu9ut","xbj2dt","1ewn1y8","1j2h3ct","1ishhnu"]],
-  ["fiq4hb",["1atpxi5","1xjjm43","1ms7fpk","1s986n3","yu2gnx"]],
-  ["11s8dek",["1atpxi5","1lljptl","h30xl8","1bqndnf","10ayd74","m12k7"]],
-  ["1gltufv",["1mwy3ml","18klsyp"]],
-  ["9yi602",["vaqzh7","ojv55g"]],
-  ["1iate7r",["mvkhd7","hm1nmo","3go7xx","13lvowj","186wwln"]],
-  ["1mgwp",["1cqfti6","fkxzq","75bjuj","rkryn1"]],
-  ["lthffx",["1pyczks","p6t4lu","4m7eaj"]],
-  ["axwpn",["1b53jar","1ofk8k4","mlr1h0","14xq0oz","j6bit9","1aeum0w","1plyc2m"]],
-  ["sydbyw",["1jhk2p0","ikunwf","1jztqk9"]],
-  ["1hxhtzk",["xesj0l","cx2aef","1ibm8mx","1e0f8io"]],
-  ["132n0uf",["1m5olmv","1a1z82d"]],
-  ["cngtbf",["13byjt8","nzpd32","1ewdlsk","17a7dnn","1ksj7ug","zv7yst"]],
-  ["bsat19",["xg1nmt","hhg0ej","153d5we","io9x11","10vk0pg"]],
-  ["1xuht7a",["h7xn2z","1vii903","1r1oe1n","qbhib7"]],
-  ["1ft45aa",["1jij3ac","1vl06rf","1q09z76"]],
-  ["zjds1p",["rietxk","1yv7jrw","17cvsnz","1i05jnl","ovs0ti","1keqkdf"]],
-  ["1k4c8q1",["rietxk","17cvsnz","1sfacrc"]],
-  ["60wkg7",["1jj252e","lqbnc0","jtc860","cg20tx","gmu7wx"]],
-  ["scd46t",["1lz3k94","3tk6mr","10dc24q"]],
-];
-
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-map-status-module-v414";
+const APP_BUILD_VERSION="2026-08-24-app-options-module-v415";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1288,7 +1180,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v414-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v415-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2369,30 +2261,6 @@ function simpleNorm(v){
     .trim();
   return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(simpleNormCache,text,normalized) : normalized;
 }
-const APP_REGION_OPTIONS = [
-  "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
-  "Ústecký kraj","Liberecký kraj","Královéhradecký kraj","Pardubický kraj","Kraj Vysočina",
-  "Jihomoravský kraj","Olomoucký kraj","Moravskoslezský kraj","Zlínský kraj","Slovensko"
-];
-const APP_STATUS_FILTER_OPTIONS = [
-  "Propadlá kontrola",
-  "Kontrola objednaná",
-  "Objednaná oprava",
-  "1–30 dní k termínu",
-  "Stop Stav",
-  "OK / ostatní",
-  "Hlídáme termín sami"
-];
-const APP_ADMIN_EMAILS = [
-  "jan.soldan@astip.cz",
-  "jansoldan@astip.cz"
-];
-const APP_ALLOWED_EMAILS = [
-  "iva.glozova@astip.cz"
-];
-const APP_PROTOCOL_HISTORY_EMAILS = [
-  "iva.glozova@astip.cz"
-];
 const APP_ADMIN_EMAIL_SET = new Set(APP_ADMIN_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
 const APP_ALLOWED_EMAIL_SET = new Set(APP_ALLOWED_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
 const APP_PROTOCOL_HISTORY_EMAIL_SET = new Set(APP_PROTOCOL_HISTORY_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
