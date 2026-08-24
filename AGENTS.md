@@ -672,6 +672,8 @@ Current performance phase 288 decision: continue the monolith split by moving le
 
 Current performance phase 289 decision: continue the monolith split by moving row lookup keys, selected site document IDs, site record keys, site record identity, and per-site key-set caching into `src/row-identity-utils.js`; preserve the same row-attached caches, default selected-site behavior, and all protocol/gallery/document/offline matching keys.
 
+Current performance phase 290 decision: continue the monolith split by moving record identifier key caching and per-load record dedupe helpers into `src/record-id-utils.js`; preserve the same `_id` dedupe behavior and `siteId`/`siteKey`/`siteDocId`/`firebaseDocId`/`siteKeys` matching coverage for protocols, service records, photos, and offline sync.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

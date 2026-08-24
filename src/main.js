@@ -157,6 +157,10 @@ import {
 import {
   createRowIdentityHelpers
 } from "./row-identity-utils.js";
+import {
+  createRecordIdDedupe,
+  recordIdKeys
+} from "./record-id-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -182,7 +186,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-row-identity-utils-module-v440";
+const APP_BUILD_VERSION="2026-08-24-record-id-utils-module-v441";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1118,7 +1122,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v440-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v441-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -3658,73 +3662,6 @@ function detailKey(r){
   return editCacheKeyForRow(r);
 }
 window.detailKey=detailKey;
-const recordIdKeysCache=new WeakMap();
-function recordIdKeys(record){
-  if(!record) return [];
-  const siteKeys=Array.isArray(record.siteKeys) ? record.siteKeys : [];
-  const rawValues=[
-    record.siteId,
-    record.siteLegacyId,
-    record.siteKey,
-    record.siteDocId,
-    record.firebaseDocId,
-    ...siteKeys
-  ];
-  if(record && (typeof record==="object" || typeof record==="function")){
-    const cached=recordIdKeysCache.get(record);
-    if(
-      cached &&
-      cached.siteId===record.siteId &&
-      cached.siteLegacyId===record.siteLegacyId &&
-      cached.siteKey===record.siteKey &&
-      cached.siteDocId===record.siteDocId &&
-      cached.firebaseDocId===record.firebaseDocId &&
-      sameArrayValues(cached.siteKeys,siteKeys)
-    ){
-      return cached.keys;
-    }
-    const keys=rawValues
-      .map(x=>String(x || "").trim())
-      .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-    recordIdKeysCache.set(record,{
-      siteId:record.siteId,
-      siteLegacyId:record.siteLegacyId,
-      siteKey:record.siteKey,
-      siteDocId:record.siteDocId,
-      firebaseDocId:record.firebaseDocId,
-      siteKeys:siteKeys.slice(),
-      keys
-    });
-    return keys;
-  }
-  return rawValues
-    .map(x=>String(x || "").trim())
-    .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-}
-function createRecordIdDedupe(items=[]){
-  const ids=new Set();
-  const rememberId=id=>{
-    const key=safe(id);
-    if(!key) return false;
-    if(ids.has(key)) return true;
-    ids.add(key);
-    return false;
-  };
-  (items || []).forEach(item=>{
-    const id=safe(item && item._id);
-    if(id) ids.add(id);
-  });
-  return {
-    has:id=>ids.has(safe(id)),
-    add:item=>{
-      if(!item) return false;
-      const duplicate=rememberId(item._id);
-      if(duplicate) return false;
-      items.push(item);
-      return true;
-    }
-  };
-}
 function recordMatchesSite(record,site=selectedSite){
   if(!record || !site) return false;
   const keySet=siteRecordKeySet(site);
