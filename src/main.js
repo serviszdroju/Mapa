@@ -165,7 +165,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-iso-date-utils-module-v432";
+const APP_BUILD_VERSION="2026-08-24-remove-dead-detail-helpers-v433";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1101,7 +1101,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v432-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v433-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -5047,35 +5047,6 @@ window.removeFirebaseSiteRow = function(site){
 window.getCurrentCsvRows = function(){
   return originalCsvRows.length ? originalCsvRows : csvRows;
 };
-
-const duplicateValueAliases = [
-  ["Název","Adresa / umístění","Adresa_GPS","Umístění","Umístění zdroje","Původní adresa / umístění"],
-  ["Popis_zdroje","Zdroj","Jaký zdroj"],
-  ["Kontakt_mapy","Kontakt","Hlavní kontakt"],
-  ["Poznámky_mapy","Poznámky","DŮLEŽITÁ POZNÁMKA"],
-  ["Příští_kontrola"],
-  ["Poslední_kontrola"],
-  ["Dní do kontroly","Dní_do_kontroly"],
-  ["Stav_kontroly"],
-  ["Barva bodu","Barva_bodu"]
-];
-function canonicalKey(key){
-  for(const group of duplicateValueAliases){
-    if(group.includes(key)) return group[0];
-  }
-  return key;
-}
-
-function formatCzDate(v){
-  const s=safe(v);
-  if(!s) return "";
-  const m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(m) return `${Number(m[3])}.${Number(m[2])}.${m[1]}`;
-  const d=new Date(s);
-  if(!isNaN(d.getTime())) return `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
-  return s;
-}
-
 
 const hiddenDataLabels = new Set([
   "příští_kontrola","pristi_kontrola","příští kontrola","pristi kontrola","příští plánovaná kontrola",
