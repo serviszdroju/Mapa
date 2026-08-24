@@ -176,7 +176,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-auth-access-utils-module-v437";
+const APP_BUILD_VERSION="2026-08-24-auth-wait-utils-module-v438";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1112,7 +1112,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v437-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v438-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2065,6 +2065,9 @@ const authAccessHelpers=createAuthAccessHelpers({
   adminEmails:APP_ADMIN_EMAILS,
   allowedEmails:APP_ALLOWED_EMAILS,
   protocolHistoryEmails:APP_PROTOCOL_HISTORY_EMAILS,
+  getFirebaseReady:()=>firebaseReady,
+  getAuthClient:()=>auth,
+  getAuthModule:()=>fb.authMod,
   getCompatAuthClient,
   getCurrentUser:()=>currentUser || window.currentUser || window.__authReadyUser || null,
   setCurrentUser:user=>{
@@ -2085,7 +2088,8 @@ const {
   canViewProtocolHistory,
   canViewMainProtocolHistory,
   canViewAllMainProtocolHistory,
-  updateAdminAppControls
+  updateAdminAppControls,
+  waitForFirebaseUser
 }=authAccessHelpers;
 window.isAppAdmin=isAppAdmin;
 window.canViewProtocolHistory=canViewProtocolHistory;
@@ -2094,43 +2098,6 @@ window.canViewAllMainProtocolHistory=canViewAllMainProtocolHistory;
 window.updateAdminAppControls=updateAdminAppControls;
 document.addEventListener("DOMContentLoaded",updateAdminAppControls);
 (window.queueMicrotask || (fn=>Promise.resolve().then(fn)))(updateAdminAppControls);
-function waitForFirebaseUser(timeoutMs=8000){
-  if(!firebaseReady || (!auth && !getCompatAuthClient())) return Promise.resolve(currentUser || window.currentUser || null);
-  const existing=currentUser || window.currentUser || window.__authReadyUser || syncCurrentUserFromCompat();
-  if(existing) return Promise.resolve(existing);
-  return new Promise(resolve=>{
-    let done=false;
-    let unsub=null;
-    const finish=user=>{
-      if(done) return;
-      done=true;
-      if(unsub) try{unsub();}catch(e){}
-      currentUser=user || syncCurrentUserFromCompat() || currentUser || window.currentUser || window.__authReadyUser || null;
-      window.currentUser=currentUser;
-      resolve(currentUser);
-    };
-    const timer=setTimeout(()=>finish(syncCurrentUserFromCompat() || currentUser || window.currentUser || (auth && auth.currentUser) || null),timeoutMs);
-    try{
-      const compatClient=getCompatAuthClient();
-      if(compatClient && compatClient.onAuthStateChanged){
-        unsub=compatClient.onAuthStateChanged(user=>{
-          if(!user && !explicitSignOutPending()) return;
-          clearTimeout(timer);
-          finish(user || syncCurrentUserFromCompat());
-        });
-      }else{
-        unsub=fb.authMod.onAuthStateChanged(auth,user=>{
-          if(!user && !explicitSignOutPending()) return;
-          clearTimeout(timer);
-          finish(user || syncCurrentUserFromCompat());
-        });
-      }
-    }catch(e){
-      clearTimeout(timer);
-      finish(syncCurrentUserFromCompat() || currentUser || window.currentUser || (auth && auth.currentUser) || null);
-    }
-  });
-}
 function editCacheKeyForRow(r){
   return String((r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]) || r.id)) || "");
 }

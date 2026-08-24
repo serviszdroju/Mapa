@@ -215,6 +215,9 @@ export function createAuthAccessHelpers(options={}){
   const protocolHistoryEmailSet=emailSet(options.protocolHistoryEmails);
   const getCurrentUser=typeof options.getCurrentUser==="function" ? options.getCurrentUser : ()=>null;
   const setCurrentUser=typeof options.setCurrentUser==="function" ? options.setCurrentUser : ()=>{};
+  const getFirebaseReady=typeof options.getFirebaseReady==="function" ? options.getFirebaseReady : ()=>false;
+  const getAuthClient=typeof options.getAuthClient==="function" ? options.getAuthClient : ()=>null;
+  const getAuthModule=typeof options.getAuthModule==="function" ? options.getAuthModule : ()=>null;
   const compatAuthGetter=typeof options.getCompatAuthClient==="function" ? options.getCompatAuthClient : getCompatAuthClient;
   const updateInstallButtons=typeof options.updateInstallButtons==="function" ? options.updateInstallButtons : ()=>{};
 
@@ -281,6 +284,46 @@ export function createAuthAccessHelpers(options={}){
     updateInstallButtons();
   }
 
+  function waitForFirebaseUser(timeoutMs=8000){
+    const authClient=getAuthClient();
+    if(!getFirebaseReady() || (!authClient && !compatAuthGetter())) return Promise.resolve(getCurrentUser() || null);
+    const existing=getCurrentUser() || syncCurrentUserFromCompat();
+    if(existing) return Promise.resolve(existing);
+    return new Promise(resolve=>{
+      let done=false;
+      let unsub=null;
+      const finish=user=>{
+        if(done) return;
+        done=true;
+        if(unsub) try{unsub();}catch(e){}
+        const nextUser=user || syncCurrentUserFromCompat() || getCurrentUser() || (authClient && authClient.currentUser) || null;
+        setCurrentUser(nextUser);
+        resolve(nextUser);
+      };
+      const timer=setTimeout(()=>finish(syncCurrentUserFromCompat() || getCurrentUser() || (authClient && authClient.currentUser) || null),timeoutMs);
+      try{
+        const compatClient=compatAuthGetter();
+        if(compatClient && compatClient.onAuthStateChanged){
+          unsub=compatClient.onAuthStateChanged(user=>{
+            if(!user && !explicitSignOutPending()) return;
+            clearTimeout(timer);
+            finish(user || syncCurrentUserFromCompat());
+          });
+        }else{
+          const authModule=getAuthModule();
+          unsub=authModule.onAuthStateChanged(authClient,user=>{
+            if(!user && !explicitSignOutPending()) return;
+            clearTimeout(timer);
+            finish(user || syncCurrentUserFromCompat());
+          });
+        }
+      }catch(e){
+        clearTimeout(timer);
+        finish(syncCurrentUserFromCompat() || getCurrentUser() || (authClient && authClient.currentUser) || null);
+      }
+    });
+  }
+
   return {
     compatAuthCurrentUser,
     syncCurrentUserFromCompat,
@@ -291,7 +334,8 @@ export function createAuthAccessHelpers(options={}){
     canViewMainProtocolHistory,
     canViewAllMainProtocolHistory,
     updateProtocolHistoryVisibility,
-    updateAdminAppControls
+    updateAdminAppControls,
+    waitForFirebaseUser
   };
 }
 
