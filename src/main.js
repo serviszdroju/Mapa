@@ -100,6 +100,11 @@ import {
   cachedPostAppShellUrlsToServiceWorker,
   currentAppShellUrls
 } from "./app-shell-cache.js";
+import {
+  requestSzzPersistentStorage,
+  szzBytesLabel,
+  szzStorageEstimate
+} from "./storage-persistence.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -127,7 +132,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
 }
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-app-shell-cache-module-v421";
+const APP_BUILD_VERSION="2026-08-24-storage-persistence-module-v422";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -144,12 +149,6 @@ const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
 const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
 const SZZ_MAP_DELTA_UPSERT_BATCH_SIZE=24;
 const SZZ_MAP_DELTA_CACHE_DEFER_MS=1800;
-const SZZ_STORAGE_META_CACHE_MS=5000;
-let szzStorageEstimateCache=null;
-let szzStorageEstimateCacheAt=0;
-let szzPersistentStorageCache=null;
-let szzPersistentStorageCacheAt=0;
-
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
   window.__szzFastShellShown=true;
@@ -1015,60 +1014,6 @@ async function cacheAppShellForOffline(options={}){
   }
 }
 
-function szzBytesLabel(value){
-  const bytes=Number(value) || 0;
-  if(!bytes) return "";
-  if(bytes<1024) return `${bytes} B`;
-  if(bytes<1048576) return `${Math.round(bytes/1024)} kB`;
-  if(bytes<1073741824) return `${Math.round(bytes/104857.6)/10} MB`;
-  return `${Math.round(bytes/107374182.4)/10} GB`;
-}
-
-async function szzStorageEstimate(){
-  if(!navigator.storage || typeof navigator.storage.estimate!=="function") return null;
-  const now=Date.now();
-  if(szzStorageEstimateCache && now-szzStorageEstimateCacheAt<SZZ_STORAGE_META_CACHE_MS){
-    return {...szzStorageEstimateCache};
-  }
-  try{
-    const estimate=await navigator.storage.estimate();
-    const next={
-      usage:Number(estimate && estimate.usage) || 0,
-      quota:Number(estimate && estimate.quota) || 0
-    };
-    szzStorageEstimateCache=next;
-    szzStorageEstimateCacheAt=Date.now();
-    return {...next};
-  }catch(e){
-    return null;
-  }
-}
-
-async function requestSzzPersistentStorage(options={}){
-  const request=!!(options && options.request);
-  const now=Date.now();
-  if(!request && szzPersistentStorageCache && now-szzPersistentStorageCacheAt<SZZ_STORAGE_META_CACHE_MS){
-    return {...szzPersistentStorageCache};
-  }
-  const result={supported:false,persisted:false,requested:false,granted:false};
-  if(!navigator.storage) return result;
-  result.supported=typeof navigator.storage.persisted==="function" || typeof navigator.storage.persist==="function";
-  try{
-    if(typeof navigator.storage.persisted==="function"){
-      result.persisted=await navigator.storage.persisted();
-    }
-    if(!result.persisted && options.request && typeof navigator.storage.persist==="function"){
-      result.requested=true;
-      result.granted=await navigator.storage.persist();
-      result.persisted=result.granted || (typeof navigator.storage.persisted==="function" ? await navigator.storage.persisted() : false);
-    }
-  }catch(e){
-    result.error=e && (e.message || e.code) || String(e);
-  }
-  szzPersistentStorageCache={...result};
-  szzPersistentStorageCacheAt=Date.now();
-  return result;
-}
 window.requestSzzPersistentStorage=requestSzzPersistentStorage;
 
 const SZZ_FIREBASE_SITE_COUNT_CACHE_MS=1800;
@@ -1130,7 +1075,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v421-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v422-runtime";
 
 function szzIsConstrainedDevice(){
   try{

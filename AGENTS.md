@@ -634,4 +634,6 @@ Current performance phase 269 decision: continue the monolith split by moving si
 
 Current performance phase 270 decision: continue the monolith split by moving app-shell URL discovery and service-worker shell cache posting/coalescing into `src/app-shell-cache.js`; keep `showAppShellFast()` and local Firebase row fallback in `src/main.js` because they depend on local DOM and data-loading helpers.
 
+Current performance phase 271 decision: continue the monolith split by moving storage persistence requests, cached storage estimates, and byte-size labels into `src/storage-persistence.js`; preserve `window.requestSzzPersistentStorage` from `src/main.js` for existing install/offline controls.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
