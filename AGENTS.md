@@ -618,4 +618,6 @@ Current performance phase 261 decision: background change checks must stay respo
 
 Current performance phase 262 decision: continue the monolith split by moving Firebase config, Cloudinary photo config, compat Firebase script loading, auth persistence helpers, known-login storage helpers, and startup auth-check UI helper into `src/firebase-auth.js`, imported by `src/main.js`; preserve the same globals, login handoff, Firebase/Cloudinary values, and app-shell behavior.
 
+Current performance phase 263 decision: continue the monolith split by moving map/watch-self status parsing, status raw-key constants, status fingerprints, and status alias helpers into `src/map-status.js`; keep the same imported function names and window compatibility hooks so map coloring, filters, detail rows, edits, protocols, and offline matching keep their existing behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

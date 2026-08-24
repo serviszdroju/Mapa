@@ -19,6 +19,22 @@ import {
   rememberKnownSignedIn,
   setStartupAuthChecking
 } from "./firebase-auth.js";
+import {
+  MAP_STATUS_COLOR_KEYS,
+  MAP_STATUS_TEXT_KEYS,
+  ORDERED_STATUS_FLAG_KEYS,
+  REPAIR_STATUS_FLAG_KEYS,
+  WATCH_SELF_RAW_KEYS,
+  applyWatchSelfAliases,
+  canonicalWatchSelfValue,
+  explicitWatchSelfFromRaw,
+  mapStatusColorMatches,
+  mapStatusRawFingerprint,
+  orderedFlagFromRaw,
+  repairOrderFlagFromRaw,
+  restoreFirebaseMapStatusRawValues,
+  stopFlagFromRaw
+} from "./map-status.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -35,6 +51,10 @@ window.firebaseUnifiedPrimary = firebaseUnifiedPrimary;
 window.__firebaseUnifiedPrimary = firebaseUnifiedPrimary;
 window.cloudinaryPhotoConfig = CLOUDINARY_PHOTOS;
 window.rows = rows;
+window.WATCH_SELF_RAW_KEYS=WATCH_SELF_RAW_KEYS;
+window.explicitWatchSelfFromRaw=explicitWatchSelfFromRaw;
+window.canonicalWatchSelfValue=canonicalWatchSelfValue;
+window.applyWatchSelfAliases=applyWatchSelfAliases;
 function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
@@ -157,7 +177,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-firebase-auth-module-v413";
+const APP_BUILD_VERSION="2026-08-24-map-status-module-v414";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1268,7 +1288,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v413-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v414-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2348,213 +2368,6 @@ function simpleNorm(v){
     .replace(/\s+/g," ")
     .trim();
   return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(simpleNormCache,text,normalized) : normalized;
-}
-const rowSimpleKeyLookupCache=new WeakMap();
-function simpleRowKeyLookup(r){
-  if(!r || (typeof r!=="object" && typeof r!=="function")) return null;
-  const keys=Object.keys(r);
-  const signature=keys.join("\u001f");
-  const cached=rowSimpleKeyLookupCache.get(r);
-  if(cached && cached.signature===signature) return cached.map;
-  const map=new Map();
-  for(const k of keys){
-    const normalized=simpleNorm(k);
-    if(!map.has(normalized)) map.set(normalized,[]);
-    map.get(normalized).push(k);
-  }
-  rowSimpleKeyLookupCache.set(r,{signature,map});
-  return map;
-}
-function yesNoBool(v){
-  const n=simpleNorm(v);
-  if(["ano","yes","true","1","aktivni"].includes(n)) return true;
-  if(["ne","no","false","0",""].includes(n)) return false;
-  return n.includes("ano") || n.includes("aktivni");
-}
-function yesNoFlagFromRaw(raw,keys){
-  for(const k of keys){
-    const v=get(raw||{},k);
-    if(!safe(v)) continue;
-    const n=simpleNorm(v);
-    if(["ano","yes","true","1","aktivni"].includes(n)) return true;
-    if(["ne","no","false","0"].includes(n)) return false;
-    if(n.includes("ano") || n.includes("aktivni")) return true;
-    if(n.includes("ne") || n.includes("false")) return false;
-  }
-  return null;
-}
-const WATCH_SELF_PRIMARY_KEYS=[
-  "Hlídáme sami termín",
-  "Hlídáme kontroly sami",
-  "Hlídáme termín sami",
-  "Hlídat termín sami",
-  "Hlidame kontroly sami",
-  "Hlidat termin sami",
-  "Jezdit hlídáme termín sami"
-];
-const WATCH_SELF_LEGACY_FLAG_KEYS=[
-  "Jezdit bez objednávky",
-  "Jezdit bez objednavky",
-  "Bez objednávky",
-  "Bez objednavky",
-  "Růžová",
-  "Ruzova"
-];
-const WATCH_SELF_RAW_KEYS=[...WATCH_SELF_PRIMARY_KEYS,...WATCH_SELF_LEGACY_FLAG_KEYS];
-window.WATCH_SELF_RAW_KEYS=WATCH_SELF_RAW_KEYS;
-function watchRawValue(raw,key){
-  const source=raw || {};
-  const direct=get(source,key);
-  if(safe(direct)) return direct;
-  const wanted=simpleNorm(key);
-  const lookup=simpleRowKeyLookup(source);
-  const keys=lookup ? (lookup.get(wanted) || []) : [];
-  for(const existingKey of keys){
-    if(safe(source[existingKey])) return source[existingKey];
-  }
-  return "";
-}
-function yesNoExplicitValue(v){
-  const n=simpleNorm(v);
-  if(["ano","yes","true","1","aktivni"].includes(n)) return true;
-  if(["ne","no","false","0",""].includes(n)) return false;
-  if(n.includes("ano") || n.includes("aktivni")) return true;
-  if(n.includes("ne") || n.includes("false")) return false;
-  return null;
-}
-function explicitFlagFromKeys(raw,keys){
-  let foundYes=false;
-  for(const key of keys){
-    const value=watchRawValue(raw,key);
-    if(!safe(value)) continue;
-    const flag=yesNoExplicitValue(value);
-    if(flag===false) return false;
-    if(flag===true) foundYes=true;
-  }
-  return foundYes ? true : null;
-}
-function explicitWatchSelfFromRaw(raw){
-  const primary=explicitFlagFromKeys(raw,WATCH_SELF_PRIMARY_KEYS);
-  if(primary!==null) return primary;
-  return explicitFlagFromKeys(raw,WATCH_SELF_LEGACY_FLAG_KEYS);
-}
-function canonicalWatchSelfValue(raw){
-  return explicitWatchSelfFromRaw(raw)===true ? "ano" : "ne";
-}
-function applyWatchSelfAliases(raw,value){
-  const target=raw || {};
-  let flag=yesNoExplicitValue(value);
-  if(flag===null) flag=explicitWatchSelfFromRaw(target);
-  const yes=flag===true;
-  target["Hlídáme sami termín"]=yes ? "ano" : "ne";
-  target["Hlídáme kontroly sami"]=yes ? "ano" : "ne";
-  target["Hlídáme termín sami"]=yes ? "ano" : "ne";
-  target["Hlídat termín sami"]=yes ? "ano" : "ne";
-  target["Jezdit bez objednávky"]=yes ? "ANO" : "NE";
-  target["Jezdit bez objednavky"]=yes ? "ANO" : "NE";
-  target["Bez objednávky"]=yes ? "ANO" : "NE";
-  target["Bez objednavky"]=yes ? "ANO" : "NE";
-  target["Růžová"]=yes ? "ANO" : "NE";
-  target["Ruzova"]=yes ? "ANO" : "NE";
-  return target;
-}
-window.explicitWatchSelfFromRaw=explicitWatchSelfFromRaw;
-window.canonicalWatchSelfValue=canonicalWatchSelfValue;
-window.applyWatchSelfAliases=applyWatchSelfAliases;
-function stopFlagFromRaw(raw){
-  const keys=["Stop Stav","Stop stav","Stop_stav","Stop","Zdroj ve Stop Stavu","Odstaveno","Mimo provoz"];
-  for(const k of keys){
-    const v=get(raw||{},k);
-    if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("stop") || simpleNorm(v).includes("mimo provoz");
-  }
-  const stav=first(raw||{},["Stav","Stav_kontroly","Stav pro mapu","Status"]);
-  return simpleNorm(stav).includes("stop") || simpleNorm(stav).includes("mimo provoz");
-}
-const MAP_STATUS_RAW_KEYS=[
-  "Kontrola objednaná",
-  "Kontrola_objednaná",
-  "Kontrola objednana",
-  "Objednáno",
-  "Objednano",
-  "Ordered",
-  "Objednaná oprava",
-  "Objednana oprava",
-  "Oprava objednaná",
-  "Oprava objednana",
-  "Objednáno oprava",
-  "Objednano oprava",
-  "Repair ordered",
-  "Stop Stav",
-  "Stop stav",
-  "Stop_stav",
-  "Stop",
-  "Zdroj ve Stop Stavu",
-  "Odstaveno",
-  "Mimo provoz",
-  "Stav",
-  "Stav_kontroly",
-  "Stav kontroly",
-  "Stav pro mapu",
-  "Status",
-  "Barva bodu",
-  "Barva_bodu",
-  "Barva",
-  "Marker color",
-  "MarkerColor"
-];
-const ORDERED_STATUS_FLAG_KEYS=["Kontrola objednaná","Kontrola_objednaná","Kontrola objednana","Objednáno","Objednano","Ordered"];
-const REPAIR_STATUS_FLAG_KEYS=["Objednaná oprava","Objednana oprava","Oprava objednaná","Oprava objednana","Objednáno oprava","Objednano oprava","Repair ordered"];
-const MAP_STATUS_TEXT_KEYS=["Stav pro mapu","Stav_kontroly","Stav kontroly","Status"];
-const MAP_STATUS_COLOR_KEYS=["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"];
-function restoreFirebaseMapStatusRawValues(target={},source={}){
-  const out=target || {};
-  const raw=source || {};
-  MAP_STATUS_RAW_KEYS.forEach(key=>{
-    if(Object.prototype.hasOwnProperty.call(raw,key)) out[key]=raw[key];
-    else delete out[key];
-  });
-  return out;
-}
-function mapStatusRawText(raw={}){
-  return MAP_STATUS_RAW_KEYS
-    .map(key=>get(raw || {},key))
-    .filter(value=>safe(value))
-    .map(simpleNorm)
-    .join(" | ");
-}
-function mapStatusColorValue(raw={}){
-  return simpleNorm(first(raw || {},["Barva bodu","Barva_bodu","Barva","Marker color","MarkerColor"]));
-}
-function mapStatusColorMatches(raw={},hexValues=[],words=[]){
-  const color=mapStatusColorValue(raw);
-  if(!color) return false;
-  const compact=color.replace(/[^a-z0-9#]/g,"");
-  const cleanHex=compact.replace(/^#/,"");
-  return hexValues.includes(cleanHex) || words.some(word=>compact.includes(word));
-}
-function mapStatusRawFingerprint(raw={}){
-  return MAP_STATUS_RAW_KEYS
-    .map(key=>safe(get(raw || {},key)))
-    .map(value=>`${value.length}:${value}`)
-    .join("\u001e");
-}
-function orderedFlagFromRaw(raw){
-  const explicit=yesNoFlagFromRaw(raw||{},ORDERED_STATUS_FLAG_KEYS);
-  if(explicit!==null) return explicit;
-  const text=mapStatusRawText(raw);
-  return text.includes("objednan") && !text.includes("oprava");
-}
-function repairOrderFlagFromRaw(raw){
-  for(const k of REPAIR_STATUS_FLAG_KEYS){
-    const v=get(raw||{},k);
-    if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("objednan");
-  }
-  const text=[
-    mapStatusRawText(raw),
-    get(raw||{},"Poznámky"),
-    get(raw||{},"Poznámky_mapy")
-  ].map(simpleNorm).join(" | ");
-  return text.includes("objednana oprava") || text.includes("objednana servisni oprava") || text.includes("oprava objednana");
 }
 const APP_REGION_OPTIONS = [
   "Hlavní město Praha","Středočeský kraj","Jihočeský kraj","Plzeňský kraj","Karlovarský kraj",
