@@ -262,6 +262,16 @@ async function warmUpSzzPwaInstall(options={}){
     try{
       await fetch("./manifest.webmanifest",{cache:"reload",credentials:"same-origin"});
     }catch(e){}
+    try{
+      if(typeof window.requestSzzPersistentStorage==="function"){
+        await window.requestSzzPersistentStorage({request:false});
+      }
+      if(typeof window.cacheAppShellForOffline==="function"){
+        await window.cacheAppShellForOffline();
+      }
+    }catch(error){
+      console.warn("Zahřátí offline cache před instalací selhalo",error);
+    }
     return registration;
   })().finally(()=>{
     if(options.force) szzInstallWarmupPromise=null;

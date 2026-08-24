@@ -158,7 +158,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-czech-sort-utils-module-v428";
+const APP_BUILD_VERSION="2026-08-24-first-offline-bootstrap-v429";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -714,6 +714,11 @@ if(firebaseReady){
       });
       if(Array.isArray(changedRows) && changedRows.length){
         requestRender();
+        scheduleSzzBackgroundDetailPrefetch(changedRows,{
+          reason:`${reason}-delta-details`,
+          incremental:true,
+          delayMs:900
+        });
         setProgressStatus(`Synchronizováno na pozadí: ${changedRows.length} změněných bodů.`);
       }else{
         setProgressStatus("");
@@ -755,7 +760,8 @@ if(firebaseReady){
       return false;
     }
     const ready=readSzzOfflineReadyState();
-    if(ready.rowsSyncedAtMs){
+    const cachedRowsAvailable=readCachedFirebaseSiteCount();
+    if(ready.rowsSyncedAtMs && cachedRowsAvailable){
       try{
         await syncFirebaseRowsDeltaAfterAuth(reason);
         return true;
@@ -763,7 +769,34 @@ if(firebaseReady){
         console.warn("Rozdílová synchronizace bodů po přihlášení selhala",e);
       }
     }
-    setProgressStatus("Lokální body zatím nejsou připravené. Obnov stránku po připojení k internetu.");
+    setProgressStatus("První načtení na tomto zařízení: stahuji body z Firebase do telefonu...");
+    try{
+      const loaded=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true});
+      if((Array.isArray(loaded) && loaded.length) || (Array.isArray(rows) && rows.length)){
+        resetFirebaseRowsAutoReload();
+        const cachedRows=cacheCurrentFirebaseRowsForOffline();
+        writeSzzOfflineReadyState({
+          appBuildVersion:APP_BUILD_VERSION,
+          preparedAt:new Date().toISOString(),
+          rowsSyncedAtMs:Math.max(0,Date.now()-SZZ_OFFLINE_INCREMENTAL_SAFETY_MS),
+          incremental:false,
+          cachedRows
+        });
+        setProgressStatus("");
+        try{fit();}catch(e){}
+        scheduleSzzBackgroundDetailPrefetch(Array.isArray(loaded) && loaded.length ? loaded : rows,{
+          reason:`${reason}-first-details`,
+          incremental:false,
+          forceFull:true,
+          delayMs:1800
+        });
+        return true;
+      }
+    }catch(e){
+      console.warn("První online načtení bodů po přihlášení selhalo",e);
+    }
+    setProgressStatus("Body se zatím nenačetly. Zkouším další načtení na pozadí bez obnovení stránky.");
+    if(typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(2500);
     return false;
   }
   async function handleAuthorizedUser(user){
@@ -1061,7 +1094,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v428-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v429-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1700,6 +1733,48 @@ async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
   return totals;
 }
 
+let szzBackgroundDetailPrefetchPromise=null;
+let szzBackgroundDetailPrefetchTimer=0;
+
+function scheduleSzzBackgroundDetailPrefetch(inputRows=null,options={}){
+  clearTimeout(szzBackgroundDetailPrefetchTimer);
+  if(navigator.onLine===false || document.visibilityState==="hidden") return false;
+  const rowsForPrefetch=szzOfflineRowsForPrefetch(inputRows);
+  if(!rowsForPrefetch.length) return false;
+  const delayMs=Math.max(0,Number(options.delayMs) || 0);
+  szzBackgroundDetailPrefetchTimer=setTimeout(()=>{
+    runWhenIdle(()=>{
+      if(szzBackgroundDetailPrefetchPromise || navigator.onLine===false || document.visibilityState==="hidden") return;
+      szzBackgroundDetailPrefetchPromise=(async()=>{
+        const totals=await prefetchSzzOfflineDetailData(rowsForPrefetch,{
+          incremental:options.incremental!==false,
+          forceFull:options.forceFull===true
+        });
+        writeSzzOfflineReadyState({
+          lastDetailPrefetchAt:new Date().toISOString(),
+          lastDetailPrefetchReason:safe(options.reason || "background"),
+          cachedDetailSites:totals.processed || 0,
+          changedDetailSites:totals.changedSites || 0,
+          skippedDetailSites:totals.skipped || 0,
+          cachedProtocols:totals.protocols || 0,
+          cachedServiceRecords:totals.serviceRecords || 0,
+          cachedPhotos:totals.photos || 0,
+          cachedAttachments:totals.attachments || 0,
+          cachedPhotoFiles:totals.media || 0
+        });
+        if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(180);
+        return totals;
+      })().catch(e=>{
+        console.warn("Přednačtení offline detailů na pozadí selhalo",e);
+        return null;
+      }).finally(()=>{
+        szzBackgroundDetailPrefetchPromise=null;
+      });
+    },1200);
+  },delayMs);
+  return true;
+}
+
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_OFFLINE_READY_KEY || event.key===SZZ_SYNC_STATE_KEY){
     clearSzzLocalStateObjectCache(event.key || "");
@@ -1720,7 +1795,8 @@ function writeSzzOfflineReadyState(update={}){
 }
 
 async function prepareSzzOfflineAppData(options={}){
-  if(window.openAppToolsPanel) window.openAppToolsPanel();
+  const silent=options.silent===true;
+  if(!silent && window.openAppToolsPanel) window.openAppToolsPanel();
   const button=document.getElementById("prepareOfflineAppBtn");
   const syncText=document.getElementById("appSyncText");
   if(button){
@@ -1822,7 +1898,7 @@ async function prepareSzzOfflineAppData(options={}){
       storageUsage:estimate ? estimate.usage : 0,
       storageQuota:estimate ? estimate.quota : 0
     });
-    if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
+    if(!silent && window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
     const changedRecordCount=(detailCache.protocols || 0) + (detailCache.serviceRecords || 0);
     const attachmentSummary=detailCache.attachments ? `, ${detailCache.attachments} příloh` : "";
     const detailSummary=(changedRecordCount || detailCache.photos || detailCache.attachments)

@@ -2479,7 +2479,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-24-czech-sort-utils-module-v428";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-24-first-offline-bootstrap-v429";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -3116,8 +3116,9 @@ function szzInstallCacheCurrentRows(){
   return firebaseRows.length || szzInstallCachedRowsCount();
 }
 
-window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async function(){
-  if(window.openAppToolsPanel) window.openAppToolsPanel();
+window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async function(options={}){
+  const silent=options.silent===true;
+  if(!silent && window.openAppToolsPanel) window.openAppToolsPanel();
   const button=document.getElementById("prepareOfflineAppBtn");
   const text=document.getElementById("appSyncText");
   if(button){
@@ -3146,7 +3147,7 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
     szzInstallWriteOfflineReady(ready);
     szzInstallSetTextIfChanged(text,cachedRows ? `Offline připraveno: ${cachedRows} bodů v telefonu.` : "Aplikace je připravená pro offline otevření.");
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
-    if(window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
+    if(!silent && window.showSaveConfirmation) window.showSaveConfirmation("Offline data připravena.");
     return ready;
   }finally{
     if(button){

@@ -648,4 +648,6 @@ Current performance phase 276 decision: continue the monolith split by moving no
 
 Current performance phase 277 decision: continue the monolith split by moving Czech base-collator sorting into `src/czech-sort-utils.js`; preserve existing source-label ordering and map/sidebar grouping behavior.
 
+Current performance phase 278 decision: improve first-login/cache-first startup by doing the first Firebase row download in place, saving it to the offline map cache, scheduling detail prefetch in the background, and quietly warming persistent storage/app-shell cache before PWA install; keep the UI shell, manual offline preparation, existing Firebase data flows, and explicit sync behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
