@@ -676,6 +676,8 @@ Current performance phase 290 decision: continue the monolith split by moving re
 
 Current performance phase 291 decision: continue the monolith split by moving site/record text matching key caches into `src/record-text-utils.js`; preserve the same selected-site default behavior, object-attached text caches, and normalized name/address/place fallback matching for legacy protocols, service records, photos, and offline data.
 
+Current performance phase 292 decision: continue the monolith split by moving unique non-empty string filtering, batched Firestore `array-contains-any`/`in` fallback readers, and bounded Firestore task scheduling into `src/firestore-query-utils.js`; preserve the same chunk sizes, fallback equality queries, concurrency limits, browser-yield behavior, and warning messages.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
