@@ -2,7 +2,7 @@ function reportSzzServiceWorkerError(err){
   console.warn("Service worker se nepodarilo spustit",err);
   try{
     if(typeof window.setSzzInstallStatus==="function"){
-      window.setSzzInstallStatus("Offline aplikaci se nepodařilo připravit. Zkus obnovit stránku nebo zkontroluj připojení.","error");
+      window.setSzzInstallStatus("Aplikaci se nepodařilo připravit. Zkus obnovit stránku nebo zkontroluj připojení.","error");
     }
   }catch(e){}
 }
@@ -10,7 +10,7 @@ function reportSzzServiceWorkerError(err){
 function registerSzzServiceWorker(){
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
-  const serviceWorkerBuildVersion="2026-08-11-cache-legacy-site-count-v235";
+  const serviceWorkerBuildVersion="2026-08-24-firebase-auth-module-v413";
   const activatedKey=`astipSzzSwActivated:${serviceWorkerBuildVersion}`;
   if(!window.__szzSwControllerChangeBound){
     window.__szzSwControllerChangeBound=true;
@@ -27,13 +27,26 @@ function registerSzzServiceWorker(){
   }
   window.__szzServiceWorkerRegistrationPromise=navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"})
     .then(registration=>{
-      if(registration.waiting) registration.waiting.postMessage({type:"SKIP_WAITING"});
+      function announceWaitingWorker(worker){
+        if(!worker) return;
+        window.__szzWaitingServiceWorker=worker;
+        try{
+          if(typeof window.setSzzInstallStatus==="function"){
+            window.setSzzInstallStatus("Je dostupná nová verze aplikace. Dokonči rozpracovaný protokol a potom obnov stránku.","ok");
+          }
+        }catch(e){}
+      }
+      window.activateSzzServiceWorkerUpdate=function(){
+        const worker=window.__szzWaitingServiceWorker || registration.waiting || registration.installing;
+        if(worker) worker.postMessage({type:"SKIP_WAITING"});
+      };
+      if(registration.waiting) announceWaitingWorker(registration.waiting);
       registration.addEventListener("updatefound",()=>{
         const worker=registration.installing;
         if(!worker) return;
         worker.addEventListener("statechange",()=>{
           if(worker.state==="installed" && navigator.serviceWorker.controller){
-            worker.postMessage({type:"SKIP_WAITING"});
+            announceWaitingWorker(worker);
           }
         });
       });

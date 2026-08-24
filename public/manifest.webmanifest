@@ -1,15 +1,15 @@
 {
-  "id": "./",
+  "id": "https://serviszdroju.github.io/Mapa/",
   "name": "Servis zaloznich zdroju",
   "short_name": "SZZ mapa",
   "description": "Servisni mapa zaloznich zdroju ASTIP.",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/Mapa/",
+  "scope": "/Mapa/",
   "lang": "cs-CZ",
   "categories": ["business", "productivity", "utilities"],
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#0f172a",
+  "background_color": "#d1d5db",
   "theme_color": "#2563eb",
   "orientation": "any",
   "prefer_related_applications": false,
@@ -17,7 +17,7 @@
     {
       "name": "Otevrit mapu",
       "short_name": "Mapa",
-      "url": "./",
+      "url": "/Mapa/",
       "icons": [
         {
           "src": "./szz-app-icon-192.png",

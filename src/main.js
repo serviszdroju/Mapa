@@ -1,198 +1,44 @@
-/* Firebase config vložen níže */
-const firebaseConfig = {
-  apiKey: "AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
-  authDomain: "astip---servis.firebaseapp.com",
-  projectId: "astip---servis",
-  storageBucket: "astip---servis.firebasestorage.app",
-  messagingSenderId: "304123957651",
-  appId: "1:304123957651:web:3d837eb57957d18b17d866",
-  measurementId: "G-EL8BSFYFDN"
-};
-window.__firebaseConfig = firebaseConfig;
+import {
+  AUTH_RESTORE_GRACE_MS,
+  CLOUDINARY_PHOTOS,
+  authBootStartedAt,
+  clearExplicitSignOut,
+  compatFirebaseReady,
+  compatGoogleProvider,
+  ensureCompatAuthPersistence,
+  ensureCompatFirebaseApp,
+  explicitSignOutPending,
+  firebaseConfig,
+  forgetKnownSignedIn,
+  getCompatAuthClient,
+  knownSignedIn,
+  lastKnownUserEmail,
+  loadCompatFirebaseScripts,
+  markExplicitSignOut,
+  primeCompatAuthPersistence,
+  rememberKnownSignedIn,
+  setStartupAuthChecking
+} from "./firebase-auth.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
 let firebaseReady = !firebaseConfig.apiKey.includes("VLOZIT");
 const firebaseConfigured = firebaseReady;
-const CLOUDINARY_PHOTOS = {
-  cloudName:"dnxjc6ixi",
-  uploadPreset:"astip_mapy",
-  fallbackUploadPresets:[],
-  folder:"astip-servis"
-};
 let app, auth, db, mailFunctions=null, mailFunctionsPromise=null, fb={}, currentUser=null;
 let rows=[], csvRows=[], originalCsvRows=[], extraSites=[], selectedSite=null, addSourceBaseSite=null, editCache={};
 let firebaseUnifiedPrimary = firebaseReady;
 let map=null, layer=null;
+window.__firebaseConfig = firebaseConfig;
 window.firebaseReady = firebaseReady;
 window.__firebaseConfigured = firebaseConfigured;
 window.firebaseUnifiedPrimary = firebaseUnifiedPrimary;
 window.__firebaseUnifiedPrimary = firebaseUnifiedPrimary;
 window.cloudinaryPhotoConfig = CLOUDINARY_PHOTOS;
 window.rows = rows;
-const AUTH_KNOWN_SIGNED_IN_KEY="astipFirebaseKnownSignedIn";
-const AUTH_EXPLICIT_SIGN_OUT_KEY="astipFirebaseExplicitSignOut";
-const AUTH_LAST_EMAIL_KEY="astipFirebaseLastEmail";
-const AUTH_RESTORE_GRACE_MS=12000;
-const authBootStartedAt=Date.now();
-function knownSignedIn(){
-  try{return localStorage.getItem(AUTH_KNOWN_SIGNED_IN_KEY)==="1";}catch(e){return false;}
+function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
+  const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
+  return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-function lastKnownUserEmail(){
-  try{return safe(localStorage.getItem(AUTH_LAST_EMAIL_KEY)).toLowerCase();}catch(e){return "";}
-}
-function explicitSignOutPending(){
-  try{return sessionStorage.getItem(AUTH_EXPLICIT_SIGN_OUT_KEY)==="1";}catch(e){return false;}
-}
-function markExplicitSignOut(){
-  try{sessionStorage.setItem(AUTH_EXPLICIT_SIGN_OUT_KEY,"1");}catch(e){}
-}
-function clearExplicitSignOut(){
-  try{sessionStorage.removeItem(AUTH_EXPLICIT_SIGN_OUT_KEY);}catch(e){}
-}
-let compatAuthClient=null;
-let compatAuthPersistencePromise=null;
-let compatFirebaseAppCache={namespace:null,value:null};
-const FIREBASE_COMPAT_SCRIPT_URLS=[
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
-  "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
-];
-const firebaseCompatScriptPromiseCache=new Map();
-function compatFirebaseReady(){
-  return !!(window.firebase && firebase.initializeApp && firebase.auth && firebase.firestore);
-}
-function loadScriptOnce(src){
-  const absolute=new URL(src,document.baseURI).href;
-  if(firebaseCompatScriptPromiseCache.has(absolute)) return firebaseCompatScriptPromiseCache.get(absolute);
-  const promise=new Promise((resolve,reject)=>{
-    const existing=Array.from(document.scripts).find(script=>script.src===absolute);
-    if(existing){
-      if(existing.dataset.loaded==="1" || compatFirebaseReady() || existing.readyState==="loaded" || existing.readyState==="complete"){
-        resolve();
-        return;
-      }
-      existing.addEventListener("load",()=>resolve(),{once:true});
-      existing.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
-      return;
-    }
-    const script=document.createElement("script");
-    script.src=src;
-    script.async=false;
-    script.defer=true;
-    script.dataset.firebaseCompatDynamic="1";
-    script.addEventListener("load",()=>{
-      script.dataset.loaded="1";
-      resolve();
-    },{once:true});
-    script.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
-    document.head.appendChild(script);
-  }).catch(error=>{
-    firebaseCompatScriptPromiseCache.delete(absolute);
-    throw error;
-  });
-  firebaseCompatScriptPromiseCache.set(absolute,promise);
-  return promise;
-}
-function loadCompatFirebaseScripts(){
-  if(compatFirebaseReady()) return Promise.resolve(window.firebase);
-  if(window.__firebaseCompatLoadingPromise) return window.__firebaseCompatLoadingPromise;
-  const htmlLoader=window.__loadFirebaseCompatScripts;
-  if(typeof htmlLoader==="function" && htmlLoader!==loadCompatFirebaseScripts){
-    window.__firebaseCompatLoadingPromise=Promise.resolve(htmlLoader()).then(()=>window.firebase);
-    return window.__firebaseCompatLoadingPromise;
-  }
-  window.__firebaseCompatLoadingPromise=FIREBASE_COMPAT_SCRIPT_URLS
-    .reduce((promise,src)=>promise.then(()=>loadScriptOnce(src)),Promise.resolve())
-    .then(()=>window.firebase);
-  return window.__firebaseCompatLoadingPromise;
-}
-window.__loadFirebaseCompatScripts=window.__loadFirebaseCompatScripts || loadCompatFirebaseScripts;
-function ensureCompatFirebaseApp(){
-  const compat=window.firebase;
-  if(!compat || !compat.initializeApp) return null;
-  if(compatFirebaseAppCache.namespace===compat && compatFirebaseAppCache.value) return compatFirebaseAppCache.value;
-  try{
-    if((!compat.apps || !compat.apps.length) && window.__firebaseConfig){
-      compat.initializeApp(window.__firebaseConfig);
-    }
-    const value=compat.apps && compat.apps.length ? compat : null;
-    if(value) compatFirebaseAppCache={namespace:compat,value};
-    return value;
-  }catch(e){
-    console.warn("Firebase compat aplikace se nepodařila připravit",e);
-    return null;
-  }
-}
-function getCompatAuthClient(){
-  if(compatAuthClient) return compatAuthClient;
-  const compat=ensureCompatFirebaseApp();
-  if(!compat || !compat.auth) return null;
-  try{
-    compatAuthClient=compat.auth();
-    return compatAuthClient;
-  }catch(e){
-    console.warn("Firebase compat auth se nepodařilo připravit",e);
-    return null;
-  }
-}
-async function ensureCompatAuthPersistence(options={}){
-  if(options.load && !compatFirebaseReady()){
-    try{ await loadCompatFirebaseScripts(); }catch(e){ console.warn("Firebase compat SDK se nepodařilo donačíst",e); }
-  }
-  const client=getCompatAuthClient();
-  if(!client || !window.firebase || !firebase.auth || !firebase.auth.Auth) return client;
-  try{
-    await client.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-  }catch(e){
-    try{ await client.setPersistence(firebase.auth.Auth.Persistence.SESSION); }catch(err){}
-  }
-  return client;
-}
-function primeCompatAuthPersistence(options={}){
-  const shouldLoad=!!options.load;
-  if(!shouldLoad && !compatFirebaseReady()) return Promise.resolve(getCompatAuthClient());
-  if(!compatAuthPersistencePromise || shouldLoad){
-    compatAuthPersistencePromise=ensureCompatAuthPersistence({load:shouldLoad}).catch(e=>{
-      console.warn("Firebase compat persistence se nepodařila připravit",e);
-      return getCompatAuthClient();
-    });
-  }
-  return compatAuthPersistencePromise;
-}
-function compatGoogleProvider(){
-  if(!window.firebase || !firebase.auth || !firebase.auth.GoogleAuthProvider) return null;
-  const provider=new firebase.auth.GoogleAuthProvider();
-  provider.addScope("email");
-  provider.addScope("profile");
-  provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
-  return provider;
-}
-function rememberKnownSignedIn(user=null){
-  try{localStorage.setItem(AUTH_KNOWN_SIGNED_IN_KEY,"1");}catch(e){}
-  const email=safe(user && user.email).toLowerCase();
-  if(email) try{localStorage.setItem(AUTH_LAST_EMAIL_KEY,email);}catch(e){}
-  clearExplicitSignOut();
-  try{document.documentElement.classList.add("auth-resume");}catch(e){}
-}
-function forgetKnownSignedIn(){
-  try{localStorage.removeItem(AUTH_KNOWN_SIGNED_IN_KEY);}catch(e){}
-  try{localStorage.removeItem(AUTH_LAST_EMAIL_KEY);}catch(e){}
-  try{document.documentElement.classList.remove("auth-resume");}catch(e){}
-}
-function setStartupAuthChecking(checking){
-  const startup=document.getElementById("startupScreen");
-  const btn=document.getElementById("startupLoginBtn");
-  const intro=document.getElementById("startupIntro");
-  if(startup) startup.classList.toggle("auth-checking",!!checking);
-  setDisplayIfChanged(btn,checking ? "none" : "");
-  setTextIfChanged(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.");
-}
-window.rememberKnownSignedIn=rememberKnownSignedIn;
-window.forgetKnownSignedIn=forgetKnownSignedIn;
-window.lastKnownUserEmail=lastKnownUserEmail;
-window.setStartupAuthChecking=setStartupAuthChecking;
-window.knownSignedIn=knownSignedIn;
 const ORIGINAL_PINK_PLACE_SIGNATURES = [
   ["6vrmki",["1e6czpv","cr7vq4","yu2gnx"]],
   ["higs6y",["1j9lg23","nfilqo","1b7yg2j","14kyml8","1aa9uym","1faa9l8"]],
@@ -311,7 +157,7 @@ const ORIGINAL_PINK_PLACE_SIGNATURES = [
 
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-22-status-source-v407";
+const APP_BUILD_VERSION="2026-08-24-firebase-auth-module-v413";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -321,10 +167,13 @@ const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_OFFLINE_INCREMENTAL_SAFETY_MS=10000;
-const CZECH_OFFLINE_TILE_VERSION="cz-v1-z6-11";
+const CZECH_OFFLINE_TILE_VERSION="visible-v2";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
 const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
+const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
+const SZZ_MAP_DELTA_UPSERT_BATCH_SIZE=24;
+const SZZ_MAP_DELTA_CACHE_DEFER_MS=1800;
 const APP_SHELL_URLS=[
   "./",
   "./index.html",
@@ -512,6 +361,19 @@ function runWhenIdle(fn,timeout=1000){
   }
 }
 
+function szzYieldToBrowser(timeout=120){
+  return new Promise(resolve=>{
+    const done=()=>resolve();
+    if(typeof requestIdleCallback==="function"){
+      requestIdleCallback(done,{timeout});
+    }else if(typeof requestAnimationFrame==="function"){
+      requestAnimationFrame(()=>setTimeout(done,0));
+    }else{
+      setTimeout(done,0);
+    }
+  });
+}
+
 function invalidateMapAfterPaint(){
   runAfterPaint(()=>{ if(window.map) window.map.invalidateSize(true); });
   runAfterTwoPaints(()=>{ if(window.map) window.map.invalidateSize(true); });
@@ -528,7 +390,7 @@ function initMapShell(){
     return null;
   }
   showAppShellFast("Připravuji mapu. Servisní data se načtou po přihlášení.");
-  window.map=L.map("map").setView([49.9,15.5],7);
+  window.map=L.map("map",{preferCanvas:true}).setView([49.9,15.5],7);
   map=window.map;
   L.tileLayer(MAP_TILE_URL_TEMPLATE,{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
   layer=L.layerGroup().addTo(map);
@@ -974,14 +836,48 @@ if(firebaseReady){
   }
   let postLoginLoadToken=0;
   let postLoginLoadPromise=null;
-  function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
-    const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
-    return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
-  }
+  let backgroundDeltaSyncPromise=null;
+  let lastBackgroundDeltaSyncAt=0;
   async function loadFirebaseRowsAfterAuth(reason="auth"){
     if(postLoginLoadPromise) return postLoginLoadPromise;
     postLoginLoadPromise=loadFirebaseRowsAfterAuthInner(reason).finally(()=>{postLoginLoadPromise=null;});
     return postLoginLoadPromise;
+  }
+  async function syncFirebaseRowsDeltaAfterAuth(reason="auth"){
+    if(backgroundDeltaSyncPromise) return backgroundDeltaSyncPromise;
+    if(navigator.onLine===false || !firebaseUnifiedPrimary) return 0;
+    if(document.visibilityState==="hidden") return 0;
+    if(typeof syncSzzOfflineMapRowDeltas!=="function") return 0;
+    const now=Date.now();
+    if(lastBackgroundDeltaSyncAt && now-lastBackgroundDeltaSyncAt<SZZ_BACKGROUND_DELTA_SYNC_MIN_MS) return 0;
+    const ready=readSzzOfflineReadyState();
+    const sinceMs=Number(ready.rowsSyncedAtMs || Date.parse(ready.preparedAt || "") || 0);
+    if(!sinceMs) return 0;
+    backgroundDeltaSyncPromise=(async()=>{
+      await szzYieldToBrowser(900);
+      setProgressStatus("Přihlášení potvrzeno. Kontroluji změny na pozadí...");
+      const changedRows=await syncSzzOfflineMapRowDeltas(sinceMs,{background:true});
+      const nowMs=Date.now();
+      writeSzzOfflineReadyState({
+        appBuildVersion:APP_BUILD_VERSION,
+        preparedAt:ready.preparedAt || new Date().toISOString(),
+        rowsSyncedAtMs:Math.max(0,nowMs-SZZ_OFFLINE_INCREMENTAL_SAFETY_MS),
+        lastDeltaSyncAt:new Date().toISOString(),
+        changedRows:Array.isArray(changedRows) ? changedRows.length : 0
+      });
+      if(Array.isArray(changedRows) && changedRows.length){
+        requestRender();
+        setProgressStatus(`Synchronizováno na pozadí: ${changedRows.length} změněných bodů.`);
+      }else{
+        setProgressStatus("");
+      }
+      if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+      return Array.isArray(changedRows) ? changedRows.length : 0;
+    })().finally(()=>{
+      lastBackgroundDeltaSyncAt=Date.now();
+      backgroundDeltaSyncPromise=null;
+    });
+    return backgroundDeltaSyncPromise;
   }
   async function loadFirebaseRowsAfterAuthInner(reason="auth"){
     if(!firebaseUnifiedPrimary) return true;
@@ -993,34 +889,34 @@ if(firebaseReady){
       if(typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(2500);
       return false;
     }
-    for(let attempt=1; attempt<=4; attempt++){
-      if(firebaseRowsWereLoadedFromNetwork()){
-        resetFirebaseRowsAutoReload();
-        setProgressStatus("");
-        return true;
-      }
-      setProgressStatus(`Načítám body z Firebase (${attempt}/4)...`);
+    if(typeof window.loadFirebaseSitesUnified==="function"){
       try{
-        const loaded=await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true,skipFirestoreCache:true});
-        if(token!==postLoginLoadToken) return false;
-        if((Array.isArray(loaded) && loaded.length) || firebaseRowsWereLoadedFromNetwork()){
+        const cachedRows=await window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true,skipFirestoreCache:true});
+        if(Array.isArray(cachedRows) && cachedRows.length){
           resetFirebaseRowsAutoReload();
-          setProgressStatus("");
-          try{fit();}catch(e){}
+          runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth(reason).catch(e=>{
+            console.warn("Rozdílová synchronizace bodů po přihlášení selhala",e);
+          }),900);
           return true;
         }
-        const loadError=String(window.__lastFirebaseLoadError || "");
-        if(/permission|insufficient/i.test(loadError)){
-          setProgressStatus("Chyba načtení z Firebase: " + loadError);
-          return false;
-        }
       }catch(e){
-        console.warn("Načtení Firebase bodů po přihlášení selhalo",e);
+        console.warn("Lokální načtení bodů po přihlášení selhalo",e);
       }
-      await delay(350 + attempt*250);
     }
-    setProgressStatus("Body se zatím nenačetly. Zkouším další načtení na pozadí bez obnovení stránky.");
-    if(typeof scheduleFirebaseRowsAutoReload==="function") scheduleFirebaseRowsAutoReload(2500);
+    if(navigator.onLine===false){
+      setProgressStatus("Offline režim. Body se načtou z telefonu, Firebase se nebude zkoušet.");
+      return false;
+    }
+    const ready=readSzzOfflineReadyState();
+    if(ready.rowsSyncedAtMs){
+      try{
+        await syncFirebaseRowsDeltaAfterAuth(reason);
+        return true;
+      }catch(e){
+        console.warn("Rozdílová synchronizace bodů po přihlášení selhala",e);
+      }
+    }
+    setProgressStatus("Lokální body zatím nejsou připravené. Obnov stránku po připojení k internetu.");
     return false;
   }
   async function handleAuthorizedUser(user){
@@ -1048,7 +944,7 @@ if(firebaseReady){
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("logout");
     setDisplayIfChanged(topLogoutBtn,"block");
     showApp();
-    setProgressStatus("Přihlášení potvrzeno. Načítám body...");
+    setProgressStatus("Přihlášení potvrzeno. Lokální data zůstávají otevřená, synchronizuji na pozadí...");
     await loadFirebaseRowsAfterAuth("login");
     if(typeof window.syncOfflineChanges==="function"){
       runWhenIdle(()=>window.syncOfflineChanges({reason:"login",silent:true}),1800);
@@ -1195,7 +1091,7 @@ function setOfflineMapStatus(message="",state="info"){
   setTextIfChanged(el,message);
 }
 
-function setOfflineMapButtonState(busy=false,text="Stáhnout mapu do telefonu"){
+function setOfflineMapButtonState(busy=false,text="Uložit zobrazenou mapu"){
   const button=document.getElementById("cacheMapTilesBtn");
   if(!button) return;
   if(czechOfflineMapReady()){
@@ -1372,7 +1268,20 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v407-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v413-runtime";
+
+function szzIsConstrainedDevice(){
+  try{
+    return (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) ||
+      (navigator.hardwareConcurrency && navigator.hardwareConcurrency<=4);
+  }catch(e){
+    return false;
+  }
+}
+
+function szzOfflineDetailPrefetchConcurrency(){
+  return szzIsConstrainedDevice() ? 1 : SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY;
+}
 
 let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function szzOfflineRowsForPrefetch(inputRows=null){
@@ -1721,7 +1630,7 @@ function szzLocalOfflineDetailMeta(site){
   };
 }
 
-async function readFirestoreDocsUpdatedSince(collectionFactory,fields=[],sinceMs=0,addDocSnap=null,warnLabel="Rozdílový Firestore dotaz"){
+async function readFirestoreDocsUpdatedSince(collectionFactory,fields=[],sinceMs=0,addDocSnap=null,warnLabel="Rozdílový Firestore dotaz",options={}){
   if(!firebaseReady || !db || !fb.fsMod || navigator.onLine===false || !sinceMs || typeof addDocSnap!=="function") return 0;
   const {query,where,getDocs,Timestamp}=fb.fsMod;
   if(!query || !where || !getDocs) return 0;
@@ -1746,7 +1655,10 @@ async function readFirestoreDocsUpdatedSince(collectionFactory,fields=[],sinceMs
       });
     });
   });
-  await runBoundedFirestoreTasks(tasks,4);
+  await runBoundedFirestoreTasks(tasks,Number(options.concurrency) || 4,{
+    yieldEvery:Number(options.yieldEvery) || 2,
+    yieldTimeout:Number(options.yieldTimeout) || 120
+  });
   return count;
 }
 
@@ -1771,10 +1683,11 @@ function szzFirebaseRowFromDocSnap(docSnap){
   return applyRowEdit(row);
 }
 
-async function syncSzzOfflineMapRowDeltas(sinceMs=0){
+async function syncSzzOfflineMapRowDeltas(sinceMs=0,options={}){
   if(!sinceMs || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return [];
   const signedUser=await waitForFirebaseUser(3000);
   if(!signedUser) return [];
+  const background=options && options.background===true;
   const {collection}=fb.fsMod;
   const rowsById=new Map();
   await readFirestoreDocsUpdatedSince(
@@ -1785,16 +1698,33 @@ async function syncSzzOfflineMapRowDeltas(sinceMs=0){
       const row=szzFirebaseRowFromDocSnap(docSnap);
       if(row) rowsById.set(safe(row.firebaseDocId || row.id),row);
     },
-    "Rozdílové načtení bodů selhalo"
+    "Rozdílové načtení bodů selhalo",
+    {
+      concurrency:background ? 2 : 4,
+      yieldEvery:1,
+      yieldTimeout:background ? 180 : 120
+    }
   );
   const changedRows=[...rowsById.values()];
   if(!changedRows.length) return [];
-  if(typeof window.upsertFirebaseSiteRow==="function"){
-    changedRows.forEach(row=>{
-      try{ window.upsertFirebaseSiteRow(row,false); }catch(e){}
-    });
+  if(typeof window.upsertFirebaseSiteRows==="function"){
+    if(background){
+      try{ window.upsertFirebaseSiteRows(changedRows,{render:false}); }catch(e){}
+      await szzYieldToBrowser(180);
+    }else{
+      try{ window.upsertFirebaseSiteRows(changedRows,{render:true}); }catch(e){}
+    }
+  }else if(typeof window.upsertFirebaseSiteRow==="function"){
+    for(let i=0;i<changedRows.length;i++){
+      try{ window.upsertFirebaseSiteRow(changedRows[i],false); }catch(e){}
+      if(background && i%SZZ_MAP_DELTA_UPSERT_BATCH_SIZE===SZZ_MAP_DELTA_UPSERT_BATCH_SIZE-1) await szzYieldToBrowser(180);
+    }
   }
-  cacheCurrentFirebaseRowsForOffline();
+  if(background){
+    runWhenIdle(()=>cacheCurrentFirebaseRowsForOffline(),SZZ_MAP_DELTA_CACHE_DEFER_MS);
+  }else{
+    cacheCurrentFirebaseRowsForOffline();
+  }
   return changedRows;
 }
 
@@ -1970,7 +1900,10 @@ async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
     if(item.changed) totals.changedSites++;
     if(typeof options.onProgress==="function") options.onProgress({...totals});
   });
-  await runBoundedFirestoreTasks(tasks,SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY);
+  await runBoundedFirestoreTasks(tasks,szzOfflineDetailPrefetchConcurrency(),{
+    yieldEvery:1,
+    yieldTimeout:szzIsConstrainedDevice() ? 220 : 140
+  });
   return totals;
 }
 
@@ -2107,13 +2040,7 @@ async function prepareSzzOfflineAppData(options={}){
     }
     let cachedOfflineMap=czechOfflineMapReady();
     if(navigator.onLine!==false && !cachedOfflineMap && options.skipOfflineMap!==true){
-      setTextIfChanged(syncText,"Ukládám mapový podklad ČR pro první offline otevření.");
-      try{
-        await cacheCzechOfflineMap({reason:options.reason || "offline"});
-      }catch(e){
-        console.warn("Offline mapa ČR se nepodařila přednačíst",e);
-      }
-      cachedOfflineMap=czechOfflineMapReady();
+      setTextIfChanged(syncText,"Offline mapa se ukládá jen pro aktuálně zobrazenou oblast. Celou ČR z OSM nestahuji.");
     }
     const estimate=await szzStorageEstimate();
     const nowMs=Date.now();
@@ -2137,6 +2064,7 @@ async function prepareSzzOfflineAppData(options={}){
       cachedAttachments:detailCache.attachments || 0,
       cachedPhotoFiles:detailCache.media || 0,
       cachedOfflineMap,
+      offlineMapPolicy:"visible-tiles-only",
       storageUsage:estimate ? estimate.usage : 0,
       storageQuota:estimate ? estimate.quota : 0
     });
@@ -2230,7 +2158,7 @@ function visibleMapTileUrls(maxTiles=650){
 }
 
 function czechOfflineMapTileUrls(){
-  return mapTileUrlsForBounds(CZECH_OFFLINE_BOUNDS,CZECH_OFFLINE_ZOOMS,Infinity);
+  return [];
 }
 
 function czechOfflineMapReady(){
@@ -2329,31 +2257,18 @@ async function cacheVisibleMapTiles(){
 }
 
 async function cacheCzechOfflineMap(options={}){
-  if(czechOfflineMapReady()){
-    setOfflineMapButtonState(false,"Mapa je uložená");
-    setOfflineMapStatus("Offline mapa ČR už je v tomto zařízení připravená.","ok");
-    return;
-  }
-  return cacheMapTileUrls(czechOfflineMapTileUrls(),{
-    label:"mapu ČR",
-    buttonText:"Stahuji ČR...",
-    startMessage:"Připravuji aplikaci a mapu ČR pro offline režim...",
-    emptyMessage:"Mapu ČR se nepodařilo připravit.",
-    donePrefix:"Mapa ČR",
-    markCzechReady:true
-  });
+  setOfflineMapStatus("Celou ČR z veřejného OSM serveru nestahuji. Ukládám pouze právě zobrazený výřez mapy.","ok");
+  return cacheVisibleMapTiles(options);
 }
 
 function bindOfflineMapCacheButton(){
   const button=document.getElementById("cacheMapTilesBtn");
   if(button && !button.__offlineMapBound){
-    button.addEventListener("click",()=>cacheCzechOfflineMap());
+    button.addEventListener("click",()=>cacheVisibleMapTiles());
     button.__offlineMapBound=true;
   }
   setOfflineMapButtonState(false);
-  if(czechOfflineMapReady()){
-    setOfflineMapStatus("Offline mapa ČR je v tomto zařízení připravená.","ok");
-  }
+  setOfflineMapStatus("Mapové dlaždice se ukládají jen pro výřezy, které si zobrazíš. Celá ČR z OSM se nestahuje.");
 }
 document.addEventListener("DOMContentLoaded",bindOfflineMapCacheButton);
 bindOfflineMapCacheButton();
@@ -2626,7 +2541,7 @@ function mapStatusRawFingerprint(raw={}){
 function orderedFlagFromRaw(raw){
   const explicit=yesNoFlagFromRaw(raw||{},ORDERED_STATUS_FLAG_KEYS);
   if(explicit!==null) return explicit;
-  const text=simpleNorm(first(raw||{},["Stav pro mapu"]));
+  const text=mapStatusRawText(raw);
   return text.includes("objednan") && !text.includes("oprava");
 }
 function repairOrderFlagFromRaw(raw){
@@ -2634,9 +2549,8 @@ function repairOrderFlagFromRaw(raw){
     const v=get(raw||{},k);
     if(safe(v)) return yesNoBool(v) || simpleNorm(v).includes("objednan");
   }
-  const stav=first(raw||{},["Stav","Stav_kontroly","Stav kontroly","Stav pro mapu","Status"]);
   const text=[
-    stav,
+    mapStatusRawText(raw),
     get(raw||{},"Poznámky"),
     get(raw||{},"Poznámky_mapy")
   ].map(simpleNorm).join(" | ");
@@ -3342,7 +3256,7 @@ function getAllKnownDataKeys(){
   const required=[
     "Název","Adresa_GPS","Kraj","Popis_zdroje","Zdroj",
     "Perioda kontrol","Hlídáme kontroly sami","Důležitá poznámka",
-    "Serviska","Smlouva ano/ne","Rok výroby"
+    "Serviska","Smlouva ano/ne","Záruka","Rok výroby"
   ];
 
   required.forEach(k=>{
@@ -3448,6 +3362,13 @@ function clearNewSiteMode(){
   }
 }
 
+const WARRANTY_SELECT_OPTIONS=[
+  ["","Vyber záruku"],
+  ["záruka 2 roky","záruka 2 roky"],
+  ["záruka 5 let","záruka 5 let"],
+  ["záruka zrušena","záruka zrušena"]
+];
+
 
 const NEW_SITE_FIELD_SPECS=[
   {label:"Název",key:"Název"},
@@ -3460,6 +3381,7 @@ const NEW_SITE_FIELD_SPECS=[
   {label:"Rok výroby",key:"Rok výroby"},
   {label:"Serviska",key:"Serviska",type:"select",options:[["",""],["ano","ano"],["ne","ne"]]},
   {label:"Smlouva",key:"Smlouva ano/ne",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne"},
+  {label:"Záruka",key:"Záruka",type:"select",options:WARRANTY_SELECT_OPTIONS},
   {label:"Perioda kontrol",key:"Perioda kontrol",type:"select",options:[["6","6 měsíců"],["12","12 měsíců"]],value:"12"},
   {label:"Hlídáme kontroly sami",key:"Hlídáme kontroly sami",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne",full:true,special:"watch-self"},
   {label:"Důležité poznámky",key:"Důležitá poznámka",type:"textarea",full:true,className:"notes-red-row",style:"padding:10px;border-radius:12px;"}
@@ -6006,6 +5928,9 @@ function setFirebaseAutoReloadCount(count){
   try{sessionStorage.setItem(FIREBASE_EMPTY_RELOAD_KEY,String(count));}catch(e){}
 }
 async function scheduleFirebaseRowsAutoReload(delay=9000){
+  if(!window.__szzAllowAutomaticFullFirebaseReload){
+    return;
+  }
   if(hasLoadedRows()){
     resetFirebaseRowsAutoReload();
     return;
@@ -6494,7 +6419,7 @@ window.setFirebaseSiteRows = function(firebaseRows, openDocId=null){
   openFirebaseRowAfterRender(openDocId);
   return rows;
 };
-window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
+window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null, options={}){
   if(!firebaseRow) return rows;
   const nextRows = csvRows.slice();
   let existingIndex = csvRowIndexForRow(firebaseRow);
@@ -6535,9 +6460,59 @@ window.upsertFirebaseSiteRow = function(firebaseRow, openDocId=null){
   window.rows=rows;
   updateFirebaseLoadReport(csvRows,csvRows,hiddenRows,[]);
   if(targetOpenDocId) clearFiltersForOpenedSite();
+  if(options && options.render===false) return rows;
   filters();
   render();
   openFirebaseRowAfterRender(targetOpenDocId);
+  return rows;
+};
+window.upsertFirebaseSiteRows = function(firebaseRows=[], options={}){
+  const incoming=(Array.isArray(firebaseRows) ? firebaseRows : []).filter(Boolean);
+  if(!incoming.length) return rows;
+  syncCsvRowLookupCache();
+  const nextRows=csvRows.slice();
+  for(const firebaseRow of incoming){
+    let existingIndex=-1;
+    const keys=rowLookupKeys(firebaseRow);
+    for(const key of keys){
+      const cachedIndex=csvRowsByAnyId.get(key);
+      if(Number.isInteger(cachedIndex) && rowMatchesAnyLookupKey(nextRows[cachedIndex],key)){
+        existingIndex=cachedIndex;
+        break;
+      }
+    }
+    if(existingIndex<0){
+      existingIndex=nextRows.findIndex(r=>{
+        if(firebaseRow.firebaseDocId && r.firebaseDocId===firebaseRow.firebaseDocId) return true;
+        return r.id && firebaseRow.id && r.id===firebaseRow.id;
+      });
+    }
+    if(existingIndex>=0) nextRows[existingIndex]=firebaseRow;
+    else nextRows.push(firebaseRow);
+  }
+  const openedDocId=options && options.openDocId ? String(options.openDocId) : "";
+  const selectedKey=selectedSite ? (detailKey(selectedSite) || selectedSite.id || selectedSite.firebaseDocId) : "";
+  csvRows=nextRows;
+  rebuildCsvRowLookupCache();
+  const hiddenRows=[];
+  rows=csvRows
+    .map((r,i)=>{r.i=i; return applyEditToRow(r);})
+    .filter(r=>{
+      const hidden=isFirebaseRowHidden(r,openedDocId);
+      if(hidden) hiddenRows.push(hiddenFirebaseRowInfo(r));
+      return !hidden;
+    });
+  if(selectedKey){
+    const nextSelected=findRowByAnyId(selectedKey,rows);
+    if(nextSelected) selectedSite=nextSelected;
+  }
+  window.rows=rows;
+  updateFirebaseLoadReport(csvRows,csvRows,hiddenRows,[]);
+  if(openedDocId) clearFiltersForOpenedSite();
+  if(options && options.render===false) return rows;
+  filters();
+  render();
+  openFirebaseRowAfterRender(openedDocId);
   return rows;
 };
 window.removeFirebaseSiteRow = function(site){
@@ -7129,6 +7104,7 @@ const USER_SITE_DATA_FIELDS = [
   {label:"Perioda kontrol", key:"Perioda kontrol", keys:["Perioda kontrol","Perioda zkoušky","Perioda zkoušek","Perioda kontroly","Perioda kontrol (6/12)","Perioda","Četnost","Cetnost","Kontrola","Interval"], type:"period"},
   {label:"Hlídáme sami termín", key:"Hlídáme sami termín", keys:["Hlídáme sami termín","Hlídáme termín sami","Hlídat termín sami","Hlidat termin sami","Hlídáme kontroly sami","Hlidame kontroly sami","Jezdit hlídáme termín sami","Bez objednávky"], type:"yesno"},
   {label:"Smlouva", key:"Smlouva ano/ne", keys:["Smlouva ano/ne","Smlouva (ano/ne)","Smlouva ano ne","Smlouva ano","Smlouva"], type:"yesno"},
+  {label:"Záruka", key:"Záruka", keys:["Záruka","Zaruka","Warranty"], type:"warranty"},
   {label:"Cena FZ", key:"Cena FZ", keys:["Cena FZ","Cena FZ v Kč"], hideInDetail:true, hideInEdit:true},
   {label:"Důležité poznámky", key:"Důležitá poznámka", keys:["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky"], type:"textarea", important:true}
 ];
@@ -7302,6 +7278,21 @@ function createUserSiteSelect(dataKey,options,selectedValue){
   return select;
 }
 
+function autoSizeDetailTextarea(textarea,minRows=3){
+  if(!textarea) return;
+  textarea.rows=Math.max(minRows,String(textarea.value || "").split(/\r?\n/).length);
+  textarea.style.height="auto";
+  textarea.style.height=`${Math.max(textarea.scrollHeight,48)}px`;
+}
+
+function bindAutoSizeDetailTextarea(textarea,minRows=3){
+  if(!textarea) return textarea;
+  autoSizeDetailTextarea(textarea,minRows);
+  textarea.addEventListener("input",()=>autoSizeDetailTextarea(textarea,minRows));
+  runAfterPaint(()=>autoSizeDetailTextarea(textarea,minRows));
+  return textarea;
+}
+
 function userSiteInput(spec, value, site=null){
   if(spec.type==="region"){
     const select=document.createElement("select");
@@ -7322,11 +7313,18 @@ function userSiteInput(spec, value, site=null){
   if(spec.type==="yesno"){
     return createUserSiteSelect(spec.key,[["ne","ne"],["ano","ano"]],yesNoFixed(value));
   }
+  if(spec.type==="warranty"){
+    return createUserSiteSelect(spec.key,WARRANTY_SELECT_OPTIONS,warrantyValueFixed(value));
+  }
   if(spec.type==="textarea"){
     const textarea=document.createElement("textarea");
     textarea.dataset.key=spec.key;
     textarea.value=safe(value);
-    return textarea;
+    if(spec.key==="Historie oprav"){
+      textarea.classList.add("repair-history-textarea","auto-grow-textarea");
+      return bindAutoSizeDetailTextarea(textarea,4);
+    }
+    return bindAutoSizeDetailTextarea(textarea,3);
   }
   if(spec.key==="Adresa_GPS"){
     const raw=rawForSiteFieldLookup(site);
@@ -7403,7 +7401,18 @@ function userSiteDisplayValue(spec, value){
 function userSiteDisplayText(spec, value){
   if(spec.type==="period") return value ? `${safe(value)} měsíců` : "";
   if(spec.type==="yesno") return yesNoFixed(value, "ne");
+  if(spec.type==="warranty") return warrantyValueFixed(value);
   return safe(value);
+}
+
+function warrantyValueFixed(value){
+  const clean=safe(value).toLowerCase();
+  const norm=dataNormFixed(clean);
+  if(!norm) return "";
+  if(norm.includes("zrus")) return "záruka zrušena";
+  if(norm.includes("5")) return "záruka 5 let";
+  if(norm.includes("2")) return "záruka 2 roky";
+  return clean;
 }
 
 function dateInputValueFromAny(v){
@@ -7524,6 +7533,7 @@ async function saveAllDataEdits(){
     let value=String(el.value || "").trim();
     if(spec.type==="yesno") value=yesNoFixed(value,"ne");
     if(spec.type==="period") value=value==="6" ? "6" : "12";
+    if(spec.type==="warranty") value=warrantyValueFixed(value);
     if(!value && spec.type!=="yesno" && spec.type!=="period" && !spec.important && spec.key!=="Poznámky") return;
     editedRaw[spec.key]=value;
     if(spec.key==="Poznámky"){
@@ -8283,10 +8293,12 @@ function renderDetailTable(table,r){
   for(const {spec,value} of rowsForDetail){
     const row=document.createElement("div");
     row.className="history-detail-row";
+    if(spec.type==="textarea" || String(value || "").includes("\n")) row.classList.add("detail-multiline-row");
     if(spec.important) row.classList.add("detail-important-row");
     const label=document.createElement("span");
     label.textContent=spec.label;
     const valueCell=document.createElement("span");
+    valueCell.className="history-detail-value";
     valueCell.textContent=userSiteDisplayText(spec,value);
     row.append(label,valueCell);
     fragment.appendChild(row);
@@ -8600,15 +8612,20 @@ async function readFirestoreEqualsAny(fsMod,database,colName,field,values,addDoc
 
 const SITE_RECORD_EQUALITY_FIELDS=["siteId","siteKey","firebaseDocId","siteDocId","siteLegacyId"];
 
-async function runBoundedFirestoreTasks(tasks=[],concurrency=6){
+async function runBoundedFirestoreTasks(tasks=[],concurrency=6,options={}){
   const queue=(Array.isArray(tasks) ? tasks : []).filter(task=>typeof task==="function");
   if(!queue.length) return;
   const workerCount=Math.max(1,Math.min(concurrency,queue.length));
   let index=0;
+  let completed=0;
+  const yieldEvery=Math.max(0,Number(options.yieldEvery) || 0);
+  const yieldTimeout=Math.max(40,Number(options.yieldTimeout) || 120);
   const workers=Array.from({length:workerCount},async()=>{
     while(index<queue.length){
       const task=queue[index++];
       await task();
+      completed++;
+      if(yieldEvery && completed%yieldEvery===0) await szzYieldToBrowser(yieldTimeout);
     }
   });
   await Promise.all(workers);
@@ -13793,7 +13810,7 @@ window.loadHistory=loadHistory;
 
 let offlineSyncInFlight=null;
 let lastAutomaticOfflineSyncAt=0;
-const AUTOMATIC_OFFLINE_SYNC_MIN_MS=5000;
+const AUTOMATIC_OFFLINE_SYNC_MIN_MS=60000;
 function runOfflineSync(reason="manual",silent=false){
   if(navigator.onLine===false) return Promise.resolve(0);
   if(offlineSyncInFlight) return offlineSyncInFlight;
@@ -16337,10 +16354,18 @@ function scheduleSzzOfflineAppStatus(delay=120){
 }
 window.scheduleSzzOfflineAppStatus=scheduleSzzOfflineAppStatus;
 
+let lastAutomaticSzzSyncTriggerAt=0;
+const AUTOMATIC_SZZ_SYNC_TRIGGER_MIN_MS=60000;
 async function triggerSzzSync(reason="manual",silent=false){
-  if(window.openAppToolsPanel) window.openAppToolsPanel();
+  const isAutomatic=reason!=="manual" && silent;
+  if(isAutomatic){
+    const now=Date.now();
+    if(now-lastAutomaticSzzSyncTriggerAt<AUTOMATIC_SZZ_SYNC_TRIGGER_MIN_MS) return 0;
+    lastAutomaticSzzSyncTriggerAt=now;
+  }
+  if(!silent && window.openAppToolsPanel) window.openAppToolsPanel();
   if(navigator.onLine===false){
-    if(window.showSaveConfirmation) window.showSaveConfirmation("Jsi offline. Změny zůstanou uložené v telefonu.");
+    if(!silent && window.showSaveConfirmation) window.showSaveConfirmation("Jsi offline. Změny zůstanou uložené v telefonu.");
     scheduleSzzOfflineAppStatus(20);
     return 0;
   }
@@ -16348,7 +16373,7 @@ async function triggerSzzSync(reason="manual",silent=false){
   scheduleSzzOfflineAppStatus(20);
   try{
     const synced=typeof syncOfflineChanges==="function"
-      ? await syncOfflineChanges({reason,force:true,silent})
+      ? await syncOfflineChanges({reason,force:!silent,silent})
       : 0;
     noteSzzSyncState("ok",{reason,lastCount:synced});
     const counts=await updateSzzOfflineAppStatus({force:true});
@@ -16385,6 +16410,7 @@ function bindSzzOfflineAppControls(){
   const syncBtn=document.getElementById("syncNowBtn");
   const refreshBtn=document.getElementById("refreshOfflineStateBtn");
   const prepareBtn=document.getElementById("prepareOfflineAppBtn");
+  const forceFullBtn=document.getElementById("forceFullDataSyncBtn");
   if(prepareBtn && !prepareBtn.__szzPrepareBound){
     prepareBtn.__szzPrepareBound=true;
     prepareBtn.addEventListener("click",()=>prepareSzzOfflineAppData({reason:"manual"}).catch(e=>{
@@ -16403,6 +16429,17 @@ function bindSzzOfflineAppControls(){
     refreshBtn.__szzRefreshBound=true;
     refreshBtn.addEventListener("click",()=>updateSzzOfflineAppStatus());
   }
+  if(forceFullBtn && !forceFullBtn.__szzFullSyncBound){
+    forceFullBtn.__szzFullSyncBound=true;
+    forceFullBtn.addEventListener("click",()=>prepareSzzOfflineAppData({
+      reason:"manual-full",
+      forceFull:true,
+      skipOfflineMap:true
+    }).catch(e=>{
+      if(window.showSaveConfirmation) window.showSaveConfirmation("Úplné stažení dat se nepodařilo.");
+      console.warn("Ruční úplné stažení dat selhalo",e);
+    }));
+  }
   if(!bindSzzOfflineAppControls.__initialStatusScheduled){
     bindSzzOfflineAppControls.__initialStatusScheduled=true;
     scheduleSzzOfflineAppStatus(1200);
@@ -16414,12 +16451,19 @@ bindSzzOfflineAppControls();
 window.addEventListener("online",()=>{
   scheduleSzzOfflineAppStatus(20);
   registerSzzBackgroundSync("online");
+  runWhenIdle(()=>triggerSzzSync("online",true).catch(()=>{}),1200);
 });
 window.addEventListener("offline",()=>scheduleSzzOfflineAppStatus(20));
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible") scheduleSzzOfflineAppStatus(80);
+  if(document.visibilityState==="visible"){
+    scheduleSzzOfflineAppStatus(80);
+    runWhenIdle(()=>triggerSzzSync("visible",true).catch(()=>{}),1200);
+  }
 });
-window.addEventListener("focus",()=>scheduleSzzOfflineAppStatus(80));
+window.addEventListener("focus",()=>{
+  scheduleSzzOfflineAppStatus(80);
+  runWhenIdle(()=>triggerSzzSync("focus",true).catch(()=>{}),1200);
+});
 window.addEventListener("storage",event=>{
   if(event.key && /^astip(Map|Szz)/.test(event.key)) scheduleSzzOfflineAppStatus(80);
 });
@@ -17895,6 +17939,20 @@ async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();
   await loadDeletedSites();
   if(typeof window.loadFirebaseSitesUnified==="function"){
+    const ready=readSzzOfflineReadyState();
+    if(
+      navigator.onLine!==false &&
+      Array.isArray(rows) &&
+      rows.length &&
+      ready.rowsSyncedAtMs &&
+      !firebaseRowsWereLoadedFromNetwork()
+    ){
+      runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth("startup").catch(e=>{
+        console.warn("Startovní rozdílová kontrola bodů selhala",e);
+      }),1800);
+      return true;
+    }
+    if(firebaseRowsWereLoadedFromNetwork()) return true;
     const loadOptions=navigator.onLine===false ? {} : {force:true,skipLocalCache:true,skipFirestoreCache:true};
     await window.loadFirebaseSitesUnified(null,loadOptions);
     return true;

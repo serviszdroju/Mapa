@@ -36,7 +36,7 @@ try {
   fail(`Target is not a git worktree: ${targetDir}`);
 }
 
-const keep = new Set([".git", "CNAME", "downloads"]);
+const keep = new Set([".git", "CNAME"]);
 
 await mkdir(targetDir, { recursive: true });
 

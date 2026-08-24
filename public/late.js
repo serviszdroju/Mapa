@@ -21,6 +21,12 @@ window.runSzzDomReadyInit = window.runSzzDomReadyInit || function(fn,options={})
     else window.addEventListener("load",run,{once:true});
   }
 };
+const SZZ_WARRANTY_SELECT_OPTIONS=[
+  {value:"",label:"Vyber záruku"},
+  {value:"záruka 2 roky",label:"záruka 2 roky"},
+  {value:"záruka 5 let",label:"záruka 5 let"},
+  {value:"záruka zrušena",label:"záruka zrušena"}
+];
 window.szzDrawerNodesHaveDetailShell = window.szzDrawerNodesHaveDetailShell || function(nodes){
   return (nodes || []).some(node=>{
     if(!node || node.nodeType!==1) return false;
@@ -164,6 +170,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         {value:"ano",label:"ano"},
         {value:"ne",label:"ne"}
       ]}),
+      newKeyFieldAdd("Záruka","Záruka",{type:"select",options:SZZ_WARRANTY_SELECT_OPTIONS}),
       newKeyFieldAdd("Perioda kontrol","Perioda kontrol",{type:"select",value:"12",options:[
         {value:"6",label:"6 měsíců"},
         {value:"12",label:"12 měsíců"}
@@ -628,6 +635,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     {label:"Perioda kontrol", key:"Perioda kontrol", type:"period"},
     {label:"Hlídáme sami termín", key:"Hlídáme sami termín", type:"yesno"},
     {label:"Smlouva", key:"Smlouva ano/ne", type:"yesno"},
+    {label:"Záruka", key:"Záruka", type:"select", options:SZZ_WARRANTY_SELECT_OPTIONS},
     {label:"Důležité poznámky", key:"Důležitá poznámka", type:"textarea", full:true, important:true}
   ];
   const FB_HIDDEN_KEYS = ["GPS_lat", "GPS_lon"];
@@ -655,6 +663,15 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 
   function firebaseSitesNetworkIsFresh(maxAge=FIREBASE_BACKGROUND_REFRESH_MIN_MS){
     return !!firebaseSitesLastNetworkLoadAt && Date.now()-firebaseSitesLastNetworkLoadAt < maxAge;
+  }
+
+  function firebaseSitesHaveOfflineSyncState(){
+    try{
+      const ready=JSON.parse(localStorage.getItem("astipSzzOfflineReady:v1") || "{}");
+      return Number(ready && ready.rowsSyncedAtMs) > 0;
+    }catch(e){
+      return false;
+    }
   }
 
   function firebaseSitesMayUseLocalCache(opts={}, signedUser=null){
@@ -753,6 +770,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     "ruzova":"Růžová",
     "smlouva":"Smlouva ano/ne",
     "smlouva ano ne":"Smlouva ano/ne",
+    "zaruka":"Záruka",
+    "warranty":"Záruka",
     "cena fz":"Cena FZ",
     "cena fz v kc":"Cena FZ",
     "dulezita poznamka":"Důležitá poznámka",
@@ -1174,6 +1193,12 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         fbNode("option",{value:"ano",text:"ano"})
       ]);
       control.value="ne";
+    }else if(spec.type==="select"){
+      control=fbNode("select",{},(spec.options || []).map(option=>fbNode("option",{
+        value:option.value,
+        text:option.label,
+        selected:option.selected
+      })));
     }else if(spec.type==="textarea"){
       control=fbNode("textarea");
     }else if(spec.gpsAddress){
@@ -1821,6 +1846,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(opts.auto && !openDocId && Array.isArray(window.rows) && window.rows.length && firebaseSitesNetworkIsFresh()){
       return window.rows;
     }
+    if(opts.auto && !openDocId && Array.isArray(window.rows) && window.rows.length && firebaseSitesHaveOfflineSyncState()){
+      return window.rows;
+    }
     const lockLoad=!openDocId && !opts.retryAuth && !opts.retryPermission && !opts.force;
     if(lockLoad && firebaseSitesLoading){
       if(firebaseSitesLoadingPromise){
@@ -2175,6 +2203,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         {value:"ano",label:"ano"},
         {value:"ne",label:"ne"}
       ]}),
+      sourceNewKeyField("Záruka","Záruka",{type:"select",options:SZZ_WARRANTY_SELECT_OPTIONS}),
       sourceNewKeyField("Důležité poznámky","Důležitá poznámka",{full:true,className:"only-red",type:"textarea"})
     ]);
     return sourceNode("div",{className:"card",id:"newSiteOnlyCard",attrs:{"data-add-source-form":"1"}},[
@@ -2450,7 +2479,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-22-status-source-v407";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-24-firebase-auth-module-v413";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -3101,7 +3130,7 @@ window.prepareSzzOfflineAppData=window.prepareSzzOfflineAppData || async functio
     if(window.registerSzzServiceWorker) await window.registerSzzServiceWorker();
     const shellCount=await window.cacheAppShellForOffline();
     const cachedRowsBefore=szzInstallCachedRowsCount();
-    if(navigator.onLine!==false && !cachedRowsBefore && typeof window.loadFirebaseSitesUnified==="function"){
+    if(navigator.onLine!==false && !cachedRowsBefore && options.forceFull===true && typeof window.loadFirebaseSitesUnified==="function"){
       try{ await window.loadFirebaseSitesUnified(null,{force:true,skipLocalCache:true}); }catch(e){}
     }
     const cachedRows=szzInstallCacheCurrentRows();

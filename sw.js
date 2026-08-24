@@ -1,8 +1,10 @@
-const CACHE_VERSION = "astip-szz-v407";
+const CACHE_VERSION = "astip-szz-v413";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
 const OFFLINE_SYNC_TAG = "astip-szz-offline-sync";
+const RUNTIME_CACHE_MAX_ENTRIES = 260;
+const TILE_CACHE_MAX_ENTRIES = 1500;
 
 const PRECACHE_URLS = [
   "./",
@@ -32,7 +34,6 @@ self.addEventListener("install", (event) => {
     caches.open(STATIC_CACHE)
       .then((cache) => cacheUrls(cache, PRECACHE_URLS))
       .then(() => { cacheExternalShellUrls(); })
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -44,6 +45,8 @@ self.addEventListener("activate", (event) => {
           .filter((key) => ![STATIC_CACHE, RUNTIME_CACHE, TILE_CACHE].includes(key))
           .map((key) => caches.delete(key))
       ))
+      .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+      .then(() => trimCache(TILE_CACHE, TILE_CACHE_MAX_ENTRIES))
       .then(() => self.clients.claim())
   );
 });
@@ -99,6 +102,18 @@ async function cacheUrls(cache, urls) {
   await Promise.allSettled(Array.from({length: Math.min(4, urls.length)}, () => worker()));
 }
 
+async function trimCache(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    const overflow = keys.length - maxEntries;
+    if (overflow <= 0) return;
+    await Promise.all(keys.slice(0, overflow).map((request) => cache.delete(request)));
+  } catch (error) {
+    console.warn("Offline cache: staré dočasné soubory se nepodařilo vyčistit", error);
+  }
+}
+
 async function cacheExternalShellUrls() {
   try {
     const cache = await caches.open(STATIC_CACHE);
@@ -141,7 +156,7 @@ function isClientShellUrl(url) {
     const scope = new URL(self.registration.scope);
     if (url.origin === self.location.origin && url.pathname.startsWith(scope.pathname)) {
       return url.pathname.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname) ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname) ||
         url.pathname === scope.pathname ||
         url.pathname === `${scope.pathname}index.html`;
     }
@@ -165,7 +180,11 @@ async function networkFirst(request, options = {}) {
   const cache = await caches.open(RUNTIME_CACHE);
   try {
     const response = await fetch(new Request(request, {cache: "reload"}));
-    if (response && response.ok) cache.put(request, response.clone());
+    if (response && response.ok) {
+      cache.put(request, response.clone())
+        .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+        .catch(() => {});
+    }
     return response;
   } catch (error) {
     const cached = await cache.match(request);
@@ -194,6 +213,7 @@ async function cacheFirst(request, cacheName = STATIC_CACHE) {
     const response = await fetch(request);
     if (response && (response.ok || response.type === "opaque")) {
       await cache.put(request, response.clone());
+      if (cacheName === TILE_CACHE) trimCache(TILE_CACHE, TILE_CACHE_MAX_ENTRIES);
     }
     return response;
   } catch (error) {
@@ -207,7 +227,11 @@ async function staleWhileRevalidate(request) {
   const network = fetch(request)
     .then((response) => {
       if (response && (response.ok || response.type === "opaque")) {
-        cache.put(request, response.clone());
+        cache.put(request, response.clone())
+          .then(() => {
+            if (!isMapTileRequest(request)) trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES);
+          })
+          .catch(() => {});
       }
       return response;
     })
@@ -225,7 +249,11 @@ async function appShellStaleWhileRevalidate(request, options = {}) {
   const cached = (await cache.match(request)) || (fallbackToShell ? await shellFallbackResponse() : null);
   const network = fetch(new Request(request, {cache: "reload"}))
     .then((response) => {
-      if (response && response.ok) cache.put(request, response.clone());
+      if (response && response.ok) {
+        cache.put(request, response.clone())
+          .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+          .catch(() => {});
+      }
       return response;
     })
     .catch(() => cached);
@@ -290,7 +318,7 @@ function isStaticAssetRequest(request) {
     if (url.origin === self.location.origin) {
       return request.destination !== "document" && (
         url.pathname.includes("/assets/") ||
-        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname)
+        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname)
       );
     }
     return url.hostname === "unpkg.com" &&
@@ -317,6 +345,10 @@ function isAppShellRequest(request) {
 self.addEventListener("fetch", (event) => {
   const {request} = event;
   if (request.method !== "GET") return;
+  if (isMapTileRequest(request)) {
+    event.respondWith(cacheFirst(request, TILE_CACHE));
+    return;
+  }
   if (request.mode === "navigate") {
     event.respondWith(appShellStaleWhileRevalidate(request, {
       fallbackToShell: true,

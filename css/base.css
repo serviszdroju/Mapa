@@ -139,6 +139,13 @@ object-position:center;
   margin:8px 0 0;
 }
 .app-tools-toggle{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border);
+  text-decoration:none;
+  font-weight:700;
+  cursor:pointer;
   width:auto !important;
   min-height:28px !important;
   padding:4px 9px !important;
@@ -154,182 +161,9 @@ object-position:center;
 .app-tools-panel.open{
   display:grid;
 }
-.app-tools-panel button,
-.app-tools-panel .apk-install-link{
+.app-tools-panel button{
   min-height:36px !important;
   padding:6px 8px !important;
-  font-size:13px !important;
-}
-.app-tools-panel .apk-install-link{
-  display:grid;
-  place-items:center;
-  border:1px solid #cbd5e1;
-  border-radius:8px;
-  color:#0f172a;
-  text-align:center;
-  text-decoration:none;
-  line-height:1.15;
-}
-.direct-apk-link{
-  display:block;
-  margin-top:6px;
-  color:#0f172a;
-  font-size:12px;
-  font-weight:700;
-  line-height:1.25;
-  text-align:center;
-  text-decoration:underline;
-  text-underline-offset:3px;
-}
-.startup-card .direct-apk-link{
-  margin-top:8px;
-}
-.app-tools-panel .direct-apk-link{
-  min-height:0 !important;
-  padding:1px 0 4px !important;
-  border:0;
-  border-radius:0;
-  background:transparent;
-}
-.app-tools-panel .apk-install-link[aria-disabled="true"]{
-  opacity:.55;
-  pointer-events:none;
-}
-.install-guide-card{
-  display:grid;
-  gap:7px;
-  margin:-1px 0 2px;
-  padding:8px;
-  border:1px solid #dbe4ef;
-  border-radius:8px;
-  background:#f8fafc;
-  color:#475569;
-  font-size:12px;
-  line-height:1.35;
-}
-.install-guide-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-}
-.install-guide-top strong{
-  color:#0f172a;
-  font-size:12px;
-}
-#installGuideBadge{
-  flex:0 0 auto;
-  border:1px solid #cbd5e1;
-  border-radius:999px;
-  padding:2px 6px;
-  background:#fff;
-  color:#475569;
-  font-size:10px;
-  font-weight:900;
-  text-transform:uppercase;
-}
-.install-guide-card[data-state="ready"] #installGuideBadge{
-  border-color:#bbf7d0;
-  background:#ecfdf5;
-  color:#166534;
-}
-.install-guide-card[data-state="warn"] #installGuideBadge{
-  border-color:#fed7aa;
-  background:#fff7ed;
-  color:#9a3412;
-}
-.install-guide-card[data-state="error"] #installGuideBadge{
-  border-color:#fecaca;
-  background:#fef2f2;
-  color:#991b1b;
-}
-.install-checks{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:4px;
-}
-.install-checks span{
-  min-width:0;
-  border:1px solid #e2e8f0;
-  border-radius:7px;
-  background:#fff;
-  padding:4px 3px;
-  text-align:center;
-  color:#64748b;
-  font-size:9px;
-  font-weight:900;
-  line-height:1.15;
-}
-.install-checks span.ok{
-  border-color:#bbf7d0;
-  background:#ecfdf5;
-  color:#166534;
-}
-.install-checks span.warn{
-  border-color:#fed7aa;
-  background:#fff7ed;
-  color:#9a3412;
-}
-.install-checks span.err{
-  border-color:#fecaca;
-  background:#fef2f2;
-  color:#991b1b;
-}
-.install-guide-steps{
-  margin:0;
-  padding-left:18px;
-}
-.install-guide-steps li{
-  margin:2px 0;
-}
-.install-guide-actions{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:4px;
-}
-#installGuideState{
-  margin:0;
-}
-.install-confirm-backdrop[hidden]{
-  display:none !important;
-}
-.install-confirm-backdrop{
-  position:fixed;
-  inset:0;
-  z-index:7000;
-  display:grid;
-  place-items:center;
-  padding:18px;
-  background:rgba(15,23,42,.52);
-}
-.install-confirm-box{
-  width:min(370px,calc(100vw - 32px));
-  border:1px solid #dbe4ef;
-  border-radius:12px;
-  background:#fff;
-  padding:16px;
-  box-shadow:0 24px 70px rgba(15,23,42,.28);
-}
-.install-confirm-box h3{
-  margin:0 0 8px;
-  color:#0f172a;
-  font-size:18px;
-  line-height:1.2;
-}
-.install-confirm-box p{
-  margin:0 0 14px;
-  color:#475569;
-  font-size:13px;
-  line-height:1.4;
-}
-.install-confirm-actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-}
-.install-confirm-actions button{
-  min-height:38px !important;
-  padding:8px 10px !important;
   font-size:13px !important;
 }
 .app-sync-card{

@@ -51,12 +51,38 @@ aside{
   object-position:center;
   filter:drop-shadow(0 8px 14px rgba(15,23,42,.10));
 }
-.app-tools{margin:2px 0 4px}
+.app-tools{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:2px 0 4px;
+}
 .app-tools-toggle{
   background:#f1f5f9 !important;
   border-color:#dbe4ef !important;
   color:#0f172a !important;
   box-shadow:0 6px 16px rgba(15,23,42,.06);
+}
+.app-download-link.install-ready{
+  background:linear-gradient(180deg,var(--button-neutral-top),var(--button-neutral-bottom)) !important;
+  border-color:var(--button-neutral-border) !important;
+  color:#fff !important;
+}
+.app-install-status{
+  flex:1 0 100%;
+  margin:0;
+  padding:5px 6px;
+  border-radius:7px;
+  background:#f8fafc;
+  color:#334155;
+}
+.app-install-status.ok{
+  background:#ecfdf5;
+  color:#166534;
+}
+.app-install-status.error{
+  background:#fef2f2;
+  color:#991b1b;
 }
 aside label{
   display:block;
@@ -532,6 +558,24 @@ button:active{transform:translateY(0)}
   width:auto;
   border-spacing:0;
   border-collapse:separate;
+}
+#detailDataCard .history-detail-row.detail-multiline-row{
+  align-items:start;
+}
+#detailDataCard .history-detail-row .history-detail-value{
+  overflow-wrap:anywhere;
+}
+#detailDataCard .history-detail-row.detail-multiline-row .history-detail-value{
+  white-space:pre-wrap;
+  line-height:1.35;
+}
+.drawer textarea.auto-grow-textarea,
+.drawer textarea.repair-history-textarea{
+  overflow:hidden;
+  resize:vertical;
+}
+.drawer textarea.repair-history-textarea{
+  min-height:96px;
 }
 .important-note-row{box-shadow:0 10px 24px rgba(220,38,38,.10) !important}
 .data-edit-actions{
