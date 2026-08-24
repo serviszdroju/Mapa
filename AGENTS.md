@@ -640,4 +640,6 @@ Current performance phase 272 decision: continue the monolith split by moving ma
 
 Current performance phase 273 decision: continue the monolith split by moving generic cached localStorage object reads/writes into `src/local-state-cache.js`; keep storage-event invalidation wiring and offline/sync state wrappers in `src/main.js` because they depend on app-specific storage keys.
 
+Current performance phase 274 decision: continue the monolith split by moving paint/idle scheduling helpers and browser-yield promises into `src/scheduler-utils.js`; keep map invalidation and render scheduling in `src/main.js` because they depend on the active map/render state.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
