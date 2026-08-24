@@ -654,4 +654,6 @@ Current Android install phase 279 decision: simplify the visible left-panel inst
 
 Current performance phase 280 decision: continue the monolith split by moving row ID, GPS validity, Czech/Slovak map-bounds checks, and simple day-difference helpers into `src/row-data-utils.js`; preserve existing map marker filtering, GPS counts, new-site summaries, and row IDs.
 
+Current performance phase 281 decision: continue the monolith split by moving `isoDateFromAny()` into `src/date-input-utils.js` alongside date input normalization; preserve existing edit, protocol, latest-protocol, and document date values.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
