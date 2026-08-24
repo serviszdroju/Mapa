@@ -140,6 +140,12 @@ import {
   rawGps,
   siteId
 } from "./row-data-utils.js";
+import {
+  dateOnlyTextFallback,
+  historyTimeValue,
+  protocolSavedTimeValue,
+  timeValueFromAny
+} from "./history-time-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -165,7 +171,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-remove-dead-detail-helpers-v433";
+const APP_BUILD_VERSION="2026-08-24-history-time-utils-module-v434";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1101,7 +1107,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v433-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v434-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -7441,27 +7447,6 @@ function refreshLoadedDetailTabs(site=selectedSite){
   }
 }
 window.refreshLoadedDetailTabs=refreshLoadedDetailTabs;
-
-function timeValueFromAny(raw){
-  if(raw && typeof raw.toDate==="function") return raw.toDate().getTime();
-  const d=new Date(raw || 0);
-  return isNaN(d.getTime()) ? 0 : d.getTime();
-}
-
-function historyTimeValue(item){
-  return timeValueFromAny(item?.savedAt || item?.createdAt || item?.updatedAt || item?.offlineSavedAt || item?.uploadedAt || item?.checkDate || item?.date || 0);
-}
-
-function protocolSavedTimeValue(item){
-  return timeValueFromAny(item?.savedAt || item?.createdAt || item?.updatedAt || item?.offlineSavedAt || 0);
-}
-
-function dateOnlyTextFallback(value){
-  return safe(value)
-    .replace(/T\d{1,2}:\d{2}(:\d{2})?.*$/,"")
-    .replace(/\s+\d{1,2}:\d{2}(:\d{2})?.*$/,"")
-    .trim();
-}
 
 function historySavedDateLabel(item){
   const raw=item?.savedAt || item?.createdAt || item?.updatedAt || item?.offlineSavedAt || "";

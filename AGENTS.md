@@ -658,4 +658,8 @@ Current performance phase 281 decision: continue the monolith split by moving `i
 
 Current performance phase 282 decision: remove unused legacy detail helper code (`duplicateValueAliases`, `canonicalKey()`, and `formatCzDate()`) from `src/main.js`; preserve displayed detail rows by leaving the active hide/filter/detail rendering logic unchanged.
 
+Current performance phase 283 decision: continue the monolith split by moving history/protocol timestamp helpers and date-only fallback text cleanup into `src/history-time-utils.js`; preserve protocol history ordering, gallery sorting, and admin/non-admin date labels.
+
+Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
