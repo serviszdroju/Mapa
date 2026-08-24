@@ -632,4 +632,6 @@ Current performance phase 268 decision: continue the monolith split by moving se
 
 Current performance phase 269 decision: continue the monolith split by moving site/place labels, source labels, source identity, source raw-field helpers, row label caches, and shared dedup text normalization into `src/site-labels.js`; keep group/list/render logic in `src/main.js` while preserving `window.sitePlaceLabel` and `window.sitePlaceGroupKey`.
 
+Current performance phase 270 decision: continue the monolith split by moving app-shell URL discovery and service-worker shell cache posting/coalescing into `src/app-shell-cache.js`; keep `showAppShellFast()` and local Firebase row fallback in `src/main.js` because they depend on local DOM and data-loading helpers.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

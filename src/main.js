@@ -96,6 +96,10 @@ import {
   sourceSerialTextFromRaw,
   sourceTypeTextFromRaw
 } from "./site-labels.js";
+import {
+  cachedPostAppShellUrlsToServiceWorker,
+  currentAppShellUrls
+} from "./app-shell-cache.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -123,7 +127,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
 }
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-site-labels-module-v420";
+const APP_BUILD_VERSION="2026-08-24-app-shell-cache-module-v421";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -140,119 +144,11 @@ const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
 const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
 const SZZ_MAP_DELTA_UPSERT_BATCH_SIZE=24;
 const SZZ_MAP_DELTA_CACHE_DEFER_MS=1800;
-const APP_SHELL_URLS=[
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./sw.js",
-  "./szz-logo-display.png",
-  "./szz-app-icon-192.png",
-  "./szz-app-icon-512.png",
-  "./szz-app-icon-maskable-192.png",
-  "./szz-app-icon-maskable-512.png",
-  "./podpis-tipek.png",
-  "./podpis-tipek.jpg",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-];
 const SZZ_STORAGE_META_CACHE_MS=5000;
 let szzStorageEstimateCache=null;
 let szzStorageEstimateCacheAt=0;
 let szzPersistentStorageCache=null;
 let szzPersistentStorageCacheAt=0;
-
-function currentAppShellUrls(baseUrls=APP_SHELL_URLS){
-  const urls=[...(baseUrls || [])];
-  try{
-    document.querySelectorAll('script[src],link[rel="stylesheet"][href],link[rel="modulepreload"][href],link[rel="preload"][href],link[rel="manifest"][href],link[rel~="icon"][href],link[rel="apple-touch-icon"][href]').forEach(el=>{
-      if(el.rel==="preload" && !["script","style","fetch"].includes(el.as || "")) return;
-      const url=el.src || el.href;
-      if(url) urls.push(url);
-    });
-  }catch(e){}
-  try{
-    if(performance && typeof performance.getEntriesByType==="function"){
-      performance.getEntriesByType("resource").forEach(entry=>{
-        const url=entry && entry.name;
-        if(isSzzAppShellResourceUrl(url)) urls.push(url);
-      });
-    }
-  }catch(e){}
-  return urls
-    .map(normalizeSzzAppShellUrl)
-    .filter((url,idx,arr)=>url && arr.indexOf(url)===idx);
-}
-
-function normalizeSzzAppShellUrl(url){
-  try{
-    const absolute=new URL(url,document.baseURI);
-    if(!/^https?:$/.test(absolute.protocol)) return "";
-    return absolute.href;
-  }catch(e){
-    return "";
-  }
-}
-
-function isSzzAppShellResourceUrl(url){
-  try{
-    const absolute=new URL(url,document.baseURI);
-    const path=absolute.pathname;
-    if(absolute.origin===location.origin){
-      return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
-    }
-    return absolute.hostname==="unpkg.com" &&
-      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
-  }catch(e){
-    return false;
-  }
-}
-
-function postAppShellUrlsToServiceWorker(registration,urls){
-  const worker=(navigator.serviceWorker && navigator.serviceWorker.controller) ||
-    (registration && (registration.active || registration.waiting || registration.installing));
-  if(!worker || !urls.length) return Promise.resolve(urls.length);
-  if(typeof MessageChannel==="undefined"){
-    try{ worker.postMessage({type:"SZZ_CACHE_APP_SHELL",urls}); }catch(e){}
-    return Promise.resolve(urls.length);
-  }
-  return new Promise(resolve=>{
-    const channel=new MessageChannel();
-    const timer=setTimeout(()=>resolve(urls.length),3500);
-    channel.port1.onmessage=event=>{
-      clearTimeout(timer);
-      const count=Number(event && event.data && event.data.count);
-      resolve(Number.isFinite(count) && count>=0 ? count : urls.length);
-    };
-    try{
-      worker.postMessage({type:"SZZ_CACHE_APP_SHELL",urls},[channel.port2]);
-    }catch(e){
-      clearTimeout(timer);
-      resolve(urls.length);
-    }
-  });
-}
-
-const APP_SHELL_POST_CACHE_MS=30000;
-let appShellPostCache={signature:"",savedAt:0,count:null,promise:null};
-function cachedPostAppShellUrlsToServiceWorker(registration,urls){
-  const signature=(urls || []).join("\n");
-  const now=Date.now();
-  if(
-    signature
-    && appShellPostCache.signature===signature
-    && now-appShellPostCache.savedAt<APP_SHELL_POST_CACHE_MS
-  ){
-    if(appShellPostCache.promise) return appShellPostCache.promise;
-    if(Number.isFinite(appShellPostCache.count)) return Promise.resolve(appShellPostCache.count);
-  }
-  const promise=postAppShellUrlsToServiceWorker(registration,urls).then(count=>{
-    appShellPostCache={signature,savedAt:Date.now(),count:Number(count) || 0,promise:null};
-    return appShellPostCache.count;
-  });
-  appShellPostCache={signature,savedAt:now,count:null,promise};
-  return promise;
-}
 
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
@@ -1234,7 +1130,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v420-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v421-runtime";
 
 function szzIsConstrainedDevice(){
   try{
