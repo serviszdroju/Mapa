@@ -644,4 +644,6 @@ Current performance phase 274 decision: continue the monolith split by moving pa
 
 Current performance phase 275 decision: continue the monolith split by moving HTML date-input normalization into `src/date-input-utils.js`; preserve all detail, protocol, and document date behavior by reusing the existing schedule parser.
 
+Current performance phase 276 decision: continue the monolith split by moving no-op-safe DOM update helpers into `src/dom-update-utils.js`; preserve existing text, display, class, and disabled-state behavior while reducing redundant DOM writes.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
