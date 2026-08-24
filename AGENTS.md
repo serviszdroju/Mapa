@@ -622,4 +622,6 @@ Current performance phase 263 decision: continue the monolith split by moving ma
 
 Current performance phase 264 decision: continue the monolith split by moving original pink-place signatures plus static region/status/admin/history option lists into `src/app-options.js`; keep authorization sets, filter setup, original pink matching, and `window.appRegionOptions` behavior unchanged in `src/main.js`.
 
+Current performance phase 265 decision: continue the monolith split by moving shared safe/escape/number parsing, stable signature helpers, row-key lookup, and text-normalization caches into `src/core-utils.js`; keep existing cache maps for search, region, and dedupe normalization exported to `src/main.js`, and preserve `window.safe`.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

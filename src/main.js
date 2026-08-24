@@ -7,6 +7,23 @@ import {
   ORIGINAL_PINK_PLACE_SIGNATURES
 } from "./app-options.js";
 import {
+  TEXT_NORM_CACHE_MAX_LENGTH,
+  dedupNormCache,
+  esc,
+  first,
+  get,
+  num,
+  readTextNormCache,
+  regionNormCache,
+  rememberTextNormCache,
+  safe,
+  sameArrayValues,
+  searchNormCache,
+  simpleNorm,
+  stableSignature,
+  stableSignaturePart
+} from "./core-utils.js";
+import {
   AUTH_RESTORE_GRACE_MS,
   CLOUDINARY_PHOTOS,
   authBootStartedAt,
@@ -59,6 +76,7 @@ window.firebaseUnifiedPrimary = firebaseUnifiedPrimary;
 window.__firebaseUnifiedPrimary = firebaseUnifiedPrimary;
 window.cloudinaryPhotoConfig = CLOUDINARY_PHOTOS;
 window.rows = rows;
+window.safe=safe;
 window.WATCH_SELF_RAW_KEYS=WATCH_SELF_RAW_KEYS;
 window.explicitWatchSelfFromRaw=explicitWatchSelfFromRaw;
 window.canonicalWatchSelfValue=canonicalWatchSelfValue;
@@ -69,7 +87,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
 }
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-app-options-module-v415";
+const APP_BUILD_VERSION="2026-08-24-core-utils-module-v416";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1180,7 +1198,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v415-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v416-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2187,80 +2205,6 @@ bindOfflineMapCacheButton();
 window.cacheVisibleMapTiles=cacheVisibleMapTiles;
 window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 
-function safe(v){return String(v??"").trim()}
-window.safe=safe;
-function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
-function num(v){if(v===null||v===undefined||v==="")return null;const n=Number(String(v).trim().replace(",","."));return Number.isFinite(n)?n:null}
-function stableSignaturePart(value){const text=String(value??"");return `${text.length}:${text}`}
-function stableSignature(parts=[]){
-  const source=Array.isArray(parts) ? parts : [];
-  let signature="";
-  for(let i=0;i<source.length;i++){
-    if(i) signature+="\u001f";
-    signature+=stableSignaturePart(source[i]);
-  }
-  return signature;
-}
-function sameArrayValues(a=[],b=[]){
-  if(a===b) return true;
-  if(!Array.isArray(a) || !Array.isArray(b) || a.length!==b.length) return false;
-  for(let i=0;i<a.length;i++){
-    if(a[i]!==b[i]) return false;
-  }
-  return true;
-}
-const TEXT_NORM_CACHE_LIMIT=1200;
-const TEXT_NORM_CACHE_MAX_LENGTH=240;
-const simpleNormCache=new Map();
-const searchNormCache=new Map();
-const regionNormCache=new Map();
-const dedupNormCache=new Map();
-function readTextNormCache(cache,key){
-  if(!cache.has(key)) return undefined;
-  const value=cache.get(key);
-  cache.delete(key);
-  cache.set(key,value);
-  return value;
-}
-function rememberTextNormCache(cache,key,value){
-  cache.set(key,value);
-  if(cache.size>TEXT_NORM_CACHE_LIMIT){
-    const firstKey=cache.keys().next().value;
-    if(firstKey!==undefined) cache.delete(firstKey);
-  }
-  return value;
-}
-const rowKeyLookupCache=new WeakMap();
-function normalizedRowKeyName(n){return String(n).replace(/^\uFEFF/,"").trim().toLowerCase()}
-function normalizedRowKeyLookup(r){
-  if(!r || (typeof r!=="object" && typeof r!=="function")) return null;
-  const keys=Object.keys(r);
-  const signature=keys.join("\u001f");
-  const cached=rowKeyLookupCache.get(r);
-  if(cached && cached.signature===signature) return cached.map;
-  const map=new Map();
-  for(const k of keys){
-    const normalized=normalizedRowKeyName(k);
-    if(!map.has(normalized)) map.set(normalized,k);
-  }
-  rowKeyLookupCache.set(r,{signature,map});
-  return map;
-}
-function get(r,n){if(!r)return"";if(r[n]!==undefined)return r[n];const lookup=normalizedRowKeyLookup(r);if(!lookup)return"";const k=lookup.get(normalizedRowKeyName(n));return k!==undefined?r[k]:""}
-function first(r,a){for(const n of a){const v=safe(get(r,n));if(v)return v}return""}
-function simpleNorm(v){
-  const text=String(v||"").trim();
-  if(text.length<=TEXT_NORM_CACHE_MAX_LENGTH){
-    const cached=readTextNormCache(simpleNormCache,text);
-    if(cached!==undefined) return cached;
-  }
-  const normalized=text.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[_\/\\,.;:()\-]+/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-  return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(simpleNormCache,text,normalized) : normalized;
-}
 const APP_ADMIN_EMAIL_SET = new Set(APP_ADMIN_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
 const APP_ALLOWED_EMAIL_SET = new Set(APP_ALLOWED_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
 const APP_PROTOCOL_HISTORY_EMAIL_SET = new Set(APP_PROTOCOL_HISTORY_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
