@@ -154,6 +154,9 @@ import {
 import {
   createLegacyEditCacheHelpers
 } from "./legacy-edit-cache.js";
+import {
+  createRowIdentityHelpers
+} from "./row-identity-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -179,7 +182,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-legacy-edit-cache-utils-module-v439";
+const APP_BUILD_VERSION="2026-08-24-row-identity-utils-module-v440";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1115,7 +1118,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v439-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v440-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2107,8 +2110,8 @@ const {
   setLegacyEditCacheEntry
 }=createLegacyEditCacheHelpers({
   getEditCache:()=>editCache,
-  rowLookupKeys,
-  siteRecordKeys
+  rowLookupKeys:r=>rowLookupKeys(r),
+  siteRecordKeys:site=>siteRecordKeys(site)
 });
 
 function applyEditToRow(r){
@@ -3476,54 +3479,20 @@ window.markRowsDirty=markRowsDirty;
 installRowsWindowBridge();
 installSelectedSiteWindowBridge();
 
-function rowLookupKeys(r){
-  const raw=(r && r.raw) || {};
-  const detail=r ? detailKey(r) : "";
-  const id=r && r.id;
-  const firebaseDocId=r && r.firebaseDocId;
-  const rawFirebaseDocId=raw["Firebase_doc_id"];
-  const rawAddressKey=raw["Klíč_adresy"];
-  const rawPlaceId=raw["ID_mista"];
-  if(r && (typeof r==="object" || typeof r==="function")){
-    if(
-      r._lookupKeysRawRef===raw &&
-      r._lookupKeysDetail===detail &&
-      r._lookupKeysId===id &&
-      r._lookupKeysFirebaseDocId===firebaseDocId &&
-      r._lookupKeysRawFirebaseDocId===rawFirebaseDocId &&
-      r._lookupKeysRawAddressKey===rawAddressKey &&
-      r._lookupKeysRawPlaceId===rawPlaceId &&
-      Array.isArray(r._lookupKeysCache)
-    ){
-      return r._lookupKeysCache;
-    }
-    const keys=[
-      detail,
-      id,
-      firebaseDocId,
-      rawFirebaseDocId,
-      rawAddressKey,
-      rawPlaceId
-    ].map(x=>String(x || "").trim()).filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-    r._lookupKeysRawRef=raw;
-    r._lookupKeysDetail=detail;
-    r._lookupKeysId=id;
-    r._lookupKeysFirebaseDocId=firebaseDocId;
-    r._lookupKeysRawFirebaseDocId=rawFirebaseDocId;
-    r._lookupKeysRawAddressKey=rawAddressKey;
-    r._lookupKeysRawPlaceId=rawPlaceId;
-    r._lookupKeysCache=keys;
-    return keys;
-  }
-  return [
-    detail,
-    r && r.id,
-    r && r.firebaseDocId,
-    raw["Firebase_doc_id"],
-    raw["Klíč_adresy"],
-    raw["ID_mista"]
-  ].map(x=>String(x || "").trim()).filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-}
+const {
+  rowLookupKeys,
+  selectedSiteDocId,
+  siteRecordKeys,
+  siteRecordIdentity,
+  siteRecordKeySet
+}=createRowIdentityHelpers({
+  getSelectedSite:()=>selectedSite,
+  detailKey,
+  sitePlaceGroupKey,
+  siteSourceIdentity,
+  uniqueNonEmptyStrings
+});
+window.selectedSiteDocId=selectedSiteDocId;
 
 function rowRenderFingerprint(r){
   if(!r) return "";
@@ -3689,90 +3658,6 @@ function detailKey(r){
   return editCacheKeyForRow(r);
 }
 window.detailKey=detailKey;
-function siteRecordKeys(site=selectedSite){
-  const raw=(site && site.raw) || {};
-  const docId=safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
-  const siteDetailKey=site ? detailKey(site) : "";
-  const siteIdValue=site && site.id;
-  const siteFirebaseDocId=site && site.firebaseDocId;
-  const rawFirebaseDocId=raw["Firebase_doc_id"];
-  const rawAddressKey=raw["Klíč_adresy"];
-  const rawPlaceId=raw["ID_mista"];
-  if(
-    site && typeof site==="object" &&
-    site._recordKeysRawRef===raw &&
-    site._recordKeysDetailKey===siteDetailKey &&
-    site._recordKeysSiteId===siteIdValue &&
-    site._recordKeysSiteFirebaseDocId===siteFirebaseDocId &&
-    site._recordKeysRawFirebaseDocId===rawFirebaseDocId &&
-    site._recordKeysRawAddressKey===rawAddressKey &&
-    site._recordKeysRawPlaceId===rawPlaceId &&
-    Array.isArray(site._recordKeysCache)
-  ){
-    return site._recordKeysCache;
-  }
-  const values=[
-    siteDetailKey,
-    siteIdValue,
-    docId,
-    rawFirebaseDocId,
-    rawAddressKey,
-    rawPlaceId,
-    docId ? `firebase_${docId}` : "",
-    docId ? `firebase_site_${docId}` : ""
-  ];
-  const keys=values
-    .map(x=>String(x || "").trim())
-    .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-  if(site && typeof site==="object"){
-    site._recordKeysRawRef=raw;
-    site._recordKeysDetailKey=siteDetailKey;
-    site._recordKeysSiteId=siteIdValue;
-    site._recordKeysSiteFirebaseDocId=siteFirebaseDocId;
-    site._recordKeysRawFirebaseDocId=rawFirebaseDocId;
-    site._recordKeysRawAddressKey=rawAddressKey;
-    site._recordKeysRawPlaceId=rawPlaceId;
-    site._recordKeysCache=keys;
-  }
-  return keys;
-}
-function siteRecordIdentity(site=selectedSite){
-  const keys=siteRecordKeys(site);
-  const docId=selectedSiteDocId(site);
-  const legacyId=safe(site && site.id);
-  const canonicalId=docId || legacyId || keys[0] || "";
-  const siteKey=keys[0] || canonicalId;
-  return {
-    siteId:canonicalId,
-    siteLegacyId:legacyId,
-    siteKey,
-    siteDocId:docId,
-    firebaseDocId:docId,
-    siteKeys:uniqueNonEmptyStrings([canonicalId,siteKey,legacyId,docId,...keys]),
-    sourceGroupKey:site ? sitePlaceGroupKey(site) : "",
-    sourceIdentity:site ? siteSourceIdentity(site) : "",
-    siteName:safe(site && site.adresa),
-    siteAddress:safe(site && site.adresa),
-    siteSource:safe(site && site.zdroj)
-  };
-}
-function siteRecordKeySet(site=selectedSite){
-  const keys=siteRecordKeys(site);
-  if(site && typeof site==="object" && site._recordKeySetKeysRef===keys && site._recordKeySetCache instanceof Set){
-    return site._recordKeySetCache;
-  }
-  const keySet=new Set(keys);
-  if(site && typeof site==="object"){
-    site._recordKeySetKeysRef=keys;
-    site._recordKeySetCache=keySet;
-  }
-  return keySet;
-}
-function selectedSiteDocId(site=selectedSite){
-  const raw=(site && site.raw) || {};
-  return safe(site && (site.firebaseDocId || raw["Firebase_doc_id"]));
-}
-window.selectedSiteDocId=selectedSiteDocId;
 const recordIdKeysCache=new WeakMap();
 function recordIdKeys(record){
   if(!record) return [];
