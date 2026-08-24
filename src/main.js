@@ -16,7 +16,6 @@ import {
   rememberTextNormCache,
   safe,
   sameArrayValues,
-  searchNormCache,
   simpleNorm,
   stableSignature,
   stableSignaturePart
@@ -85,6 +84,11 @@ import {
   inferRegionFromAddressText,
   regionTextNorm
 } from "./geocode-utils.js";
+import {
+  rawSearchText,
+  rowSearchText,
+  searchNorm
+} from "./search-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -112,7 +116,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
 }
 const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-geocode-module-v418";
+const APP_BUILD_VERSION="2026-08-24-search-module-v419";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1223,7 +1227,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v418-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v419-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -3274,55 +3278,6 @@ function filtered(){
   });
   filteredRowsCache={signature,rows:result};
   return result;
-}
-function searchNorm(v){
-  const text=safe(v);
-  if(text.length<=TEXT_NORM_CACHE_MAX_LENGTH){
-    const cached=readTextNormCache(searchNormCache,text);
-    if(cached!==undefined) return cached;
-  }
-  const normalized=text.toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g,"")
-    .replace(/[_\/\\,.;:()\-]+/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-  return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(searchNormCache,text,normalized) : normalized;
-}
-const rawSearchTextCache=new WeakMap();
-function rawSearchText(raw={}){
-  const source=raw || {};
-  if(!source || (typeof source!=="object" && typeof source!=="function")) return String(source ?? "");
-  const keys=Object.keys(source);
-  const cached=rawSearchTextCache.get(source);
-  if(cached && sameArrayValues(cached.keys,keys)){
-    let same=true;
-    for(let i=0;i<keys.length;i++){
-      if(cached.values[i]!==source[keys[i]]){
-        same=false;
-        break;
-      }
-    }
-    if(same) return cached.text;
-  }
-  const values=keys.map(key=>source[key]);
-  const text=keys.concat(values).join(" ");
-  rawSearchTextCache.set(source,{keys,values,text});
-  return text;
-}
-function rowSearchText(r){
-  const raw=(r&&r.raw)||{};
-  return [
-    r&&r.adresa,
-    r&&r.gpsAddress,
-    r&&r.zdroj,
-    r&&r.kontakt,
-    r&&r.kraj,
-    r&&r.poznamky,
-    r&&r.id,
-    r&&r.firebaseDocId,
-    rawSearchText(raw)
-  ].join(" ");
 }
 function rowMatchesSearch(r,normalizedQuery,compactQuery=null){
   if(r && (r._searchRawRef!==r.raw || !r._searchText)) ensureRowFastIndexes(r,Number.isFinite(r.i) ? r.i : 0);
