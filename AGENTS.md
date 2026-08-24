@@ -630,4 +630,6 @@ Current performance phase 267 decision: continue the monolith split by moving re
 
 Current performance phase 268 decision: continue the monolith split by moving search text normalization, raw-row search text caching, and row search text assembly into `src/search-utils.js`; keep `rowMatchesSearch()` in `src/main.js` because it intentionally refreshes row fast indexes before matching.
 
+Current performance phase 269 decision: continue the monolith split by moving site/place labels, source labels, source identity, source raw-field helpers, row label caches, and shared dedup text normalization into `src/site-labels.js`; keep group/list/render logic in `src/main.js` while preserving `window.sitePlaceLabel` and `window.sitePlaceGroupKey`.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
