@@ -105,6 +105,11 @@ import {
   szzBytesLabel,
   szzStorageEstimate
 } from "./storage-persistence.js";
+import {
+  MAP_TILE_CACHE_NAME,
+  MAP_TILE_URL_TEMPLATE,
+  visibleMapTileUrlsForMap
+} from "./map-tile-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -130,9 +135,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const MAP_TILE_URL_TEMPLATE="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const MAP_TILE_CACHE_NAME="astip-szz-map-tiles-v1";
-const APP_BUILD_VERSION="2026-08-24-storage-persistence-module-v422";
+const APP_BUILD_VERSION="2026-08-24-map-tile-utils-module-v423";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_CS_BASE_COLLATOR=new Intl.Collator("cs",{sensitivity:"base"});
 function szzCompareCsBase(a,b){
@@ -1075,7 +1078,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v422-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v423-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1901,71 +1904,8 @@ async function prepareSzzOfflineAppData(options={}){
 }
 window.prepareSzzOfflineAppData=prepareSzzOfflineAppData;
 
-function clampTile(value,z){
-  const max=Math.pow(2,z)-1;
-  return Math.max(0,Math.min(max,value));
-}
-
-function lonToTileX(lon,z){
-  return clampTile(Math.floor((Number(lon)+180)/360*Math.pow(2,z)),z);
-}
-
-function latToTileY(lat,z){
-  const limited=Math.max(-85.05112878,Math.min(85.05112878,Number(lat)));
-  const rad=limited*Math.PI/180;
-  return clampTile(Math.floor((1-Math.log(Math.tan(rad)+1/Math.cos(rad))/Math.PI)/2*Math.pow(2,z)),z);
-}
-
-function mapTileUrl(z,x,y){
-  return MAP_TILE_URL_TEMPLATE
-    .replace("{z}",String(z))
-    .replace("{x}",String(x))
-    .replace("{y}",String(y));
-}
-
-function boundsValue(bounds,key){
-  const method="get"+key.charAt(0).toUpperCase()+key.slice(1);
-  if(bounds && typeof bounds[method]==="function") return bounds[method]();
-  return Number(bounds && bounds[key]);
-}
-
-function mapTileUrlsForBounds(bounds,zooms,maxTiles=Infinity){
-  const west=boundsValue(bounds,"west");
-  const east=boundsValue(bounds,"east");
-  const north=boundsValue(bounds,"north");
-  const south=boundsValue(bounds,"south");
-  if(![west,east,north,south].every(Number.isFinite)) return [];
-  const urls=[];
-  for(const zRaw of zooms){
-    const z=Math.max(3,Math.min(17,Number(zRaw)));
-    if(!Number.isFinite(z)) continue;
-    const x1=lonToTileX(west,z);
-    const x2=lonToTileX(east,z);
-    const y1=latToTileY(north,z);
-    const y2=latToTileY(south,z);
-    const xStart=Math.min(x1,x2), xEnd=Math.max(x1,x2);
-    const yStart=Math.min(y1,y2), yEnd=Math.max(y1,y2);
-    for(let x=xStart;x<=xEnd;x++){
-      for(let y=yStart;y<=yEnd;y++){
-        urls.push(mapTileUrl(z,x,y));
-        if(urls.length>=maxTiles) return urls;
-      }
-    }
-  }
-  return urls;
-}
-
 function visibleMapTileUrls(maxTiles=650){
-  if(!map || typeof map.getBounds!=="function") return [];
-  const bounds=map.getBounds().pad(0.15);
-  const zoom=Math.max(3,Math.min(17,Math.round(map.getZoom() || 7)));
-  const zooms=[];
-  for(let z=zoom;z<=Math.min(17,zoom+2);z++) zooms.push(z);
-  return mapTileUrlsForBounds(bounds,zooms,maxTiles);
-}
-
-function czechOfflineMapTileUrls(){
-  return [];
+  return visibleMapTileUrlsForMap(map,maxTiles);
 }
 
 function czechOfflineMapReady(){
