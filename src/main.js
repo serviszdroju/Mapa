@@ -133,6 +133,12 @@ import {
 import {
   szzCompareCsBase
 } from "./czech-sort-utils.js";
+import {
+  daysBetweenToday,
+  inCzSk,
+  rawGps,
+  siteId
+} from "./row-data-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -158,7 +164,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-direct-apk-button-v430";
+const APP_BUILD_VERSION="2026-08-24-row-data-utils-module-v431";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1094,7 +1100,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v430-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v431-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2147,10 +2153,6 @@ function waitForFirebaseUser(timeoutMs=8000){
     }
   });
 }
-function siteId(raw,i){return first(raw,["Klíč_adresy","ID_mista","Název","Adresa_GPS","Adresa / umístění","Umístění"]) || String(i)}
-function rawGps(r){return Number.isFinite(r.lat)&&Number.isFinite(r.lon)}
-function inCzSk(r){return rawGps(r)&&r.lat>=47&&r.lat<=51.5&&r.lon>=12&&r.lon<=23}
-
 function editCacheKeyForRow(r){
   return String((r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]) || r.id)) || "");
 }
@@ -2376,17 +2378,6 @@ async function loadEdits(options={}){
     const st=document.getElementById("editStatus");
     if(st) st.textContent="";
   }
-}
-
-
-function daysBetweenToday(dateStr){
-  const s=safe(dateStr);
-  if(!s) return "";
-  const d=new Date(s+"T00:00:00");
-  if(isNaN(d.getTime())) return "";
-  const today=new Date();
-  today.setHours(0,0,0,0);
-  return Math.round((d.getTime()-today.getTime())/86400000);
 }
 
 
