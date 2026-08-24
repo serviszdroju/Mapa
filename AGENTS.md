@@ -668,6 +668,8 @@ Current performance phase 286 decision: continue the monolith split by moving au
 
 Current performance phase 287 decision: continue the auth split by moving `waitForFirebaseUser()` into the auth access helper factory in `src/firebase-auth.js`; preserve compat-first auth listener behavior, explicit-sign-out handling, timeout fallback, and existing `currentUser`/window synchronization.
 
+Current performance phase 288 decision: continue the monolith split by moving legacy site edit cache key lookup, entry merge ordering, and cache population helpers into `src/legacy-edit-cache.js`; preserve the same legacy aliases, row/site key callbacks, and edit overlay behavior for Firebase and older saved edits.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

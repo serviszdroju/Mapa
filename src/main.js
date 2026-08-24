@@ -151,6 +151,9 @@ import {
 import {
   shouldHideDataRow
 } from "./detail-data-utils.js";
+import {
+  createLegacyEditCacheHelpers
+} from "./legacy-edit-cache.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -176,7 +179,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-auth-wait-utils-module-v438";
+const APP_BUILD_VERSION="2026-08-24-legacy-edit-cache-utils-module-v439";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1112,7 +1115,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v438-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v439-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2098,103 +2101,15 @@ window.canViewAllMainProtocolHistory=canViewAllMainProtocolHistory;
 window.updateAdminAppControls=updateAdminAppControls;
 document.addEventListener("DOMContentLoaded",updateAdminAppControls);
 (window.queueMicrotask || (fn=>Promise.resolve().then(fn)))(updateAdminAppControls);
-function editCacheKeyForRow(r){
-  return String((r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]) || r.id)) || "");
-}
-function legacyEditCacheEntryTime(entry={}){
-  return timeValueFromAny(entry.updatedAt || entry.savedAt || entry.createdAt || 0);
-}
-function mergeLegacyEditEntries(entries=[]){
-  const source=(entries || []).filter(Boolean);
-  if(!source.length) return null;
-  source.sort((a,b)=>legacyEditCacheEntryTime(a)-legacyEditCacheEntryTime(b));
-  const merged={rawEdits:{}};
-  source.forEach(entry=>{
-    const rawEdits=entry.rawEdits && typeof entry.rawEdits==="object" ? entry.rawEdits : {};
-    Object.assign(merged,entry);
-    merged.rawEdits={...(merged.rawEdits || {}),...rawEdits};
-  });
-  return merged;
-}
-function editCacheKeysForRow(r){
-  const raw=(r && r.raw) || {};
-  const keys=[];
-  const add=value=>{
-    const key=safe(value);
-    if(key && !keys.includes(key)) keys.push(key);
-  };
-  add(editCacheKeyForRow(r));
-  try{ rowLookupKeys(r).forEach(add); }catch(_e){}
-  try{ siteRecordKeys(r).forEach(add); }catch(_e){}
-  [
-    r && r.id,
-    r && r.firebaseDocId,
-    raw["Firebase_doc_id"],
-    raw["Klíč_adresy"],
-    raw["ID_mista"],
-    raw["Původní ID_mista"],
-    raw["Původní_id_mista"],
-    raw["Původní Klíč_adresy"],
-    raw["Původní klíč adresy"],
-    raw["Původní_klic_adresy"],
-    raw["Puvodni ID_mista"],
-    raw["Puvodni_klic_adresy"],
-    raw["Název"],
-    raw["Adresa / umístění"],
-    raw["Adresa_GPS"],
-    raw["Umístění"],
-    raw["Původní adresa / umístění"]
-  ].forEach(add);
-  return keys;
-}
-function editCacheEntryForRow(r){
-  const entries=[];
-  const seen=new Set();
-  editCacheKeysForRow(r).forEach(key=>{
-    const entry=editCache[key];
-    if(!entry || seen.has(entry)) return;
-    seen.add(entry);
-    entries.push(entry);
-  });
-  return mergeLegacyEditEntries(entries);
-}
-function legacyEditCacheKeysFromEntry(docId,entry={}){
-  const rawEdits=(entry && entry.rawEdits) || {};
-  const keys=[];
-  const add=value=>{
-    const key=safe(value);
-    if(key && !keys.includes(key)) keys.push(key);
-  };
-  add(docId);
-  [
-    entry.firebaseDocId,
-    entry.siteDocId,
-    entry.siteId,
-    entry.siteLegacyId,
-    entry.siteKey,
-    entry.siteName,
-    entry.siteAddress,
-    entry.place,
-    rawEdits["Firebase_doc_id"],
-    rawEdits["Klíč_adresy"],
-    rawEdits["ID_mista"],
-    rawEdits["Název"],
-    rawEdits["Adresa / umístění"],
-    rawEdits["Adresa_GPS"],
-    rawEdits["Umístění"]
-  ].forEach(add);
-  if(Array.isArray(entry.siteKeys)) entry.siteKeys.forEach(add);
-  return keys;
-}
-function setLegacyEditCacheEntry(docId,entry){
-  const payload=entry && typeof entry==="object" ? entry : {};
-  legacyEditCacheKeysFromEntry(docId,payload).forEach(key=>{
-    const existing=editCache[key];
-    if(!existing || legacyEditCacheEntryTime(payload)>=legacyEditCacheEntryTime(existing)){
-      editCache[key]=payload;
-    }
-  });
-}
+const {
+  editCacheKeyForRow,
+  editCacheEntryForRow,
+  setLegacyEditCacheEntry
+}=createLegacyEditCacheHelpers({
+  getEditCache:()=>editCache,
+  rowLookupKeys,
+  siteRecordKeys
+});
 
 function applyEditToRow(r){
   const e=editCacheEntryForRow(r);
