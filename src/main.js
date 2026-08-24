@@ -78,7 +78,8 @@ import {
   geocodeAddressGeneric,
   geocodeRequestedHouseNumbers,
   inferRegionFromAddressText,
-  regionTextNorm
+  regionTextNorm,
+  reverseGeocodeGpsGeneric
 } from "./geocode-utils.js";
 import {
   rowSearchText,
@@ -174,7 +175,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-detail-data-utils-module-v435";
+const APP_BUILD_VERSION="2026-08-24-reverse-geocode-utils-module-v436";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1110,7 +1111,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v435-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v436-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -5056,14 +5057,6 @@ window.removeFirebaseSiteRow = function(site){
 window.getCurrentCsvRows = function(){
   return originalCsvRows.length ? originalCsvRows : csvRows;
 };
-
-async function reverseGeocodeGpsGeneric(lat,lon){
-  const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-  const res=await fetch(url,{headers:{"Accept":"application/json"}});
-  if(!res.ok) throw new Error("Reverse geokódování selhalo");
-  const data=await res.json();
-  return data.display_name || "";
-}
 
 function selectedSiteMatchForSave(row, selectedKey, firebaseDocId){
   if(!row) return false;

@@ -129,6 +129,14 @@ export function inferRegionFromAddressText(text, addressObj={}){
   return "";
 }
 
+export async function reverseGeocodeGpsGeneric(lat,lon){
+  const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+  const res=await fetch(url,{headers:{"Accept":"application/json"}});
+  if(!res.ok) throw new Error("Reverse geokódování selhalo");
+  const data=await res.json();
+  return data.display_name || "";
+}
+
 function geocodeCountryVariants(text){
   const n=regionTextNorm(text);
   const hasSk=/(^|\s)(sk|sr)(\s|$)/.test(n) || /\b(slovensko|slovakia|slovenska republika)\b/.test(n);
