@@ -664,6 +664,8 @@ Current performance phase 284 decision: continue the monolith split by moving de
 
 Current performance phase 285 decision: continue the monolith split by moving reverse GPS-to-address geocoding into `src/geocode-utils.js`; preserve the same Nominatim endpoint, headers, error message, and address-fill behavior.
 
+Current performance phase 286 decision: continue the monolith split by moving auth access and role visibility helper creation into `src/firebase-auth.js`; preserve the same allowed/admin/protocol-history email rules, current-user synchronization, global helper names, and install-button refresh behavior.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

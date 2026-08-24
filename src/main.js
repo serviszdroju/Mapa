@@ -23,6 +23,7 @@ import {
   clearExplicitSignOut,
   compatFirebaseReady,
   compatGoogleProvider,
+  createAuthAccessHelpers,
   ensureCompatAuthPersistence,
   ensureCompatFirebaseApp,
   explicitSignOutPending,
@@ -175,7 +176,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-reverse-geocode-utils-module-v436";
+const APP_BUILD_VERSION="2026-08-24-auth-access-utils-module-v437";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1111,7 +1112,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v436-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v437-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -2059,67 +2060,33 @@ bindOfflineMapCacheButton();
 window.cacheVisibleMapTiles=cacheVisibleMapTiles;
 window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 
-const APP_ADMIN_EMAIL_SET = new Set(APP_ADMIN_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
-const APP_ALLOWED_EMAIL_SET = new Set(APP_ALLOWED_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
-const APP_PROTOCOL_HISTORY_EMAIL_SET = new Set(APP_PROTOCOL_HISTORY_EMAILS.map(e=>safe(e).toLowerCase()).filter(Boolean));
 window.appRegionOptions = () => APP_REGION_OPTIONS.slice();
-function compatAuthCurrentUser(){
-  try{
-    const client=getCompatAuthClient();
-    return client && client.currentUser ? client.currentUser : null;
-  }catch(e){}
-  return null;
-}
-function syncCurrentUserFromCompat(){
-  const u=compatAuthCurrentUser();
-  if(u){
-    currentUser=u;
-    window.currentUser=u;
-    window.__authReadyUser=u;
+const authAccessHelpers=createAuthAccessHelpers({
+  adminEmails:APP_ADMIN_EMAILS,
+  allowedEmails:APP_ALLOWED_EMAILS,
+  protocolHistoryEmails:APP_PROTOCOL_HISTORY_EMAILS,
+  getCompatAuthClient,
+  getCurrentUser:()=>currentUser || window.currentUser || window.__authReadyUser || null,
+  setCurrentUser:user=>{
+    currentUser=user;
+    window.currentUser=user;
+    window.__authReadyUser=user;
+  },
+  updateInstallButtons:()=>{
+    if(typeof window.updateSzzInstallButtons==="function") window.updateSzzInstallButtons();
   }
-  return u;
-}
-function currentUserEmail(){
-  const u=currentUser || window.currentUser || window.__authReadyUser || syncCurrentUserFromCompat();
-  return safe(u && u.email).toLowerCase() || lastKnownUserEmail();
-}
-function isAllowedLoginEmail(email){
-  const e=safe(email).toLowerCase();
-  return e.endsWith("@astip.cz") || APP_ALLOWED_EMAIL_SET.has(e);
-}
-function isAppAdmin(){
-  const email=currentUserEmail();
-  return !!email && APP_ADMIN_EMAIL_SET.has(email);
-}
-function canViewProtocolHistory(){
-  const email=currentUserEmail();
-  if(!email) return false;
-  return isAllowedLoginEmail(email) || APP_PROTOCOL_HISTORY_EMAIL_SET.has(email);
-}
-function canViewMainProtocolHistory(){
-  const email=currentUserEmail();
-  if(!email) return false;
-  return isAllowedLoginEmail(email) || APP_PROTOCOL_HISTORY_EMAIL_SET.has(email);
-}
-function canViewAllMainProtocolHistory(){
-  const email=currentUserEmail();
-  if(!email) return false;
-  return isAppAdmin() || APP_PROTOCOL_HISTORY_EMAIL_SET.has(email);
-}
-function updateProtocolHistoryVisibility(){
-  const showDetail=canViewProtocolHistory();
-  const showMain=canViewMainProtocolHistory();
-  document.querySelectorAll(".protocol-history-private").forEach(el=>{
-    setDisplayIfChanged(el,showDetail ? "" : "none");
-  });
-  document.querySelectorAll(".main-protocol-history-private").forEach(el=>{
-    setDisplayIfChanged(el,showMain ? "" : "none");
-  });
-}
-function updateAdminAppControls(){
-  updateProtocolHistoryVisibility();
-  if(typeof window.updateSzzInstallButtons==="function") window.updateSzzInstallButtons();
-}
+});
+const {
+  compatAuthCurrentUser,
+  syncCurrentUserFromCompat,
+  currentUserEmail,
+  isAllowedLoginEmail,
+  isAppAdmin,
+  canViewProtocolHistory,
+  canViewMainProtocolHistory,
+  canViewAllMainProtocolHistory,
+  updateAdminAppControls
+}=authAccessHelpers;
 window.isAppAdmin=isAppAdmin;
 window.canViewProtocolHistory=canViewProtocolHistory;
 window.canViewMainProtocolHistory=canViewMainProtocolHistory;

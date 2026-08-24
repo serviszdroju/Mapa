@@ -205,6 +205,96 @@ export function setStartupAuthChecking(checking){
   setTextIfChangedLocal(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.");
 }
 
+function emailSet(values=[]){
+  return new Set((Array.isArray(values) ? values : []).map(email=>safeText(email).toLowerCase()).filter(Boolean));
+}
+
+export function createAuthAccessHelpers(options={}){
+  const adminEmailSet=emailSet(options.adminEmails);
+  const allowedEmailSet=emailSet(options.allowedEmails);
+  const protocolHistoryEmailSet=emailSet(options.protocolHistoryEmails);
+  const getCurrentUser=typeof options.getCurrentUser==="function" ? options.getCurrentUser : ()=>null;
+  const setCurrentUser=typeof options.setCurrentUser==="function" ? options.setCurrentUser : ()=>{};
+  const compatAuthGetter=typeof options.getCompatAuthClient==="function" ? options.getCompatAuthClient : getCompatAuthClient;
+  const updateInstallButtons=typeof options.updateInstallButtons==="function" ? options.updateInstallButtons : ()=>{};
+
+  function compatAuthCurrentUser(){
+    try{
+      const client=compatAuthGetter();
+      return client && client.currentUser ? client.currentUser : null;
+    }catch(e){}
+    return null;
+  }
+
+  function syncCurrentUserFromCompat(){
+    const user=compatAuthCurrentUser();
+    if(user) setCurrentUser(user);
+    return user;
+  }
+
+  function currentUserEmail(){
+    const user=getCurrentUser() || syncCurrentUserFromCompat();
+    return safeText(user && user.email).toLowerCase() || lastKnownUserEmail();
+  }
+
+  function isAllowedLoginEmail(email){
+    const normalized=safeText(email).toLowerCase();
+    return normalized.endsWith("@astip.cz") || allowedEmailSet.has(normalized);
+  }
+
+  function isAppAdmin(){
+    const email=currentUserEmail();
+    return !!email && adminEmailSet.has(email);
+  }
+
+  function canViewProtocolHistory(){
+    const email=currentUserEmail();
+    if(!email) return false;
+    return isAllowedLoginEmail(email) || protocolHistoryEmailSet.has(email);
+  }
+
+  function canViewMainProtocolHistory(){
+    const email=currentUserEmail();
+    if(!email) return false;
+    return isAllowedLoginEmail(email) || protocolHistoryEmailSet.has(email);
+  }
+
+  function canViewAllMainProtocolHistory(){
+    const email=currentUserEmail();
+    if(!email) return false;
+    return isAppAdmin() || protocolHistoryEmailSet.has(email);
+  }
+
+  function updateProtocolHistoryVisibility(){
+    const showDetail=canViewProtocolHistory();
+    const showMain=canViewMainProtocolHistory();
+    document.querySelectorAll(".protocol-history-private").forEach(el=>{
+      setDisplayIfChangedLocal(el,showDetail ? "" : "none");
+    });
+    document.querySelectorAll(".main-protocol-history-private").forEach(el=>{
+      setDisplayIfChangedLocal(el,showMain ? "" : "none");
+    });
+  }
+
+  function updateAdminAppControls(){
+    updateProtocolHistoryVisibility();
+    updateInstallButtons();
+  }
+
+  return {
+    compatAuthCurrentUser,
+    syncCurrentUserFromCompat,
+    currentUserEmail,
+    isAllowedLoginEmail,
+    isAppAdmin,
+    canViewProtocolHistory,
+    canViewMainProtocolHistory,
+    canViewAllMainProtocolHistory,
+    updateProtocolHistoryVisibility,
+    updateAdminAppControls
+  };
+}
+
 window.__loadFirebaseCompatScripts=window.__loadFirebaseCompatScripts || loadCompatFirebaseScripts;
 window.rememberKnownSignedIn=rememberKnownSignedIn;
 window.forgetKnownSignedIn=forgetKnownSignedIn;
