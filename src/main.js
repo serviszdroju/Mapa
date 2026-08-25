@@ -375,6 +375,9 @@ import {
   WARRANTY_SELECT_OPTIONS,
   createNewSiteFormFieldHelpers
 } from "./new-site-form-utils.js";
+import {
+  createEditFormHelpers
+} from "./edit-form-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -410,7 +413,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-new-site-form-module-v511";
+const APP_BUILD_VERSION="2026-08-25-edit-form-module-v512";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1911,6 +1914,21 @@ window.captureNormalDetailDrawerShell=captureNormalDetailDrawerShell;
 window.restoreNormalDetailDrawerShell=restoreNormalDetailDrawerShell;
 window.bindDetailShellControls=bindDetailShellControls;
 
+const {
+  recalcEditNextCheck,
+  recalcGpsForEditedAddress,
+  setRegionFieldValue
+}=createEditFormHelpers({
+  addMonths,
+  formatDateCz,
+  geocodeAddressGeneric,
+  getSelectedSite:()=>selectedSite,
+  isoDateFromAny,
+  parseDateValue,
+  periodMonths,
+  safe
+});
+
 function setNewSiteModeTitle(){
   const title=document.getElementById("drawerTitle") || detailTitleNode();
   const sub=document.getElementById("drawerSub") || detailSubNode();
@@ -2066,50 +2084,6 @@ runAfterPaint(()=>{const n=document.getElementById("newName"); if(n){n.focus(); 
   document.getElementById("newSiteStatus").textContent="";
 }
 
-
-function setRegionFieldValue(selector,region,options={}){
-  const clean=safe(region);
-  if(!clean) return;
-  const el=document.querySelector(selector);
-  if(!el) return;
-  if(options.force || !safe(el.value) || el.dataset.autoRegion==="1"){
-    el.value=clean;
-    el.dataset.autoRegion="1";
-  }
-}
-
-function recalcEditNextCheck(){
-  const last=isoDateFromAny(document.getElementById("editLastCheck")?.value);
-  const out=document.getElementById("editNextCheck");
-  if(!out) return;
-  if(!last || !selectedSite){out.value="";return;}
-  const d=parseDateValue(last);
-  const next=addMonths(d, periodMonths(selectedSite));
-  out.value=formatDateCz(next);
-}
-
-async function recalcGpsForEditedAddress(){
-  const st=document.getElementById("editStatus");
-  const address=document.getElementById("editGpsAddress").value.trim();
-  if(!address){
-    st.textContent="Nejdřív vyplň adresu pro GPS.";
-    document.getElementById("editGpsAddress").focus();
-    return;
-  }
-  try{
-    st.textContent="Dopočítávám GPS podle adresy...";
-    const result=await geocodeAddressGeneric(address);
-    if(!result){
-      st.textContent=window.lastGeocodeMessage || "Adresa nebyla nalezena.";
-      return;
-    }
-    document.getElementById("editGpsLat").value=result.lat;
-    document.getElementById("editGpsLon").value=result.lon;
-    st.textContent="GPS doplněno podle adresy.";
-  }catch(e){
-    st.textContent="Chyba při dopočítání GPS: "+e.message;
-  }
-}
 
 async function deleteSelectedSite(){
   const st=document.getElementById("editStatus");

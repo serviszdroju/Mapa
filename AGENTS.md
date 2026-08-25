@@ -808,4 +808,6 @@ Current performance phase 349 decision: continue the monolith split by moving de
 
 Current performance phase 350 decision: continue the monolith split by moving new-site form field specs, DOM rendering, field lookup cache, value collection, region autofill, and inline GPS calculation into `src/new-site-form-utils.js`; preserve the same field order, labels, button ids, autofill behavior, Firebase raw keys, and add-site save flow.
 
+Current performance phase 351 decision: continue the monolith split by moving small edit-form helpers for region field autofill, next-check recalculation, and edited-address GPS lookup into `src/edit-form-utils.js`; preserve the same edit DOM ids, messages, date formatting, selected-site period logic, and GPS field updates.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
