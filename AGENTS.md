@@ -800,4 +800,6 @@ Current performance phase 345 decision: continue the monolith split by moving of
 
 Current performance phase 346 decision: continue the monolith split by moving edit-cache application for normalized rows into `src/row-edit-apply-utils.js`; preserve raw edit overlays, Firebase status raw restoration, GPS overrides, region inference, important-note aliases, map status flags, watch/self-maintained flags, and `window.applySiteEditToRow` behavior.
 
+Current performance phase 347 decision: continue the monolith split by moving raw row normalization into `src/row-normalize-utils.js`; preserve GPS parsing, label/source/contact extraction, inferred control period, region inference, status flags, self-maintained flag, edit-cache application, and `window.normalize`/`window.normalizeSiteRows` behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

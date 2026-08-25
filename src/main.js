@@ -362,6 +362,9 @@ import {
 import {
   createRowEditApplyHelpers
 } from "./row-edit-apply-utils.js";
+import {
+  createRowNormalizeHelpers
+} from "./row-normalize-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -387,7 +390,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-row-edit-apply-module-v505";
+const APP_BUILD_VERSION="2026-08-25-row-normalize-module-v506";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1722,41 +1725,24 @@ const {
   restoreFirebaseMapStatusRawValues,
   stopFlagFromRaw
 });
-function normalize(data){
-  return data.map((raw,i)=>{
-    const lat=num(get(raw,"GPS_lat")), lon=num(get(raw,"GPS_lon"));
-    const adresa=first(raw,["Název","Adresa / umístění","Adresa_GPS","Umístění","Umístění zdroje","Původní adresa / umístění"]);
-    const zdroj=first(raw,["Popis_zdroje","Zdroj","Jaký zdroj"]);
-    const kontakt=first(raw,["Kontakt_mapy","Kontakt","Hlavní kontakt"]);
-    const rawLast=first(raw,LAST_CHECK_KEYS);
-    const rawNext=first(raw,NEXT_CHECK_KEYS);
-    const inferredPeriod=inferControlPeriodMonthsFromDateValues(rawLast,rawNext);
-    if(inferredPeriod) raw["Perioda kontrol"]=String(inferredPeriod);
-    const rawRegion=first(raw,["Kraj","Region","Kraj / oblast"]);
-    const region=canonicalRegionValue(rawRegion) || inferRegionFromAddressText([
-      rawRegion,
-      adresa,
-      first(raw,["Adresa / umístění","Adresa_GPS","Umístění","Umístění zdroje","Původní adresa / umístění"])
-    ].filter(Boolean).join(" "));
-    const r={
-      id:siteId(raw,i), i, raw, lat, lon,
-      gpsAddress:first(raw,["Adresa_GPS","Adresa / umístění","Umístění"]),
-      adresa, zdroj, kontakt,
-      kraj:region || rawRegion,
-      poznamky:first(raw,["Poznámky_mapy","Poznámky","DŮLEŽITÁ POZNÁMKA"]),
-      pristi:first(raw,["Příští_kontrola","Příští plánovaná kontrola","Příští kontrola"]),
-      posledni:first(raw,["Poslední_kontrola","Poslední proběhlá kontrola","Poslední kontrola"]),
-      dni:first(raw,["Dní do kontroly","Dní_do_kontroly"]),
-      stav:first(raw,["Stav_kontroly","Stav pro mapu"]),
-      barva:first(raw,["Barva bodu","Barva_bodu"]),
-      ordered:orderedFlagFromRaw(raw),
-      repairOrdered:repairOrderFlagFromRaw(raw),
-      stopped:stopFlagFromRaw(raw),
-      noOrder:explicitWatchSelfFromRaw(raw)===true
-    };
-    return applyEditToRow(r);
-  });
-}
+const {
+  normalize
+}=createRowNormalizeHelpers({
+  applyEditToRow,
+  canonicalRegionValue,
+  explicitWatchSelfFromRaw,
+  first,
+  get,
+  inferControlPeriodMonthsFromDateValues,
+  inferRegionFromAddressText,
+  lastCheckKeys:LAST_CHECK_KEYS,
+  nextCheckKeys:NEXT_CHECK_KEYS,
+  num,
+  orderedFlagFromRaw,
+  repairOrderFlagFromRaw,
+  siteId,
+  stopFlagFromRaw
+});
 
 window.normalize = normalize;
 window.normalizeSiteRows = normalize;
