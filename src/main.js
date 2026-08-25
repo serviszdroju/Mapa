@@ -300,7 +300,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-login-reset-google-v466";
+const APP_BUILD_VERSION="2026-08-25-login-reset-google-v467";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -671,18 +671,29 @@ if(firebaseReady){
     clearExplicitSignOut();
     primeCompatAuthPersistence();
     const androidAuthBridge=window.SzzAndroidAuth;
-    const androidNativeLoginConfigured=!!(
+    const androidNativeLoginAvailable=!!(
       androidAuthBridge &&
-      typeof androidAuthBridge.startGoogleSignIn==="function" &&
-      typeof androidAuthBridge.isGoogleSignInConfigured==="function" &&
-      androidAuthBridge.isGoogleSignInConfigured()
+      typeof androidAuthBridge.startGoogleSignIn==="function"
     );
+    let androidNativeLoginConfigured=false;
+    if(androidNativeLoginAvailable && typeof androidAuthBridge.isGoogleSignInConfigured==="function"){
+      try{
+        androidNativeLoginConfigured=!!androidAuthBridge.isGoogleSignInConfigured();
+      }catch(e){
+        androidNativeLoginConfigured=false;
+      }
+    }
     if(androidNativeLoginConfigured){
       window.__loginRequested=true;
       clearAuthPending();
       setStartupAuthChecking(true);
       setStartupStatus("Otevírám Android přihlášení Google...");
       androidAuthBridge.startGoogleSignIn();
+      return;
+    }
+    if(androidNativeLoginAvailable){
+      setStartupAuthChecking(false);
+      setStartupStatus("Tato nainstalovaná APK nemá Google OAuth konfiguraci. Přihlášení přes externí stránku jsem zastavil, protože se na tomto tabletu zasekává. Je potřeba sestavit APK s hodnotou SZZ_FIREBASE_GOOGLE_WEB_CLIENT_ID.");
       return;
     }
     const provider=googleRedirectProvider();
@@ -1301,7 +1312,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v466-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v467-runtime";
 
 function szzIsConstrainedDevice(){
   try{
