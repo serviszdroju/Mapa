@@ -218,6 +218,12 @@ import {
 import {
   createSiteFieldLookupHelpers
 } from "./site-field-lookup-utils.js";
+import {
+  cloneLocalStorageArrayEntries,
+  cloneLocalStorageArrayItems,
+  cloneLocalStorageObjectEntries,
+  cloneLocalStorageObjectItem
+} from "./local-storage-clone-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -243,7 +249,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-site-field-lookup-module-v447";
+const APP_BUILD_VERSION="2026-08-25-local-storage-clone-module-v448";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1179,7 +1185,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v447-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v448-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -9065,41 +9071,6 @@ const siteLocalObjectReadCache=new Map();
 const LOCAL_DETAIL_READ_CACHE_MS=1800;
 const siteLocalProtocolHistoryReadCache=new Map();
 const siteOfflinePhotoReadCache=new Map();
-function cloneLocalStorageArrayEntries(entries=[]){
-  const source=Array.isArray(entries) ? entries : [];
-  const out=[];
-  for(const entry of source){
-    out.push({
-      key:entry.key,
-      suffix:entry.suffix,
-      items:Array.isArray(entry.items) ? entry.items.slice() : []
-    });
-  }
-  return out;
-}
-function cloneLocalStorageArrayItems(items=[]){
-  const source=Array.isArray(items) ? items : [];
-  const out=[];
-  for(const item of source){
-    out.push(item && typeof item==="object" ? {...item} : item);
-  }
-  return out;
-}
-function cloneLocalStorageObjectEntries(entries=[]){
-  const source=Array.isArray(entries) ? entries : [];
-  const out=[];
-  for(const entry of source){
-    out.push({
-      key:entry.key,
-      suffix:entry.suffix,
-      item:entry.item && typeof entry.item==="object" ? {...entry.item} : entry.item
-    });
-  }
-  return out;
-}
-function cloneLocalStorageObjectItem(item){
-  return item && typeof item==="object" && !Array.isArray(item) ? {...item} : {};
-}
 function readCachedLocalDetailItems(cache,key,loader){
   const cleanKey=String(key || "");
   if(!cleanKey || typeof loader!=="function") return Promise.resolve([]);
