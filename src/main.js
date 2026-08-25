@@ -159,6 +159,9 @@ import {
   createLegacyEditLoadHelpers
 } from "./legacy-edit-load-utils.js";
 import {
+  createLegacyExtraSiteHelpers
+} from "./legacy-extra-site-utils.js";
+import {
   createRowIdentityHelpers
 } from "./row-identity-utils.js";
 import {
@@ -416,7 +419,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-legacy-edit-load-module-v513";
+const APP_BUILD_VERSION="2026-08-25-legacy-extra-site-module-v514";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1964,78 +1967,28 @@ const {
   setRegionFieldValue
 });
 
-function newSiteToRow(docId, d){
-  const days = d.nextCheck ? daysBetweenToday(d.nextCheck) : "";
-  const raw = {
-    "Název": d.name || "",
-    "Adresa_GPS": d.gpsAddress || "",
-    "Kraj": d.region || "",
-    "Popis_zdroje": d.source || "",
-    "Kontakt_mapy": d.contact || "",
-    "Poznámky_mapy": d.notes || "",
-    "Další informace": d.extra || "",
-    "Vlastní data": d.allData || "",
-    "Příští_kontrola": d.nextCheck || "",
-    "Poslední_kontrola": d.lastCheck || "",
-    "Dní_do_kontroly": days,
-    "Kontrola objednaná": d.ordered ? "ANO" : "NE",
-    "Objednaná oprava": d.repairOrdered ? "ANO" : "NE",
-    "Hlídáme termín sami": d.noOrder ? "ANO" : "NE",
-    "Stav_kontroly": d.repairOrdered ? "Objednaná oprava" : (d.ordered ? "Kontrola objednaná" : (days === "" ? "OK / ostatní" : (days < 0 ? "Propadlá kontrola" : (days <= 30 ? "1–30 dní k termínu" : "OK / ostatní")))),
-    "GPS_lat": d.gpsLat || "",
-    "GPS_lon": d.gpsLon || "",
-    "Zdroj_dat": "Firebase nové místo",
-    "Firebase_doc_id": docId
-  };
-  applyWatchSelfAliases(raw, d.noOrder ? "ano" : raw["Hlídáme termín sami"] || "ne");
-  const r = normalize([raw])[0];
-  r.id = "firebase_site_" + docId;
-  r.isNewSite = true;
-  return applyEditToRow(r);
-}
-
-async function loadExtraSites(options={}){
-  const renderAfter=options.renderAfter!==false;
-  extraSites = [];
-  if(firebaseUnifiedPrimary) return false;
-  if(!firebaseReady || !db) return false;
-  try{
-    const {collection,getDocs}=fb.fsMod;
-    const snap=await getDocs(collection(db,"sites"));
-    snap.forEach(docSnap => extraSites.push(newSiteToRow(docSnap.id, docSnap.data())));
-    rows = csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
-    filters();
-    if(renderAfter){
-      render();
-      return true;
-    }
-    return false;
-  }catch(e){
-    document.getElementById("newSiteStatus").textContent = "Nová místa se nepodařilo načíst: " + e.message;
-    return false;
-  }
-}
-
-
-function populateNewRegionOptions(){
-  const el=document.getElementById("newRegion");
-  if(!el) return;
-  const current=el.value;
-  const regions=typeof window.appRegionOptions==="function" ? window.appRegionOptions() : APP_REGION_OPTIONS.slice();
-  const fragment=document.createDocumentFragment();
-  const placeholder=document.createElement("option");
-  placeholder.value="";
-  placeholder.textContent="Vyber kraj";
-  fragment.appendChild(placeholder);
-  regions.forEach(v=>{
-    const o=document.createElement("option");
-    o.value=v;
-    o.textContent=v;
-    fragment.appendChild(o);
-  });
-  el.replaceChildren(fragment);
-  if(current && regions.includes(current)) el.value=current;
-}
+const {
+  loadExtraSites,
+  newSiteToRow,
+  populateNewRegionOptions
+}=createLegacyExtraSiteHelpers({
+  applyEditToRow,
+  applyWatchSelfAliases,
+  daysBetweenToday,
+  filterControlsReady:filters,
+  getCsvRows:()=>csvRows,
+  getDb:()=>db,
+  getDeletedSiteIds:()=>deletedSiteIds,
+  getFirestoreModule:()=>fb.fsMod,
+  getNewSiteStatusNode:()=>document.getElementById("newSiteStatus"),
+  getRegionOptions:()=>typeof window.appRegionOptions==="function" ? window.appRegionOptions() : APP_REGION_OPTIONS.slice(),
+  isFirebaseReady:()=>firebaseReady,
+  isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
+  normalize,
+  render,
+  setExtraSites:nextSites=>{ extraSites=Array.isArray(nextSites) ? nextSites : []; },
+  setRows:nextRows=>{ window.rows=nextRows; rows=window.rows; }
+});
 
 function openNewSiteForm(){
   restoreNormalDetailDrawerShell();
