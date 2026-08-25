@@ -170,6 +170,28 @@ import {
   runBoundedFirestoreTasks,
   uniqueNonEmptyStrings
 } from "./firestore-query-utils.js";
+import {
+  detailLastCheckNode,
+  detailNextCheckNode,
+  detailSubNode,
+  detailTableNode,
+  detailTitleNode,
+  drawerNode,
+  formFieldNode,
+  gpsBoxNode,
+  gpsCountNode,
+  newSiteCardNode,
+  officialManufacturerSelectNode,
+  officialProtocolDataBoxNode,
+  officialProtocolSourceInfoNode,
+  officialProtocolStatusNode,
+  setInputChecked,
+  setInputValue,
+  setInputValueIfExists,
+  shownCountNode,
+  sidebarListNode,
+  sourceChooserNode
+} from "./form-field-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -195,7 +217,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-24-firestore-query-utils-module-v443";
+const APP_BUILD_VERSION="2026-08-25-form-field-utils-module-v444";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1131,7 +1153,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v443-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v444-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -4187,11 +4209,6 @@ function setMapFocusMode(active){
   document.body.classList.toggle("map-focus-mode", !!active);
   invalidateMapAfterPaint();
 }
-function setInputValueIfExists(selector,value){
-  const el=document.querySelector(selector);
-  const next=String(value ?? "");
-  if(el && el.value!==next) el.value=next;
-}
 function beginManualGpsPick(options={}){
   if(manualGpsPickHandler){
     try{map.off("click",manualGpsPickHandler);}catch(e){}
@@ -6572,77 +6589,6 @@ function clearDetailHistoryCacheForKind(kind,site=selectedSite){
 }
 
 const SITE_RECORD_EQUALITY_FIELDS=["siteId","siteKey","firebaseDocId","siteDocId","siteLegacyId"];
-
-const formFieldNodeCache=new Map();
-function formFieldNode(id){
-  const key=safe(id);
-  if(!key) return null;
-  const cached=formFieldNodeCache.get(key);
-  if(cached && cached.isConnected && cached.id===key) return cached;
-  const el=document.getElementById(key);
-  if(el) formFieldNodeCache.set(key,el);
-  else formFieldNodeCache.delete(key);
-  return el;
-}
-
-function drawerNode(){
-  return formFieldNode("drawer");
-}
-function detailTitleNode(){
-  return formFieldNode("detailTitle");
-}
-function detailSubNode(){
-  return formFieldNode("detailSub");
-}
-function detailTableNode(){
-  return formFieldNode("detailTable");
-}
-function newSiteCardNode(){
-  return formFieldNode("newSiteCard");
-}
-function sourceChooserNode(){
-  return formFieldNode("sourceChooser");
-}
-function detailLastCheckNode(){
-  return formFieldNode("detailLastCheck");
-}
-function detailNextCheckNode(){
-  return formFieldNode("detailNextCheck");
-}
-function officialProtocolStatusNode(){
-  return formFieldNode("officialProtocolStatus");
-}
-function officialProtocolDataBoxNode(){
-  return formFieldNode("officialProtocolDataBox");
-}
-function officialProtocolSourceInfoNode(){
-  return formFieldNode("officialProtocolSourceInfo");
-}
-function officialManufacturerSelectNode(){
-  return formFieldNode("officialManufacturerSelect");
-}
-function sidebarListNode(){
-  return formFieldNode("list");
-}
-function shownCountNode(){
-  return formFieldNode("shownCount");
-}
-function gpsCountNode(){
-  return formFieldNode("gpsCount");
-}
-function gpsBoxNode(){
-  return formFieldNode("gpsBox");
-}
-
-function setInputValue(id,value){
-  const el=formFieldNode(id);
-  const next=String(value ?? "");
-  if(el && el.value!==next) el.value=next;
-}
-function setInputChecked(id,value){
-  const el=formFieldNode(id);
-  if(el && el.checked!==!!value) el.checked=!!value;
-}
 
 function normalizeSealValue(value){
   const n=dataNormFixed(value);
