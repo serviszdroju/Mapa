@@ -374,6 +374,16 @@ const PUBLIC_CSV_DATA_ENABLED=false;
 let firebaseReady = !firebaseConfig.apiKey.includes("VLOZIT");
 const firebaseConfigured = firebaseReady;
 let app, auth, db, mailFunctions=null, mailFunctionsPromise=null, fb={}, currentUser=null;
+let authAccessWaitForFirebaseUser=null;
+let rowLookupKeysImpl=null;
+let selectedSiteDocIdImpl=null;
+let siteRecordKeysImpl=null;
+let siteRecordIdentityImpl=null;
+let siteRecordKeySetImpl=null;
+let siteRecordTextKeysImpl=null;
+let siteRecordNormTextKeysImpl=null;
+let recordMatchTextKeysImpl=null;
+let mergeSiteLocalArrayImpl=null;
 let rows=[], csvRows=[], originalCsvRows=[], extraSites=[], selectedSite=null, addSourceBaseSite=null, editCache={};
 let firebaseUnifiedPrimary = firebaseReady;
 let map=null, layer=null;
@@ -393,11 +403,12 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-google-login-v508";
+const APP_BUILD_VERSION="2026-08-25-google-login-v509";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
 const SZZ_FIREBASE_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
+const SITE_RECORD_EQUALITY_FIELDS=["siteId","siteKey","firebaseDocId","siteDocId","siteLegacyId"];
 const SZZ_OFFLINE_INCREMENTAL_SAFETY_MS=10000;
 const CZECH_OFFLINE_TILE_VERSION="visible-v2";
 const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
@@ -533,12 +544,100 @@ function safeUpdateAdminAppControls(){
 }
 
 function safeWaitForFirebaseUser(timeoutMs=8000){
+  const helper=authAccessWaitForFirebaseUser;
   try{
-    if(typeof waitForFirebaseUser==="function") return waitForFirebaseUser(timeoutMs);
+    if(typeof helper==="function") return helper(timeoutMs);
   }catch(e){
     if(!(e instanceof ReferenceError)) console.warn("Čekání na Firebase uživatele se nepodařilo připravit",e);
   }
   return Promise.resolve(safeSyncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null);
+}
+
+function waitForFirebaseUser(timeoutMs=8000){
+  return safeWaitForFirebaseUser(timeoutMs);
+}
+
+function fallbackRecordKeys(site=selectedSite){
+  if(!site) return [];
+  return uniqueNonEmptyStrings([
+    site.id,
+    site.siteId,
+    site.siteKey,
+    site.firebaseDocId,
+    site.siteDocId,
+    site._id,
+    site._detailKey,
+    site._rowKey
+  ]);
+}
+
+function rowLookupKeys(row){
+  const helper=rowLookupKeysImpl;
+  if(typeof helper==="function") return helper(row);
+  return fallbackRecordKeys(row);
+}
+
+function selectedSiteDocId(site=selectedSite){
+  const helper=selectedSiteDocIdImpl;
+  if(typeof helper==="function") return helper(site);
+  return fallbackRecordKeys(site)[0] || "";
+}
+
+function siteRecordKeys(site=selectedSite){
+  const helper=siteRecordKeysImpl;
+  if(typeof helper==="function") return helper(site);
+  return fallbackRecordKeys(site);
+}
+
+function siteRecordIdentity(site=selectedSite){
+  const helper=siteRecordIdentityImpl;
+  if(typeof helper==="function") return helper(site);
+  return siteRecordKeys(site).join("|");
+}
+
+function siteRecordKeySet(site=selectedSite){
+  const helper=siteRecordKeySetImpl;
+  if(typeof helper==="function") return helper(site);
+  return new Set(siteRecordKeys(site));
+}
+
+function fallbackRecordTextKeys(record=selectedSite){
+  if(!record) return [];
+  return uniqueNonEmptyStrings([
+    record.siteName,
+    record.name,
+    record.Nazev,
+    record["Název"],
+    record.address,
+    record.Adresa,
+    record.place,
+    record.pbzLocation
+  ].map(value=>searchNorm(value)));
+}
+
+function siteRecordTextKeys(site=selectedSite){
+  const helper=siteRecordTextKeysImpl;
+  if(typeof helper==="function") return helper(site);
+  return fallbackRecordTextKeys(site);
+}
+
+function siteRecordNormTextKeys(site=selectedSite){
+  const helper=siteRecordNormTextKeysImpl;
+  if(typeof helper==="function") return helper(site);
+  return siteRecordTextKeys(site);
+}
+
+function recordMatchTextKeys(record){
+  const helper=recordMatchTextKeysImpl;
+  if(typeof helper==="function") return helper(record);
+  return fallbackRecordTextKeys(record);
+}
+
+function mergeSiteLocalArray(...args){
+  const helper=mergeSiteLocalArrayImpl;
+  if(typeof helper==="function") return helper(...args);
+  const items=args[1];
+  return Array.isArray(items) ? items.slice() : [];
 }
 
 function invalidateMapAfterPaint(){
@@ -1693,8 +1792,9 @@ const {
   canViewMainProtocolHistory,
   canViewAllMainProtocolHistory,
   updateAdminAppControls,
-  waitForFirebaseUser
+  waitForFirebaseUser:resolvedWaitForFirebaseUser
 }=authAccessHelpers;
+authAccessWaitForFirebaseUser=resolvedWaitForFirebaseUser;
 window.isAppAdmin=isAppAdmin;
 window.canViewProtocolHistory=canViewProtocolHistory;
 window.canViewMainProtocolHistory=canViewMainProtocolHistory;
@@ -2899,11 +2999,11 @@ installRowsWindowBridge();
 installSelectedSiteWindowBridge();
 
 const {
-  rowLookupKeys,
-  selectedSiteDocId,
-  siteRecordKeys,
-  siteRecordIdentity,
-  siteRecordKeySet
+  rowLookupKeys:resolvedRowLookupKeys,
+  selectedSiteDocId:resolvedSelectedSiteDocId,
+  siteRecordKeys:resolvedSiteRecordKeys,
+  siteRecordIdentity:resolvedSiteRecordIdentity,
+  siteRecordKeySet:resolvedSiteRecordKeySet
 }=createRowIdentityHelpers({
   getSelectedSite:()=>selectedSite,
   detailKey,
@@ -2911,15 +3011,23 @@ const {
   siteSourceIdentity,
   uniqueNonEmptyStrings
 });
+rowLookupKeysImpl=resolvedRowLookupKeys;
+selectedSiteDocIdImpl=resolvedSelectedSiteDocId;
+siteRecordKeysImpl=resolvedSiteRecordKeys;
+siteRecordIdentityImpl=resolvedSiteRecordIdentity;
+siteRecordKeySetImpl=resolvedSiteRecordKeySet;
 window.selectedSiteDocId=selectedSiteDocId;
 const {
-  siteRecordTextKeys,
-  siteRecordNormTextKeys,
-  recordMatchTextKeys
+  siteRecordTextKeys:resolvedSiteRecordTextKeys,
+  siteRecordNormTextKeys:resolvedSiteRecordNormTextKeys,
+  recordMatchTextKeys:resolvedRecordMatchTextKeys
 }=createRecordTextHelpers({
   getSelectedSite:()=>selectedSite,
   searchNorm
 });
+siteRecordTextKeysImpl=resolvedSiteRecordTextKeys;
+siteRecordNormTextKeysImpl=resolvedSiteRecordNormTextKeys;
+recordMatchTextKeysImpl=resolvedRecordMatchTextKeys;
 const {
   recordSourceIdentity,
   recordSourceMatchesSite
@@ -5667,8 +5775,6 @@ function clearDetailHistoryCacheForKind(kind,site=selectedSite){
   if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearLastProtocolCache(site);
   if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearMainProtocolHistoryCache();
 }
-
-const SITE_RECORD_EQUALITY_FIELDS=["siteId","siteKey","firebaseDocId","siteDocId","siteLegacyId"];
 
 function normalizeSealValue(value){
   const n=dataNormFixed(value);
@@ -8468,7 +8574,7 @@ window.addEventListener("storage",()=>{
 });
 const {
   appendSiteLocalArray,
-  mergeSiteLocalArray,
+  mergeSiteLocalArray:resolvedMergeSiteLocalArray,
   removeLocalStorageArrayItemByKey,
   removeSiteLocalItem,
   writeSiteLocalObject
@@ -8486,6 +8592,7 @@ const {
   szzArrayWithoutItemId,
   uniqueNonEmptyStrings
 });
+mergeSiteLocalArrayImpl=resolvedMergeSiteLocalArray;
 window.mergeSiteLocalArray=mergeSiteLocalArray;
 
 const {
