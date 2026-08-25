@@ -381,7 +381,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-app-prepare-module-v501";
+const APP_BUILD_VERSION="2026-08-25-auth-resume-v502";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -395,6 +395,26 @@ const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
   const hasUser=!!(window.currentUser || window.__authReadyUser);
+  const canResumeKnownSession=!hasUser && !explicitSignOutPending() && knownSignedIn();
+  if(canResumeKnownSession){
+    window.__szzFastShellShown=true;
+    window.__mapAppUnlocked=true;
+    try{document.documentElement.classList.add("auth-resume");}catch(e){}
+    if(typeof window.__szzSetAuthState==="function"){
+      window.__szzSetAuthState("logged-in",{message:message || "Obnovuji přihlášení..."});
+    }else{
+      const startup=document.getElementById("startupScreen");
+      const appEl=document.getElementById("mainApp");
+      const topLogout=document.getElementById("topLogoutBtn");
+      const progress=document.getElementById("progress");
+      setDisplayIfChanged(startup,"none");
+      setDisplayIfChanged(appEl,"grid");
+      setDisplayIfChanged(topLogout,"block");
+      setTextIfChanged(progress,message || "Obnovuji přihlášení...");
+    }
+    if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+    return;
+  }
   if(!hasUser){
     if(typeof window.__szzSetAuthState==="function"){
       window.__szzSetAuthState("logged-out",{message:""});
@@ -726,36 +746,27 @@ if(firebaseReady){
     return authMod.browserPopupRedirectResolver || undefined;
   }
   function signInWithGooglePopup(provider){
+    const compatClient=getCompatAuthClient();
+    if(compatClient && provider && compatClient.signInWithPopup) return compatClient.signInWithPopup(provider);
     if(auth && authMod.signInWithPopup){
       const resolver=redirectResolver();
       if(resolver) return authMod.signInWithPopup(auth,provider,resolver);
       return authMod.signInWithPopup(auth,provider);
     }
-    const compatClient=getCompatAuthClient();
-    if(compatClient && provider && compatClient.signInWithPopup) return compatClient.signInWithPopup(provider);
     return Promise.reject(new Error("Firebase Auth není dostupný."));
   }
   function signInWithGoogleRedirect(provider){
+    const compatClient=getCompatAuthClient();
+    if(compatClient && provider && compatClient.signInWithRedirect) return compatClient.signInWithRedirect(provider);
     if(auth && authMod.signInWithRedirect){
       const resolver=redirectResolver();
       if(resolver) return authMod.signInWithRedirect(auth,provider,resolver);
       return authMod.signInWithRedirect(auth,provider);
     }
-    const compatClient=getCompatAuthClient();
-    if(compatClient && provider && compatClient.signInWithRedirect) return compatClient.signInWithRedirect(provider);
     return Promise.reject(new Error("Firebase Auth není dostupný."));
   }
   async function googleRedirectResultUser(){
     await primeCompatAuthPersistence();
-    if(authMod.getRedirectResult && auth){
-      try{
-        const resolver=redirectResolver();
-        const result=resolver ? await authMod.getRedirectResult(auth,resolver) : await authMod.getRedirectResult(auth);
-        if(result && result.user) return result.user;
-      }catch(e){
-        console.warn("Redirect výsledek přihlášení se nepodařilo načíst",e);
-      }
-    }
     const compatClient=getCompatAuthClient();
     if(compatClient && compatClient.getRedirectResult){
       try{
@@ -763,6 +774,15 @@ if(firebaseReady){
         if(result && result.user) return result.user;
       }catch(e){
         console.warn("Compat redirect výsledek přihlášení se nepodařilo načíst",e);
+      }
+    }
+    if(authMod.getRedirectResult && auth){
+      try{
+        const resolver=redirectResolver();
+        const result=resolver ? await authMod.getRedirectResult(auth,resolver) : await authMod.getRedirectResult(auth);
+        if(result && result.user) return result.user;
+      }catch(e){
+        console.warn("Redirect výsledek přihlášení se nepodařilo načíst",e);
       }
     }
     return currentAuthCandidate();
@@ -781,6 +801,8 @@ if(firebaseReady){
     }
   }
   function googleRedirectProvider(){
+    const compatProvider=compatGoogleProvider();
+    if(compatProvider) return compatProvider;
     if(authMod && authMod.GoogleAuthProvider){
       const provider=new authMod.GoogleAuthProvider();
       provider.addScope("email");
@@ -788,8 +810,6 @@ if(firebaseReady){
       provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
       return provider;
     }
-    const compatProvider=compatGoogleProvider();
-    if(compatProvider) return compatProvider;
     return null;
   }
   function setSignedUser(user){
@@ -816,7 +836,8 @@ if(firebaseReady){
     primeCompatAuthPersistence();
     const provider=googleRedirectProvider();
     try{
-      clearAuthPending();
+      setAuthPending("login");
+      try{document.documentElement.classList.add("auth-resume");}catch(e){}
       window.__loginRequested=true;
       setStartupStatus("Otevírám Google přihlášení...");
       const activeEmail=String(currentAuthCandidate()?.email || "").toLowerCase();
@@ -830,7 +851,10 @@ if(firebaseReady){
         const restored=await waitForAuthCandidate(5000);
         if(restored) await handleAuthorizedUser(restored);
         else{
+          clearAuthPending();
+          if(!knownSignedIn()) try{document.documentElement.classList.remove("auth-resume");}catch(e){}
           setStartupAuthChecking(false);
+          showLogin();
           setStartupStatus("Google přihlášení se zavřelo bez dokončení. Zkus tlačítko znovu a vyber účet @astip.cz.");
         }
       }
@@ -851,15 +875,23 @@ if(firebaseReady){
           return;
         }catch(redirectError){
           clearAuthPending();
+          if(!knownSignedIn()) try{document.documentElement.classList.remove("auth-resume");}catch(e){}
           setStartupAuthChecking(false);
+          showLogin();
           setStartupStatus("Přihlášení selhalo: " + authErrorText(redirectError));
           return;
         }
       }
       clearAuthPending();
+      if(!knownSignedIn()) try{document.documentElement.classList.remove("auth-resume");}catch(e){}
       setStartupAuthChecking(false);
+      showLogin();
       setStartupStatus("Přihlášení selhalo: " + authErrorText(e));
     }
+  }
+  function startGoogleLoginFromUi(event){
+    if(event && typeof event.preventDefault==="function") event.preventDefault();
+    return startFirebaseRedirectLogin();
   }
   async function signOutFirebase(){
     try{
@@ -932,12 +964,19 @@ if(firebaseReady){
   function keepAppOpenDuringAuthRestore(message){
     if(explicitSignOutPending()) return false;
     setStartupAuthChecking(false);
-    try{document.documentElement.classList.remove("auth-resume");}catch(e){}
-    showLogin();
+    try{document.documentElement.classList.add("auth-resume");}catch(e){}
+    showApp({allowWithoutUser:true});
     const topLogoutBtn=document.getElementById("topLogoutBtn");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
-    setDisplayIfChanged(topLogoutBtn,"none");
-    setStartupStatus(message || "Přihlášení se obnovuje. Přihlas se e-mailem a heslem.");
+    setDisplayIfChanged(topLogoutBtn,"block");
+    setProgressStatus(message || "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+    runWhenIdle(()=>{
+      try{
+        if(typeof window.loadFirebaseSitesUnified==="function"){
+          window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true});
+        }
+      }catch(e){}
+    },200);
     scheduleBackgroundAuthRetry();
     return true;
   }
@@ -1191,14 +1230,16 @@ if(firebaseReady){
       return;
     }
     clearSignedUser();
-    keepAppOpenDuringAuthRestore("Nejsi přihlášený k Firebase. Servisní data se načtou po přihlášení; případná lokální cache se použije jen pro dříve přihlášené zařízení.");
+    showLogin();
+    setStartupStatus("Nejsi přihlášený k Firebase. Servisní data se načtou po přihlášení; případná lokální cache se použije jen pro dříve přihlášené zařízení.");
   }
 
-  window.__startFirebaseRedirectLogin=startFirebaseRedirectLogin;
+  window.__startFirebaseRedirectLogin=startGoogleLoginFromUi;
   window.__signOutFirebase=signOutFirebase;
-  window.startFirebaseGoogleLogin=startFirebaseRedirectLogin;
-  if(typeof window.startGoogleLogin!=="function") window.startGoogleLogin=window.loginPopup || startFirebaseRedirectLogin;
-  if(typeof window.loginPopup!=="function") window.loginPopup=window.startGoogleLogin || startFirebaseRedirectLogin;
+  window.startFirebaseGoogleLogin=startGoogleLoginFromUi;
+  window.startGoogleLogin=startGoogleLoginFromUi;
+  window.loginPopup=startGoogleLoginFromUi;
+  window.__startCompatGoogleLoginFallback=startGoogleLoginFromUi;
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
 
   try{
@@ -10275,9 +10316,10 @@ function fixMapView(){
   }
 }
 
-function showApp(){
+function showApp(options={}){
+  const allowWithoutUser=!!(options && options.allowWithoutUser);
   const hasUser=!!(currentUser || window.currentUser || window.__authReadyUser);
-  if(!hasUser){
+  if(!hasUser && !allowWithoutUser){
     window.__mapAppUnlocked=false;
     showLogin();
     return;
@@ -10287,6 +10329,12 @@ function showApp(){
   window.__mapAppUnlocked=true;
   if(typeof window.__szzSetAuthState==="function"){
     window.__szzSetAuthState("logged-in");
+    const topLogout=document.getElementById("topLogoutBtn");
+    if(topLogout){
+      if(window.setTopAuthButtonMode) window.setTopAuthButtonMode(hasUser ? "logout" : "login");
+      const canTryLogin=hasUser || firebaseReady || window.__firebaseConfigured || !!(window.firebase && window.firebase.auth);
+      setDisplayIfChanged(topLogout,canTryLogin ? "block" : "none");
+    }
   }else{
     const startup=document.getElementById("startupScreen");
     const app=document.getElementById("mainApp");
@@ -10296,8 +10344,9 @@ function showApp(){
     setDisplayIfChanged(app,"grid");
     setDisplayIfChanged(loginRow,"none");
     if(topLogout){
-      if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("logout");
-      setDisplayIfChanged(topLogout,"block");
+      if(window.setTopAuthButtonMode) window.setTopAuthButtonMode(hasUser ? "logout" : "login");
+      const canTryLogin=hasUser || firebaseReady || window.__firebaseConfigured || !!(window.firebase && window.firebase.auth);
+      setDisplayIfChanged(topLogout,canTryLogin ? "block" : "none");
     }
   }
   runAfterTwoPaints(()=>{ if(window.mobileFixMap) window.mobileFixMap(); if(window.map) window.map.invalidateSize(true); });
