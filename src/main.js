@@ -404,6 +404,9 @@ import {
 import {
   createRowFastIndexHelpers
 } from "./row-fast-index-utils.js";
+import {
+  createPlaceGroupHelpers
+} from "./place-group-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -439,7 +442,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-filter-logic-module-v522";
+const APP_BUILD_VERSION="2026-08-25-place-group-module-v523";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2188,97 +2191,28 @@ const {
 });
 window.sitePlaceLabel=sitePlaceLabel;
 window.sitePlaceGroupKey=sitePlaceGroupKey;
-function sortedRowsBySourceLabel(items=[]){
-  return (items || []).slice().sort((a,b)=>szzCompareCsBase(siteSourceLabel(a),siteSourceLabel(b)));
-}
-function cachedRowsByPlaceGroup(key,pool=rows){
-  const sourceRows=Array.isArray(pool) ? pool : [];
-  if(!key) return [];
-  if(sourceRows!==rows){
-    const matches=[];
-    for(const row of sourceRows){
-      if(sitePlaceGroupKey(row)===key) matches.push(row);
-    }
-    return sortedRowsBySourceLabel(matches);
-  }
-  if(
-    !siteRowsByPlaceGroupCache
-    || siteRowsByPlaceGroupCache.rowsRef!==rows
-    || siteRowsByPlaceGroupCache.version!==rowsIndexVersion
-  ){
-    const map=new Map();
-    for(const row of rows){
-      const groupKey=sitePlaceGroupKey(row);
-      if(!map.has(groupKey)) map.set(groupKey,[]);
-      map.get(groupKey).push(row);
-    }
-    for(const [groupKey,items] of map){
-      map.set(groupKey,sortedRowsBySourceLabel(items));
-    }
-    siteRowsByPlaceGroupCache={rowsRef:rows,version:rowsIndexVersion,map};
-  }
-  return siteRowsByPlaceGroupCache.map.get(key) || [];
-}
-function siteSiblingRows(site,pool=rows){
-  const key=sitePlaceGroupKey(site);
-  return cachedRowsByPlaceGroup(key,pool);
-}
-function uncachedHasMultipleSourcesForKey(key){
-  if(!key) return false;
-  let count=0;
-  for(const row of rows){
-    if(sitePlaceGroupKey(row)===key && ++count>1) return true;
-  }
-  return false;
-}
-function siteHasMultipleSources(site){
-  const key=sitePlaceGroupKey(site);
-  if(!site || typeof site!=="object"){
-    return cachedRowsByPlaceGroup(key).length>1;
-  }
-  if(
-    !rowsIndexDirty
-    && site._multiSourceVersion===rowsIndexVersion
-    && site._multiSourcePlaceKey===key
-    && typeof site._multiSourceCache==="boolean"
-  ){
-    return site._multiSourceCache;
-  }
-  const hasMultiple=rowsIndexDirty
-    ? uncachedHasMultipleSourcesForKey(key)
-    : cachedRowsByPlaceGroup(key).length>1;
-  if(!rowsIndexDirty){
-    site._multiSourceVersion=rowsIndexVersion;
-    site._multiSourcePlaceKey=key;
-    site._multiSourceCache=hasMultiple;
-  }
-  return hasMultiple;
-}
-function statusPriority(r){
-  const cached=ensureRowScheduleCache(r);
-  return cached ? cached.priority : 10;
-}
-function groupRepresentative(groupRows){
-  const rowsList=groupRows || [];
-  if(rowsList._szzRepresentativeRow) return rowsList._szzRepresentativeRow;
-  const representative=rowsList.slice().sort((a,b)=>{
-    const pa=statusPriority(a), pb=statusPriority(b);
-    if(pb!==pa) return pb-pa;
-    return (daysToComputedNext(a)??999999)-(daysToComputedNext(b)??999999);
-  })[0];
-  if(representative){
-    try{
-      Object.defineProperty(rowsList,"_szzRepresentativeRow",{value:representative,configurable:true});
-    }catch(e){
-      rowsList._szzRepresentativeRow=representative;
-    }
-  }
-  return representative;
-}
-function groupColor(groupRows){
-  const rep=groupRepresentative(groupRows);
-  return rep ? color(rep) : "#16a34a";
-}
+const {
+  cachedRowsByPlaceGroup,
+  groupColor,
+  groupRepresentative,
+  siteHasMultipleSources,
+  siteSiblingRows,
+  sortedRowsBySourceLabel,
+  statusPriority,
+  uncachedHasMultipleSourcesForKey
+}=createPlaceGroupHelpers({
+  color,
+  daysToComputedNext,
+  ensureRowScheduleCache,
+  getPlaceGroupCache:()=>siteRowsByPlaceGroupCache,
+  getRows:()=>rows,
+  getRowsIndexDirty:()=>rowsIndexDirty,
+  getRowsIndexVersion:()=>rowsIndexVersion,
+  setPlaceGroupCache:nextCache=>{ siteRowsByPlaceGroupCache=nextCache; },
+  sitePlaceGroupKey,
+  siteSourceLabel,
+  szzCompareCsBase
+});
 const {
   mapStatusParitySnapshot
 }=createMapStatusParityHelpers({
