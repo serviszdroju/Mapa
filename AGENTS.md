@@ -736,4 +736,6 @@ Current performance phase 313 decision: continue the monolith split by moving ma
 
 Current performance phase 314 decision: continue the monolith split by moving main protocol history visible-row preparation and render-key creation into `src/main-protocol-history-view-utils.js`; keep DOM rendering and event binding in `src/main.js` while preserving filtering, admin/user visibility, metadata text, and row signatures.
 
+Current performance phase 315 decision: continue the monolith split by moving the reusable protocol processed/handoff array patch helper into `src/protocol-workflow-utils.js`; preserve processed and handoff state updates across localStorage, IndexedDB queues, Firebase caches, selected-site data, and visible protocol history lists.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

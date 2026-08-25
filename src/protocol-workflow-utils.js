@@ -61,6 +61,19 @@ export function createProtocolWorkflowHelpers({
     };
   }
 
+  function patchProtocolProcessedItems(items,cleanId,patch,includeIdFallback=true){
+    const source=Array.isArray(items) ? items : [];
+    let next=null;
+    for(let i=0;i<source.length;i++){
+      const item=source[i];
+      const itemId=includeIdFallback ? safe(item && (item._id || item.id)) : safe(item && item._id);
+      if(itemId!==cleanId) continue;
+      if(!next) next=source.slice();
+      next[i]={...item,...patch};
+    }
+    return next || source;
+  }
+
   return {
     isMainProtocolProcessed,
     mainProtocolControlDateIso,
@@ -69,6 +82,7 @@ export function createProtocolWorkflowHelpers({
     mainProtocolProcessedLocalPatch,
     mainProtocolProcessedRemotePatch,
     mainProtocolWorkflowLabel,
-    mainProtocolWorkflowState
+    mainProtocolWorkflowState,
+    patchProtocolProcessedItems
   };
 }

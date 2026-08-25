@@ -312,7 +312,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-main-protocol-history-view-module-v468";
+const APP_BUILD_VERSION="2026-08-25-protocol-processed-patch-module-v469";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11230,7 +11230,8 @@ const {
   mainProtocolProcessedLocalPatch,
   mainProtocolProcessedRemotePatch,
   mainProtocolWorkflowLabel,
-  mainProtocolWorkflowState
+  mainProtocolWorkflowState,
+  patchProtocolProcessedItems
 }=createProtocolWorkflowHelpers({
   currentUserEmail,
   protocolHandoffForProcessing,
@@ -11258,18 +11259,6 @@ const {
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
 });
-function patchProtocolProcessedItems(items,cleanId,patch,includeIdFallback=true){
-  const source=Array.isArray(items) ? items : [];
-  let next=null;
-  for(let i=0;i<source.length;i++){
-    const item=source[i];
-    const itemId=includeIdFallback ? safe(item && (item._id || item.id)) : safe(item && item._id);
-    if(itemId!==cleanId) continue;
-    if(!next) next=source.slice();
-    next[i]={...item,...patch};
-  }
-  return next || source;
-}
 
 function updateLocalProtocolHistoryProcessed(id,checked){
   const cleanId=safe(id);
