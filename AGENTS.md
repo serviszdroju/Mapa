@@ -174,6 +174,8 @@ Current logo/icon decision: Android/PWA launcher icons must be generated directl
 
 Current mobile/detail workflow decision: the visible SZZ logo in the left web panel must not have a grey field; it should fill its existing logo area without distortion. Grey treatment belongs only to installed/tablet app icons. Map markers for sources in Stop Stav must be grey, not red. Detail tabs must fit on one row as compact grey buttons with the active tab white, ordered Detail, Protokol, Galerie, Doklad, Přílohy. The protocol handoff control belongs under the saved protocol history actions after "Poslat na mail", not inside the protocol form.
 
+Current authentication decision: web and installed Android/WebView app must use one shared startup login flow only: a visible introductory screen with a single Google account button for `@astip.cz`. Do not reintroduce e-mail/password fields, Firebase redirect handler login, or a technician login form in the left map panel.
+
 Current performance phase 76 decision: cache the sorted, capped sidebar place-group list for the current grouped-row signature so repeated sidebar refreshes reuse the same top 160 groups without re-sorting the full group array, while preserving ordering, DOM structure, and visible list limit.
 
 Current performance phase 77 decision: cache per-site record-key Sets and normalized text match arrays by the already-cached key-array reference instead of rebuilding stable signatures on every legacy `recordMatchesSite()` call, preserving the same identifier and text matching coverage.
