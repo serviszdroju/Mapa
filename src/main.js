@@ -247,9 +247,6 @@ import {
   createProtocolDraftStorageHelpers
 } from "./protocol-draft-storage-utils.js";
 import {
-  withLocalPhotoStore
-} from "./offline-photo-db-utils.js";
-import {
   clearLocalDetailReadCache,
   readCachedLocalDetailItems as readCachedLocalDetailItemsFromCache
 } from "./local-detail-cache-utils.js";
@@ -275,6 +272,9 @@ import {
 import {
   createOfflinePhotoItemHelpers
 } from "./offline-photo-item-utils.js";
+import {
+  createOfflinePhotoQueueHelpers
+} from "./offline-photo-queue-utils.js";
 import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
@@ -340,7 +340,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-photo-item-module-v484";
+const APP_BUILD_VERSION="2026-08-25-offline-photo-queue-module-v485";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11893,6 +11893,32 @@ const {
 });
 
 const {
+  clearOfflinePhotoAllReadCache,
+  readAllOfflinePhotoItems,
+  readOfflinePhotoItems,
+  removeOfflinePhotoItem,
+  saveOfflinePhotoItem
+}=createOfflinePhotoQueueHelpers({
+  appendSiteLocalArray,
+  clearLocalDetailReadCacheForKind,
+  cloneOfflinePhotoItems,
+  collectDisplayablePhotoItemsFromLists,
+  collectPendingOfflinePhotoItems,
+  displayablePhotoItems,
+  getDefaultSite:()=>selectedSite,
+  invalidateOfflinePhotoCountCache:()=>invalidateOfflinePhotoCountCache(),
+  localStorageArrayEntries,
+  readCachedLocalDetailItems,
+  readSiteLocalArray,
+  removeLocalStorageArrayItemByKey,
+  removeSiteLocalItem,
+  safeValue:safe,
+  siteLocalCacheKey,
+  siteLocalDetailReadCacheKey,
+  siteOfflinePhotoReadCache
+});
+
+const {
   cloudinaryPhotoFolderPath,
   photoFolderName,
   photoFolderNameFingerprint,
@@ -11963,43 +11989,6 @@ function setSitePhotosStatusText(text){
   setTextIfChanged(sitePhotosStatusNode(),text);
 }
 
-async function saveOfflinePhotoItem(item,site=selectedSite){
-  const payload={...item,siteCacheKey:siteLocalCacheKey("photos",site)};
-  try{
-    await withLocalPhotoStore("readwrite",(store)=>{store.put(payload);});
-  }catch(e){
-    appendSiteLocalArray("offlinePhotos",payload,site,50);
-  }
-  clearLocalDetailReadCacheForKind("photos",site);
-  invalidateOfflinePhotoCountCache();
-  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
-  if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("photo");
-  return payload;
-}
-
-async function computeOfflinePhotoItems(site=selectedSite){
-  const cacheKey=siteLocalCacheKey("photos",site);
-  const fallback=readSiteLocalArray("offlinePhotos",site);
-  try{
-    const items=await withLocalPhotoStore("readonly",(store,setResult)=>{
-      const req=store.index("siteCacheKey").getAll(cacheKey);
-      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
-      req.onerror=()=>setResult([]);
-    });
-    return collectDisplayablePhotoItemsFromLists([items,fallback]);
-  }catch(e){
-    return displayablePhotoItems(fallback);
-  }
-}
-
-async function readOfflinePhotoItems(site=selectedSite){
-  const cacheKey=siteLocalDetailReadCacheKey("photos",site);
-  return readCachedLocalDetailItems(siteOfflinePhotoReadCache,cacheKey,()=>computeOfflinePhotoItems(site));
-}
-
-const OFFLINE_PHOTO_ALL_READ_CACHE_MS=1200;
-let offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
-
 function countPendingOfflineProtocolEntries(entries=[]){
   const byId=new Set();
   let withoutId=0;
@@ -12014,68 +12003,6 @@ function countPendingOfflineProtocolEntries(entries=[]){
     }
   }
   return byId.size+withoutId;
-}
-
-function clearOfflinePhotoAllReadCache(){
-  offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
-}
-
-async function removeOfflinePhotoItem(id,site=selectedSite,sourceItem=null){
-  const cleanId=safe(id);
-  if(!cleanId) return;
-  try{
-    await withLocalPhotoStore("readwrite",(store)=>{store.delete(cleanId);});
-  }catch(e){}
-  removeSiteLocalItem("offlinePhotos",cleanId,site);
-  const explicitCacheKey=safe(sourceItem && sourceItem.siteCacheKey);
-  if(explicitCacheKey){
-    removeLocalStorageArrayItemByKey(explicitCacheKey.replace("astipMap:photos:","astipMap:offlinePhotos:"),cleanId);
-  }
-  clearLocalDetailReadCacheForKind("photos",site);
-  invalidateOfflinePhotoCountCache();
-  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
-}
-
-async function computeAllOfflinePhotoItems(){
-  const fallback=[];
-  const entries=localStorageArrayEntries("astipMap:offlinePhotos:");
-  for(const entry of entries){
-    const siteCacheKey=entry.key.replace("astipMap:offlinePhotos:","astipMap:photos:");
-    const items=Array.isArray(entry.items) ? entry.items : [];
-    for(const item of items){
-      if(item) fallback.push({...item,siteCacheKey:item.siteCacheKey || siteCacheKey});
-    }
-  }
-  let indexed=[];
-  try{
-    indexed=await withLocalPhotoStore("readonly",(store,setResult)=>{
-      const req=store.getAll();
-      req.onsuccess=()=>setResult(Array.isArray(req.result) ? req.result : []);
-      req.onerror=()=>setResult([]);
-    });
-  }catch(e){}
-  return collectPendingOfflinePhotoItems([indexed,fallback]);
-}
-
-async function readAllOfflinePhotoItems(){
-  const now=Date.now();
-  if(Array.isArray(offlinePhotoAllReadCache.items) && now-offlinePhotoAllReadCache.savedAt<OFFLINE_PHOTO_ALL_READ_CACHE_MS){
-    return cloneOfflinePhotoItems(offlinePhotoAllReadCache.items);
-  }
-  if(offlinePhotoAllReadCache.promise){
-    return cloneOfflinePhotoItems(await offlinePhotoAllReadCache.promise);
-  }
-  offlinePhotoAllReadCache.promise=computeAllOfflinePhotoItems()
-    .then(items=>{
-      const cloned=cloneOfflinePhotoItems(items);
-      offlinePhotoAllReadCache={savedAt:Date.now(),items:cloned,promise:null};
-      return cloned;
-    })
-    .catch(e=>{
-      offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
-      throw e;
-    });
-  return cloneOfflinePhotoItems(await offlinePhotoAllReadCache.promise);
 }
 
 let offlinePhotoSyncRunning=false;
