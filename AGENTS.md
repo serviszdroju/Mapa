@@ -752,4 +752,6 @@ Current performance phase 321 decision: continue the monolith split by moving ca
 
 Current performance phase 322 decision: continue the monolith split by moving the local/offline record id generator into `src/core-utils.js`; preserve the same `crypto.randomUUID()` path and timestamp/random fallback used by offline protocols and photos.
 
+Current performance phase 323 decision: continue the monolith split by moving site-local array/object mutation helpers into `src/site-local-storage-utils.js`; preserve the same selected-site default, identity enrichment, duplicate `_id` replacement, size limits, localStorage writes, cache remembering, and detail/history invalidation callbacks.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

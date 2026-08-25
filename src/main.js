@@ -229,7 +229,8 @@ import {
   createSiteLocalKeyHelpers
 } from "./site-local-key-utils.js";
 import {
-  createSiteLocalStorageHelpers
+  createSiteLocalStorageHelpers,
+  createSiteLocalStorageMutationHelpers
 } from "./site-local-storage-utils.js";
 import {
   clearLocalDetailReadCache,
@@ -319,7 +320,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-local-record-id-helper-module-v476";
+const APP_BUILD_VERSION="2026-08-25-site-local-storage-mutations-module-v477";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -8989,124 +8990,26 @@ window.addEventListener("storage",()=>{
   clearLocalStorageObjectEntriesCache();
   clearLocalDetailReadCaches();
 });
-function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
-  try{
-    const arr=readSiteLocalArray(kind,site);
-    const id=safe(item && item._id);
-    const identity=site && item && typeof item==="object" ? siteRecordIdentity(site) : null;
-    const enrichedItem=identity ? {
-      ...item,
-      siteId:safe(item.siteId) || identity.siteId,
-      siteLegacyId:safe(item.siteLegacyId) || identity.siteLegacyId,
-      siteDocId:safe(item.siteDocId) || identity.siteDocId,
-      firebaseDocId:safe(item.firebaseDocId) || identity.firebaseDocId,
-      siteKey:safe(item.siteKey) || identity.siteKey,
-      siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...identity.siteKeys]),
-      sourceGroupKey:safe(item.sourceGroupKey) || identity.sourceGroupKey,
-      sourceIdentity:safe(item.sourceIdentity) || identity.sourceIdentity,
-      siteName:safe(item.siteName) || identity.siteName,
-      siteAddress:safe(item.siteAddress) || identity.siteAddress,
-      siteSource:safe(item.siteSource) || identity.siteSource
-    } : {...item};
-    let next=szzArrayWithoutItemId(arr,id,safe);
-    next.push(enrichedItem);
-    if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
-    const key=siteLocalCacheKey(kind,site);
-    const raw=JSON.stringify(next);
-    localStorage.setItem(key,raw);
-    clearLocalStorageArrayEntriesCache(key);
-    rememberSiteLocalArrayReadCache(key,next,raw);
-    clearDetailHistoryCacheForKind(kind,site);
-  }catch(e){
-    console.warn("Lokální cache se nepodařila uložit",kind,e);
-  }
-}
-
-function mergeSiteLocalArray(kind,items=[],site=selectedSite,limit=120){
-  try{
-    const cleanKind=safe(kind);
-    if(!cleanKind) return [];
-    const incoming=Array.isArray(items) ? items : [];
-    const identity=siteRecordIdentity(site);
-    const enrichedItems=[];
-    const incomingIds=new Set();
-    const lastIncomingIndexById=new Map();
-    for(let idx=0;idx<incoming.length;idx++){
-      const item=incoming[idx];
-      if(!item || typeof item!=="object") continue;
-      const id=safe(item._id || item.id) || `${cleanKind}_${Date.now()}_${idx}`;
-      const enriched={
-        ...item,
-        _id:id,
-        siteId:safe(item.siteId) || identity.siteId,
-        siteLegacyId:safe(item.siteLegacyId) || identity.siteLegacyId,
-        siteDocId:safe(item.siteDocId) || identity.siteDocId,
-        firebaseDocId:safe(item.firebaseDocId) || identity.firebaseDocId,
-        siteKey:safe(item.siteKey) || identity.siteKey,
-        siteKeys:uniqueNonEmptyStrings([...(Array.isArray(item.siteKeys) ? item.siteKeys : []),...identity.siteKeys]),
-        sourceGroupKey:safe(item.sourceGroupKey) || identity.sourceGroupKey,
-        sourceIdentity:safe(item.sourceIdentity) || identity.sourceIdentity,
-        siteName:safe(item.siteName) || identity.siteName,
-        siteAddress:safe(item.siteAddress) || identity.siteAddress,
-        siteSource:safe(item.siteSource) || identity.siteSource
-      };
-      lastIncomingIndexById.set(id,enrichedItems.length);
-      incomingIds.add(id);
-      enrichedItems.push({id,item:enriched});
-    }
-    if(!enrichedItems.length) return readSiteLocalArray(cleanKind,site);
-    const current=readSiteLocalArray(cleanKind,site);
-    let next=[];
-    for(const existing of current){
-      if(!incomingIds.has(safe(existing && existing._id))) next.push(existing);
-    }
-    for(let idx=0;idx<enrichedItems.length;idx++){
-      const entry=enrichedItems[idx];
-      if(lastIncomingIndexById.get(entry.id)===idx) next.push(entry.item);
-    }
-    if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
-    const key=siteLocalCacheKey(cleanKind,site);
-    const raw=JSON.stringify(next);
-    localStorage.setItem(key,raw);
-    clearLocalStorageArrayEntriesCache(key);
-    rememberSiteLocalArrayReadCache(key,next,raw);
-    clearDetailHistoryCacheForKind(cleanKind,site);
-    return next;
-  }catch(e){
-    console.warn("Lokální cache se nepodařila sloučit",kind,e);
-    return [];
-  }
-}
+const {
+  appendSiteLocalArray,
+  mergeSiteLocalArray,
+  removeSiteLocalItem,
+  writeSiteLocalObject
+}=createSiteLocalStorageMutationHelpers({
+  clearDetailHistoryCacheForKind,
+  clearLocalStorageArrayEntriesCache,
+  clearLocalStorageObjectEntriesCache,
+  getDefaultSite:()=>selectedSite,
+  readSiteLocalArray,
+  rememberSiteLocalArrayReadCache,
+  rememberSiteLocalObjectReadCache,
+  safeValue:safe,
+  siteLocalCacheKey,
+  siteRecordIdentity,
+  szzArrayWithoutItemId,
+  uniqueNonEmptyStrings
+});
 window.mergeSiteLocalArray=mergeSiteLocalArray;
-
-function removeSiteLocalItem(kind,id,site=selectedSite){
-  try{
-    const cleanId=safe(id);
-    if(!cleanId) return;
-    const next=szzArrayWithoutItemId(readSiteLocalArray(kind,site),cleanId,safe);
-    const key=siteLocalCacheKey(kind,site);
-    const raw=JSON.stringify(next);
-    localStorage.setItem(key,raw);
-    clearLocalStorageArrayEntriesCache(key);
-    rememberSiteLocalArrayReadCache(key,next,raw);
-    clearDetailHistoryCacheForKind(kind,site);
-  }catch(e){
-    console.warn("Lokální cache se nepodařila upravit",kind,e);
-  }
-}
-
-function writeSiteLocalObject(kind,item,site=selectedSite){
-  try{
-    const key=siteLocalCacheKey(kind,site);
-    const value=item && typeof item==="object" && !Array.isArray(item) ? item : {};
-    const raw=JSON.stringify(value);
-    localStorage.setItem(key,raw);
-    clearLocalStorageObjectEntriesCache(key);
-    rememberSiteLocalObjectReadCache(key,value,raw);
-  }catch(e){
-    console.warn("Lokální cache se nepodařila uložit",kind,e);
-  }
-}
 
 const SZZ_OFFLINE_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_OFFLINE_QUEUE_DB_VERSION=2;
