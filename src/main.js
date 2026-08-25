@@ -369,7 +369,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-auth-init-order-v495";
+const APP_BUILD_VERSION="2026-08-25-auth-init-order-v497";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -465,6 +465,38 @@ function safeSyncCurrentUserFromCompat(){
   }catch(e){
     return null;
   }
+}
+
+function safeReadSiteLocalArrayMeta(kind,site){
+  try{
+    if(typeof readSiteLocalArrayMeta==="function") return readSiteLocalArrayMeta(kind,site);
+  }catch(e){
+    if(!(e instanceof ReferenceError)) console.warn("Lokální metadata se nepodařilo načíst",e);
+  }
+  return {count:0,latest:0,signature:""};
+}
+
+function safeUpdateAdminAppControls(){
+  try{
+    if(typeof window.updateAdminAppControls==="function"){
+      window.updateAdminAppControls();
+      return;
+    }
+  }catch(e){}
+  try{
+    if(typeof updateAdminAppControls==="function") updateAdminAppControls();
+  }catch(e){
+    if(!(e instanceof ReferenceError)) console.warn("Ovládací prvky přihlášení se nepodařilo obnovit",e);
+  }
+}
+
+function safeWaitForFirebaseUser(timeoutMs=8000){
+  try{
+    if(typeof waitForFirebaseUser==="function") return waitForFirebaseUser(timeoutMs);
+  }catch(e){
+    if(!(e instanceof ReferenceError)) console.warn("Čekání na Firebase uživatele se nepodařilo připravit",e);
+  }
+  return Promise.resolve(safeSyncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null);
 }
 
 function invalidateMapAfterPaint(){
@@ -757,7 +789,7 @@ if(firebaseReady){
     const userBox=document.getElementById("userBox");
     setTextIfChanged(userBox,user?`Přihlášen: ${user.email}`:"Nepřihlášeno");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode(user ? "logout" : "login");
-    if(typeof updateAdminAppControls==="function") updateAdminAppControls();
+    safeUpdateAdminAppControls();
   }
   function clearSignedUser(){
     currentUser=null;
@@ -766,7 +798,7 @@ if(firebaseReady){
     const userBox=document.getElementById("userBox");
     setTextIfChanged(userBox,"Nepřihlášeno");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
-    if(typeof updateAdminAppControls==="function") updateAdminAppControls();
+    safeUpdateAdminAppControls();
   }
   async function startFirebaseRedirectLogin(){
     if(!firebaseReady || (!auth && !getCompatAuthClient())) return;
@@ -1342,7 +1374,7 @@ const {
 }=createOfflineSiteMetaHelpers({
   detailKey:site=>detailKey(site),
   readOfflineDetailMeta:readSzzOfflineDetailMeta,
-  readSiteLocalArrayMeta,
+  readSiteLocalArrayMeta:safeReadSiteLocalArrayMeta,
   safeValue:safe,
   selectedSiteDocId:site=>selectedSiteDocId(site),
   writeOfflineDetailMeta:writeSzzOfflineDetailMeta
@@ -1575,7 +1607,7 @@ const {
   runWhenIdle,
   safeValue:safe,
   scheduleOfflineAppStatus:delay=>{ if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(delay); },
-  waitForFirebaseUser,
+  waitForFirebaseUser:safeWaitForFirebaseUser,
   writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
 });
 
