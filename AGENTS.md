@@ -732,4 +732,6 @@ Current performance phase 311 decision: continue the monolith split by moving pr
 
 Current performance phase 312 decision: continue the monolith split by moving protocol handoff override cache, handoff value parsing, local patch creation, and remote patch creation into `src/protocol-handoff-utils.js`; keep Firestore/local-history mutation flow in `src/main.js` while preserving the existing "předáno ke zpracování" behavior.
 
+Current performance phase 313 decision: continue the monolith split by moving main protocol workflow ownership, processed-state parsing, workflow labels, control-date filtering, and processed local/remote patch creation into `src/protocol-workflow-utils.js`; keep list rendering and Firestore/local-history mutation flow in `src/main.js`.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

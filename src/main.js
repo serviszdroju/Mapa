@@ -281,6 +281,9 @@ import {
 import {
   createProtocolHandoffHelpers
 } from "./protocol-handoff-utils.js";
+import {
+  createProtocolWorkflowHelpers
+} from "./protocol-workflow-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -306,7 +309,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-handoff-utils-module-v466";
+const APP_BUILD_VERSION="2026-08-25-protocol-workflow-utils-module-v467";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11217,61 +11220,23 @@ const {
   storageKey:SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY
 });
 
+const {
+  isMainProtocolProcessed,
+  mainProtocolControlDateIso,
+  mainProtocolHistoryItemOwnedByCurrentUser,
+  mainProtocolProcessedLocalPatch,
+  mainProtocolProcessedRemotePatch,
+  mainProtocolWorkflowLabel,
+  mainProtocolWorkflowState
+}=createProtocolWorkflowHelpers({
+  currentUserEmail,
+  protocolHandoffForProcessing,
+  serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString()
+});
+
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
 });
-
-function mainProtocolHistoryItemOwnerEmail(item={}){
-  return safe(item.createdBy || item.technicianEmail || item.techEmail || item.updatedBy).toLowerCase();
-}
-
-function mainProtocolHistoryItemOwnedByCurrentUser(item={}){
-  const owner=mainProtocolHistoryItemOwnerEmail(item);
-  const email=currentUserEmail();
-  return !!owner && !!email && owner===email;
-}
-
-function mainProtocolWorkflowState(item={}){
-  if(isMainProtocolProcessed(item)) return "processed";
-  if(protocolHandoffForProcessing(item)) return "handoff";
-  return "idle";
-}
-
-function mainProtocolWorkflowLabel(item={}){
-  const state=mainProtocolWorkflowState(item);
-  if(state==="processed") return "zpracováno";
-  if(state==="handoff") return "předáno ke zpracování";
-  return "nepředáno ke zpracování";
-}
-
-function mainProtocolControlDateIso(item={}){
-  return isoDateFromAny(item.date || item.checkDate || "");
-}
-
-function isMainProtocolProcessed(item={}){
-  if(item.processed === true) return true;
-  const processed=safe(item.processed).toLowerCase();
-  return processed==="ano" || processed==="true" || processed==="1" || !!item.processedAt;
-}
-
-function mainProtocolProcessedLocalPatch(checked){
-  return {
-    processed:!!checked,
-    processedAt:checked ? new Date().toISOString() : null,
-    processedBy:checked ? currentUserEmail() : ""
-  };
-}
-
-function mainProtocolProcessedRemotePatch(checked){
-  const serverTime=fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString();
-  return {
-    processed:!!checked,
-    processedAt:checked ? serverTime : null,
-    processedBy:checked ? currentUserEmail() : "",
-    updatedBy:currentUserEmail(),
-    updatedAt:serverTime
-  };
-}
 function patchProtocolProcessedItems(items,cleanId,patch,includeIdFallback=true){
   const source=Array.isArray(items) ? items : [];
   let next=null;
