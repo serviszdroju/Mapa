@@ -410,6 +410,9 @@ import {
 import {
   createSidebarRenderHelpers
 } from "./sidebar-render-utils.js";
+import {
+  createMapMarkerRenderHelpers
+} from "./map-marker-render-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -445,7 +448,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-webview-offline-v526";
+const APP_BUILD_VERSION="2026-08-26-map-marker-module-v527";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2291,6 +2294,26 @@ const {
   szzCompareCsBase
 });
 const {
+  bindMapViewportRendering,
+  groupHasUsableGps,
+  renderMapGroups,
+  resetMapRenderCaches
+}=createMapMarkerRenderHelpers({
+  detailKey,
+  escValue:esc,
+  getLastVisiblePlaceGroups:()=>lastVisiblePlaceGroups,
+  getLayer:()=>layer,
+  getLeaflet:()=>typeof L==="undefined" ? null : L,
+  getMap:()=>map,
+  getRowsIndexVersion:()=>rowsIndexVersion,
+  groupColor,
+  groupPopupHtml:group=>groupPopupHtml(group),
+  groupPrimaryRow,
+  markerRowsSignature,
+  openDetailById:key=>window.openDetailById(key),
+  resetSourcePopupActivationGuard
+});
+const {
   mapStatusParitySnapshot
 }=createMapStatusParityHelpers({
   color,
@@ -2543,7 +2566,6 @@ let csvRowsByAnyId=new Map();
 let rowsGpsCountCache=0;
 let lastVisiblePlaceGroups=[];
 let renderRequested=false;
-let mapMoveRenderTimer=0;
 let rowsIndexVersion=0;
 let rowsIndexDirty=true;
 let indexedRowsRef=null;
@@ -2553,7 +2575,6 @@ let indexedCsvRowsLength=-1;
 let filteredRowsCache={signature:"",rows:[]};
 let placeGroupsCache={sourceRows:null,signature:"",groups:[]};
 let siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
-let mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
 let fitBoundsPointsCache={signature:"",points:[]};
 
 function markRowsDirty(){
@@ -2561,7 +2582,7 @@ function markRowsDirty(){
   filteredRowsCache={signature:"",rows:[]};
   placeGroupsCache={sourceRows:null,signature:"",groups:[]};
   siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
-  mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
+  resetMapRenderCaches();
   resetSidebarRenderCaches();
   fitBoundsPointsCache={signature:"",points:[]};
 }
@@ -2874,137 +2895,6 @@ window.openDetailById=function(id){
   }
   return false;
 };
-let mapMarkerCache=new Map();
-function mapMarkerSignature(group,fill){
-  return [
-    Number(group.lat).toFixed(6),
-    Number(group.lon).toFixed(6),
-    fill,
-    group.label || "",
-    group._markerRowsSignature || markerRowsSignature(group.rows)
-  ].join("||");
-}
-function attachLazyMarkerPopup(marker,group){
-  marker.on("click",event=>{
-    const rowsInGroup=(group && Array.isArray(group.rows)) ? group.rows : [];
-    try{
-      if(event && typeof L!=="undefined" && L.DomEvent) L.DomEvent.stop(event);
-    }catch(_e){}
-    if(rowsInGroup.length<=1){
-      const row=rowsInGroup[0] || groupPrimaryRow(group);
-      const key=row ? detailKey(row) : "";
-      if(key){
-        window.openDetailById(key);
-        try{ if(map && typeof map.closePopup==="function") map.closePopup(); }catch(_e){}
-        return;
-      }
-    }
-    try{
-      if(marker.getPopup && marker.getPopup()) marker.unbindPopup();
-    }catch(_e){}
-    resetSourcePopupActivationGuard();
-    marker.bindPopup(groupPopupHtml(group),sourcePopupOptions(group));
-    marker.openPopup();
-  });
-  return marker;
-}
-function sourcePopupOptions(group){
-  const rowsCount=(group && Array.isArray(group.rows)) ? group.rows.length : 0;
-  const options={className:rowsCount>1 ? "source-popup source-popup-multi" : "source-popup"};
-  try{
-    if(typeof window!=="undefined" && window.matchMedia && window.matchMedia("(max-width: 760px)").matches){
-      const mapEl=map && typeof map.getContainer==="function" ? map.getContainer() : null;
-      const mapHeight=mapEl && mapEl.clientHeight ? mapEl.clientHeight : window.innerHeight;
-      const popupWidth=Math.max(210,Math.min(286,window.innerWidth-52));
-      options.maxWidth=popupWidth;
-      options.minWidth=Math.min(popupWidth,rowsCount>1 ? 230 : 180);
-      options.maxHeight=Math.max(128,Math.min(190,Math.floor(mapHeight*0.55)));
-      options.autoPan=false;
-      options.keepInView=false;
-      if(typeof L!=="undefined" && L.point){
-        options.autoPanPaddingTopLeft=L.point(10,10);
-        options.autoPanPaddingBottomRight=L.point(10,10);
-      }
-    }
-  }catch(e){}
-  return options;
-}
-function buildMapMarkerForGroup(group,fill){
-  if(group.rows.length>1){
-    return attachLazyMarkerPopup(L.marker([group.lat,group.lon],{
-      icon:L.divIcon({
-        className:"source-group-marker-wrap",
-        html:`<div class="source-group-marker" style="background:${esc(fill)}">${group.rows.length}</div>`,
-        iconSize:[26,26],
-        iconAnchor:[13,13]
-      })
-    }),group);
-  }
-  const r=group.rows[0];
-  return attachLazyMarkerPopup(L.circleMarker([r.lat,r.lon],{radius:8,color:"#fff",weight:2,fillColor:fill,fillOpacity:.92}),group);
-}
-function groupHasUsableGps(group){
-  return group && Number.isFinite(group.lat) && Number.isFinite(group.lon) && group.lat>=47 && group.lat<=51.5 && group.lon>=12 && group.lon<=23;
-}
-function mapMarkerGroups(groups){
-  const source=Array.isArray(groups) ? groups : [];
-  const out=[];
-  for(const group of source){
-    if(groupHasUsableGps(group)) out.push(group);
-  }
-  return out;
-}
-function renderMapGroups(groups){
-  const boundsKey="all";
-  if(mapRenderCache.groups===groups && mapRenderCache.rowsVersion===rowsIndexVersion && mapRenderCache.boundsKey===boundsKey && mapMarkerCache.size){
-    return;
-  }
-  const visibleGroups=mapMarkerGroups(groups);
-  mapRenderCache={groups,rowsVersion:rowsIndexVersion,boundsKey};
-  updateMapMarkers(visibleGroups);
-}
-function refreshVisibleMapMarkers(){
-  if(!lastVisiblePlaceGroups.length) return;
-  renderMapGroups(lastVisiblePlaceGroups);
-}
-function bindMapViewportRendering(){
-  if(!map || map.__szzViewportRenderBound || typeof map.on!=="function") return;
-  map.__szzViewportRenderBound=true;
-  map.on("moveend zoomend",()=>{
-    if(mapMoveRenderTimer) cancelAnimationFrame(mapMoveRenderTimer);
-    mapMoveRenderTimer=requestAnimationFrame(()=>{
-      mapMoveRenderTimer=0;
-      refreshVisibleMapMarkers();
-    });
-  });
-}
-function updateMapMarkers(groups){
-  if(!layer) return;
-  const visibleKeys=new Set();
-  const sourceGroups=Array.isArray(groups) ? groups : [];
-  for(const group of sourceGroups){
-    if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) continue;
-    const key=group.key || `${group.lat},${group.lon}`;
-    const fill=groupColor(group.rows);
-    const signature=mapMarkerSignature(group,fill);
-    visibleKeys.add(key);
-    const cached=mapMarkerCache.get(key);
-    if(cached && cached.signature===signature) continue;
-    if(cached && cached.marker){
-      try{layer.removeLayer(cached.marker);}catch(e){}
-    }
-    const marker=buildMapMarkerForGroup(group,fill);
-    marker.addTo(layer);
-    mapMarkerCache.set(key,{marker,signature});
-  }
-  for(const [key,cached] of mapMarkerCache){
-    if(visibleKeys.has(key)) continue;
-    if(cached && cached.marker){
-      try{layer.removeLayer(cached.marker);}catch(e){}
-    }
-    mapMarkerCache.delete(key);
-  }
-}
 function render(){
   syncRowIndexes();
   window.rows=rows;

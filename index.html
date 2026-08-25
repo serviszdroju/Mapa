@@ -37,6 +37,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
+  const EMAIL_LOGIN_BUILD_VERSION="map-marker-module-v527";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -49,6 +50,7 @@ try{
   const GOOGLE_WEB_CLIENT_ID="304123957651-8nnf5s40h56r63uiqddooioiu7fqh8pk.apps.googleusercontent.com";
   const GOOGLE_IDENTITY_SCRIPT_URL="https://accounts.google.com/gsi/client";
   let googleIdentityScriptPromise=null;
+  let loginRunning=false;
   window.__firebaseConfig=window.__firebaseConfig || INLINE_FIREBASE_CONFIG;
   function textValue(value){return String(value==null?"":value).trim();}
   function node(id){return document.getElementById(id);}
@@ -77,6 +79,25 @@ try{
     if(sidebarStatus) sidebarStatus.textContent=message || "";
     const intro=node("startupIntro");
     if(intro && message) intro.textContent=message;
+  }
+
+  function firstInputValue(){
+    for(const id of arguments){
+      const el=node(id);
+      const value=textValue(el && el.value);
+      if(value) return value;
+    }
+    return "";
+  }
+
+  function focusFirstEmptyLoginField(){
+    for(const id of ["startupEmail","startupPassword"]){
+      const el=node(id);
+      if(el && !textValue(el.value)){
+        try{el.focus();}catch(e){}
+        return;
+      }
+    }
   }
 
   function googleIdentityReady(){
@@ -160,6 +181,7 @@ try{
   function showLogin(message){
     const startup=node("startupScreen");
     const app=node("mainApp");
+    const email=node("startupEmailLogin");
     const google=node("startupLoginBtn");
     const intro=node("startupIntro");
     if(startup){
@@ -167,9 +189,11 @@ try{
       startup.style.display="flex";
     }
     if(app) app.style.display="none";
-    if(google) google.style.display="";
-    if(intro) intro.textContent="Přihlaste se Google účtem @astip.cz.";
+    if(email) email.style.display="grid";
+    if(google) google.style.display="none";
+    if(intro) intro.textContent="Přihlas se e-mailem a heslem.";
     status(message || "");
+    setTimeout(focusFirstEmptyLoginField,0);
   }
 
   function signInWithFirebasePopupCompat(auth){
@@ -297,7 +321,7 @@ try{
     window.location.href=HOSTED_APP_URL;
   }
 
-  window.loginPopup=function(event){
+  function startGoogleLogin(event){
     if(event && typeof event.preventDefault==="function") event.preventDefault();
     if(isLocalFileApp()){
       openHostedApp();
@@ -316,7 +340,7 @@ try{
       return;
     }
     showLogin("Přihlášení ještě není připravené. Zkus tlačítko znovu za pár sekund.");
-  };
+  }
 
   window.__startCompatGoogleLoginFallback=function(){
     try{
@@ -358,11 +382,69 @@ try{
     }
   };
 
-  window.szzEmergencyEmailLogin=function(event){
-    if(event && typeof event.preventDefault==="function") event.preventDefault();
-    return window.loginPopup(event);
+  function authMessage(error){
+    const code=textValue(error&&error.code);
+    if(code==="auth/operation-not-allowed") return "E-mailové přihlášení není ve Firebase zapnuté.";
+    if(code==="auth/invalid-credential"||code==="auth/wrong-password") return "E-mail nebo heslo není správné.";
+    if(code==="auth/user-not-found") return "Účet ve Firebase neexistuje.";
+    if(code==="auth/network-request-failed") return "Tablet nemá spojení pro Firebase přihlášení.";
+    return textValue(error&&error.message)||"Přihlášení se nepodařilo.";
+  }
+
+  async function emergencyEmailLogin(event){
+    if(event){
+      event.preventDefault();
+      event.stopPropagation();
+      if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+    }
+    showLogin();
+    if(loginRunning) return;
+    const email=firstInputValue("startupEmail").toLowerCase();
+    const password=String(firstInputValue("startupPassword")||"");
+    if(!email||!password){
+      setStatus("Vyplň e-mail a heslo.");
+      return;
+    }
+    if(!email.endsWith("@astip.cz")){
+      setStatus("Přihlášení je povoleno jen pro účet @astip.cz.");
+      return;
+    }
+    loginRunning=true;
+    setStatus("Přihlašuji e-mailem...");
+    try{
+      const appMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+      const authMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
+      const firebaseConfig=window.__firebaseConfig || INLINE_FIREBASE_CONFIG;
+      const app=appMod.getApps().length?appMod.getApp():appMod.initializeApp(firebaseConfig);
+      const auth=authMod.getAuth(app);
+      try{authMod.setPersistence&&await authMod.setPersistence(auth,authMod.indexedDBLocalPersistence);}catch(e){
+        try{authMod.setPersistence&&await authMod.setPersistence(auth,authMod.browserLocalPersistence);}catch(_){}
+      }
+      const result=await authMod.signInWithEmailAndPassword(auth,email,password);
+      const user=result&&result.user;
+      try{
+        localStorage.setItem("astipFirebaseKnownSignedIn","1");
+        if(user&&user.email) localStorage.setItem("astipFirebaseLastEmail",user.email);
+        sessionStorage.removeItem("astipFirebaseRedirectPending");
+      }catch(e){}
+      window.currentUser=user||null;
+      window.__authReadyUser=user||null;
+      setStatus("Přihlášení potvrzeno. Otevírám servisní mapu...");
+      const target=new URL(".",location.href);
+      target.searchParams.set("v",EMAIL_LOGIN_BUILD_VERSION);
+      target.searchParams.set("login","email");
+      setTimeout(()=>location.replace(target.href),350);
+    }catch(error){
+      loginRunning=false;
+      setStatus("E-mailové přihlášení selhalo: "+authMessage(error));
+    }
+  }
+  window.szzEmergencyEmailLogin=emergencyEmailLogin;
+  window.loginEmail=emergencyEmailLogin;
+  window.loginPopup=function(event){
+    if(event) event.preventDefault();
+    showLogin("Vyplň e-mail a heslo na úvodní obrazovce.");
   };
-  window.loginEmail=window.szzEmergencyEmailLogin;
 
   function signOutAndReload(event){
     if(event && typeof event.preventDefault==="function") event.preventDefault();
@@ -385,16 +467,19 @@ try{
   function bindLoginButtons(){
     const handler=isLocalFileApp() ? openHostedApp : (window.loginPopup || window.startGoogleLogin);
     const startup=document.getElementById("startupLoginBtn");
+    const startupEmail=document.getElementById("startupEmailLoginBtn");
     const login=document.getElementById("loginBtn");
     const logout=document.getElementById("logoutBtn");
     const topLogout=document.getElementById("topLogoutBtn");
     if(startup && typeof handler==="function") startup.onclick=handler;
+    if(startupEmail && typeof window.szzEmergencyEmailLogin==="function") startupEmail.onclick=window.szzEmergencyEmailLogin;
     if(login && typeof handler==="function") login.onclick=handler;
     if(logout) logout.onclick=signOutAndReload;
     if(topLogout) setTopAuthButtonMode(topLogout.dataset.authMode || (window.currentUser || window.__authReadyUser ? "logout" : "login"));
   }
 
   window.startGoogleLogin=window.loginPopup;
+  window.startFirebaseGoogleLogin=startGoogleLogin;
   window.bindLoginButtons=bindLoginButtons;
   window.setTopAuthButtonMode=setTopAuthButtonMode;
   bindLoginButtons();
@@ -423,7 +508,12 @@ try{
     <img class="logo-img" src="./szz-logo-display.png" alt="Servis záložních zdrojů logo">
     <h1>Servis záložních zdrojů</h1>
     <p id="startupIntro">Kontroluji přihlášení...</p>
-    <button class="secondary" id="startupLoginBtn" type="button" onclick="window.loginPopup(event)" style="display:none">Přihlásit přes Google</button>
+    <button class="secondary" id="startupLoginBtn" type="button" onclick="window.__startCompatGoogleLoginFallback(event)" style="display:none">Přihlásit přes Google</button>
+    <div class="startup-email-login" id="startupEmailLogin">
+      <input id="startupEmail" type="email" autocomplete="username" inputmode="email" placeholder="E-mail @astip.cz">
+      <input id="startupPassword" type="password" autocomplete="current-password" placeholder="Heslo">
+      <button class="primary" id="startupEmailLoginBtn" type="button" onclick="window.szzEmergencyEmailLogin(event)">Přihlásit e-mailem</button>
+    </div>
     <p id="startupStatus" class="small"></p>
   </div>
 </div>
@@ -857,7 +947,7 @@ Protokol na: ..."></textarea>
 <script type="module" src="./src/detail-tabs.js"></script>
 <script type="module" src="./src/hosted-login.js"></script>
 <script type="module" src="./src/main.js"></script>
-<script async src="./late.js?v=webview-offline-v526"></script>
+<script async src="./late.js?v=map-marker-module-v527"></script>
 
 
 
