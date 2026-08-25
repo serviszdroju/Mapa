@@ -250,6 +250,10 @@ import {
   createPhotoUrlHelpers,
   photoFileName
 } from "./photo-url-utils.js";
+import {
+  canDeleteSitePhotoForUser,
+  createPhotoRenderMetaHelpers
+} from "./photo-render-meta-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -275,7 +279,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-photo-url-utils-module-v458";
+const APP_BUILD_VERSION="2026-08-25-photo-render-meta-module-v459";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1251,7 +1255,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v458-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v459-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -12751,80 +12755,18 @@ const {
   photoThumbUrl
 }=createPhotoUrlHelpers();
 
-const photoRenderMetaCache=new WeakMap();
-function photoRenderMetaFingerprint(item,idx=0){
-  if(!item || (typeof item!=="object" && typeof item!=="function")) return "";
-  return [
-    idx,
-    isAppAdmin() ? "admin" : "user",
-    item.createdAt,
-    item.uploadedAt,
-    item.date,
-    item.takenAt,
-    item.photoTakenAt,
-    item.lastModifiedAt,
-    item.cloudinaryVersion,
-    item.version,
-    item.storageMode,
-    item.size,
-    item.originalSize,
-    item.uploadedBy,
-    item.createdBy,
-    item.ownerEmail,
-    item.fileName,
-    item.originalFileName,
-    item.photoFolder,
-    item.folderName,
-    item.folder,
-    item.cloudinaryFolderDate,
-    item.cloudinaryFolder
-  ].map(safe).join("\u001f");
-}
-
-function photoRenderMeta(item,idx=0){
-  const canCache=!!(item && (typeof item==="object" || typeof item==="function"));
-  const fingerprint=canCache ? photoRenderMetaFingerprint(item,idx) : "";
-  if(canCache && fingerprint){
-    const cached=photoRenderMetaCache.get(item);
-    if(cached && cached.fingerprint===fingerprint) return cached.value;
-  }
-  const modeLabel=item.storageMode==="cloudinary" ? "Cloudinary" : (item.storageMode==="offline" ? "lokálně v tomto zařízení" : "starší záznam");
-  const insertedAt=photoDateLabel(item);
-  const meta=[insertedAt ? `Vloženo: ${insertedAt}` : "", modeLabel, bytesLabel(item.size), item.uploadedBy].filter(Boolean).join(" · ");
-  const takenAt=photoTakenLabel(item) || "není uvedeno";
-  const insertedAtFull=photoInsertedLabel(item) || "datum není uložené";
-  const uploadedBy=safe(item.uploadedBy || item.createdBy || item.ownerEmail) || "není uvedeno";
-  const currentFolder=photoFolderName(item);
-  const value={
-    modeLabel,
-    insertedAt,
-    meta,
-    takenAt,
-    insertedAtFull,
-    uploadedBy,
-    currentFolder,
-    downloadName:photoFileName(item,idx),
-    photoInfoRows:[
-      ["Přidáno", insertedAtFull],
-      ["Složka", currentFolder || "Bez data"],
-      ["Uložil", uploadedBy],
-      ["Pořízeno", takenAt],
-      ["Velikost", bytesLabel(item.size || item.originalSize) || "není uvedeno"]
-    ]
-  };
-  if(canCache && fingerprint) photoRenderMetaCache.set(item,{fingerprint,value});
-  return value;
-}
-
-function canDeleteSitePhotoForUser(item,email=currentUserEmail(),isAdminValue=isAppAdmin()){
-  if(item && (item.storageMode==="offline" || item._offline === true)) return true;
-  const uploadedBy=safe(item && item.uploadedBy).toLowerCase();
-  const userEmail=safe(email).toLowerCase();
-  return !!isAdminValue || (!!uploadedBy && uploadedBy===userEmail);
-}
+const {
+  photoRenderMeta
+}=createPhotoRenderMetaHelpers({
+  isAppAdmin,
+  photoDateLabel,
+  photoTakenLabel,
+  photoInsertedLabel,
+  photoFolderName
+});
 
 function canDeleteSitePhoto(item){
-  return canDeleteSitePhotoForUser(item);
+  return canDeleteSitePhotoForUser(item,currentUserEmail(),isAppAdmin());
 }
 
 let photoUploadModulePromise=null;
