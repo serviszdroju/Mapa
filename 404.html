@@ -19,9 +19,7 @@
 <link rel="apple-touch-icon" href="./szz-app-icon-192.png">
 <script>
 try{
-  if(localStorage.getItem("astipFirebaseKnownSignedIn")==="1" || sessionStorage.getItem("astipFirebaseRedirectPending")){
-    document.documentElement.classList.add("auth-resume");
-  }
+  document.documentElement.classList.remove("auth-resume");
 }catch(e){}
 </script>
 <script>
@@ -123,7 +121,7 @@ try{
       window.__authReadyUser=user||null;
       setStatus("Přihlášení potvrzeno. Otevírám servisní mapu...");
       const target=new URL(".",location.href);
-      target.searchParams.set("v","sidebar-email-v453");
+      target.searchParams.set("v","android-login-stays-v445");
       target.searchParams.set("login","email");
       setTimeout(()=>location.replace(target.href),350);
     }catch(error){
@@ -159,8 +157,8 @@ try{
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-CyXc8J5T.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BYMTnuXT.css">
+  <script type="module" crossorigin src="./assets/index-BJUlSfVn.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DeqbjwEp.css">
 </head>
 <body>
 
@@ -609,7 +607,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=local-storage-entries-module-v454"></script>
+<script async src="./late.js?v=android-login-stays-v445"></script>
 
 
 
