@@ -156,6 +156,9 @@ import {
   createLegacyEditCacheHelpers
 } from "./legacy-edit-cache.js";
 import {
+  createLegacyEditLoadHelpers
+} from "./legacy-edit-load-utils.js";
+import {
   createRowIdentityHelpers
 } from "./row-identity-utils.js";
 import {
@@ -413,7 +416,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-edit-form-module-v512";
+const APP_BUILD_VERSION="2026-08-25-legacy-edit-load-module-v513";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1861,30 +1864,21 @@ window.normalize = normalize;
 window.normalizeSiteRows = normalize;
 window.applySiteEditToRow = applyEditToRow;
 
-async function loadEdits(options={}){
-  const renderAfter=options.renderAfter!==false;
-  if(!firebaseReady || !db) return;
-  if(firebaseUnifiedPrimary){
-    editCache={};
-    const st=document.getElementById("editStatus");
-    if(st && /Úpravy se nepodařilo|Uložené úpravy/.test(st.textContent || "")) st.textContent="";
-    return;
-  }
-  try{
-    const {collection,getDocs}=fb.fsMod;
-    const snap=await getDocs(collection(db,"siteEdits"));
-    editCache={};
-    snap.forEach(d=>setLegacyEditCacheEntry(d.id,d.data()));
-    rows=csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
-    if(renderAfter) render();
-    const st=document.getElementById("editStatus");
-    if(st) st.textContent="Uložené úpravy načteny.";
-  }catch(e){
-    console.warn("Úpravy se nepodařilo načíst",e);
-    const st=document.getElementById("editStatus");
-    if(st) st.textContent="";
-  }
-}
+const {
+  loadEdits
+}=createLegacyEditLoadHelpers({
+  applyEditToRow,
+  clearEditCache:()=>{ editCache={}; },
+  getDb:()=>db,
+  getFirestoreModule:()=>fb.fsMod,
+  getRowsSourceState:()=>({csvRows,extraSites,deletedSiteIds}),
+  getStatusNode:()=>document.getElementById("editStatus"),
+  isFirebaseReady:()=>firebaseReady,
+  isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
+  render,
+  setLegacyEditCacheEntry,
+  setRows:nextRows=>{ window.rows=nextRows; rows=window.rows; }
+});
 
 
 const {
