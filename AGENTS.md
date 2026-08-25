@@ -710,4 +710,6 @@ Current performance phase 301 decision: continue the monolith split by moving of
 
 Current performance phase 302 decision: continue the monolith split by moving stable raw-data and offline row fingerprint caches into `src/offline-row-fingerprint-utils.js`; preserve the same WeakMap cache invalidation by direct raw/row field comparison, Czech key sorting, stable signature composition, and incremental offline sync change detection.
 
+Current performance phase 303 decision: continue the monolith split by moving offline item timestamp parsing and local detail meta summary helpers into `src/offline-item-meta-utils.js`; preserve the same Firebase timestamp/date fallback handling, Cloudinary version timestamp inclusion, sorted id signature, cloned meta return shape, and local detail delta comparison.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

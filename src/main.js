@@ -240,6 +240,11 @@ import {
 import {
   createOfflineRowFingerprintHelpers
 } from "./offline-row-fingerprint-utils.js";
+import {
+  cloneSzzItemsMeta,
+  szzDetailMetaChanged,
+  szzItemsMeta
+} from "./offline-item-meta-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -265,7 +270,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-row-fingerprint-module-v456";
+const APP_BUILD_VERSION="2026-08-25-offline-item-meta-module-v457";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1241,7 +1246,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v456-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v457-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1413,55 +1418,10 @@ function writeSzzOfflineSiteMeta(site,siteMeta={}){
   return writeSzzOfflineDetailMeta({sites});
 }
 
-function szzTimeMsFromAny(value){
-  if(value && typeof value.toDate==="function") return value.toDate().getTime();
-  if(value && typeof value.seconds==="number") return Number(value.seconds)*1000 + Math.round((Number(value.nanoseconds) || 0)/1000000);
-  const fromHelper=typeof timeValueFromAny==="function" ? timeValueFromAny(value) : 0;
-  if(Number.isFinite(fromHelper) && fromHelper>0) return fromHelper;
-  const parsed=Date.parse(safe(value));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function szzRecordUpdatedMs(item={}){
-  return Math.max(
-    szzTimeMsFromAny(item.updatedAt),
-    szzTimeMsFromAny(item.syncedAt),
-    szzTimeMsFromAny(item.uploadedAt),
-    szzTimeMsFromAny(item.savedAt),
-    szzTimeMsFromAny(item.createdAt),
-    szzTimeMsFromAny(item.date),
-    szzTimeMsFromAny(item.checkDate),
-    szzTimeMsFromAny(item.cloudinaryVersion ? Number(item.cloudinaryVersion)*1000 : 0)
-  );
-}
-
 const {
   stableRawFingerprint:szzStableRawFingerprint,
   offlineRowFingerprint:szzOfflineRowFingerprint
 }=createOfflineRowFingerprintHelpers();
-
-function szzItemsMeta(items=[]){
-  const list=Array.isArray(items) ? items : [];
-  let latestMs=0;
-  const ids=[];
-  list.forEach((item,idx)=>{
-    latestMs=Math.max(latestMs,szzRecordUpdatedMs(item));
-    ids.push(safe(item?._id || item?.id || `${idx}`));
-  });
-  return {
-    count:list.length,
-    latestMs,
-    signature:ids.sort().join("|")
-  };
-}
-
-function cloneSzzItemsMeta(meta={}){
-  return {
-    count:Number(meta.count) || 0,
-    latestMs:Number(meta.latestMs) || 0,
-    signature:safe(meta.signature)
-  };
-}
 
 function readSiteLocalArrayMeta(kind,site=selectedSite){
   try{
@@ -1480,11 +1440,6 @@ function readSiteLocalArrayMeta(kind,site=selectedSite){
   }catch(e){
     return szzItemsMeta([]);
   }
-}
-
-function szzDetailMetaChanged(before=null,after=null){
-  if(!before || !after) return true;
-  return before.count!==after.count || before.latestMs!==after.latestMs || before.signature!==after.signature;
 }
 
 function szzLocalOfflineDetailMeta(site){
