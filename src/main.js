@@ -302,6 +302,9 @@ import {
   createFirebaseRowDocHelpers
 } from "./firebase-row-doc-utils.js";
 import {
+  createOfflineDetailPrefetchRunner
+} from "./offline-detail-prefetch-runner-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -366,7 +369,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-karolopejlo-auth-v494";
+const APP_BUILD_VERSION="2026-08-25-detail-prefetch-runner-module-v494";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1305,21 +1308,6 @@ function cacheCurrentFirebaseRowsForOffline(){
   return saveFirebaseRowsCacheForRows();
 }
 
-const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
-
-function szzIsConstrainedDevice(){
-  try{
-    return (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) ||
-      (navigator.hardwareConcurrency && navigator.hardwareConcurrency<=4);
-  }catch(e){
-    return false;
-  }
-}
-
-function szzOfflineDetailPrefetchConcurrency(){
-  return szzIsConstrainedDevice() ? 1 : SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY;
-}
-
 const SZZ_OFFLINE_DETAIL_META_CACHE_MS=1800;
 const {
   readOfflineDetailMeta:readSzzOfflineDetailMeta,
@@ -1558,72 +1546,23 @@ async function prefetchOfflineDetailsForSite(site,options={}){
   return result;
 }
 
-async function prefetchSzzOfflineDetailData(inputRows=null,options={}){
-  const rowsForPrefetch=szzOfflineRowsForPrefetch(inputRows);
-  const totals={sites:rowsForPrefetch.length,processed:0,protocols:0,serviceRecords:0,photos:0,attachments:0,media:0,skipped:0,changedSites:0};
-  if(!rowsForPrefetch.length || navigator.onLine===false || !firebaseReady || !db || !fb.fsMod) return totals;
-  const signedUser=await waitForFirebaseUser();
-  if(!signedUser) return totals;
-  const tasks=rowsForPrefetch.map(site=>async()=>{
-    const item=await prefetchOfflineDetailsForSite(site,options);
-    totals.processed++;
-    totals.protocols+=Number(item.protocols) || 0;
-    totals.serviceRecords+=Number(item.serviceRecords) || 0;
-    totals.photos+=Number(item.photos) || 0;
-    totals.attachments+=Number(item.attachments) || 0;
-    totals.media+=Number(item.media) || 0;
-    if(item.skipped) totals.skipped++;
-    if(item.changed) totals.changedSites++;
-    if(typeof options.onProgress==="function") options.onProgress({...totals});
-  });
-  await runBoundedFirestoreTasks(tasks,szzOfflineDetailPrefetchConcurrency(),{
-    yieldEvery:1,
-    yieldTimeout:szzIsConstrainedDevice() ? 220 : 140
-  });
-  return totals;
-}
-
-let szzBackgroundDetailPrefetchPromise=null;
-let szzBackgroundDetailPrefetchTimer=0;
-
-function scheduleSzzBackgroundDetailPrefetch(inputRows=null,options={}){
-  clearTimeout(szzBackgroundDetailPrefetchTimer);
-  if(navigator.onLine===false || document.visibilityState==="hidden") return false;
-  const rowsForPrefetch=szzOfflineRowsForPrefetch(inputRows);
-  if(!rowsForPrefetch.length) return false;
-  const delayMs=Math.max(0,Number(options.delayMs) || 0);
-  szzBackgroundDetailPrefetchTimer=setTimeout(()=>{
-    runWhenIdle(()=>{
-      if(szzBackgroundDetailPrefetchPromise || navigator.onLine===false || document.visibilityState==="hidden") return;
-      szzBackgroundDetailPrefetchPromise=(async()=>{
-        const totals=await prefetchSzzOfflineDetailData(rowsForPrefetch,{
-          incremental:options.incremental!==false,
-          forceFull:options.forceFull===true
-        });
-        writeSzzOfflineReadyState({
-          lastDetailPrefetchAt:new Date().toISOString(),
-          lastDetailPrefetchReason:safe(options.reason || "background"),
-          cachedDetailSites:totals.processed || 0,
-          changedDetailSites:totals.changedSites || 0,
-          skippedDetailSites:totals.skipped || 0,
-          cachedProtocols:totals.protocols || 0,
-          cachedServiceRecords:totals.serviceRecords || 0,
-          cachedPhotos:totals.photos || 0,
-          cachedAttachments:totals.attachments || 0,
-          cachedPhotoFiles:totals.media || 0
-        });
-        if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(180);
-        return totals;
-      })().catch(e=>{
-        console.warn("Přednačtení offline detailů na pozadí selhalo",e);
-        return null;
-      }).finally(()=>{
-        szzBackgroundDetailPrefetchPromise=null;
-      });
-    },1200);
-  },delayMs);
-  return true;
-}
+const {
+  isConstrainedDevice:szzIsConstrainedDevice,
+  prefetchOfflineDetailData:prefetchSzzOfflineDetailData,
+  scheduleBackgroundDetailPrefetch:scheduleSzzBackgroundDetailPrefetch
+}=createOfflineDetailPrefetchRunner({
+  getRowsForPrefetch:inputRows=>szzOfflineRowsForPrefetch(inputRows),
+  isReady:()=>firebaseReady && !!db && !!(fb && fb.fsMod),
+  isOnline:()=>navigator.onLine!==false,
+  isPageVisible:()=>document.visibilityState!=="hidden",
+  prefetchOfflineDetailsForSite:(site,options)=>prefetchOfflineDetailsForSite(site,options),
+  runBoundedFirestoreTasks,
+  runWhenIdle,
+  safeValue:safe,
+  scheduleOfflineAppStatus:delay=>{ if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(delay); },
+  waitForFirebaseUser,
+  writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
+});
 
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_OFFLINE_READY_KEY || event.key===SZZ_SYNC_STATE_KEY){

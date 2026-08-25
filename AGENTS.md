@@ -786,4 +786,6 @@ Current performance phase 338 decision: continue the monolith split by moving ge
 
 Current performance phase 339 decision: continue the monolith split by moving offline per-site metadata helpers into `src/offline-site-meta-utils.js` and Firestore document-to-row normalization into `src/firebase-row-doc-utils.js`; preserve selected-site key fallbacks, local detail metadata shape, Firebase raw field patching, latest-protocol date application, edit overlay application, and row-key dedupe.
 
+Current performance phase 340 decision: continue the monolith split by moving offline detail prefetch totals, bounded scheduling, constrained-device concurrency, background prefetch coalescing, and ready-state progress summary writes into `src/offline-detail-prefetch-runner-utils.js`; preserve per-site prefetch behavior, progress callbacks, visibility/online guards, idle scheduling, and offline status refresh.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
