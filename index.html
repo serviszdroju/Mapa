@@ -27,8 +27,8 @@ try{
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-DvzGtVBP.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-COb5xKfn.css">
+  <script type="module" crossorigin src="./assets/index-BECBnxRU.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Bex_1LmX.css">
 </head>
 <body>
 
@@ -37,14 +37,19 @@ try{
     <img class="logo-img" src="./szz-logo-display.png" alt="Servis záložních zdrojů logo">
     <h1>Servis záložních zdrojů</h1>
     <p id="startupIntro">Kontroluji přihlášení...</p>
-    <button class="primary" id="startupLoginBtn" onclick="window.loginPopup()">Přihlásit přes Google</button>
+    <button class="secondary" id="startupLoginBtn" onclick="window.loginPopup()">Přihlásit přes Google</button>
+    <div class="startup-email-login" id="startupEmailLogin">
+      <input id="startupEmail" type="email" autocomplete="username" inputmode="email" placeholder="E-mail @astip.cz">
+      <input id="startupPassword" type="password" autocomplete="current-password" placeholder="Heslo">
+      <button class="primary" id="startupEmailLoginBtn" type="button" onclick="window.loginEmail && window.loginEmail()">Přihlásit e-mailem</button>
+    </div>
     <p id="startupStatus" class="small"></p>
   </div>
 </div>
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk" download data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=android-login-fallback-v439" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
@@ -466,7 +471,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=site-field-lookup-module-v447"></script>
+<script async src="./late.js?v=android-no-redirect-v442"></script>
 
 
 
