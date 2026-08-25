@@ -742,4 +742,6 @@ Current performance phase 316 decision: continue the monolith split by moving ma
 
 Current performance phase 317 decision: continue the monolith split by moving the main protocol history drawer shell DOM creation into `src/main-protocol-history-view-utils.js`; keep drawer open/close flow, cached render signature reset, list bindings, and history loading in `src/main.js` while preserving the same title, filter, clear button, list ids, and reused-shell behavior.
 
+Current performance phase 318 decision: continue the monolith split by moving main protocol history list and date-filter bindings into `src/main-protocol-history-view-utils.js` using callbacks for current items, render refresh, processed-state saves, notifications, and detail opening; preserve the same admin gating, checkbox behavior, date filtering, row click behavior, and error messages.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

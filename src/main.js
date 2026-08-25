@@ -312,7 +312,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-main-protocol-history-shell-module-v471";
+const APP_BUILD_VERSION="2026-08-25-main-protocol-history-bindings-module-v472";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11239,10 +11239,14 @@ const {
 });
 
 const {
+  bindMainProtocolHistoryControlsDom,
+  bindMainProtocolHistoryListClickDom,
   renderMainProtocolHistoryShellDom,
   renderMainProtocolHistoryRowsDom
 }=createMainProtocolHistoryViewHelpers({
   canViewAllMainProtocolHistory,
+  getMainProtocolHistoryCurrentItems:()=>mainProtocolHistoryCurrentItems,
+  getMainProtocolHistoryDateFilter:()=>mainProtocolHistoryDateFilter,
   historyDateLabel,
   historySavedDateLabel,
   isMainProtocolProcessed,
@@ -11250,10 +11254,16 @@ const {
   mainProtocolHistoryItemOwnedByCurrentUser,
   mainProtocolWorkflowLabel,
   mainProtocolWorkflowState,
+  openDetailById:key=>window.openDetailById(key),
   protocolGlobalHistoryTitle,
   protocolSourceStateLabel,
   protocolSourceTestMethodLabel,
-  protocolTimeValue
+  protocolTimeValue,
+  renderMainProtocolHistoryRows:(list,items)=>renderMainProtocolHistoryRows(list,items),
+  resetMainProtocolHistoryRenderSignature:()=>{mainProtocolHistoryRenderSignature="";},
+  setMainProtocolHistoryDateFilter:value=>{mainProtocolHistoryDateFilter=value || "";},
+  setMainProtocolHistoryProcessed,
+  showSaveConfirmation
 });
 
 window.addEventListener("storage",event=>{
@@ -11608,62 +11618,6 @@ function renderMainProtocolHistoryShell(drawer){
   return shell;
 }
 
-function bindMainProtocolHistoryListClick(list){
-  if(!list || list.__szzMainHistoryClickBound) return;
-  list.__szzMainHistoryClickBound=true;
-  list.addEventListener("change",async event=>{
-    const checkbox=event.target.closest && event.target.closest("[data-main-history-processed]");
-    if(!checkbox || !list.contains(checkbox)) return;
-    if(!canViewAllMainProtocolHistory()){
-      checkbox.checked=!checkbox.checked;
-      showSaveConfirmation("Zpracování protokolu potvrzuje Iva nebo správce.");
-      return;
-    }
-    const id=checkbox.getAttribute("data-main-history-processed");
-    const item=mainProtocolHistoryCurrentItems.find(row=>safe(row && (row._id || row.id))===safe(id));
-    if(!item) return;
-    checkbox.disabled=true;
-    try{
-      await setMainProtocolHistoryProcessed(item,checkbox.checked);
-      mainProtocolHistoryRenderSignature="";
-      renderMainProtocolHistoryRows(list,mainProtocolHistoryCurrentItems);
-      showSaveConfirmation(checkbox.checked ? "Protokol označen jako zpracovaný." : "Zpracování protokolu zrušeno.");
-    }catch(e){
-      checkbox.checked=!checkbox.checked;
-      showSaveConfirmation("Zpracování protokolu se nepodařilo uložit.");
-      console.warn("Označení protokolu jako zpracovaný selhalo",e);
-    }finally{
-      checkbox.disabled=false;
-    }
-  });
-  list.addEventListener("click",event=>{
-    const btn=event.target.closest && event.target.closest("[data-history-site-key]");
-    if(!btn || !list.contains(btn)) return;
-    const key=btn.getAttribute("data-history-site-key");
-    if(key && typeof window.openDetailById==="function") window.openDetailById(key);
-  });
-}
-
-function bindMainProtocolHistoryControls({list,dateFilter,clearDate}={}){
-  if(dateFilter && !dateFilter.__szzMainHistoryDateBound){
-    dateFilter.__szzMainHistoryDateBound=true;
-    dateFilter.addEventListener("change",()=>{
-      mainProtocolHistoryDateFilter=dateFilter.value || "";
-      mainProtocolHistoryRenderSignature="";
-      renderMainProtocolHistoryRows(list,mainProtocolHistoryCurrentItems);
-    });
-  }
-  if(clearDate && !clearDate.__szzMainHistoryDateBound){
-    clearDate.__szzMainHistoryDateBound=true;
-    clearDate.addEventListener("click",()=>{
-      mainProtocolHistoryDateFilter="";
-      if(dateFilter) dateFilter.value="";
-      mainProtocolHistoryRenderSignature="";
-      renderMainProtocolHistoryRows(list,mainProtocolHistoryCurrentItems);
-    });
-  }
-}
-
 function renderMainProtocolHistoryRows(list,items=[]){
   mainProtocolHistoryRenderSignature=renderMainProtocolHistoryRowsDom({
     list,
@@ -11690,8 +11644,8 @@ async function openMainProtocolHistoryPanel(){
     setProtocolFormOpen(false,{skipPrefill:true});
     drawer.classList.remove("open");
   };
-  bindMainProtocolHistoryListClick(list);
-  bindMainProtocolHistoryControls(shell);
+  bindMainProtocolHistoryListClickDom(list);
+  bindMainProtocolHistoryControlsDom(shell);
   if(dateFilter) dateFilter.value=mainProtocolHistoryDateFilter;
   const items=await loadMainProtocolHistoryItems();
   mainProtocolHistoryCurrentItems=items;

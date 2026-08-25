@@ -9,6 +9,14 @@ export function createMainProtocolHistoryViewHelpers({
   mainProtocolHistoryItemOwnedByCurrentUser,
   mainProtocolWorkflowLabel,
   mainProtocolWorkflowState,
+  getMainProtocolHistoryCurrentItems,
+  getMainProtocolHistoryDateFilter,
+  setMainProtocolHistoryDateFilter,
+  resetMainProtocolHistoryRenderSignature,
+  renderMainProtocolHistoryRows,
+  setMainProtocolHistoryProcessed,
+  showSaveConfirmation,
+  openDetailById,
   protocolGlobalHistoryTitle,
   protocolSourceStateLabel,
   protocolSourceTestMethodLabel,
@@ -190,7 +198,81 @@ export function createMainProtocolHistoryViewHelpers({
     return renderSignature;
   }
 
+  function currentItems(){
+    return typeof getMainProtocolHistoryCurrentItems==="function" ? getMainProtocolHistoryCurrentItems() : [];
+  }
+
+  function resetSignature(){
+    if(typeof resetMainProtocolHistoryRenderSignature==="function") resetMainProtocolHistoryRenderSignature();
+  }
+
+  function rerenderMainProtocolHistoryRows(list){
+    if(typeof renderMainProtocolHistoryRows==="function") renderMainProtocolHistoryRows(list,currentItems());
+  }
+
+  function bindMainProtocolHistoryListClickDom(list){
+    if(!list || list.__szzMainHistoryClickBound) return;
+    list.__szzMainHistoryClickBound=true;
+    list.addEventListener("change",async event=>{
+      const checkbox=event.target.closest && event.target.closest("[data-main-history-processed]");
+      if(!checkbox || !list.contains(checkbox)) return;
+      if(!(typeof canViewAllMainProtocolHistory==="function" && canViewAllMainProtocolHistory())){
+        checkbox.checked=!checkbox.checked;
+        if(typeof showSaveConfirmation==="function") showSaveConfirmation("Zpracování protokolu potvrzuje Iva nebo správce.");
+        return;
+      }
+      const id=checkbox.getAttribute("data-main-history-processed");
+      const item=currentItems().find(row=>safe(row && (row._id || row.id))===safe(id));
+      if(!item) return;
+      checkbox.disabled=true;
+      try{
+        if(typeof setMainProtocolHistoryProcessed==="function"){
+          await setMainProtocolHistoryProcessed(item,checkbox.checked);
+        }
+        resetSignature();
+        rerenderMainProtocolHistoryRows(list);
+        if(typeof showSaveConfirmation==="function"){
+          showSaveConfirmation(checkbox.checked ? "Protokol označen jako zpracovaný." : "Zpracování protokolu zrušeno.");
+        }
+      }catch(e){
+        checkbox.checked=!checkbox.checked;
+        if(typeof showSaveConfirmation==="function") showSaveConfirmation("Zpracování protokolu se nepodařilo uložit.");
+        console.warn("Označení protokolu jako zpracovaný selhalo",e);
+      }finally{
+        checkbox.disabled=false;
+      }
+    });
+    list.addEventListener("click",event=>{
+      const btn=event.target.closest && event.target.closest("[data-history-site-key]");
+      if(!btn || !list.contains(btn)) return;
+      const key=btn.getAttribute("data-history-site-key");
+      if(key && typeof openDetailById==="function") openDetailById(key);
+    });
+  }
+
+  function bindMainProtocolHistoryControlsDom({list,dateFilter,clearDate}={}){
+    if(dateFilter && !dateFilter.__szzMainHistoryDateBound){
+      dateFilter.__szzMainHistoryDateBound=true;
+      dateFilter.addEventListener("change",()=>{
+        if(typeof setMainProtocolHistoryDateFilter==="function") setMainProtocolHistoryDateFilter(dateFilter.value || "");
+        resetSignature();
+        rerenderMainProtocolHistoryRows(list);
+      });
+    }
+    if(clearDate && !clearDate.__szzMainHistoryDateBound){
+      clearDate.__szzMainHistoryDateBound=true;
+      clearDate.addEventListener("click",()=>{
+        if(typeof setMainProtocolHistoryDateFilter==="function") setMainProtocolHistoryDateFilter("");
+        if(dateFilter) dateFilter.value="";
+        resetSignature();
+        rerenderMainProtocolHistoryRows(list);
+      });
+    }
+  }
+
   return {
+    bindMainProtocolHistoryControlsDom,
+    bindMainProtocolHistoryListClickDom,
     mainProtocolHistoryRenderKey,
     mainProtocolHistoryVisibleRows,
     renderMainProtocolHistoryShellDom,
