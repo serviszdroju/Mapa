@@ -227,6 +227,10 @@ import {
 import {
   createSiteLocalKeyHelpers
 } from "./site-local-key-utils.js";
+import {
+  clearLocalDetailReadCache,
+  readCachedLocalDetailItems as readCachedLocalDetailItemsFromCache
+} from "./local-detail-cache-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -252,7 +256,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-standalone-email-login-v451";
+const APP_BUILD_VERSION="2026-08-25-local-detail-cache-module-v452";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1228,7 +1232,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v451-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v452-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -9115,38 +9119,13 @@ const LOCAL_DETAIL_READ_CACHE_MS=1800;
 const siteLocalProtocolHistoryReadCache=new Map();
 const siteOfflinePhotoReadCache=new Map();
 function readCachedLocalDetailItems(cache,key,loader){
-  const cleanKey=String(key || "");
-  if(!cleanKey || typeof loader!=="function") return Promise.resolve([]);
-  const now=Date.now();
-  const cached=cache.get(cleanKey);
-  if(cached && now-cached.savedAt<LOCAL_DETAIL_READ_CACHE_MS){
-    if(cached.promise) return cached.promise.then(cloneLocalStorageArrayItems);
-    if(Array.isArray(cached.items)) return Promise.resolve(cloneLocalStorageArrayItems(cached.items));
-  }
-  const promise=Promise.resolve()
-    .then(loader)
-    .then(items=>{
-      const stable=cloneLocalStorageArrayItems(items);
-      cache.set(cleanKey,{savedAt:Date.now(),items:stable,promise:null});
-      return stable;
-    },error=>{
-      cache.delete(cleanKey);
-      throw error;
-    });
-  cache.set(cleanKey,{savedAt:now,items:null,promise});
-  return promise.then(cloneLocalStorageArrayItems);
-}
-function clearLocalDetailReadCache(cache,prefixOrKey=""){
-  const clean=String(prefixOrKey || "");
-  if(!clean){
-    cache.clear();
-    return;
-  }
-  for(const key of cache.keys()){
-    if(key===clean || key.startsWith(clean) || clean.startsWith(key)){
-      cache.delete(key);
-    }
-  }
+  return readCachedLocalDetailItemsFromCache({
+    cache,
+    cloneItems:cloneLocalStorageArrayItems,
+    key,
+    loader,
+    maxAgeMs:LOCAL_DETAIL_READ_CACHE_MS
+  });
 }
 function clearLocalDetailReadCaches(){
   siteLocalProtocolHistoryReadCache.clear();
