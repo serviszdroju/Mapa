@@ -314,6 +314,9 @@ import {
   createOfflineAppPrepareHelpers
 } from "./offline-app-prepare-utils.js";
 import {
+  createOfflineMapTileCacheHelpers
+} from "./offline-map-tile-cache-utils.js";
+import {
   createOfflineDetailPrefetchRunner
 } from "./offline-detail-prefetch-runner-utils.js";
 import {
@@ -381,7 +384,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-auth-resume-v503";
+const APP_BUILD_VERSION="2026-08-25-offline-map-tile-cache-module-v504";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1610,85 +1613,21 @@ function markCzechOfflineMapReady(){
   try{localStorage.setItem(CZECH_OFFLINE_DONE_KEY,CZECH_OFFLINE_TILE_VERSION);}catch(e){}
 }
 
-async function cacheMapTileUrls(urls,options={}){
-  if(window.__mapTileCacheRunning) return;
-  if(!("caches" in window)){
-    setOfflineMapStatus("Offline cache mapy není v tomto prohlížeči dostupná.","error");
-    return;
-  }
-  if(navigator.onLine===false){
-    setOfflineMapStatus("Jsi offline. Mapu stáhni, až bude internet.","error");
-    return;
-  }
-  if(!urls.length){
-    setOfflineMapStatus(options.emptyMessage || "Nejdřív zobraz oblast mapy, kterou chceš uložit.","error");
-    return;
-  }
-  const unique=[...new Set(urls)];
-  const label=options.label || "mapu";
-  let index=0, done=0, ok=0, failed=0;
-  window.__mapTileCacheRunning=true;
-  setOfflineMapButtonState(true,options.buttonText || "Stahuji mapu...");
-  setOfflineMapStatus(options.startMessage || "Připravuji aplikaci pro offline otevření...");
-  try{
-    if("serviceWorker" in navigator && window.registerSzzServiceWorker){
-      try{ await window.registerSzzServiceWorker(); }catch(e){ if(typeof window.reportSzzServiceWorkerError==="function") window.reportSzzServiceWorkerError(e); }
-    }
-    await requestSzzPersistentStorage({request:true});
-    const shellCount=await cacheAppShellForOffline();
-    if(navigator.storage && typeof navigator.storage.estimate==="function"){
-      try{
-        const estimate=await navigator.storage.estimate();
-        const quota=Number(estimate && estimate.quota) || 0;
-        const usage=Number(estimate && estimate.usage) || 0;
-        const expectedBytes=unique.length*18000;
-        if(quota && usage+expectedBytes>quota*0.92){
-          throw Object.assign(new Error(`V zařízení není dost volného místa pro offline ${label}. Odhad: ${Math.ceil(expectedBytes/1048576)} MB.`),{offlineQuota:true});
-        }
-      }catch(e){
-        if(e && e.offlineQuota) throw e;
-      }
-    }
-    setOfflineMapStatus(`Aplikace offline připravena (${shellCount} souborů). Stahuji ${label}: 0 / ${unique.length} dlaždic...`);
-    const cache=await caches.open(MAP_TILE_CACHE_NAME);
-    async function worker(){
-      while(index<unique.length){
-        const url=unique[index++];
-        try{
-          const request=new Request(url,{mode:"no-cors",credentials:"omit",cache:"reload"});
-          const response=await fetch(request);
-          if(response && (response.ok || response.type==="opaque")){
-            await cache.put(request,response.clone());
-            ok++;
-          }else{
-            failed++;
-          }
-        }catch(e){
-          failed++;
-        }finally{
-          done++;
-          if(done===unique.length || done%24===0){
-            setOfflineMapStatus(`Stahuji ${label} do offline cache: ${done} / ${unique.length} dlaždic...`);
-            setOfflineMapButtonState(true,`Stahuji ${done}/${unique.length}`);
-          }
-        }
-      }
-    }
-    await Promise.all(Array.from({length:Math.min(6,unique.length)},()=>worker()));
-    const message=failed
-      ? `${options.donePrefix || "Mapa"} uložena částečně: ${ok} dlaždic, ${failed} se nepodařilo.`
-      : `${options.donePrefix || "Mapa"} uložena offline: ${ok} dlaždic.`;
-    if(!failed && options.markCzechReady) markCzechOfflineMapReady();
-    setOfflineMapStatus(message,failed ? "error" : "ok");
-    if(window.showSaveConfirmation) window.showSaveConfirmation(message);
-  }catch(e){
-    console.warn("Offline mapa se nepodařila uložit",e);
-    setOfflineMapStatus("Mapu se nepodařilo uložit offline: " + (e && e.message ? e.message : e),"error");
-  }finally{
-    window.__mapTileCacheRunning=false;
-    setOfflineMapButtonState(false);
-  }
-}
+const {
+  cacheMapTileUrls
+}=createOfflineMapTileCacheHelpers({
+  cacheAppShellForOffline,
+  cacheName:MAP_TILE_CACHE_NAME,
+  getNavigator:()=>navigator,
+  getRunning:()=>window.__mapTileCacheRunning,
+  markCzechReady:()=>markCzechOfflineMapReady(),
+  reportServiceWorkerError:e=>{ if(typeof window.reportSzzServiceWorkerError==="function") window.reportSzzServiceWorkerError(e); },
+  requestPersistentStorage:options=>requestSzzPersistentStorage(options),
+  setButtonState:setOfflineMapButtonState,
+  setRunning:value=>{ window.__mapTileCacheRunning=value; },
+  setStatus:setOfflineMapStatus,
+  showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); }
+});
 
 async function cacheVisibleMapTiles(){
   return cacheMapTileUrls(visibleMapTileUrls(),{
