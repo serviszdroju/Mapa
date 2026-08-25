@@ -273,6 +273,9 @@ import {
   photoFileName
 } from "./photo-url-utils.js";
 import {
+  createOfflinePhotoItemHelpers
+} from "./offline-photo-item-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -337,7 +340,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-photo-db-module-v483";
+const APP_BUILD_VERSION="2026-08-25-offline-photo-item-module-v484";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11875,6 +11878,21 @@ const {
 }=createPhotoUrlHelpers();
 
 const {
+  cloneOfflinePhotoItems,
+  collectDisplayablePhotoItemsFromLists,
+  collectPendingOfflinePhotoItems,
+  countPendingOfflinePhotoItems,
+  displayablePhotoItems,
+  isPendingOfflinePhotoItem,
+  offlinePhotoFileFromItem,
+  siteCacheSuffixFromPhoto
+}=createOfflinePhotoItemHelpers({
+  photoDisplayUrl,
+  photoFileName,
+  safeValue:safe
+});
+
+const {
   cloudinaryPhotoFolderPath,
   photoFolderName,
   photoFolderNameFingerprint,
@@ -11982,29 +12000,6 @@ async function readOfflinePhotoItems(site=selectedSite){
 const OFFLINE_PHOTO_ALL_READ_CACHE_MS=1200;
 let offlinePhotoAllReadCache={savedAt:0,items:null,promise:null};
 
-function cloneOfflinePhotoItems(items=[]){
-  const source=Array.isArray(items) ? items : [];
-  const out=[];
-  for(const item of source){
-    if(!item) continue;
-    out.push(typeof item==="object" ? {...item} : item);
-  }
-  return out;
-}
-
-function isPendingOfflinePhotoItem(item){
-  return !!(item && (item._offline || item.storageMode==="offline" || item.localOnly));
-}
-
-function countPendingOfflinePhotoItems(items=[]){
-  const source=Array.isArray(items) ? items : [];
-  let count=0;
-  for(const item of source){
-    if(isPendingOfflinePhotoItem(item)) count++;
-  }
-  return count;
-}
-
 function countPendingOfflineProtocolEntries(entries=[]){
   const byId=new Set();
   let withoutId=0;
@@ -12019,48 +12014,6 @@ function countPendingOfflineProtocolEntries(entries=[]){
     }
   }
   return byId.size+withoutId;
-}
-
-function displayablePhotoItems(items=[]){
-  const out=[];
-  const source=Array.isArray(items) ? items : [];
-  for(const item of source){
-    if(photoDisplayUrl(item)) out.push(item);
-  }
-  return out;
-}
-
-function collectDisplayablePhotoItemsFromLists(lists=[]){
-  const out=[];
-  const seen=new Set();
-  const sourceLists=Array.isArray(lists) ? lists : [];
-  for(const list of sourceLists){
-    const source=Array.isArray(list) ? list : [];
-    for(const item of source){
-      const id=safe(item && item._id);
-      if(id && seen.has(id)) continue;
-      if(id) seen.add(id);
-      if(photoDisplayUrl(item)) out.push(item);
-    }
-  }
-  return out;
-}
-
-function collectPendingOfflinePhotoItems(lists=[]){
-  const out=[];
-  const seen=new Set();
-  const sourceLists=Array.isArray(lists) ? lists : [];
-  for(const list of sourceLists){
-    const source=Array.isArray(list) ? list : [];
-    for(const item of source){
-      if(!isPendingOfflinePhotoItem(item)) continue;
-      const id=safe(item._id);
-      if(id && seen.has(id)) continue;
-      if(id) seen.add(id);
-      if(photoDisplayUrl(item)) out.push(item);
-    }
-  }
-  return out;
 }
 
 function clearOfflinePhotoAllReadCache(){
@@ -12123,22 +12076,6 @@ async function readAllOfflinePhotoItems(){
       throw e;
     });
   return cloneOfflinePhotoItems(await offlinePhotoAllReadCache.promise);
-}
-
-function siteCacheSuffixFromPhoto(item){
-  const key=safe(item && item.siteCacheKey);
-  return key.startsWith("astipMap:photos:") ? key.slice("astipMap:photos:".length) : "";
-}
-
-async function offlinePhotoFileFromItem(item){
-  const dataUrl=safe(item && (item.fullUrl || item.displayUrl || item.url || item.thumbUrl));
-  if(!dataUrl || !dataUrl.startsWith("data:")){
-    throw new Error("Lokální fotka nemá uložená obrazová data.");
-  }
-  const response=await fetch(dataUrl);
-  const blob=await response.blob();
-  const fileName=photoFileName(item || {},0);
-  return new File([blob],fileName,{type:blob.type || item.type || "image/jpeg",lastModified:Date.parse(item.takenAt || item.createdAt || "") || Date.now()});
 }
 
 let offlinePhotoSyncRunning=false;

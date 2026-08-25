@@ -766,4 +766,6 @@ Current performance phase 328 decision: continue the monolith split by moving ex
 
 Current performance phase 329 decision: continue the monolith split by moving the low-level IndexedDB local-photo database constants, database opening, upgrade, and transaction helper into `src/offline-photo-db-utils.js`; preserve the same database/store names, key path, siteCacheKey index, close/error behavior, and all existing offline photo callers.
 
+Current performance phase 330 decision: continue the monolith split by moving offline photo item cloning, pending detection/counting, displayable photo collection/dedupe, site-cache suffix extraction, and data-URL-to-File conversion into `src/offline-photo-item-utils.js`; preserve the same photo display URL rules, `_id` dedupe behavior, data URL validation, generated filename, MIME type, and last-modified timestamp fallback.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
