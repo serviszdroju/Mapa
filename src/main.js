@@ -296,6 +296,12 @@ import {
   createFirestoreDeltaHelpers
 } from "./firestore-delta-utils.js";
 import {
+  createOfflineSiteMetaHelpers
+} from "./offline-site-meta-utils.js";
+import {
+  createFirebaseRowDocHelpers
+} from "./firebase-row-doc-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -360,7 +366,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-firestore-delta-module-v492";
+const APP_BUILD_VERSION="2026-08-25-offline-site-meta-module-v493";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1354,38 +1360,24 @@ const {
 });
 bindSzzOfflineDetailMetaStorageListener(window);
 
-function szzOfflineSiteMetaKey(site){
-  return selectedSiteDocId(site) || detailKey(site) || safe(site?.id);
-}
-
-function readSzzOfflineSiteMeta(site){
-  const key=szzOfflineSiteMetaKey(site);
-  const meta=readSzzOfflineDetailMeta();
-  return key && meta.sites && meta.sites[key] && typeof meta.sites[key]==="object" ? meta.sites[key] : null;
-}
-
-function writeSzzOfflineSiteMeta(site,siteMeta={}){
-  const key=szzOfflineSiteMetaKey(site);
-  if(!key) return null;
-  const meta=readSzzOfflineDetailMeta();
-  const sites=meta.sites && typeof meta.sites==="object" ? {...meta.sites} : {};
-  sites[key]={...(sites[key] || {}),...siteMeta,updatedAt:new Date().toISOString()};
-  return writeSzzOfflineDetailMeta({sites});
-}
+const {
+  localOfflineDetailMeta:szzLocalOfflineDetailMeta,
+  offlineSiteMetaKey:szzOfflineSiteMetaKey,
+  readOfflineSiteMeta:readSzzOfflineSiteMeta,
+  writeOfflineSiteMeta:writeSzzOfflineSiteMeta
+}=createOfflineSiteMetaHelpers({
+  detailKey:site=>detailKey(site),
+  readOfflineDetailMeta:readSzzOfflineDetailMeta,
+  readSiteLocalArrayMeta,
+  safeValue:safe,
+  selectedSiteDocId:site=>selectedSiteDocId(site),
+  writeOfflineDetailMeta:writeSzzOfflineDetailMeta
+});
 
 const {
   stableRawFingerprint:szzStableRawFingerprint,
   offlineRowFingerprint:szzOfflineRowFingerprint
 }=createOfflineRowFingerprintHelpers();
-
-function szzLocalOfflineDetailMeta(site){
-  return {
-    protocols:readSiteLocalArrayMeta("protocolHistory",site),
-    serviceRecords:readSiteLocalArrayMeta("serviceHistory",site),
-    photos:readSiteLocalArrayMeta("photos",site),
-    attachments:readSiteLocalArrayMeta("attachments",site)
-  };
-}
 
 const {
   readFirestoreDocsUpdatedSince
@@ -1399,26 +1391,15 @@ const {
   uniqueNonEmptyStrings
 });
 
-function szzFirebaseRowFromDocSnap(docSnap){
-  if(!docSnap || !docSnap.id || typeof docSnap.data!=="function") return null;
-  const normalizeRows=window.normalizeSiteRows || window.normalize;
-  if(typeof normalizeRows!=="function") return null;
-  const applyRowEdit=window.applySiteEditToRow || window.applyEditToRow || (row=>row);
-  const data=docSnap.data() || {};
-  let raw={...(data.raw || {})};
-  if(typeof window.applyLatestProtocolDateToRaw==="function"){
-    raw=window.applyLatestProtocolDateToRaw(raw,data || {});
-  }
-  raw["Firebase_doc_id"]=docSnap.id;
-  if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docSnap.id;
-  const row=normalizeRows([raw])[0];
-  if(!row) return null;
-  row.id=raw["Klíč_adresy"];
-  row.raw=raw;
-  row.firebaseDocId=docSnap.id;
-  row.firebaseData=data;
-  return applyRowEdit(row);
-}
+const {
+  firebaseRowFromDocSnap:szzFirebaseRowFromDocSnap,
+  firebaseRowKey:szzFirebaseRowKey
+}=createFirebaseRowDocHelpers({
+  applyLatestProtocolDateToRaw:()=>window.applyLatestProtocolDateToRaw,
+  applySiteEditToRow:()=>window.applySiteEditToRow || window.applyEditToRow || (row=>row),
+  normalizeSiteRows:()=>window.normalizeSiteRows || window.normalize,
+  safeValue:safe
+});
 
 async function syncSzzOfflineMapRowDeltas(sinceMs=0,options={}){
   if(!sinceMs || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return [];
@@ -1433,7 +1414,7 @@ async function syncSzzOfflineMapRowDeltas(sinceMs=0,options={}){
     sinceMs,
     docSnap=>{
       const row=szzFirebaseRowFromDocSnap(docSnap);
-      if(row) rowsById.set(safe(row.firebaseDocId || row.id),row);
+      if(row) rowsById.set(szzFirebaseRowKey(row),row);
     },
     "Rozdílové načtení bodů selhalo",
     {
