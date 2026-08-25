@@ -279,6 +279,9 @@ import {
   createOfflineIdHelpers
 } from "./offline-id-utils.js";
 import {
+  createFirebaseSiteCountCacheHelpers
+} from "./firebase-site-count-cache-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -343,7 +346,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-id-helper-module-v487";
+const APP_BUILD_VERSION="2026-08-25-firebase-site-count-cache-module-v488";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1260,33 +1263,19 @@ async function cacheAppShellForOffline(options={}){
 
 window.requestSzzPersistentStorage=requestSzzPersistentStorage;
 
-const SZZ_FIREBASE_SITE_COUNT_CACHE_MS=1800;
-let szzCachedFirebaseSiteCountCache={raw:null,count:0,savedAt:0};
+const {
+  clearCachedFirebaseSiteCount,
+  readCachedFirebaseSiteCount
+}=createFirebaseSiteCountCacheHelpers({
+  cacheKey:SZZ_FIREBASE_SITE_CACHE_KEY,
+  countOfflineSiteQueueItems:items=>countOfflineSiteQueueItems(items),
+  maxAgeMs:1800
+});
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_FIREBASE_SITE_CACHE_KEY){
-    szzCachedFirebaseSiteCountCache={raw:null,count:0,savedAt:0};
+    clearCachedFirebaseSiteCount();
   }
 });
-function readCachedFirebaseSiteCount(){
-  try{
-    const raw=localStorage.getItem(SZZ_FIREBASE_SITE_CACHE_KEY) || "";
-    if(szzCachedFirebaseSiteCountCache.raw===raw && Date.now()-szzCachedFirebaseSiteCountCache.savedAt<SZZ_FIREBASE_SITE_COUNT_CACHE_MS){
-      return szzCachedFirebaseSiteCountCache.count;
-    }
-    const parsed=JSON.parse(raw || "null");
-    const count=Number(parsed && parsed.count);
-    if(Number.isFinite(count) && count>0){
-      szzCachedFirebaseSiteCountCache={raw,count,savedAt:Date.now()};
-      return count;
-    }
-    const items=Array.isArray(parsed && parsed.items) ? parsed.items : [];
-    const fallbackCount=countOfflineSiteQueueItems(items);
-    szzCachedFirebaseSiteCountCache={raw,count:fallbackCount,savedAt:Date.now()};
-    return fallbackCount;
-  }catch(e){
-    return 0;
-  }
-}
 
 let firebaseRowsForOfflineCache={source:null,length:-1,indexVersion:-1,rows:[]};
 function firebaseRowsForOffline(source=null){

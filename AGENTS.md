@@ -774,4 +774,6 @@ Current performance phase 332 decision: continue the monolith split by moving pe
 
 Current performance phase 333 decision: continue the monolith split by moving reusable offline ID dedupe/count helpers into `src/offline-id-utils.js`; preserve the same safe-value normalization, no-id item retention/counting, latest-by-id replacement, and existing `window.uniqueByOfflineId*` exposure.
 
+Current performance phase 334 decision: continue the monolith split by moving cached Firebase map-site count parsing into `src/firebase-site-count-cache-utils.js`; preserve the same 1800 ms raw localStorage cache, positive count shortcut, legacy `items` fallback counting, storage-event invalidation, and cache-key freshness behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
