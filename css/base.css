@@ -102,10 +102,13 @@ html.auth-resume #startupScreen{display:none !important}
 html.auth-resume #mainApp{display:grid !important}
 .startup.auth-checking{display:none}
 .startup.auth-checking #startupLoginBtn{display:none}
+.startup.auth-checking #startupEmailLogin{display:none}
 .startup-card{
 width:min(420px,92vw);background:white;border-radius:28px;padding:32px;
 box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center
 }
+.startup-email-login{display:grid;gap:8px;margin-top:10px}
+.startup-email-login input,.startup-email-login button{min-height:42px}
 .logo-img{
 display:block;
 width:min(320px,80%);

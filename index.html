@@ -36,14 +36,19 @@ try{
     <img class="logo-img" src="./szz-logo-display.png" alt="Servis záložních zdrojů logo">
     <h1>Servis záložních zdrojů</h1>
     <p id="startupIntro">Kontroluji přihlášení...</p>
-    <button class="primary" id="startupLoginBtn" onclick="window.loginPopup()">Přihlásit přes Google</button>
+    <button class="secondary" id="startupLoginBtn" onclick="window.loginPopup()">Přihlásit přes Google</button>
+    <div class="startup-email-login" id="startupEmailLogin">
+      <input id="startupEmail" type="email" autocomplete="username" inputmode="email" placeholder="E-mail @astip.cz">
+      <input id="startupPassword" type="password" autocomplete="current-password" placeholder="Heslo">
+      <button class="primary" id="startupEmailLoginBtn" type="button" onclick="window.loginEmail && window.loginEmail()">Přihlásit e-mailem</button>
+    </div>
     <p id="startupStatus" class="small"></p>
   </div>
 </div>
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk" download data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=android-login-fallback-v439" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
@@ -470,7 +475,7 @@ Protokol na: ..."></textarea>
 <script type="module" src="./src/detail-tabs.js"></script>
 <script type="module" src="./src/hosted-login.js"></script>
 <script type="module" src="./src/main.js"></script>
-<script async src="./late.js?v=local-storage-clone-module-v448"></script>
+<script async src="./late.js?v=email-login-preserved-v449"></script>
 
 
 
