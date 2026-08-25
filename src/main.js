@@ -278,6 +278,9 @@ import {
 import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
+import {
+  createProtocolHandoffHelpers
+} from "./protocol-handoff-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -303,7 +306,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-history-label-utils-module-v465";
+const APP_BUILD_VERSION="2026-08-25-protocol-handoff-utils-module-v466";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11200,98 +11203,19 @@ function showSaveConfirmation(message="Uloženo."){
 }
 window.showSaveConfirmation=showSaveConfirmation;
 
-let protocolHandoffOverridesCacheRaw=null;
-let protocolHandoffOverridesCache=null;
-
-function clearProtocolHandoffOverridesCache(){
-  protocolHandoffOverridesCacheRaw=null;
-  protocolHandoffOverridesCache=null;
-}
-
-function readProtocolHandoffOverrides(){
-  try{
-    const raw=localStorage.getItem(SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) || "{}";
-    if(protocolHandoffOverridesCache && protocolHandoffOverridesCacheRaw===raw) return protocolHandoffOverridesCache;
-    const parsed=JSON.parse(raw);
-    protocolHandoffOverridesCache=parsed && typeof parsed==="object" && !Array.isArray(parsed) ? parsed : {};
-    protocolHandoffOverridesCacheRaw=raw;
-    return protocolHandoffOverridesCache;
-  }catch(e){
-    protocolHandoffOverridesCache={};
-    protocolHandoffOverridesCacheRaw="";
-    return protocolHandoffOverridesCache;
-  }
-}
-
-function writeProtocolHandoffOverrides(overrides={}){
-  try{
-    const source=overrides && typeof overrides==="object" && !Array.isArray(overrides) ? {...overrides} : {};
-    const entries=Object.entries(source);
-    if(entries.length>500){
-      entries.sort((a,b)=>Date.parse(b[1]?.updatedAt || "")-Date.parse(a[1]?.updatedAt || ""));
-      const trimmed={};
-      entries.slice(0,500).forEach(([key,value])=>{ trimmed[key]=value; });
-      Object.keys(source).forEach(key=>delete source[key]);
-      Object.assign(source,trimmed);
-    }
-    const raw=JSON.stringify(source);
-    localStorage.setItem(SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY,raw);
-    protocolHandoffOverridesCache=source;
-    protocolHandoffOverridesCacheRaw=raw;
-  }catch(e){
-    console.warn("Lokální stav předání protokolu se nepodařilo uložit",e);
-  }
-}
-
-function protocolHandoffItemId(protocol={}){
-  return safe(protocol && (protocol._id || protocol.id || protocol.protocolId || protocol.protocolDocId));
-}
-
-function protocolHandoffOverrideValue(protocol={}){
-  const id=protocolHandoffItemId(protocol);
-  if(!id) return null;
-  const overrides=readProtocolHandoffOverrides();
-  if(!Object.prototype.hasOwnProperty.call(overrides,id)) return null;
-  const entry=overrides[id];
-  if(entry===true || entry===false) return entry;
-  if(entry && typeof entry==="object" && typeof entry.checked==="boolean") return entry.checked;
-  return null;
-}
-
-function rememberProtocolHandoffOverride(id,checked,item={}){
-  const cleanId=safe(id);
-  if(!cleanId) return;
-  const overrides={...readProtocolHandoffOverrides()};
-  overrides[cleanId]={
-    checked:!!checked,
-    updatedAt:new Date().toISOString(),
-    by:currentUserEmail(),
-    siteDocId:safe(item.siteDocId || item.firebaseDocId || selectedSiteDocId(selectedSite)),
-    siteKey:safe(item.siteKey || item.siteId || selectedSite?.id || "")
-  };
-  writeProtocolHandoffOverrides(overrides);
-}
-
-function protocolHandoffFieldValue(value){
-  if(value===true) return true;
-  if(value===false) return false;
-  const raw=safe(value);
-  if(!raw) return null;
-  const normalized=simpleNorm(raw);
-  if(normalized==="ne" || normalized==="false" || normalized==="0" || normalized.includes("nepredan")) return false;
-  if(normalized==="ano" || normalized==="true" || normalized==="1" || normalized.includes("predan")) return true;
-  return null;
-}
-
-function protocolHandoffForProcessing(protocol={}){
-  const override=protocolHandoffOverrideValue(protocol);
-  if(override!==null) return override;
-  for(const value of [protocol.handoffForProcessing,protocol.submittedForProcessing,protocol.processingHandoff]){
-    const parsed=protocolHandoffFieldValue(value);
-    if(parsed!==null) return parsed;
-  }
-  return false;
-}
+const {
+  clearProtocolHandoffOverridesCache,
+  protocolHandoffForProcessing,
+  protocolHandoffLocalPatch,
+  protocolHandoffRemotePatch,
+  rememberProtocolHandoffOverride
+}=createProtocolHandoffHelpers({
+  currentUserEmail,
+  getSelectedSite:()=>selectedSite,
+  selectedSiteDocId,
+  serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString(),
+  storageKey:SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY
+});
 
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
@@ -11348,28 +11272,6 @@ function mainProtocolProcessedRemotePatch(checked){
     updatedAt:serverTime
   };
 }
-function protocolHandoffLocalPatch(checked){
-  return {
-    handoffForProcessing:!!checked,
-    submittedForProcessing:!!checked,
-    processingHandoff:checked ? "ano" : "ne",
-    handoffAt:checked ? new Date().toISOString() : null,
-    handoffBy:checked ? currentUserEmail() : ""
-  };
-}
-function protocolHandoffRemotePatch(checked){
-  const serverTime=fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString();
-  return {
-    handoffForProcessing:!!checked,
-    submittedForProcessing:!!checked,
-    processingHandoff:checked ? "ano" : "ne",
-    handoffAt:checked ? serverTime : null,
-    handoffBy:checked ? currentUserEmail() : "",
-    updatedBy:currentUserEmail(),
-    updatedAt:serverTime
-  };
-}
-
 function patchProtocolProcessedItems(items,cleanId,patch,includeIdFallback=true){
   const source=Array.isArray(items) ? items : [];
   let next=null;
