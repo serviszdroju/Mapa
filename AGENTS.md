@@ -772,4 +772,6 @@ Current performance phase 331 decision: continue the monolith split by moving of
 
 Current performance phase 332 decision: continue the monolith split by moving pending offline protocol localStorage-entry counting into `src/offline-protocol-queue-utils.js`; preserve the same `_id` dedupe behavior, no-id fallback count, pending protocol test, and offline status count integration.
 
+Current performance phase 333 decision: continue the monolith split by moving reusable offline ID dedupe/count helpers into `src/offline-id-utils.js`; preserve the same safe-value normalization, no-id item retention/counting, latest-by-id replacement, and existing `window.uniqueByOfflineId*` exposure.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

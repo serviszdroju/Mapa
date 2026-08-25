@@ -276,6 +276,9 @@ import {
   createOfflinePhotoQueueHelpers
 } from "./offline-photo-queue-utils.js";
 import {
+  createOfflineIdHelpers
+} from "./offline-id-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -340,7 +343,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-pending-count-module-v486";
+const APP_BUILD_VERSION="2026-08-25-offline-id-helper-module-v487";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9032,41 +9035,13 @@ const {
 });
 window.mergeSiteLocalArray=mergeSiteLocalArray;
 
-function uniqueByOfflineId(items=[],idKey="_id"){
-  return uniqueByOfflineIdFromLists([items],idKey);
-}
-function countUniqueOfflineItems(items=[],idKey="_id",predicate=null){
-  const source=Array.isArray(items) ? items : [];
-  const byId=new Set();
-  let withoutId=0;
-  for(const item of source){
-    if(!item || (predicate && !predicate(item))) continue;
-    const id=safe(item && item[idKey]);
-    if(id) byId.add(id);
-    else withoutId++;
-  }
-  return byId.size+withoutId;
-}
-function uniqueByOfflineIdFromLists(lists=[],idKey="_id"){
-  const byId=new Map();
-  const withoutId=[];
-  const sourceLists=Array.isArray(lists) ? lists : [];
-  for(const list of sourceLists){
-    const source=Array.isArray(list) ? list : [];
-    for(const item of source){
-      if(!item) continue;
-      const id=safe(item && item[idKey]);
-      if(!id){
-        withoutId.push(item);
-        continue;
-      }
-      byId.set(id,item);
-    }
-  }
-  const out=withoutId.slice();
-  byId.forEach(item=>out.push(item));
-  return out;
-}
+const {
+  countUniqueOfflineItems,
+  uniqueByOfflineId,
+  uniqueByOfflineIdFromLists
+}=createOfflineIdHelpers({
+  safeValue:safe
+});
 window.uniqueByOfflineId=uniqueByOfflineId;
 window.uniqueByOfflineIdFromLists=uniqueByOfflineIdFromLists;
 
