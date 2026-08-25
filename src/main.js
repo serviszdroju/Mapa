@@ -395,6 +395,9 @@ import {
 import {
   createDeleteSiteHelpers
 } from "./delete-site-utils.js";
+import {
+  createMapStatusParityHelpers
+} from "./map-status-parity-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -430,7 +433,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-login-stable-new-site-mode-v519";
+const APP_BUILD_VERSION="2026-08-25-map-status-parity-module-v520";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2295,35 +2298,19 @@ function groupColor(groupRows){
   const rep=groupRepresentative(groupRows);
   return rep ? color(rep) : "#16a34a";
 }
-function mapStatusParitySnapshot(inputRows=rows){
-  const mapRows=[];
-  for(const row of inputRows || []){
-    if(inCzSk(row)) mapRows.push(row);
-  }
-  const groups=groupRowsByPlace(mapRows);
-  return groups
-    .filter(groupHasUsableGps)
-    .map(group=>{
-      const rep=groupPrimaryRow(group);
-      return {
-        key:String(group.key || ""),
-        label:String(group.label || ""),
-        lat:Number.isFinite(group.lat) ? Number(group.lat.toFixed(6)) : null,
-        lon:Number.isFinite(group.lon) ? Number(group.lon.toFixed(6)) : null,
-        count:(group.rows || []).length,
-        color:groupColor(group.rows || []),
-        status:rep ? statusText(rep) : "",
-        representative:rep ? detailKey(rep) : "",
-        sources:(group.rows || []).map(row=>({
-          key:detailKey(row),
-          source:siteSourceLabel(row),
-          color:color(row),
-          status:statusText(row)
-        }))
-      };
-    })
-    .sort((a,b)=>a.key.localeCompare(b.key,"cs",{sensitivity:"base"}));
-}
+const {
+  mapStatusParitySnapshot
+}=createMapStatusParityHelpers({
+  color,
+  detailKey,
+  groupColor,
+  groupHasUsableGps,
+  groupPrimaryRow,
+  groupRowsByPlace,
+  inCzSk,
+  siteSourceLabel,
+  statusText
+});
 window.szzMapStatusParitySnapshot=mapStatusParitySnapshot;
 function markerRowSignature(row){
   if(!row) return "";
