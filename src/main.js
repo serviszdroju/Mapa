@@ -275,6 +275,9 @@ import {
   historyObjectSummary,
   isProtocolHistoryItem
 } from "./protocol-export-utils.js";
+import {
+  createHistoryLabelHelpers
+} from "./history-label-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -300,7 +303,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-export-utils-module-v464";
+const APP_BUILD_VERSION="2026-08-25-history-label-utils-module-v465";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6483,24 +6486,6 @@ function refreshLoadedDetailTabs(site=selectedSite){
 }
 window.refreshLoadedDetailTabs=refreshLoadedDetailTabs;
 
-function historySavedDateLabel(item){
-  const raw=item?.savedAt || item?.createdAt || item?.updatedAt || item?.offlineSavedAt || "";
-  const time=protocolExportValue(raw);
-  if(!time) return "";
-  if(raw && typeof raw.toDate==="function") return isAppAdmin() ? formatDateTimeCz(raw.toDate()) : formatDateCz(raw.toDate());
-  const d=new Date(raw || 0);
-  return isNaN(d.getTime()) ? (isAppAdmin() ? time : dateOnlyTextFallback(time)) : (isAppAdmin() ? formatDateTimeCz(d) : formatDateCz(d));
-}
-
-function historyDateLabel(item){
-  if(item?.checkDate) return item.checkDate;
-  if(item?.date) return item.date;
-  const raw=item?.createdAt;
-  if(raw && typeof raw.toDate==="function") return formatDateCz(raw.toDate());
-  const d=new Date(raw || 0);
-  return isNaN(d.getTime()) ? "bez data" : formatDateCz(d);
-}
-
 const {
   photoCloudinaryVersionDate,
   photoDateLabel,
@@ -6518,6 +6503,18 @@ const {
   protocolWordFileNamePart
 }=createProtocolExportHelpers({
   formatDateTimeCz
+});
+
+const {
+  historyDateLabel,
+  historySavedDateLabel,
+  protocolGlobalHistoryTitle
+}=createHistoryLabelHelpers({
+  dateOnlyTextFallback,
+  formatDateCz,
+  formatDateTimeCz,
+  isAppAdmin,
+  protocolExportValue
 });
 
 function protocolDisplayDate(value){
@@ -11202,13 +11199,6 @@ function showSaveConfirmation(message="Uloženo."){
   setTimeout(()=>item.remove(),2700);
 }
 window.showSaveConfirmation=showSaveConfirmation;
-
-function protocolGlobalHistoryTitle(item={}){
-  const title=safe(item.siteName || item.place || item.siteAddress || item.siteKey || item.firebaseDocId || "Protokol");
-  const device=safe(item.deviceType || item.selectedDevice || item.siteSource || "");
-  const serial=safe(item.serial || "");
-  return [title, device, serial].filter(Boolean).join(" | ");
-}
 
 let protocolHandoffOverridesCacheRaw=null;
 let protocolHandoffOverridesCache=null;
