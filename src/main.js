@@ -282,6 +282,9 @@ import {
   createFirebaseSiteCountCacheHelpers
 } from "./firebase-site-count-cache-utils.js";
 import {
+  createOfflineRowSelectHelpers
+} from "./offline-row-select-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -346,7 +349,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-firebase-site-count-cache-module-v488";
+const APP_BUILD_VERSION="2026-08-25-offline-row-select-module-v489";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1277,22 +1280,15 @@ window.addEventListener("storage",event=>{
   }
 });
 
-let firebaseRowsForOfflineCache={source:null,length:-1,indexVersion:-1,rows:[]};
-function firebaseRowsForOffline(source=null){
-  const currentRows=Array.isArray(source) ? source : (Array.isArray(window.rows) ? window.rows : rows);
-  const current=Array.isArray(currentRows) ? currentRows : [];
-  const indexVersion=current===rows ? rowsIndexVersion : -1;
-  if(
-    firebaseRowsForOfflineCache.source===current &&
-    firebaseRowsForOfflineCache.length===current.length &&
-    firebaseRowsForOfflineCache.indexVersion===indexVersion
-  ){
-    return firebaseRowsForOfflineCache.rows;
-  }
-  const firebaseRows=current.filter(row=>row && (row.firebaseDocId || (row.raw && row.raw["Firebase_doc_id"])));
-  firebaseRowsForOfflineCache={source:current,length:current.length,indexVersion,rows:firebaseRows};
-  return firebaseRows;
-}
+const {
+  firebaseRowsForOffline,
+  szzOfflineRowsForPrefetch
+}=createOfflineRowSelectHelpers({
+  getRows:()=>Array.isArray(window.rows) ? window.rows : rows,
+  getRowsIndexVersion:()=>rowsIndexVersion,
+  isPrimaryRows:current=>current===rows,
+  safeValue:safe
+});
 
 function saveFirebaseRowsCacheForRows(source=null){
   const firebaseRows=firebaseRowsForOffline(source);
@@ -1321,30 +1317,6 @@ function szzIsConstrainedDevice(){
 
 function szzOfflineDetailPrefetchConcurrency(){
   return szzIsConstrainedDevice() ? 1 : SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY;
-}
-
-let szzOfflineRowsForPrefetchCache={source:null,length:-1,indexVersion:-1,rows:[]};
-function szzOfflineRowsForPrefetch(inputRows=null){
-  const source=Array.isArray(inputRows) && inputRows.length ? inputRows : (Array.isArray(window.rows) ? window.rows : rows);
-  const current=Array.isArray(source) ? source : [];
-  const indexVersion=current===rows ? rowsIndexVersion : -1;
-  if(
-    szzOfflineRowsForPrefetchCache.source===current &&
-    szzOfflineRowsForPrefetchCache.length===current.length &&
-    szzOfflineRowsForPrefetchCache.indexVersion===indexVersion
-  ){
-    return szzOfflineRowsForPrefetchCache.rows;
-  }
-  const seen=new Set();
-  const prefetchRows=[];
-  for(const row of current){
-    const id=safe(row && (row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id));
-    if(!id || seen.has(id)) continue;
-    seen.add(id);
-    prefetchRows.push(row);
-  }
-  szzOfflineRowsForPrefetchCache={source:current,length:current.length,indexVersion,rows:prefetchRows};
-  return prefetchRows;
 }
 
 function szzEmbeddedItemsForOffline(site,field,typeLabel,collectionLabel,idPrefix){
