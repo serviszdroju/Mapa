@@ -388,6 +388,9 @@ import {
 import {
   createEditFormHelpers
 } from "./edit-form-utils.js";
+import {
+  createDeleteSiteHelpers
+} from "./delete-site-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -423,7 +426,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-google-token-legacy-deleted-site-module-v516";
+const APP_BUILD_VERSION="2026-08-25-delete-site-module-v517";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2086,67 +2089,6 @@ runAfterPaint(()=>{const n=document.getElementById("newName"); if(n){n.focus(); 
 }
 
 
-async function deleteSelectedSite(){
-  const st=document.getElementById("editStatus");
-  if(!selectedSite){st.textContent="Není vybrané místo.";return;}
-  if(!firebaseReady){st.textContent="Firebase není nastavený.";return;}
-  if(!currentUser){st.textContent="Nejdřív se přihlaš.";return;}
-  if(!isAppAdmin()){st.textContent="Mazat body může jen správce.";return;}
-
-  const ok=confirm("Opravdu smazat toto místo i jeho uložené údaje z Firebase?\\n\\nU původně importovaných míst se uloží také skrytý záznam, aby se bod po obnově znovu nezobrazil.");
-  if(!ok) return;
-
-  try{
-    const {doc,setDoc,deleteDoc,collection,query,where,getDocs}=fb.fsMod;
-
-    if(selectedSite.isNewSite && selectedSite.raw && selectedSite.raw["Firebase_doc_id"]){
-      const docId=selectedSite.raw["Firebase_doc_id"];
-      await deleteDoc(doc(db,"sites",docId));
-    }else{
-      await setDoc(doc(db,"deletedSites",selectedSite.id),{
-        siteId:selectedSite.id,
-        siteName:selectedSite.adresa || "",
-        deletedBy:currentUser.email,
-        deletedAt:new Date().toISOString()
-      },{merge:true});
-    }
-
-    // smaž editaci místa, pokud existuje
-    try{ await deleteDoc(doc(db,"siteEdits",selectedSite.id)); }catch(e){}
-
-    // volitelně smaž protokoly a servisní záznamy k místu
-    for(const colName of ["protocols","serviceRecords"]){
-      try{
-        const q=query(collection(db,colName),where("siteId","==",selectedSite.id));
-        const snap=await getDocs(q);
-        for(const d of snap.docs){ await deleteDoc(d.ref); }
-      }catch(e){ console.warn("Mazání kolekce selhalo",colName,e); }
-    }
-
-    st.textContent="Místo bylo smazáno/skryto.";
-    drawerNode()?.classList.remove("open");
-    if(firebaseUnifiedPrimary && typeof window.loadFirebaseSitesUnified==="function"){
-      const deletedId=safe(selectedSite && selectedSite.id);
-      if(deletedId) deletedSiteIds.add(deletedId);
-      const removedRows=typeof window.removeFirebaseSiteRow==="function" ? window.removeFirebaseSiteRow(selectedSite) : null;
-      if(removedRows){
-        selectedSite=null;
-        saveFirebaseRowsCacheForRows(removedRows);
-      }else{
-        await loadDeletedSites();
-        await window.loadFirebaseSitesUnified();
-      }
-    }else{
-      await loadDeletedSites();
-      const rendered=await loadExtraSites();
-      if(!rendered) render();
-    }
-    showSaveConfirmation("Bod smazán.");
-  }catch(e){
-    st.textContent="Chyba při mazání: "+e.message;
-  }
-}
-
 let deletedSiteIds=new Set();
 const {
   loadDeletedSites
@@ -2163,6 +2105,30 @@ const {
   setDeletedSiteIds:nextIds=>{ deletedSiteIds=nextIds instanceof Set ? nextIds : new Set(); },
   setRows:nextRows=>{ window.rows=nextRows; rows=window.rows; },
   syncCurrentUserFromCompat
+});
+
+const {
+  deleteSelectedSite
+}=createDeleteSiteHelpers({
+  addDeletedSiteId:id=>deletedSiteIds.add(id),
+  getCurrentUser:()=>currentUser,
+  getDb:()=>db,
+  getEditStatusNode:()=>document.getElementById("editStatus"),
+  getFirestoreModule:()=>fb.fsMod,
+  getLoadFirebaseSitesUnified:()=>window.loadFirebaseSitesUnified,
+  getRemoveFirebaseSiteRow:()=>window.removeFirebaseSiteRow,
+  getSelectedSite:()=>selectedSite,
+  isAppAdmin,
+  isFirebaseReady:()=>firebaseReady,
+  isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
+  loadDeletedSites,
+  loadExtraSites,
+  render,
+  saveFirebaseRowsCacheForRows,
+  safe,
+  setSelectedSite:site=>{ selectedSite=site; window.selectedSite=site; },
+  showSaveConfirmation,
+  drawerNode
 });
 
 function filtered(){
