@@ -109,6 +109,9 @@ box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center
 }
 .startup-email-login{display:grid;gap:8px;margin-top:10px}
 .startup-email-login input,.startup-email-login button{min-height:42px}
+.sidebar-email-login{display:none;gap:7px;margin:8px 0;padding:9px;border:1px solid var(--border);border-radius:12px;background:#f8fafc}
+.sidebar-email-login input,.sidebar-email-login button{min-height:38px;padding:7px 9px}
+.sidebar-email-login .small{margin:0}
 .logo-img{
 display:block;
 width:min(320px,80%);

@@ -696,6 +696,8 @@ Current auth preservation decision: keep the standalone startup e-mail login she
 
 Current performance phase 299 decision: continue the monolith split by moving generic local detail read-cache loading and targeted cache clearing helpers into `src/local-detail-cache-utils.js`; preserve the same promise coalescing, shallow clone return behavior, cache age, prefix/key invalidation, and caller-facing wrapper in `main.js`.
 
+Current auth preservation decision: keep the sidebar e-mail/password login form in `index.html` alongside the startup fallback; the standalone shell login must read sidebar fields first, mirror status text to `#sidebarEmailStatus`, focus the first empty login field, intercept login buttons consistently, and preserve the left-panel app workflow for Android/tablet users.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
