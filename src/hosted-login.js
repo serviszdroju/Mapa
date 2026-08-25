@@ -5,7 +5,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="map-status-parity-module-v520";
+const EMAIL_LOGIN_BUILD_VERSION="row-fast-index-module-v521";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={

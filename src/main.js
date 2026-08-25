@@ -398,6 +398,9 @@ import {
 import {
   createMapStatusParityHelpers
 } from "./map-status-parity-utils.js";
+import {
+  createRowFastIndexHelpers
+} from "./row-fast-index-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -433,7 +436,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-map-status-parity-module-v520";
+const APP_BUILD_VERSION="2026-08-25-row-fast-index-module-v521";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2707,40 +2710,24 @@ const {
   siteSourceIdentity
 });
 
-function rowRenderFingerprint(r){
-  if(!r) return "";
-  const sourceIdentity=r._sourceIdentity!==undefined ? r._sourceIdentity : siteSourceIdentity(r);
-  return [
-    rowLookupKeys(r).join(","),
-    Number.isFinite(r.lat) ? Number(r.lat).toFixed(6) : "",
-    Number.isFinite(r.lon) ? Number(r.lon).toFixed(6) : "",
-    r._regionNorm || "",
-    r._statusText || "",
-    r._scheduleFingerprint || rowScheduleFingerprint(r),
-    r._placeGroupKey || sitePlaceGroupKey(r),
-    r._placeLabel || sitePlaceLabel(r),
-    sourceIdentity
-  ].join("|");
-}
-
-function ensureRowFastIndexes(r,index){
-  if(!r) return;
-  r.i=index;
-  if(r._searchRawRef!==r.raw || !r._searchText){
-    const text=searchNorm(rowSearchText(r));
-    r._searchText=text;
-    r._compactSearchText=text.replace(/\s+/g,"");
-    r._searchRawRef=r.raw;
-  }
-  if(r._regionRawRef!==r.raw || !r._regionNorm){
-    r._regionNorm=regionTextNorm(rowRegion(r));
-    r._regionRawRef=r.raw;
-  }
-  ensureRowPlaceCache(r);
-  ensureRowSourceCache(r);
-  const schedule=ensureRowScheduleCache(r);
-  r._statusText=schedule ? schedule.status : statusText(r);
-}
+const {
+  ensureRowFastIndexes,
+  rowRenderFingerprint
+}=createRowFastIndexHelpers({
+  ensureRowPlaceCache,
+  ensureRowScheduleCache,
+  ensureRowSourceCache,
+  regionTextNorm,
+  rowLookupKeys,
+  rowRegion,
+  rowScheduleFingerprint,
+  rowSearchText,
+  searchNorm,
+  sitePlaceGroupKey,
+  sitePlaceLabel,
+  siteSourceIdentity,
+  statusText
+});
 
 function rebuildRowLookupCache(){
   const lookup=new Map();
