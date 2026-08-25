@@ -231,6 +231,9 @@ import {
   clearLocalDetailReadCache,
   readCachedLocalDetailItems as readCachedLocalDetailItemsFromCache
 } from "./local-detail-cache-utils.js";
+import {
+  createLocalStorageEntriesHelpers
+} from "./local-storage-entries-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -256,7 +259,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-sidebar-email-login-v453";
+const APP_BUILD_VERSION="2026-08-25-local-storage-entries-module-v454";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1232,7 +1235,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v453-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v454-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -9111,8 +9114,6 @@ const {
   selectedSiteDocId
 });
 const LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS=1800;
-const localStorageArrayEntriesCache=new Map();
-const localStorageObjectEntriesCache=new Map();
 const siteLocalArrayReadCache=new Map();
 const siteLocalObjectReadCache=new Map();
 const LOCAL_DETAIL_READ_CACHE_MS=1800;
@@ -9171,17 +9172,11 @@ function clearSiteLocalObjectReadCache(prefixOrKey=""){
     }
   }
 }
-function clearLocalStorageArrayEntriesCache(prefixOrKey=""){
+function clearSiteLocalArrayReadCache(prefixOrKey=""){
   const clean=String(prefixOrKey || "");
   if(!clean){
-    localStorageArrayEntriesCache.clear();
     siteLocalArrayReadCache.clear();
     return;
-  }
-  for(const prefix of localStorageArrayEntriesCache.keys()){
-    if(prefix===clean || clean.startsWith(prefix) || prefix.startsWith(clean)){
-      localStorageArrayEntriesCache.delete(prefix);
-    }
   }
   for(const key of siteLocalArrayReadCache.keys()){
     if(key===clean || key.startsWith(clean) || clean.startsWith(key)){
@@ -9189,20 +9184,18 @@ function clearLocalStorageArrayEntriesCache(prefixOrKey=""){
     }
   }
 }
-function clearLocalStorageObjectEntriesCache(prefixOrKey=""){
-  const clean=String(prefixOrKey || "");
-  if(!clean){
-    localStorageObjectEntriesCache.clear();
-    clearSiteLocalObjectReadCache();
-    return;
-  }
-  for(const prefix of localStorageObjectEntriesCache.keys()){
-    if(prefix===clean || clean.startsWith(prefix) || prefix.startsWith(clean)){
-      localStorageObjectEntriesCache.delete(prefix);
-    }
-  }
-  clearSiteLocalObjectReadCache(clean);
-}
+const {
+  clearLocalStorageArrayEntriesCache,
+  clearLocalStorageObjectEntriesCache,
+  localStorageArrayEntries,
+  localStorageObjectEntries
+}=createLocalStorageEntriesHelpers({
+  cloneArrayEntries:cloneLocalStorageArrayEntries,
+  cloneObjectEntries:cloneLocalStorageObjectEntries,
+  clearSiteArrayReadCache:clearSiteLocalArrayReadCache,
+  clearSiteObjectReadCache:clearSiteLocalObjectReadCache,
+  maxAgeMs:LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS
+});
 window.addEventListener("storage",()=>{
   clearLocalStorageArrayEntriesCache();
   clearLocalStorageObjectEntriesCache();
@@ -9880,52 +9873,6 @@ function restoreProtocolDraftIfAny(site=selectedSite){
 }
 
 let offlineProtocolSyncRunning=false;
-
-function localStorageArrayEntries(prefix){
-  const cleanPrefix=String(prefix || "");
-  const cached=localStorageArrayEntriesCache.get(cleanPrefix);
-  if(cached && cached.length===localStorage.length && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
-    return cloneLocalStorageArrayEntries(cached.entries);
-  }
-  const entries=[];
-  try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i);
-      if(!key || !key.startsWith(cleanPrefix)) continue;
-      const arr=JSON.parse(localStorage.getItem(key) || "[]");
-      if(Array.isArray(arr)){
-        entries.push({key,suffix:key.slice(cleanPrefix.length),items:arr});
-      }
-    }
-  }catch(e){
-    console.warn("Lokální frontu se nepodařilo načíst",e);
-  }
-  localStorageArrayEntriesCache.set(cleanPrefix,{savedAt:Date.now(),length:localStorage.length,entries:cloneLocalStorageArrayEntries(entries)});
-  return entries;
-}
-
-function localStorageObjectEntries(prefix){
-  const cleanPrefix=String(prefix || "");
-  const cached=localStorageObjectEntriesCache.get(cleanPrefix);
-  if(cached && cached.length===localStorage.length && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
-    return cloneLocalStorageObjectEntries(cached.entries);
-  }
-  const entries=[];
-  try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i);
-      if(!key || !key.startsWith(cleanPrefix)) continue;
-      const item=JSON.parse(localStorage.getItem(key) || "null");
-      if(item && typeof item==="object"){
-        entries.push({key,suffix:key.slice(cleanPrefix.length),item});
-      }
-    }
-  }catch(e){
-    console.warn("Lokální položky se nepodařilo načíst",e);
-  }
-  localStorageObjectEntriesCache.set(cleanPrefix,{savedAt:Date.now(),length:localStorage.length,entries:cloneLocalStorageObjectEntries(entries)});
-  return entries;
-}
 
 function removeLocalStorageArrayItemByKey(key,id){
   const cleanId=safe(id);

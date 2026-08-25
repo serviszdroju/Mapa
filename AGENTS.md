@@ -700,4 +700,6 @@ Current auth preservation decision: keep the sidebar e-mail/password login form 
 
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
+Current performance phase 300 decision: continue the monolith split by moving prefix-based localStorage array/object entry scan caches into `src/local-storage-entries-utils.js`; preserve the same cache max age, localStorage length invalidation, shallow cloned returns, prefix/key clearing semantics, site-local read-cache invalidation callbacks, and legacy localStorage fallback coverage.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
