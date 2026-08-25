@@ -804,4 +804,6 @@ Current performance phase 347 decision: continue the monolith split by moving ra
 
 Current performance phase 348 decision: continue the monolith split by moving new-site form field filtering, labels, normalization, and known-key collection into `src/new-site-field-utils.js`; preserve skipped technical/date/GPS fields, required fallback fields, deduped label normalization, and generated form field order.
 
+Current performance phase 349 decision: continue the monolith split by moving detail drawer close binding, tab dedupe, and normal-shell snapshot restore helpers into `src/detail-drawer-shell-utils.js`; preserve the same drawer DOM ids, tab buttons, close behavior, protocol toggle binding, and global restore/capture hooks.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

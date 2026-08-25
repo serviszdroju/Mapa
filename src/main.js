@@ -197,6 +197,9 @@ import {
   sourceChooserNode
 } from "./form-field-utils.js";
 import {
+  createDetailDrawerShellHelpers
+} from "./detail-drawer-shell-utils.js";
+import {
   dataLabelAll,
   dataLabelFixed,
   dataLabelUser,
@@ -403,7 +406,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-google-login-v509";
+const APP_BUILD_VERSION="2026-08-25-detail-drawer-shell-module-v510";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1348,8 +1351,8 @@ if(firebaseReady){
   window.__startFirebaseRedirectLogin=startGoogleLoginFromUi;
   window.__signOutFirebase=signOutFirebase;
   window.startFirebaseGoogleLogin=startGoogleLoginFromUi;
-  window.startGoogleLogin=startGoogleLoginFromUi;
-  window.loginPopup=startGoogleLoginFromUi;
+  if(typeof window.startGoogleLogin!=="function") window.startGoogleLogin=startGoogleLoginFromUi;
+  if(typeof window.loginPopup!=="function") window.loginPopup=startGoogleLoginFromUi;
   window.__startCompatGoogleLoginFallback=startGoogleLoginFromUi;
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
 
@@ -1889,72 +1892,17 @@ const {
 
 
 
-function bindDrawerCloseButton(){
-  const close=document.getElementById("closeDrawer");
-  const drawer=drawerNode();
-  if(close && drawer) close.onclick=()=>closeDetailDrawer();
-}
-
-function bindDetailShellControls(){
-  bindDrawerCloseButton();
-  bindProtocolToggleButton();
-}
-
-function dedupeDetailTabs(drawer=drawerNode()){
-  if(!drawer) return;
-  const tabBars=Array.from(drawer.querySelectorAll(".detail-tabs"));
-  if(!tabBars.length) return;
-  const keep=tabBars.find(el=>el.id==="detailTabs") || tabBars[0];
-  keep.id="detailTabs";
-  tabBars.forEach(el=>{ if(el!==keep) el.remove(); });
-  const seenTabs=new Set();
-  keep.querySelectorAll(".detail-tab[data-detail-tab]").forEach(btn=>{
-    const key=btn.getAttribute("data-detail-tab");
-    if(seenTabs.has(key)){
-      btn.remove();
-      return;
-    }
-    seenTabs.add(key);
-  });
-}
-
-function drawerNodesHaveDetailShell(nodes=[]){
-  return (nodes || []).some(node=>{
-    if(!node || node.nodeType!==1) return false;
-    return node.id==="detailTable"
-      || node.id==="detailTabs"
-      || !!(node.querySelector && (node.querySelector("#detailTable") || node.querySelector("#detailTabs")));
-  });
-}
-
-function cloneDrawerNodes(nodes=[]){
-  return (nodes || []).map(node=>node && node.cloneNode ? node.cloneNode(true) : null).filter(Boolean);
-}
-
-function captureNormalDetailDrawerShell(drawer=drawerNode()){
-  if(!drawer || !(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"))) return;
-  dedupeDetailTabs(drawer);
-  const nodes=Array.from(drawer.childNodes);
-  window.__normalDrawerNodes=nodes;
-  window.__normalDrawerNodeClones=cloneDrawerNodes(nodes);
-}
-
-function restoreNormalDetailDrawerShell(){
-  const drawer=drawerNode();
-  if(!drawer) return null;
-  const hasDetailShell=!!(drawer.querySelector("#detailTable") && drawer.querySelector("#detailTabs"));
-  if(!hasDetailShell){
-    if(drawerNodesHaveDetailShell(window.__normalDrawerNodes)){
-      drawer.replaceChildren(...window.__normalDrawerNodes);
-    }else if(drawerNodesHaveDetailShell(window.__normalDrawerNodeClones)){
-      drawer.replaceChildren(...cloneDrawerNodes(window.__normalDrawerNodeClones));
-    }
-  }
-  dedupeDetailTabs(drawer);
-  captureNormalDetailDrawerShell(drawer);
-  bindDetailShellControls();
-  return drawer;
-}
+const {
+  bindDetailShellControls,
+  bindDrawerCloseButton,
+  captureNormalDetailDrawerShell,
+  dedupeDetailTabs,
+  restoreNormalDetailDrawerShell
+}=createDetailDrawerShellHelpers({
+  bindProtocolToggleButton,
+  closeDetailDrawer,
+  drawerNode
+});
 window.captureNormalDetailDrawerShell=captureNormalDetailDrawerShell;
 window.restoreNormalDetailDrawerShell=restoreNormalDetailDrawerShell;
 window.bindDetailShellControls=bindDetailShellControls;
