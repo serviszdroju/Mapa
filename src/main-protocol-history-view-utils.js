@@ -74,6 +74,67 @@ export function createMainProtocolHistoryViewHelpers({
     return `${adminPart}\u001e${dateFilter}\u001e${source.length}\u001e${rows}`;
   }
 
+  function renderMainProtocolHistoryShellDom(drawer,{dateFilter=""}={}){
+    const existingList=drawer?.querySelector?.("#mainProtocolHistoryList");
+    const existingCard=drawer?.querySelector?.("#mainProtocolHistoryCard");
+    const existingDateFilter=drawer?.querySelector?.("#mainProtocolHistoryDateFilter");
+    if(existingList && existingCard && existingDateFilter){
+      return {
+        close:drawer.querySelector("#closeDrawer"),
+        list:existingList,
+        dateFilter:existingDateFilter,
+        clearDate:drawer.querySelector("#mainProtocolHistoryDateClear"),
+        reused:true
+      };
+    }
+    const head=document.createElement("div");
+    head.className="drawer-head";
+    const titleWrap=document.createElement("div");
+    const title=document.createElement("h2");
+    title.textContent="Historie protokolů";
+    const subtitle=document.createElement("p");
+    subtitle.className="small";
+    subtitle.textContent="Poslední uložené protokoly napříč mapou.";
+    titleWrap.append(title,subtitle);
+    const close=document.createElement("button");
+    close.className="secondary x";
+    close.type="button";
+    close.id="closeDrawer";
+    close.textContent="Zavřít";
+    head.append(titleWrap,close);
+
+    const card=document.createElement("div");
+    card.className="card";
+    card.id="mainProtocolHistoryCard";
+    const heading=document.createElement("h3");
+    heading.textContent="Poslední protokoly";
+    const toolbar=document.createElement("div");
+    toolbar.className="main-history-toolbar";
+    const filterWrap=document.createElement("label");
+    filterWrap.className="main-history-filter";
+    const filterText=document.createElement("span");
+    filterText.textContent="Datum kontroly";
+    const dateFilterNode=document.createElement("input");
+    dateFilterNode.type="date";
+    dateFilterNode.id="mainProtocolHistoryDateFilter";
+    dateFilterNode.value=dateFilter;
+    filterWrap.append(filterText,dateFilterNode);
+    const clearDate=document.createElement("button");
+    clearDate.className="secondary main-history-clear-date";
+    clearDate.type="button";
+    clearDate.id="mainProtocolHistoryDateClear";
+    clearDate.textContent="Vše";
+    toolbar.append(filterWrap,clearDate);
+    const list=document.createElement("div");
+    list.id="mainProtocolHistoryList";
+    list.className="main-history-list small";
+    list.textContent="Načítám historii...";
+    card.append(heading,toolbar,list);
+
+    drawer.replaceChildren(head,card);
+    return {close,list,dateFilter:dateFilterNode,clearDate,reused:false};
+  }
+
   function renderMainProtocolHistoryRowsDom({
     list,
     items=[],
@@ -132,6 +193,7 @@ export function createMainProtocolHistoryViewHelpers({
   return {
     mainProtocolHistoryRenderKey,
     mainProtocolHistoryVisibleRows,
+    renderMainProtocolHistoryShellDom,
     renderMainProtocolHistoryRowsDom
   };
 }
