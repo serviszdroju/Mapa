@@ -266,6 +266,20 @@ export function createSiteLocalStorageMutationHelpers({
     }
   }
 
+  function removeLocalStorageArrayItemByKey(key,id){
+    const cleanId=safeValue(id);
+    if(!key || !cleanId) return;
+    try{
+      const arr=JSON.parse(localStorage.getItem(key) || "[]");
+      if(!Array.isArray(arr)) return;
+      const next=szzArrayWithoutItemId(arr,cleanId,safeValue);
+      const raw=JSON.stringify(next);
+      localStorage.setItem(key,raw);
+      if(typeof clearLocalStorageArrayEntriesCache==="function") clearLocalStorageArrayEntriesCache(key);
+      if(typeof rememberSiteLocalArrayReadCache==="function") rememberSiteLocalArrayReadCache(key,next,raw);
+    }catch(e){}
+  }
+
   function writeSiteLocalObject(kind,item,site=defaultSite()){
     const cleanSite=targetSite(site);
     try{
@@ -283,6 +297,7 @@ export function createSiteLocalStorageMutationHelpers({
   return {
     appendSiteLocalArray,
     mergeSiteLocalArray,
+    removeLocalStorageArrayItemByKey,
     removeSiteLocalItem,
     writeSiteLocalObject
   };

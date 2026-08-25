@@ -762,4 +762,6 @@ Current performance phase 326 decision: continue the monolith split by moving of
 
 Current performance phase 327 decision: continue the monolith split by moving IndexedDB protocol draft keying, save, read, and delete helpers into `src/protocol-draft-storage-utils.js`; preserve the same `protocolDraft` site-local key, draft payload validation, IndexedDB store, silent delete fallback, warning text, and existing autosave/restore workflow in `src/main.js`.
 
+Current performance phase 328 decision: continue the monolith split by moving exact localStorage array item removal into `src/site-local-storage-utils.js`; preserve the same `_id` matching, JSON parse fallback, cache invalidation, and read-cache refresh used by offline photo cleanup.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

@@ -334,7 +334,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-draft-storage-module-v481";
+const APP_BUILD_VERSION="2026-08-25-local-array-key-removal-module-v482";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9007,6 +9007,7 @@ window.addEventListener("storage",()=>{
 const {
   appendSiteLocalArray,
   mergeSiteLocalArray,
+  removeLocalStorageArrayItemByKey,
   removeSiteLocalItem,
   writeSiteLocalObject
 }=createSiteLocalStorageMutationHelpers({
@@ -9256,20 +9257,6 @@ function restoreProtocolDraftIfAny(site=selectedSite){
 }
 
 let offlineProtocolSyncRunning=false;
-
-function removeLocalStorageArrayItemByKey(key,id){
-  const cleanId=safe(id);
-  if(!key || !cleanId) return;
-  try{
-    const arr=JSON.parse(localStorage.getItem(key) || "[]");
-    if(!Array.isArray(arr)) return;
-    const next=szzArrayWithoutItemId(arr,cleanId,safe);
-    const raw=JSON.stringify(next);
-    localStorage.setItem(key,raw);
-    clearLocalStorageArrayEntriesCache(key);
-    rememberSiteLocalArrayReadCache(key,next,raw);
-  }catch(e){}
-}
 
 function siteFromOfflineRecord(record={},cacheSuffix=""){
   const recordKeys=recordIdKeys(record);
