@@ -374,6 +374,9 @@ import {
   createFilterRenderScheduler
 } from "./filter-render-utils.js";
 import {
+  createFilterLogicHelpers
+} from "./filter-logic-utils.js";
+import {
   createRowEditApplyHelpers
 } from "./row-edit-apply-utils.js";
 import {
@@ -436,7 +439,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-row-fast-index-module-v521";
+const APP_BUILD_VERSION="2026-08-25-filter-logic-module-v522";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2165,49 +2168,24 @@ const {
   drawerNode
 });
 
-function filtered(){
-  const {search,status,region}=filterControls();
-  const q=safe(search && search.value);
-  const s=safe(status && status.value);
-  const k=safe(region && region.value);
-  const qn=searchNorm(q);
-  const kn=regionTextNorm(k);
-  const signature=`${rowsIndexVersion}\u001f${qn}\u001f${s}\u001f${kn}`;
-  if(filteredRowsCache.signature===signature) return filteredRowsCache.rows;
-  if(!qn && !s && !kn){
-    filteredRowsCache={signature,rows};
-    return rows;
-  }
-  const compactQuery=qn ? qn.replace(/\s+/g,"") : "";
-
-  const result=rows.filter(r=>{
-    const st=s ? statusText(r) : (r._statusText || statusText(r));
-
-    const okQ = !qn || rowMatchesSearch(r,qn,compactQuery);
-    const okK = !kn || (r._regionNorm || regionTextNorm(rowRegion(r))) === kn;
-
-    // Růžová je nezávislý příznak z původního Excelu.
-    // Proto se filtruje samostatně přes isNoOrderSite(r).
-    let okS = true;
-    if(s === "Hlídáme termín sami"){
-      okS = isNoOrderSite(r);
-    }else if(s){
-      okS = st === s;
-    }
-
-    return okQ && okK && okS;
-  });
-  filteredRowsCache={signature,rows:result};
-  return result;
-}
-function rowMatchesSearch(r,normalizedQuery,compactQuery=null){
-  if(r && (r._searchRawRef!==r.raw || !r._searchText)) ensureRowFastIndexes(r,Number.isFinite(r.i) ? r.i : 0);
-  const hay=(r && r._searchText) || searchNorm(rowSearchText(r));
-  if(hay.includes(normalizedQuery)) return true;
-  const compactHay=(r && r._compactSearchText) || hay.replace(/\s+/g,"");
-  const compact=compactQuery==null ? normalizedQuery.replace(/\s+/g,"") : compactQuery;
-  return compact.length>=3 && compactHay.includes(compact);
-}
+const {
+  filtered,
+  rowMatchesSearch
+}=createFilterLogicHelpers({
+  ensureRowFastIndexes:(r,index)=>ensureRowFastIndexes(r,index),
+  filterControls,
+  getFilteredRowsCache:()=>filteredRowsCache,
+  getRows:()=>rows,
+  getRowsIndexVersion:()=>rowsIndexVersion,
+  isNoOrderSite,
+  regionTextNorm,
+  rowRegion,
+  rowSearchText,
+  safe,
+  searchNorm,
+  setFilteredRowsCache:nextCache=>{ filteredRowsCache=nextCache; },
+  statusText
+});
 window.sitePlaceLabel=sitePlaceLabel;
 window.sitePlaceGroupKey=sitePlaceGroupKey;
 function sortedRowsBySourceLabel(items=[]){
