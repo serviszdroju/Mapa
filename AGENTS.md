@@ -794,4 +794,6 @@ Current performance phase 342 decision: continue the monolith split by moving st
 
 Current performance phase 343 decision: continue the monolith split by moving per-site offline detail prefetch orchestration into `src/offline-detail-prefetch-site-utils.js`; preserve incremental/full selection, Firebase row refresh guard, child/standalone/embedded item loading, local merge order, offline media caching, changed/skipped result flags, and metadata writes.
 
+Current performance phase 344 decision: continue the monolith split by moving full offline app preparation orchestration into `src/offline-app-prepare-utils.js`; preserve button/status text behavior, app-shell caching, cached-row bootstrapping, first-run versus incremental Firebase loading, detail prefetch progress messages, ready-state metadata, visible-map policy text, and final offline status refresh.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
