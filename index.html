@@ -19,9 +19,7 @@
 <link rel="apple-touch-icon" href="%BASE_URL%szz-app-icon-192.png">
 <script>
 try{
-  if(localStorage.getItem("astipFirebaseKnownSignedIn")==="1" || sessionStorage.getItem("astipFirebaseRedirectPending")){
-    document.documentElement.classList.add("auth-resume");
-  }
+  document.documentElement.classList.remove("auth-resume");
 }catch(e){}
 </script>
 <script>
