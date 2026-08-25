@@ -305,6 +305,9 @@ import {
   createOfflineMapDeltaSyncHelpers
 } from "./offline-map-delta-sync-utils.js";
 import {
+  createOfflineStandaloneHistoryHelpers
+} from "./offline-standalone-history-utils.js";
+import {
   createOfflineDetailPrefetchRunner
 } from "./offline-detail-prefetch-runner-utils.js";
 import {
@@ -372,7 +375,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-map-delta-sync-module-v498";
+const APP_BUILD_VERSION="2026-08-25-offline-standalone-history-module-v499";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1439,70 +1442,24 @@ const {
   waitForFirebaseUser
 });
 
-async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
-  if(!firebaseReady || !db || !fb.fsMod || !site || navigator.onLine===false) return [];
-  const items=[];
-  const itemDedupe=createRecordIdDedupe(items);
-  const addDocSnap=docSnap=>{
-    const id=safe(docSnap && docSnap.id);
-    const data=docSnap.data ? docSnap.data() : {};
-    itemDedupe.add({...data,_type:typeLabel,_collection:colName,_id:id});
-  };
-  const keys=siteRecordKeys(site);
-  const siteKeysBatchOk=await readFirestoreArrayContainsAny(
-    fb.fsMod,
-    db,
-    colName,
-    "siteKeys",
-    keys,
-    addDocSnap,
-    `Offline historie dávkový dotaz selhal ${colName}`
-  );
-  const tasks=[];
-  for(const field of SITE_RECORD_EQUALITY_FIELDS){
-    tasks.push(()=>readFirestoreEqualsAny(
-      fb.fsMod,
-      db,
-      colName,
-      field,
-      keys,
-      addDocSnap,
-      `Offline historie rovnostní dotaz selhal ${colName}`
-    ));
-  }
-  if(!siteKeysBatchOk){
-    const {collection,query,where,getDocs}=fb.fsMod;
-    keys.forEach(id=>{
-      tasks.push(async()=>{
-        try{
-          const snap=await getDocs(query(collection(db,colName),where("siteKeys","array-contains",id)));
-          snap.forEach(addDocSnap);
-        }catch(e){
-          console.warn("Offline historie dotaz selhal",colName,e);
-        }
-      });
-    });
-  }
-  await runBoundedFirestoreTasks(tasks,6);
-  if(!hasMatchingHistoryItemForSite(items,site)){
-    const {collection,query,where,getDocs}=fb.fsMod;
-    const textTasks=[];
-    siteRecordTextKeys(site).slice(0,6).forEach(value=>{
-      ["siteName","siteAddress","place"].forEach(field=>{
-        textTasks.push(async()=>{
-          try{
-            const snap=await getDocs(query(collection(db,colName),where(field,"==",value)));
-            snap.forEach(addDocSnap);
-          }catch(e){
-            console.warn("Offline historie textový dotaz selhal",colName,field,e);
-          }
-        });
-      });
-    });
-    await runBoundedFirestoreTasks(textTasks,4);
-  }
-  return matchingHistoryItemsForSite(items,site);
-}
+const {
+  readOfflineStandaloneHistoryCollection
+}=createOfflineStandaloneHistoryHelpers({
+  createRecordIdDedupe,
+  getDb:()=>db,
+  getFsMod:()=>fb && fb.fsMod,
+  hasMatchingHistoryItemForSite,
+  isFirebaseReady:()=>firebaseReady,
+  isOnline:()=>navigator.onLine!==false,
+  matchingHistoryItemsForSite,
+  readFirestoreArrayContainsAny,
+  readFirestoreEqualsAny,
+  runBoundedFirestoreTasks,
+  safeValue:safe,
+  siteRecordEqualityFields:SITE_RECORD_EQUALITY_FIELDS,
+  siteRecordKeys,
+  siteRecordTextKeys
+});
 
 async function prefetchOfflineDetailsForSite(site,options={}){
   const result={sites:1,protocols:0,serviceRecords:0,photos:0,attachments:0,media:0,skipped:false,changed:false,full:false};

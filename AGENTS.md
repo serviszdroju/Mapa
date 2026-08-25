@@ -790,4 +790,6 @@ Current performance phase 340 decision: continue the monolith split by moving of
 
 Current performance phase 341 decision: continue the monolith split by moving Firebase offline map row delta synchronization into `src/offline-map-delta-sync-utils.js`; preserve updated-since site queries, signed-user guard, background concurrency, single-row/batch upserts, yielded background batches, deferred map-cache writes, and changed-row return values.
 
+Current performance phase 342 decision: continue the monolith split by moving standalone Firestore offline history reads for protocols and service records into `src/offline-standalone-history-utils.js`; preserve siteKeys batching, equality fallback fields, legacy array-contains fallback, bounded text fallback queries, `_id` dedupe, matching filters, warning labels, and return ordering.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
