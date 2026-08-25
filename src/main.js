@@ -163,6 +163,9 @@ import {
   createLegacyExtraSiteHelpers
 } from "./legacy-extra-site-utils.js";
 import {
+  createLegacyDeletedSiteHelpers
+} from "./legacy-deleted-site-utils.js";
+import {
   createRowIdentityHelpers
 } from "./row-identity-utils.js";
 import {
@@ -420,7 +423,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-google-token-v515";
+const APP_BUILD_VERSION="2026-08-25-google-token-legacy-deleted-site-module-v516";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2145,22 +2148,22 @@ async function deleteSelectedSite(){
 }
 
 let deletedSiteIds=new Set();
-async function loadDeletedSites(){
-  deletedSiteIds=new Set();
-  if(!firebaseReady || !db) return;
-  const signedUser=currentUser || window.currentUser || window.__authReadyUser || (auth && auth.currentUser) || syncCurrentUserFromCompat();
-  if(!signedUser) return;
-  try{
-    const {collection,getDocs}=fb.fsMod;
-    const snap=await getDocs(collection(db,"deletedSites"));
-    snap.forEach(d=>deletedSiteIds.add(d.id));
-    if(!firebaseUnifiedPrimary){
-      rows=csvRows.concat(extraSites).map(applyEditToRow).filter(r=>!deletedSiteIds.has(r.id));
-    }
-  }catch(e){
-    console.warn("Nepodařilo se načíst smazaná místa",e);
-  }
-}
+const {
+  loadDeletedSites
+}=createLegacyDeletedSiteHelpers({
+  applyEditToRow,
+  getAuthClient:()=>auth,
+  getCsvRows:()=>csvRows,
+  getCurrentUser:()=>currentUser || window.currentUser || window.__authReadyUser,
+  getDb:()=>db,
+  getExtraSites:()=>extraSites,
+  getFirestoreModule:()=>fb.fsMod,
+  isFirebaseReady:()=>firebaseReady,
+  isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
+  setDeletedSiteIds:nextIds=>{ deletedSiteIds=nextIds instanceof Set ? nextIds : new Set(); },
+  setRows:nextRows=>{ window.rows=nextRows; rows=window.rows; },
+  syncCurrentUserFromCompat
+});
 
 function filtered(){
   const {search,status,region}=filterControls();
