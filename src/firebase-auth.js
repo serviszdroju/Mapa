@@ -8,6 +8,9 @@ export const firebaseConfig = {
   measurementId: "G-EL8BSFYFDN"
 };
 
+export const GOOGLE_WEB_CLIENT_ID="304123957651-8nnf5s40h56r63uiqddooioiu7fqh8pk.apps.googleusercontent.com";
+export const GOOGLE_IDENTITY_SCRIPT_URL="https://accounts.google.com/gsi/client";
+
 export const CLOUDINARY_PHOTOS = {
   cloudName:"dnxjc6ixi",
   uploadPreset:"astip_mapy",
@@ -24,6 +27,7 @@ export const authBootStartedAt=Date.now();
 let compatAuthClient=null;
 let compatAuthPersistencePromise=null;
 let compatFirebaseAppCache={namespace:null,value:null};
+let googleIdentityScriptPromise=null;
 const FIREBASE_COMPAT_SCRIPT_URLS=[
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
@@ -41,6 +45,51 @@ function setTextIfChangedLocal(el,value){
 
 function setDisplayIfChangedLocal(el,value){
   if(el && el.style.display!==value) el.style.display=value;
+}
+
+function googleIdentityReady(){
+  return !!(
+    window.google &&
+    window.google.accounts &&
+    window.google.accounts.oauth2 &&
+    typeof window.google.accounts.oauth2.initTokenClient==="function"
+  );
+}
+
+export function loadGoogleIdentityServices(){
+  if(googleIdentityReady()) return Promise.resolve(window.google);
+  if(googleIdentityScriptPromise) return googleIdentityScriptPromise;
+  googleIdentityScriptPromise=new Promise((resolve,reject)=>{
+    const absolute=new URL(GOOGLE_IDENTITY_SCRIPT_URL,document.baseURI).href;
+    const finish=()=>{
+      if(googleIdentityReady()) resolve(window.google);
+      else reject(new Error("Google přihlášení se nepodařilo načíst."));
+    };
+    const existing=Array.from(document.scripts).find(script=>script.src===absolute);
+    if(existing){
+      if(googleIdentityReady() || existing.dataset.loaded==="1" || existing.readyState==="loaded" || existing.readyState==="complete"){
+        finish();
+        return;
+      }
+      existing.addEventListener("load",finish,{once:true});
+      existing.addEventListener("error",()=>reject(new Error("Google přihlášení se nepodařilo načíst.")),{once:true});
+      return;
+    }
+    const script=document.createElement("script");
+    script.src=GOOGLE_IDENTITY_SCRIPT_URL;
+    script.async=true;
+    script.defer=true;
+    script.addEventListener("load",()=>{
+      script.dataset.loaded="1";
+      finish();
+    },{once:true});
+    script.addEventListener("error",()=>reject(new Error("Google přihlášení se nepodařilo načíst.")),{once:true});
+    document.head.appendChild(script);
+  }).catch(error=>{
+    googleIdentityScriptPromise=null;
+    throw error;
+  });
+  return googleIdentityScriptPromise;
 }
 
 export function knownSignedIn(){
