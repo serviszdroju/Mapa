@@ -222,12 +222,14 @@ import {
   cloneLocalStorageArrayEntries,
   cloneLocalStorageArrayItems,
   cloneLocalStorageObjectEntries,
-  cloneLocalStorageObjectItem,
   szzArrayWithoutItemId
 } from "./local-storage-clone-utils.js";
 import {
   createSiteLocalKeyHelpers
 } from "./site-local-key-utils.js";
+import {
+  createSiteLocalStorageHelpers
+} from "./site-local-storage-utils.js";
 import {
   clearLocalDetailReadCache,
   readCachedLocalDetailItems as readCachedLocalDetailItemsFromCache
@@ -316,7 +318,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-local-storage-array-helper-module-v474";
+const APP_BUILD_VERSION="2026-08-25-site-local-storage-module-v475";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1468,25 +1470,6 @@ const {
   stableRawFingerprint:szzStableRawFingerprint,
   offlineRowFingerprint:szzOfflineRowFingerprint
 }=createOfflineRowFingerprintHelpers();
-
-function readSiteLocalArrayMeta(kind,site=selectedSite){
-  try{
-    const key=siteLocalCacheKey(kind,site);
-    const raw=localStorage.getItem(key);
-    const cached=siteLocalArrayReadCache.get(key);
-    if(cached && cached.raw===raw && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
-      if(!cached.meta) cached.meta=szzItemsMeta(cached.items);
-      return cloneSzzItemsMeta(cached.meta);
-    }
-    const items=readSiteLocalArray(kind,site);
-    const meta=szzItemsMeta(items);
-    const fresh=siteLocalArrayReadCache.get(key);
-    if(fresh && fresh.raw===raw) fresh.meta=cloneSzzItemsMeta(meta);
-    return meta;
-  }catch(e){
-    return szzItemsMeta([]);
-  }
-}
 
 function szzLocalOfflineDetailMeta(site){
   return {
@@ -8942,8 +8925,6 @@ const {
   selectedSiteDocId
 });
 const LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS=1800;
-const siteLocalArrayReadCache=new Map();
-const siteLocalObjectReadCache=new Map();
 const LOCAL_DETAIL_READ_CACHE_MS=1800;
 const siteLocalProtocolHistoryReadCache=new Map();
 const siteOfflinePhotoReadCache=new Map();
@@ -8975,43 +8956,21 @@ function clearLocalDetailReadCacheForKind(kind,site=selectedSite){
     clearLocalDetailReadCache(siteOfflinePhotoReadCache,site ? siteLocalCacheKey("photos",site) : "");
   }
 }
-function rememberSiteLocalArrayReadCache(key,items=[],raw=null){
-  const clean=String(key || "");
-  if(!clean) return;
-  const serialized=raw===null ? JSON.stringify(Array.isArray(items) ? items : []) : raw;
-  siteLocalArrayReadCache.set(clean,{raw:serialized,savedAt:Date.now(),items:cloneLocalStorageArrayItems(items)});
-}
-function rememberSiteLocalObjectReadCache(key,item={},raw=null){
-  const clean=String(key || "");
-  if(!clean) return;
-  const source=item && typeof item==="object" && !Array.isArray(item) ? item : {};
-  const serialized=raw===null ? JSON.stringify(source) : raw;
-  siteLocalObjectReadCache.set(clean,{raw:serialized,savedAt:Date.now(),item:cloneLocalStorageObjectItem(source)});
-}
-function clearSiteLocalObjectReadCache(prefixOrKey=""){
-  const clean=String(prefixOrKey || "");
-  if(!clean){
-    siteLocalObjectReadCache.clear();
-    return;
-  }
-  for(const key of siteLocalObjectReadCache.keys()){
-    if(key===clean || key.startsWith(clean) || clean.startsWith(key)){
-      siteLocalObjectReadCache.delete(key);
-    }
-  }
-}
-function clearSiteLocalArrayReadCache(prefixOrKey=""){
-  const clean=String(prefixOrKey || "");
-  if(!clean){
-    siteLocalArrayReadCache.clear();
-    return;
-  }
-  for(const key of siteLocalArrayReadCache.keys()){
-    if(key===clean || key.startsWith(clean) || clean.startsWith(key)){
-      siteLocalArrayReadCache.delete(key);
-    }
-  }
-}
+const {
+  clearSiteLocalArrayReadCache,
+  clearSiteLocalObjectReadCache,
+  readSiteLocalArray,
+  readSiteLocalArrayMeta,
+  readSiteLocalObject,
+  rememberSiteLocalArrayReadCache,
+  rememberSiteLocalObjectReadCache
+}=createSiteLocalStorageHelpers({
+  cloneSzzItemsMeta,
+  getDefaultSite:()=>selectedSite,
+  maxAgeMs:LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS,
+  siteLocalCacheKey,
+  szzItemsMeta
+});
 const {
   clearLocalStorageArrayEntriesCache,
   clearLocalStorageObjectEntriesCache,
@@ -9029,22 +8988,6 @@ window.addEventListener("storage",()=>{
   clearLocalStorageObjectEntriesCache();
   clearLocalDetailReadCaches();
 });
-function readSiteLocalArray(kind,site=selectedSite){
-  try{
-    const key=siteLocalCacheKey(kind,site);
-    const raw=localStorage.getItem(key);
-    const cached=siteLocalArrayReadCache.get(key);
-    if(cached && cached.raw===raw && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
-      return cloneLocalStorageArrayItems(cached.items);
-    }
-    const arr=raw ? JSON.parse(raw) : [];
-    const items=Array.isArray(arr) ? arr : [];
-    siteLocalArrayReadCache.set(key,{raw,savedAt:Date.now(),items:cloneLocalStorageArrayItems(items)});
-    return items;
-  }catch(e){
-    return [];
-  }
-}
 function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
   try{
     const arr=readSiteLocalArray(kind,site);
@@ -9148,23 +9091,6 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
     clearDetailHistoryCacheForKind(kind,site);
   }catch(e){
     console.warn("Lokální cache se nepodařila upravit",kind,e);
-  }
-}
-
-function readSiteLocalObject(kind,site=selectedSite){
-  try{
-    const key=siteLocalCacheKey(kind,site);
-    const raw=localStorage.getItem(key);
-    const cached=siteLocalObjectReadCache.get(key);
-    if(cached && cached.raw===raw && Date.now()-cached.savedAt<LOCAL_STORAGE_ARRAY_ENTRIES_CACHE_MS){
-      return cloneLocalStorageObjectItem(cached.item);
-    }
-    const obj=raw ? JSON.parse(raw) : {};
-    const item=obj && typeof obj==="object" && !Array.isArray(obj) ? obj : {};
-    siteLocalObjectReadCache.set(key,{raw,savedAt:Date.now(),item:cloneLocalStorageObjectItem(item)});
-    return item;
-  }catch(e){
-    return {};
   }
 }
 

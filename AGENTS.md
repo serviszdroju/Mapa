@@ -748,4 +748,6 @@ Current performance phase 319 decision: continue the monolith split by moving th
 
 Current performance phase 320 decision: continue the monolith split by moving the reusable site-local array item-removal helper into `src/local-storage-clone-utils.js`; preserve the same `_id` matching through the existing `safe()` normalizer for local protocol, photo, attachment, and offline queue cache updates.
 
+Current performance phase 321 decision: continue the monolith split by moving cached site-local array/object reads and site-local array meta summaries into `src/site-local-storage-utils.js`; preserve the same `selectedSite` default, localStorage raw-value cache validation, cloned return values, meta caching, and cache clear hooks used by local protocol, photo, attachment, doklad, and offline paths.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
