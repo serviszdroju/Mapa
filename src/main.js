@@ -284,6 +284,9 @@ import {
 import {
   createProtocolWorkflowHelpers
 } from "./protocol-workflow-utils.js";
+import {
+  createMainProtocolHistoryViewHelpers
+} from "./main-protocol-history-view-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -309,7 +312,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-workflow-utils-module-v467";
+const APP_BUILD_VERSION="2026-08-25-main-protocol-history-view-module-v468";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11234,6 +11237,24 @@ const {
   serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString()
 });
 
+const {
+  mainProtocolHistoryRenderKey,
+  mainProtocolHistoryVisibleRows
+}=createMainProtocolHistoryViewHelpers({
+  canViewAllMainProtocolHistory,
+  historyDateLabel,
+  historySavedDateLabel,
+  isMainProtocolProcessed,
+  mainProtocolControlDateIso,
+  mainProtocolHistoryItemOwnedByCurrentUser,
+  mainProtocolWorkflowLabel,
+  mainProtocolWorkflowState,
+  protocolGlobalHistoryTitle,
+  protocolSourceStateLabel,
+  protocolSourceTestMethodLabel,
+  protocolTimeValue
+});
+
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
 });
@@ -11710,78 +11731,15 @@ function bindMainProtocolHistoryControls({list,dateFilter,clearDate}={}){
   }
 }
 
-function mainProtocolHistoryVisibleRows(items=[]){
-  const canViewAll=canViewAllMainProtocolHistory();
-  const adminPart=canViewAll ? "admin" : "user";
-  const filterDate=safe(mainProtocolHistoryDateFilter);
-  const rows=[];
-  const source=Array.isArray(items) ? items : [];
-  for(let idx=0;idx<source.length;idx++){
-    const item=source[idx];
-    if(!canViewAll && !mainProtocolHistoryItemOwnedByCurrentUser(item)) continue;
-    if(filterDate && mainProtocolControlDateIso(item)!==filterDate) continue;
-    const title=protocolGlobalHistoryTitle(item);
-    const key=safe(item && (item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : "")));
-    const id=safe(item && (item._id || item.id || ""));
-    const saved=historySavedDateLabel(item);
-    const checked=historyDateLabel(item);
-    const owner=safe(item && (item.createdBy || item.technicianEmail || item.updatedBy));
-    const processed=isMainProtocolProcessed(item);
-    const workflow=mainProtocolWorkflowState(item);
-    const workflowLabel=mainProtocolWorkflowLabel(item);
-    const showProcessedControl=processed || workflow==="handoff";
-    const sourceState=protocolSourceStateLabel(item);
-    const sourceTest=protocolSourceTestMethodLabel(item.sourceTestMethod || item.testMethod);
-    let meta="";
-    const metaParts=[];
-    if(saved) metaParts.push(`uloženo ${saved}`);
-    if(checked) metaParts.push(`kontrola ${checked}`);
-    if(sourceState) metaParts.push(sourceState);
-    if(sourceTest) metaParts.push(sourceTest);
-    if(owner && canViewAll) metaParts.push(owner);
-    meta=metaParts.join(" | ");
-    const signatureParts=[
-      id || idx,
-      title,
-      key,
-      saved,
-      checked,
-      owner,
-      processed ? "processed" : "open",
-      workflow,
-      showProcessedControl ? "processed-control" : "no-processed-control",
-      workflowLabel,
-      sourceState,
-      sourceTest,
-      protocolTimeValue(item)
-    ];
-    let signature="";
-    for(const value of signatureParts) signature+=`${String(value).length}:${value}`;
-    rows.push({id,title,key,meta,processed,workflow,workflowLabel,showProcessedControl,signature});
-  }
-  return rows;
-}
-
-function mainProtocolHistoryRenderKey(visibleRows=[]){
-  const adminPart=canViewAllMainProtocolHistory() ? "admin" : "user";
-  const source=Array.isArray(visibleRows) ? visibleRows : [];
-  let rows="";
-  for(let i=0;i<source.length;i++){
-    if(i) rows+="\u001f";
-    rows+=source[i] && source[i].signature ? source[i].signature : "";
-  }
-  return `${adminPart}\u001e${mainProtocolHistoryDateFilter}\u001e${source.length}\u001e${rows}`;
-}
-
 function renderMainProtocolHistoryRows(list,items=[]){
   if(!list) return;
-  const visibleRows=mainProtocolHistoryVisibleRows(items);
+  const visibleRows=mainProtocolHistoryVisibleRows(items,mainProtocolHistoryDateFilter);
   if(!visibleRows.length){
     mainProtocolHistoryRenderSignature=`empty:${mainProtocolHistoryDateFilter}`;
     list.textContent=mainProtocolHistoryDateFilter ? "Pro vybrané datum není uložený žádný protokol." : "Zatím není uložený žádný protokol.";
     return;
   }
-  const renderSignature=mainProtocolHistoryRenderKey(visibleRows);
+  const renderSignature=mainProtocolHistoryRenderKey(visibleRows,mainProtocolHistoryDateFilter);
   if(mainProtocolHistoryRenderSignature===renderSignature && list.childElementCount) return;
   mainProtocolHistoryRenderSignature=renderSignature;
   const fragment=document.createDocumentFragment();
