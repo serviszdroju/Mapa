@@ -300,7 +300,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-login-reset-google-v465";
+const APP_BUILD_VERSION="2026-08-25-login-reset-google-v466";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -711,6 +711,7 @@ if(firebaseReady){
         "auth/popup-blocked",
         "auth/cancelled-popup-request",
         "auth/popup-closed-by-user",
+        "auth/popup-timeout",
         "auth/operation-not-supported-in-this-environment"
       ].includes(code);
       if(browserPopupIssue){
@@ -993,6 +994,46 @@ if(firebaseReady){
       },900);
     }
   }
+  async function signInWithAndroidGoogleIdToken(idToken){
+    if(!idToken){
+      setStartupAuthChecking(false);
+      setStartupStatus("Android přihlášení nevrátilo Google token.");
+      throw new Error("Missing Android Google ID token.");
+    }
+    clearExplicitSignOut();
+    clearAuthPending();
+    setStartupAuthChecking(true);
+    setStartupStatus("Dokončuji Android přihlášení...");
+    try{
+      let result=null;
+      if(auth && authMod.signInWithCredential && authMod.GoogleAuthProvider && authMod.GoogleAuthProvider.credential){
+        const credential=authMod.GoogleAuthProvider.credential(idToken);
+        result=await authMod.signInWithCredential(auth,credential);
+      }else{
+        const compatClient=await ensureCompatAuthPersistence({load:true});
+        const compat=window.firebase;
+        if(compatClient && compat && compat.auth && compat.auth.GoogleAuthProvider && compatClient.signInWithCredential){
+          const credential=compat.auth.GoogleAuthProvider.credential(idToken);
+          result=await compatClient.signInWithCredential(credential);
+        }
+      }
+      const user=result && result.user ? result.user : await waitForAuthCandidate(5000);
+      if(user){
+        await handleAuthorizedUser(user);
+        return {ok:true,email:user.email || ""};
+      }
+      throw new Error("Firebase nepotvrdil přihlášeného uživatele.");
+    }catch(e){
+      setStartupAuthChecking(false);
+      setStartupStatus("Android přihlášení selhalo: " + authErrorText(e));
+      throw e;
+    }
+  }
+  function handleAndroidSignInError(message){
+    clearAuthPending();
+    setStartupAuthChecking(false);
+    setStartupStatus("Android přihlášení selhalo: " + (safe(message) || "Google účet se nepodařilo načíst."));
+  }
   function handleSignedOut(){
     if(authPending()){
       setStartupAuthChecking(true);
@@ -1260,7 +1301,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v465-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v466-runtime";
 
 function szzIsConstrainedDevice(){
   try{
