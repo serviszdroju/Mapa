@@ -369,7 +369,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-detail-prefetch-runner-module-v494";
+const APP_BUILD_VERSION="2026-08-25-auth-init-order-v495";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -451,6 +451,21 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
   run();
 }
 window.loadOfflineRowsFromLocalCacheWhenAvailable=loadOfflineRowsFromLocalCacheWhenAvailable;
+
+function safeSyncCurrentUserFromCompat(){
+  try{
+    const compatClient=getCompatAuthClient();
+    const user=compatClient && compatClient.currentUser ? compatClient.currentUser : null;
+    if(user){
+      currentUser=user;
+      window.currentUser=user;
+      window.__authReadyUser=user;
+    }
+    return user;
+  }catch(e){
+    return null;
+  }
+}
 
 function invalidateMapAfterPaint(){
   runAfterPaint(()=>{ if(window.map) window.map.invalidateSize(true); });
@@ -825,7 +840,7 @@ if(firebaseReady){
   }
   let backgroundAuthRetryTimer=null;
   function currentAuthCandidate(){
-    return syncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null;
+    return safeSyncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null;
   }
   function appIsOpenOrHasRows(){
     const appEl=document.getElementById("mainApp");
@@ -1100,7 +1115,7 @@ if(firebaseReady){
       setStartupAuthChecking(true);
       setProgressStatus("Obnovuji přihlášení...");
       setTimeout(()=>{
-        const restored=auth.currentUser || window.__authReadyUser || window.currentUser || syncCurrentUserFromCompat();
+        const restored=auth.currentUser || window.__authReadyUser || window.currentUser || safeSyncCurrentUserFromCompat();
         if(restored){
           handleAuthorizedUser(restored);
           return;
