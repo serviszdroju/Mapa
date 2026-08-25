@@ -234,6 +234,9 @@ import {
 import {
   createLocalStorageEntriesHelpers
 } from "./local-storage-entries-utils.js";
+import {
+  createOfflineDetailMetaHelpers
+} from "./offline-detail-meta-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -259,7 +262,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-local-storage-entries-module-v454";
+const APP_BUILD_VERSION="2026-08-25-offline-detail-meta-module-v455";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1235,7 +1238,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v454-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v455-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1378,50 +1381,15 @@ async function cacheSzzOfflineMediaUrls(urls=[]){
 }
 
 const SZZ_OFFLINE_DETAIL_META_CACHE_MS=1800;
-let szzOfflineDetailMetaCache={raw:null,meta:null,savedAt:0};
-function cloneSzzOfflineDetailMeta(meta={}){
-  const source=meta && typeof meta==="object" && !Array.isArray(meta) ? meta : {};
-  return {
-    ...source,
-    sites:source.sites && typeof source.sites==="object" && !Array.isArray(source.sites) ? {...source.sites} : source.sites
-  };
-}
-function clearSzzOfflineDetailMetaCache(){
-  szzOfflineDetailMetaCache={raw:null,meta:null,savedAt:0};
-}
-window.addEventListener("storage",event=>{
-  if(!event.key || event.key===SZZ_OFFLINE_DETAIL_META_KEY) clearSzzOfflineDetailMetaCache();
+const {
+  readOfflineDetailMeta:readSzzOfflineDetailMeta,
+  writeOfflineDetailMeta:writeSzzOfflineDetailMeta,
+  bindOfflineDetailMetaStorageListener:bindSzzOfflineDetailMetaStorageListener
+}=createOfflineDetailMetaHelpers({
+  storageKey:SZZ_OFFLINE_DETAIL_META_KEY,
+  maxAgeMs:SZZ_OFFLINE_DETAIL_META_CACHE_MS
 });
-function readSzzOfflineDetailMeta(){
-  try{
-    const raw=localStorage.getItem(SZZ_OFFLINE_DETAIL_META_KEY) || "";
-    if(
-      szzOfflineDetailMetaCache.raw===raw &&
-      szzOfflineDetailMetaCache.meta &&
-      Date.now()-szzOfflineDetailMetaCache.savedAt<SZZ_OFFLINE_DETAIL_META_CACHE_MS
-    ){
-      return cloneSzzOfflineDetailMeta(szzOfflineDetailMetaCache.meta);
-    }
-    const parsed=JSON.parse(raw || "{}");
-    const meta=parsed && typeof parsed==="object" ? parsed : {};
-    szzOfflineDetailMetaCache={raw,meta:cloneSzzOfflineDetailMeta(meta),savedAt:Date.now()};
-    return meta;
-  }catch(e){
-    return {};
-  }
-}
-
-function writeSzzOfflineDetailMeta(update={}){
-  try{
-    const next={...readSzzOfflineDetailMeta(),...update,updatedAt:new Date().toISOString()};
-    const raw=JSON.stringify(next);
-    localStorage.setItem(SZZ_OFFLINE_DETAIL_META_KEY,raw);
-    szzOfflineDetailMetaCache={raw,meta:cloneSzzOfflineDetailMeta(next),savedAt:Date.now()};
-    return next;
-  }catch(e){
-    return {...update};
-  }
-}
+bindSzzOfflineDetailMetaStorageListener(window);
 
 function szzOfflineSiteMetaKey(site){
   return selectedSiteDocId(site) || detailKey(site) || safe(site?.id);
