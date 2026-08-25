@@ -720,4 +720,6 @@ Current performance phase 305 decision: continue the monolith split by moving ga
 
 Current performance phase 306 decision: continue the monolith split by moving gallery photo folder date naming, Cloudinary folder path creation, folder-name WeakMap caching, and grouped thumbnail-folder caching into `src/photo-folder-utils.js`; preserve the same date fallback order, Cloudinary version fallback, grouped thumbnail order, folder labels, upload folder path, and gallery render signatures.
 
+Current performance phase 307 decision: continue the monolith split by moving attachment display URL resolution, attachment file-name fallback, and attachment list render-signature creation into `src/attachment-utils.js`; preserve the same data URL/download URL order, fallback file names, signature fields, and attachment list rendering behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
