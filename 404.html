@@ -53,7 +53,7 @@ try{
     return "";
   }
   function focusFirstEmptyLoginField(){
-    for(const id of ["sidebarEmail","sidebarPassword","startupEmail","startupPassword"]){
+    for(const id of ["startupEmail","startupPassword"]){
       const el=node(id);
       if(el&&!text(el.value)){
         try{el.focus();}catch(e){}
@@ -64,12 +64,10 @@ try{
   function showLogin(){
     const startup=node("startupScreen");
     const email=node("startupEmailLogin");
-    const sidebarEmail=node("sidebarEmailLogin");
     const google=node("startupLoginBtn");
     const intro=node("startupIntro");
     if(startup) startup.classList.remove("auth-checking");
     if(email) email.style.display="grid";
-    if(sidebarEmail) sidebarEmail.style.display="grid";
     if(google) google.style.display="none";
     if(intro) intro.textContent="Přihlas se e-mailem a heslem.";
     setTimeout(focusFirstEmptyLoginField,0);
@@ -90,8 +88,8 @@ try{
     }
     showLogin();
     if(loginRunning) return;
-    const email=firstInputValue("sidebarEmail","startupEmail").toLowerCase();
-    const password=String(firstInputValue("sidebarPassword","startupPassword")||"");
+    const email=firstInputValue("startupEmail").toLowerCase();
+    const password=String(firstInputValue("startupPassword")||"");
     if(!email||!password){
       setStatus("Vyplň e-mail a heslo.");
       return;
@@ -121,7 +119,7 @@ try{
       window.__authReadyUser=user||null;
       setStatus("Přihlášení potvrzeno. Otevírám servisní mapu...");
       const target=new URL(".",location.href);
-      target.searchParams.set("v","sidebar-email-v453");
+      target.searchParams.set("v","android-startup-login-only-v454");
       target.searchParams.set("login","email");
       setTimeout(()=>location.replace(target.href),350);
     }catch(error){
@@ -134,12 +132,12 @@ try{
   window.loginPopup=function(event){
     if(event) event.preventDefault();
     showLogin();
-    setStatus("Vyplň e-mail a heslo v levém panelu.");
+    setStatus("Vyplň e-mail a heslo na úvodní obrazovce.");
   };
   document.addEventListener("click",function(event){
-    const target=event.target&&event.target.closest&&event.target.closest("#startupEmailLoginBtn,#sidebarEmailLoginBtn,#startupLoginBtn,#loginBtn,#topLogoutBtn");
+    const target=event.target&&event.target.closest&&event.target.closest("#startupEmailLoginBtn,#startupLoginBtn,#loginBtn,#topLogoutBtn");
     if(!target) return;
-    if(target.id==="startupEmailLoginBtn"||target.id==="sidebarEmailLoginBtn") emergencyEmailLogin(event);
+    if(target.id==="startupEmailLoginBtn") emergencyEmailLogin(event);
     else {
       event.preventDefault();
       event.stopPropagation();
@@ -148,7 +146,7 @@ try{
     }
   },true);
   document.addEventListener("keydown",function(event){
-    if(event.key==="Enter"&&event.target&&["startupPassword","sidebarPassword"].includes(event.target.id)) emergencyEmailLogin(event);
+    if(event.key==="Enter"&&event.target&&event.target.id==="startupPassword") emergencyEmailLogin(event);
   },true);
   document.addEventListener("DOMContentLoaded",showLogin);
   setTimeout(showLogin,0);
@@ -184,12 +182,6 @@ try{
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
 <button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
-<div class="sidebar-email-login" id="sidebarEmailLogin">
-  <input id="sidebarEmail" type="email" autocomplete="username" inputmode="email" placeholder="E-mail @astip.cz">
-  <input id="sidebarPassword" type="password" autocomplete="current-password" placeholder="Heslo">
-  <button class="primary" id="sidebarEmailLoginBtn" type="button" onclick="window.szzEmergencyEmailLogin(event)">Přihlásit e-mailem</button>
-  <p id="sidebarEmailStatus" class="small"></p>
-</div>
 <button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
 
 <div id="firebaseBox" class="notice err" style="display:none">Firebase se nepodařilo načíst.</div>
