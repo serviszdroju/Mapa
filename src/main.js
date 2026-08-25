@@ -312,7 +312,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-processed-patch-module-v469";
+const APP_BUILD_VERSION="2026-08-25-main-protocol-history-dom-module-v470";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11239,8 +11239,7 @@ const {
 });
 
 const {
-  mainProtocolHistoryRenderKey,
-  mainProtocolHistoryVisibleRows
+  renderMainProtocolHistoryRowsDom
 }=createMainProtocolHistoryViewHelpers({
   canViewAllMainProtocolHistory,
   historyDateLabel,
@@ -11721,53 +11720,12 @@ function bindMainProtocolHistoryControls({list,dateFilter,clearDate}={}){
 }
 
 function renderMainProtocolHistoryRows(list,items=[]){
-  if(!list) return;
-  const visibleRows=mainProtocolHistoryVisibleRows(items,mainProtocolHistoryDateFilter);
-  if(!visibleRows.length){
-    mainProtocolHistoryRenderSignature=`empty:${mainProtocolHistoryDateFilter}`;
-    list.textContent=mainProtocolHistoryDateFilter ? "Pro vybrané datum není uložený žádný protokol." : "Zatím není uložený žádný protokol.";
-    return;
-  }
-  const renderSignature=mainProtocolHistoryRenderKey(visibleRows,mainProtocolHistoryDateFilter);
-  if(mainProtocolHistoryRenderSignature===renderSignature && list.childElementCount) return;
-  mainProtocolHistoryRenderSignature=renderSignature;
-  const fragment=document.createDocumentFragment();
-  visibleRows.forEach(({id,title,key,meta,processed,workflow,workflowLabel,showProcessedControl})=>{
-    const row=document.createElement("div");
-    row.className=`main-history-row ${workflow || (processed ? "processed" : "idle")}`.trim();
-    const top=document.createElement("div");
-    top.className="main-history-row-main";
-    const button=document.createElement("button");
-    button.type="button";
-    button.dataset.historySiteKey=key;
-    button.textContent=title;
-    if(showProcessedControl){
-      const processedLabel=document.createElement("label");
-      processedLabel.className="main-history-processed";
-      const checkbox=document.createElement("input");
-      checkbox.type="checkbox";
-      checkbox.checked=processed;
-      checkbox.disabled=!id || !canViewAllMainProtocolHistory();
-      checkbox.dataset.mainHistoryProcessed=id;
-      const processedText=document.createElement("span");
-      processedText.textContent="Zpracováno";
-      processedLabel.append(checkbox,processedText);
-      top.append(processedLabel);
-    }
-    top.append(button);
-    row.appendChild(top);
-    if(meta){
-      const small=document.createElement("small");
-      small.textContent=meta;
-      row.appendChild(small);
-    }
-    const state=document.createElement("span");
-    state.className=`main-history-state ${workflow || "idle"}`;
-    state.textContent=workflowLabel || "nepředáno ke zpracování";
-    row.appendChild(state);
-    fragment.appendChild(row);
+  mainProtocolHistoryRenderSignature=renderMainProtocolHistoryRowsDom({
+    list,
+    items,
+    dateFilter:mainProtocolHistoryDateFilter,
+    currentSignature:mainProtocolHistoryRenderSignature
   });
-  list.replaceChildren(fragment);
 }
 
 async function openMainProtocolHistoryPanel(){

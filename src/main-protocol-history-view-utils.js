@@ -74,8 +74,64 @@ export function createMainProtocolHistoryViewHelpers({
     return `${adminPart}\u001e${dateFilter}\u001e${source.length}\u001e${rows}`;
   }
 
+  function renderMainProtocolHistoryRowsDom({
+    list,
+    items=[],
+    dateFilter="",
+    currentSignature=""
+  }={}){
+    if(!list) return currentSignature || "";
+    const visibleRows=mainProtocolHistoryVisibleRows(items,dateFilter);
+    if(!visibleRows.length){
+      const emptySignature=`empty:${dateFilter}`;
+      list.textContent=dateFilter ? "Pro vybrané datum není uložený žádný protokol." : "Zatím není uložený žádný protokol.";
+      return emptySignature;
+    }
+    const renderSignature=mainProtocolHistoryRenderKey(visibleRows,dateFilter);
+    if(currentSignature===renderSignature && list.childElementCount) return currentSignature;
+    const fragment=document.createDocumentFragment();
+    visibleRows.forEach(({id,title,key,meta,processed,workflow,workflowLabel,showProcessedControl})=>{
+      const row=document.createElement("div");
+      row.className=`main-history-row ${workflow || (processed ? "processed" : "idle")}`.trim();
+      const top=document.createElement("div");
+      top.className="main-history-row-main";
+      const button=document.createElement("button");
+      button.type="button";
+      button.dataset.historySiteKey=key;
+      button.textContent=title;
+      if(showProcessedControl){
+        const processedLabel=document.createElement("label");
+        processedLabel.className="main-history-processed";
+        const checkbox=document.createElement("input");
+        checkbox.type="checkbox";
+        checkbox.checked=processed;
+        checkbox.disabled=!id || !(typeof canViewAllMainProtocolHistory==="function" && canViewAllMainProtocolHistory());
+        checkbox.dataset.mainHistoryProcessed=id;
+        const processedText=document.createElement("span");
+        processedText.textContent="Zpracováno";
+        processedLabel.append(checkbox,processedText);
+        top.append(processedLabel);
+      }
+      top.append(button);
+      row.appendChild(top);
+      if(meta){
+        const small=document.createElement("small");
+        small.textContent=meta;
+        row.appendChild(small);
+      }
+      const state=document.createElement("span");
+      state.className=`main-history-state ${workflow || "idle"}`;
+      state.textContent=workflowLabel || "nepředáno ke zpracování";
+      row.appendChild(state);
+      fragment.appendChild(row);
+    });
+    list.replaceChildren(fragment);
+    return renderSignature;
+  }
+
   return {
     mainProtocolHistoryRenderKey,
-    mainProtocolHistoryVisibleRows
+    mainProtocolHistoryVisibleRows,
+    renderMainProtocolHistoryRowsDom
   };
 }
