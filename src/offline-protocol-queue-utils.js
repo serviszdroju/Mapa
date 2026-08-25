@@ -56,6 +56,22 @@ export function createOfflineProtocolQueueHelpers({
     return out;
   }
 
+  function countPendingOfflineProtocolEntries(entries=[]){
+    const byId=new Set();
+    let withoutId=0;
+    const sourceEntries=Array.isArray(entries) ? entries : [];
+    for(const entry of sourceEntries){
+      const items=Array.isArray(entry && entry.items) ? entry.items : [];
+      for(const item of items){
+        if(!isPendingOfflineProtocolItem(item)) continue;
+        const id=safeLocal(item && item._id);
+        if(id) byId.add(id);
+        else withoutId++;
+      }
+    }
+    return byId.size+withoutId;
+  }
+
   function invalidateProtocolCounts(){
     if(typeof invalidateOfflineProtocolCountCache==="function") invalidateOfflineProtocolCountCache();
   }
@@ -163,6 +179,7 @@ export function createOfflineProtocolQueueHelpers({
 
   return {
     clearOfflineProtocolQueueReadCache,
+    countPendingOfflineProtocolEntries,
     isPendingOfflineProtocolItem,
     pendingOfflineProtocolItems,
     readAllOfflineProtocolQueueItems,

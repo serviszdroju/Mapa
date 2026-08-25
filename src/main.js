@@ -340,7 +340,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-photo-queue-module-v485";
+const APP_BUILD_VERSION="2026-08-25-protocol-pending-count-module-v486";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9087,6 +9087,7 @@ window.removeOfflineSiteQueueItem=removeOfflineSiteQueueItem;
 
 const {
   clearOfflineProtocolQueueReadCache,
+  countPendingOfflineProtocolEntries,
   isPendingOfflineProtocolItem,
   pendingOfflineProtocolItems,
   readAllOfflineProtocolQueueItems,
@@ -11987,22 +11988,6 @@ function sitePhotosStatusNode(){
 }
 function setSitePhotosStatusText(text){
   setTextIfChanged(sitePhotosStatusNode(),text);
-}
-
-function countPendingOfflineProtocolEntries(entries=[]){
-  const byId=new Set();
-  let withoutId=0;
-  const sourceEntries=Array.isArray(entries) ? entries : [];
-  for(const entry of sourceEntries){
-    const items=Array.isArray(entry && entry.items) ? entry.items : [];
-    for(const item of items){
-      if(!isPendingOfflineProtocolItem(item)) continue;
-      const id=safe(item && item._id);
-      if(id) byId.add(id);
-      else withoutId++;
-    }
-  }
-  return byId.size+withoutId;
 }
 
 let offlinePhotoSyncRunning=false;

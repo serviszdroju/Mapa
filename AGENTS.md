@@ -770,4 +770,6 @@ Current performance phase 330 decision: continue the monolith split by moving of
 
 Current performance phase 331 decision: continue the monolith split by moving offline photo queue saving, per-site reads, all-pending reads, 1200 ms all-photo cache, and removal into `src/offline-photo-queue-utils.js`; preserve IndexedDB-first storage, localStorage fallback, displayable/pending filters, explicit siteCacheKey cleanup, local detail cache invalidation, offline-count invalidation, status refresh, and background photo sync registration.
 
+Current performance phase 332 decision: continue the monolith split by moving pending offline protocol localStorage-entry counting into `src/offline-protocol-queue-utils.js`; preserve the same `_id` dedupe behavior, no-id fallback count, pending protocol test, and offline status count integration.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
