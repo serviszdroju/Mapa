@@ -798,4 +798,6 @@ Current performance phase 344 decision: continue the monolith split by moving fu
 
 Current performance phase 345 decision: continue the monolith split by moving offline map tile caching into `src/offline-map-tile-cache-utils.js`; preserve cache availability/online checks, visible-area-only messaging, persistent-storage request, app-shell cache prerequisite, storage quota estimate, no-cors tile requests, six-worker bounded fetches, progress updates, Czech-map ready marking, confirmation text, and busy-button cleanup.
 
+Current performance phase 346 decision: continue the monolith split by moving edit-cache application for normalized rows into `src/row-edit-apply-utils.js`; preserve raw edit overlays, Firebase status raw restoration, GPS overrides, region inference, important-note aliases, map status flags, watch/self-maintained flags, and `window.applySiteEditToRow` behavior.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

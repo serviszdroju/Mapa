@@ -359,6 +359,9 @@ import {
 import {
   createFilterRenderScheduler
 } from "./filter-render-utils.js";
+import {
+  createRowEditApplyHelpers
+} from "./row-edit-apply-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -384,7 +387,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-map-tile-cache-module-v504";
+const APP_BUILD_VERSION="2026-08-25-row-edit-apply-module-v505";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1703,70 +1706,22 @@ const {
   siteRecordKeys:site=>siteRecordKeys(site)
 });
 
-function applyEditToRow(r){
-  const e=editCacheEntryForRow(r);
-  if(!e) return r;
-
-  const rawEdits = e.rawEdits || {};
-  const firebaseStatusFromPrimaryRaw=isFirebaseUnifiedRow(r);
-  const hasRawEdit=(key)=>Object.prototype.hasOwnProperty.call(rawEdits,key);
-  const importantNoteAliases=["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky","dulezita poznamka"];
-  const editedImportantNoteKey=importantNoteAliases.find(hasRawEdit);
-  const lat = num(e.gpsLat) ?? num((e.rawEdits||{})["GPS_lat"]);
-  const lon = num(e.gpsLon) ?? num((e.rawEdits||{})["GPS_lon"]);
-  const updatedRaw = {...r.raw, ...rawEdits};
-  if(firebaseStatusFromPrimaryRaw) restoreFirebaseMapStatusRawValues(updatedRaw,r.raw || {});
-  const rawWatch = explicitWatchSelfFromRaw(rawEdits);
-  if(rawWatch !== null) applyWatchSelfAliases(updatedRaw, rawWatch ? "ano" : "ne");
-
-  if(e.name) updatedRaw["Upravený název"] = e.name;
-  if(e.contact) updatedRaw["Upravený kontakt"] = e.contact;
-  if(e.source) updatedRaw["Upravený zdroj"] = e.source;
-  if(hasRawEdit("Poznámky")) updatedRaw["Upravené poznámky"] = rawEdits["Poznámky"];
-  else if(e.notes) updatedRaw["Upravené poznámky"] = e.notes;
-  if(e.gpsAddress) updatedRaw["Upravená Adresa_GPS"] = e.gpsAddress;
-  if(e.lastCheck) updatedRaw["Upravená poslední kontrola"] = e.lastCheck;
-  if(e.nextCheck) updatedRaw["Upravená další kontrola"] = e.nextCheck;
-  if(!firebaseStatusFromPrimaryRaw && e.ordered !== undefined) updatedRaw["Kontrola objednaná"] = e.ordered ? "ANO" : "NE";
-  if(!firebaseStatusFromPrimaryRaw && e.repairOrdered !== undefined) updatedRaw["Objednaná oprava"] = e.repairOrdered ? "ANO" : "NE";
-  if(!firebaseStatusFromPrimaryRaw && e.stopped !== undefined) updatedRaw["Stop Stav"] = e.stopped ? "ANO" : "NE";
-  if(Number.isFinite(lat)) updatedRaw["Upravené GPS_lat"] = String(lat);
-  if(Number.isFinite(lon)) updatedRaw["Upravené GPS_lon"] = String(lon);
-  const regionValue=canonicalRegionValue(rawEdits["Kraj"] || r.kraj) || inferRegionFromAddressText([
-    rawEdits["Kraj"],
-    updatedRaw["Kraj"],
-    updatedRaw["Název"],
-    updatedRaw["Adresa / umístění"],
-    updatedRaw["Adresa_GPS"],
-    updatedRaw["Umístění zdroje"],
-    r.adresa
-  ].filter(Boolean).join(" "));
-
-  const editedNotes=hasRawEdit("Poznámky")
-    ? rawEdits["Poznámky"]
-    : editedImportantNoteKey
-      ? rawEdits[editedImportantNoteKey]
-      : e.notes || r.poznamky;
-
-  return {...r,
-    raw: updatedRaw,
-    adresa:e.name || rawEdits["Název"] || rawEdits["Adresa / umístění"] || rawEdits["Umístění zdroje"] || r.adresa,
-    kontakt:e.contact || rawEdits["Kontakt"] || r.kontakt,
-    zdroj:e.source || rawEdits["Popis_zdroje"] || r.zdroj,
-    poznamky:editedNotes,
-    kraj:regionValue || rawEdits["Kraj"] || r.kraj,
-    posledni:e.lastCheck || r.posledni,
-    pristi:e.nextCheck || r.pristi,
-    lat:Number.isFinite(lat) ? lat : r.lat,
-    lon:Number.isFinite(lon) ? lon : r.lon,
-    gpsAddress:e.gpsAddress || r.gpsAddress,
-    ordered:!firebaseStatusFromPrimaryRaw && e.ordered !== undefined ? e.ordered === true : orderedFlagFromRaw(updatedRaw),
-    repairOrdered:!firebaseStatusFromPrimaryRaw && e.repairOrdered !== undefined ? e.repairOrdered === true : repairOrderFlagFromRaw(updatedRaw),
-    stopped:!firebaseStatusFromPrimaryRaw && e.stopped !== undefined ? e.stopped === true : stopFlagFromRaw(updatedRaw),
-    noOrder:rawWatch !== null ? rawWatch === true : (e.noOrder === true ? true : e.noOrder === false ? false : isNoOrderSite({...r, raw:updatedRaw})),
-    edit:e
-  };
-}
+const {
+  applyEditToRow
+}=createRowEditApplyHelpers({
+  applyWatchSelfAliases,
+  canonicalRegionValue,
+  editCacheEntryForRow,
+  explicitWatchSelfFromRaw,
+  inferRegionFromAddressText,
+  isFirebaseUnifiedRow,
+  isNoOrderSite,
+  num,
+  orderedFlagFromRaw,
+  repairOrderFlagFromRaw,
+  restoreFirebaseMapStatusRawValues,
+  stopFlagFromRaw
+});
 function normalize(data){
   return data.map((raw,i)=>{
     const lat=num(get(raw,"GPS_lat")), lon=num(get(raw,"GPS_lon"));
