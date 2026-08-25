@@ -27,9 +27,11 @@ function showStartupLogin(message=""){
   const startup=document.getElementById("startupScreen");
   const app=document.getElementById("mainApp");
   const button=document.getElementById("startupLoginBtn");
+  const logout=document.getElementById("startupLogoutBtn");
   setDisplayIfChanged(startup,"flex");
   setDisplayIfChanged(app,"none");
   setDisplayIfChanged(button,"");
+  setDisplayIfChanged(logout,"");
   if(message) status(message);
 }
 
@@ -57,7 +59,8 @@ function startLogin(event){
 }
 
 function signOutAndReload(){
-  if(typeof window.__signOutFirebase==="function") window.__signOutFirebase();
+  if(typeof window.__signOutFirebase==="function") window.__signOutFirebase({stayOnLogin:true});
+  else if(typeof window.clearStartupAuthState==="function") window.clearStartupAuthState();
   else location.reload();
 }
 
@@ -75,6 +78,7 @@ function setTopAuthButtonMode(mode){
 
 function bindLoginButtons(){
   setHandlerIfChanged(document.getElementById("startupLoginBtn"),startLogin);
+  setHandlerIfChanged(document.getElementById("startupLogoutBtn"),signOutAndReload);
   setHandlerIfChanged(document.getElementById("loginBtn"),startLogin);
   setHandlerIfChanged(document.getElementById("logoutBtn"),signOutAndReload);
   const hasUser=!!(window.currentUser || window.__authReadyUser);
@@ -84,9 +88,15 @@ function bindLoginButtons(){
 if(!document.__szzLoginClickDelegationBound){
   document.__szzLoginClickDelegationBound=true;
   document.addEventListener("click",event=>{
-    const target=event.target && event.target.closest && event.target.closest("#startupLoginBtn,#loginBtn,#topLogoutBtn");
+    const target=event.target && event.target.closest && event.target.closest("#startupLoginBtn,#startupLogoutBtn,#loginBtn,#topLogoutBtn");
     if(!target) return;
-    if(target.id==="topLogoutBtn" && target.dataset.authMode==="logout") return;
+    if(target.id==="startupLogoutBtn" || (target.id==="topLogoutBtn" && target.dataset.authMode==="logout")){
+      event.preventDefault();
+      event.stopPropagation();
+      if(event.stopImmediatePropagation) event.stopImmediatePropagation();
+      signOutAndReload();
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if(event.stopImmediatePropagation) event.stopImmediatePropagation();

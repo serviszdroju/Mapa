@@ -300,7 +300,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-login-reset-google-v467";
+const APP_BUILD_VERSION="2026-08-25-login-reset-google-v468";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -438,7 +438,7 @@ window.addEventListener("load",()=>{
       setClassNameIfChanged(box,firebaseConfigured ? "notice" : "notice err");
       setTextIfChanged(box,message);
     }
-    runAfterTwoPaints(()=>showApp());
+    runAfterTwoPaints(()=>showLogin());
   }
 });
 
@@ -484,11 +484,11 @@ if(firebaseReady){
     }
     const st=document.getElementById("startupStatus");
     setTextIfChanged(st,compatAvailable
-      ? "Firebase modul se načetl v záložním režimu. Otevírám mapu."
+      ? "Firebase modul se načetl v záložním režimu. Přihlaste se Google účtem @astip.cz."
       : "Firebase není dostupný. Servisní data se načtou po obnovení přihlášení nebo připojení.");
     runAfterTwoPaints(()=>{
-      try{showApp();}catch(err){}
-      if(!compatAvailable || navigator.onLine===false){
+      try{showLogin();}catch(err){}
+      if(navigator.onLine===false){
         loadOfflineRowsFromLocalCacheWhenAvailable("Offline režim. Hledám uložené body, mapu a protokoly v telefonu.");
       }
     });
@@ -736,7 +736,7 @@ if(firebaseReady){
       setStartupStatus("Přihlášení selhalo: " + authErrorText(e));
     }
   }
-  async function signOutFirebase(){
+  async function signOutFirebase(options={}){
     try{
       markExplicitSignOut();
       forgetKnownSignedIn();
@@ -749,7 +749,14 @@ if(firebaseReady){
     }catch(e){
       setStartupStatus("Odhlášení selhalo: " + (e.code || "") + " " + (e.message || e));
     }finally{
-      location.reload();
+      if(options && options.stayOnLogin){
+        clearSignedUser();
+        setStartupAuthChecking(false);
+        showLogin();
+        showStartupLogin("Přihlášení vymazáno. Přihlaste se znovu Google účtem @astip.cz.");
+      }else{
+        location.reload();
+      }
     }
   }
   function delay(ms){
@@ -767,7 +774,7 @@ if(firebaseReady){
     return !!(window.__mapAppUnlocked || visibleApp || resumed || loadedRows || window.__firebaseUnifiedRowsLoaded);
   }
   function shouldKeepAppOpenOnAuthNull(){
-    return !explicitSignOutPending() && (knownSignedIn() || appIsOpenOrHasRows());
+    return !explicitSignOutPending() && !!currentAuthCandidate();
   }
   async function waitForAuthCandidate(timeoutMs=3500){
     const started=Date.now();
@@ -1107,8 +1114,10 @@ if(firebaseReady){
       return;
     }
     if(knownSession || appIsOpenOrHasRows()){
+      forgetKnownSignedIn();
+      clearSignedUser();
       showLogin();
-      showStartupLogin("Přihlášení se obnovuje na pozadí. Pokud se mapa neotevře sama, přihlaste se Google účtem.");
+      showStartupLogin("Přihlášení není platné. Vyberte znovu Google účet @astip.cz.");
       return;
     }
     if(explicitSignOutPending()){
@@ -1312,7 +1321,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v467-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v468-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -11194,6 +11203,12 @@ function fixMapView(){
 }
 
 function showApp(){
+  const hasUser=!!(currentUser || window.currentUser || window.__authReadyUser);
+  if(!hasUser){
+    window.__mapAppUnlocked=false;
+    showLogin();
+    return;
+  }
   if(window.setStartupAuthChecking) window.setStartupAuthChecking(false);
   if(window.updateAdminAppControls) window.updateAdminAppControls();
   window.__mapAppUnlocked=true;
@@ -11205,7 +11220,6 @@ function showApp(){
   setDisplayIfChanged(app,"grid");
   setDisplayIfChanged(loginRow,"none");
   if(topLogout){
-    const hasUser=!!(currentUser || window.currentUser || window.__authReadyUser);
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode(hasUser ? "logout" : "login");
     const canTryLogin=hasUser || firebaseReady || window.__firebaseConfigured || !!(window.firebase && firebase.auth);
     setDisplayIfChanged(topLogout,canTryLogin ? "block" : "none");
