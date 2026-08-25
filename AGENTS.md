@@ -724,4 +724,6 @@ Current performance phase 307 decision: continue the monolith split by moving at
 
 Current performance phase 308 decision: continue the monolith split by moving photo date labels, admin date-time display, Cloudinary version-date fallback, and taken/inserted label helpers into `src/photo-date-utils.js`; preserve the same admin/non-admin formatting, fallback date order, and gallery/attachment metadata labels.
 
+Current performance phase 309 decision: continue the monolith split by moving protocol source final-state parsing and source test-method labels into `src/protocol-source-state-utils.js`; preserve the same OK/Stop normalization, Czech label text, protocol history display, document export labels, and form payload labels.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

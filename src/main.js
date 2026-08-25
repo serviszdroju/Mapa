@@ -265,6 +265,11 @@ import {
 import {
   createPhotoDateHelpers
 } from "./photo-date-utils.js";
+import {
+  protocolSourceStateLabel,
+  protocolSourceStateValue,
+  protocolSourceTestMethodLabel
+} from "./protocol-source-state-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -290,7 +295,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-photo-render-meta-module-v459";
+const APP_BUILD_VERSION="2026-08-25-protocol-source-state-module-v463";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11248,30 +11253,6 @@ function protocolGlobalHistoryTitle(item={}){
   const device=safe(item.deviceType || item.selectedDevice || item.siteSource || "");
   const serial=safe(item.serial || "");
   return [title, device, serial].filter(Boolean).join(" | ");
-}
-
-function protocolSourceStateValue(protocol={}){
-  const raw=safe(protocol.sourceState || protocol.protocolSourceState || protocol.sourceStatus || protocol.finalSourceState);
-  const normalized=simpleNorm(raw);
-  if(normalized==="ok" || normalized.includes("poradku") || normalized.includes("funkcni") || normalized.includes("provozuschop")) return "ok";
-  if(normalized==="stop" || normalized.includes("stop") || normalized.includes("mimo provoz") || normalized.includes("neprovozuschop")) return "stop";
-  return "";
-}
-
-function protocolSourceStateLabel(protocol={}){
-  const state=protocolSourceStateValue(protocol);
-  if(state==="ok") return "Zdroj je v pořádku";
-  if(state==="stop") return "Zdroj je ve stop stavu";
-  return "";
-}
-
-function protocolSourceTestMethodLabel(value){
-  const normalized=simpleNorm(value);
-  if(!normalized) return "";
-  if(normalized==="lift" || normalized.includes("vytah")) return "zdroj byl odzkoušen výtahem";
-  if(normalized==="ventilation" || normalized.includes("odvetr")) return "zdroj byl odzkoušen odvětráním";
-  if(normalized==="empty" || normalized.includes("prazdno")) return "zdroj byl odzkoušen na prázdno";
-  return safe(value);
 }
 
 let protocolHandoffOverridesCacheRaw=null;
