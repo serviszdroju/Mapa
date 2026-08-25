@@ -222,7 +222,8 @@ import {
   cloneLocalStorageArrayEntries,
   cloneLocalStorageArrayItems,
   cloneLocalStorageObjectEntries,
-  cloneLocalStorageObjectItem
+  cloneLocalStorageObjectItem,
+  szzArrayWithoutItemId
 } from "./local-storage-clone-utils.js";
 import {
   createSiteLocalKeyHelpers
@@ -315,7 +316,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-filter-render-scheduler-module-v473";
+const APP_BUILD_VERSION="2026-08-25-local-storage-array-helper-module-v474";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9044,15 +9045,6 @@ function readSiteLocalArray(kind,site=selectedSite){
     return [];
   }
 }
-function szzArrayWithoutItemId(items=[],cleanId=""){
-  const source=Array.isArray(items) ? items : [];
-  if(!cleanId) return source.slice();
-  const out=[];
-  for(const item of source){
-    if(safe(item && item._id)!==cleanId) out.push(item);
-  }
-  return out;
-}
 function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
   try{
     const arr=readSiteLocalArray(kind,site);
@@ -9072,7 +9064,7 @@ function appendSiteLocalArray(kind,item,site=selectedSite,limit=80){
       siteAddress:safe(item.siteAddress) || identity.siteAddress,
       siteSource:safe(item.siteSource) || identity.siteSource
     } : {...item};
-    let next=szzArrayWithoutItemId(arr,id);
+    let next=szzArrayWithoutItemId(arr,id,safe);
     next.push(enrichedItem);
     if(Number.isFinite(limit) && limit>0) next=next.slice(-limit);
     const key=siteLocalCacheKey(kind,site);
@@ -9147,7 +9139,7 @@ function removeSiteLocalItem(kind,id,site=selectedSite){
   try{
     const cleanId=safe(id);
     if(!cleanId) return;
-    const next=szzArrayWithoutItemId(readSiteLocalArray(kind,site),cleanId);
+    const next=szzArrayWithoutItemId(readSiteLocalArray(kind,site),cleanId,safe);
     const key=siteLocalCacheKey(kind,site);
     const raw=JSON.stringify(next);
     localStorage.setItem(key,raw);
@@ -9707,7 +9699,7 @@ function removeLocalStorageArrayItemByKey(key,id){
   try{
     const arr=JSON.parse(localStorage.getItem(key) || "[]");
     if(!Array.isArray(arr)) return;
-    const next=szzArrayWithoutItemId(arr,cleanId);
+    const next=szzArrayWithoutItemId(arr,cleanId,safe);
     const raw=JSON.stringify(next);
     localStorage.setItem(key,raw);
     clearLocalStorageArrayEntriesCache(key);
@@ -10087,7 +10079,7 @@ async function removeEmbeddedSiteItem(field,id,site=selectedSite){
     }catch(e){
       current=Array.isArray(site?.firebaseData?.[field]) ? site.firebaseData[field].slice() : [];
     }
-    const next=szzArrayWithoutItemId(current,cleanId);
+    const next=szzArrayWithoutItemId(current,cleanId,safe);
     await setDoc(ref,{[field]:next,updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()},{merge:true});
     if(site){
       site.firebaseData=site.firebaseData || {};

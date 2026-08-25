@@ -36,3 +36,13 @@ export function cloneLocalStorageObjectEntries(entries=[]){
 export function cloneLocalStorageObjectItem(item){
   return item && typeof item==="object" && !Array.isArray(item) ? {...item} : {};
 }
+
+export function szzArrayWithoutItemId(items=[],cleanId="",safeValue=value=>String(value || "")){
+  const source=Array.isArray(items) ? items : [];
+  if(!cleanId) return source.slice();
+  const out=[];
+  for(const item of source){
+    if(safeValue(item && item._id)!==cleanId) out.push(item);
+  }
+  return out;
+}
