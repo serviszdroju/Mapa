@@ -702,6 +702,8 @@ Current auth preservation decision: keep the startup shell visible until the mai
 
 Current auth preservation decision: keep startup and sidebar e-mail login controls visibly available in CSS before the main JavaScript bundle finishes loading; `.startup.auth-checking` should still show the startup shell and e-mail fields, and `.sidebar-email-login` should render as a compact grid by default so Android/tablet users are not stuck behind hidden controls.
 
+Current auth preservation decision: the deployed HTML shell should keep e-mail/password login only on the startup screen, not as an always-visible sidebar form. The standalone shell script should read only `#startupEmail` and `#startupPassword`, focus only startup fields, and tell users to enter credentials on the startup screen; later bundle fallback handlers may remain tolerant of missing sidebar fields.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Current performance phase 300 decision: continue the monolith split by moving prefix-based localStorage array/object entry scan caches into `src/local-storage-entries-utils.js`; preserve the same cache max age, localStorage length invalidation, shallow cloned returns, prefix/key clearing semantics, site-local read-cache invalidation callbacks, and legacy localStorage fallback coverage.
