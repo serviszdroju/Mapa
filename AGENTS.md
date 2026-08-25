@@ -754,4 +754,6 @@ Current performance phase 322 decision: continue the monolith split by moving th
 
 Current performance phase 323 decision: continue the monolith split by moving site-local array/object mutation helpers into `src/site-local-storage-utils.js`; preserve the same selected-site default, identity enrichment, duplicate `_id` replacement, size limits, localStorage writes, cache remembering, and detail/history invalidation callbacks.
 
+Current performance phase 324 decision: continue the monolith split by moving the low-level IndexedDB offline queue constants, database opening, upgrade, and transaction helper into `src/offline-queue-db-utils.js`; preserve the same database name/version, store names, key paths, siteCacheKey index, close/error behavior, and all existing queue callers.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

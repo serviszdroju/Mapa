@@ -233,6 +233,12 @@ import {
   createSiteLocalStorageMutationHelpers
 } from "./site-local-storage-utils.js";
 import {
+  SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,
+  SZZ_OFFLINE_SITE_QUEUE_STORE,
+  SZZ_PROTOCOL_DRAFT_STORE,
+  withSzzOfflineQueueStore
+} from "./offline-queue-db-utils.js";
+import {
   clearLocalDetailReadCache,
   readCachedLocalDetailItems as readCachedLocalDetailItemsFromCache
 } from "./local-detail-cache-utils.js";
@@ -320,7 +326,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-site-local-storage-mutations-module-v477";
+const APP_BUILD_VERSION="2026-08-25-offline-queue-db-module-v478";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9010,54 +9016,6 @@ const {
   uniqueNonEmptyStrings
 });
 window.mergeSiteLocalArray=mergeSiteLocalArray;
-
-const SZZ_OFFLINE_QUEUE_DB_NAME="astipMapOfflineQueues";
-const SZZ_OFFLINE_QUEUE_DB_VERSION=2;
-const SZZ_OFFLINE_SITE_QUEUE_STORE="siteQueue";
-const SZZ_OFFLINE_PROTOCOL_QUEUE_STORE="protocolQueue";
-const SZZ_PROTOCOL_DRAFT_STORE="protocolDrafts";
-
-function openSzzOfflineQueueDb(){
-  return new Promise((resolve,reject)=>{
-    if(!("indexedDB" in window)){
-      reject(new Error("IndexedDB není v prohlížeči dostupné."));
-      return;
-    }
-    const req=indexedDB.open(SZZ_OFFLINE_QUEUE_DB_NAME,SZZ_OFFLINE_QUEUE_DB_VERSION);
-    req.onupgradeneeded=()=>{
-      const database=req.result;
-      if(!database.objectStoreNames.contains(SZZ_OFFLINE_SITE_QUEUE_STORE)){
-        database.createObjectStore(SZZ_OFFLINE_SITE_QUEUE_STORE,{keyPath:"docId"});
-      }
-      if(!database.objectStoreNames.contains(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE)){
-        const protocolStore=database.createObjectStore(SZZ_OFFLINE_PROTOCOL_QUEUE_STORE,{keyPath:"_id"});
-        protocolStore.createIndex("siteCacheKey","siteCacheKey",{unique:false});
-      }
-      if(!database.objectStoreNames.contains(SZZ_PROTOCOL_DRAFT_STORE)){
-        database.createObjectStore(SZZ_PROTOCOL_DRAFT_STORE,{keyPath:"siteCacheKey"});
-      }
-    };
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error || new Error("Offline databázi se nepodařilo otevřít."));
-  });
-}
-
-async function withSzzOfflineQueueStore(storeName,mode,callback){
-  const database=await openSzzOfflineQueueDb();
-  return new Promise((resolve,reject)=>{
-    const tx=database.transaction(storeName,mode);
-    const store=tx.objectStore(storeName);
-    let result;
-    tx.oncomplete=()=>{database.close();resolve(result);};
-    tx.onerror=()=>{database.close();reject(tx.error || new Error("Offline fronta selhala."));};
-    try{
-      callback(store,value=>{result=value;});
-    }catch(e){
-      database.close();
-      reject(e);
-    }
-  });
-}
 
 function uniqueByOfflineId(items=[],idKey="_id"){
   return uniqueByOfflineIdFromLists([items],idKey);
