@@ -288,6 +288,14 @@ import {
   createOfflinePrefetchItemHelpers
 } from "./offline-prefetch-item-utils.js";
 import {
+  siteChildDeltaFields,
+  siteChildLocalKind,
+  siteChildTypeLabel
+} from "./site-child-kind-utils.js";
+import {
+  createFirestoreDeltaHelpers
+} from "./firestore-delta-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -352,7 +360,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-prefetch-item-module-v490";
+const APP_BUILD_VERSION="2026-08-25-firestore-delta-module-v492";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1379,37 +1387,17 @@ function szzLocalOfflineDetailMeta(site){
   };
 }
 
-async function readFirestoreDocsUpdatedSince(collectionFactory,fields=[],sinceMs=0,addDocSnap=null,warnLabel="Rozdílový Firestore dotaz",options={}){
-  if(!firebaseReady || !db || !fb.fsMod || navigator.onLine===false || !sinceMs || typeof addDocSnap!=="function") return 0;
-  const {query,where,getDocs,Timestamp}=fb.fsMod;
-  if(!query || !where || !getDocs) return 0;
-  const cutoffMs=Math.max(0,Number(sinceMs) - SZZ_OFFLINE_INCREMENTAL_SAFETY_MS);
-  const cutoffValues=[];
-  if(Timestamp && typeof Timestamp.fromMillis==="function") cutoffValues.push(Timestamp.fromMillis(cutoffMs));
-  cutoffValues.push(new Date(cutoffMs).toISOString());
-  let count=0;
-  const tasks=[];
-  uniqueNonEmptyStrings(fields).forEach(field=>{
-    cutoffValues.forEach(cutoff=>{
-      tasks.push(async()=>{
-        try{
-          const snap=await getDocs(query(collectionFactory(),where(field,">",cutoff)));
-          snap.forEach(docSnap=>{
-            count++;
-            addDocSnap(docSnap);
-          });
-        }catch(e){
-          console.warn(warnLabel,field,e);
-        }
-      });
-    });
-  });
-  await runBoundedFirestoreTasks(tasks,Number(options.concurrency) || 4,{
-    yieldEvery:Number(options.yieldEvery) || 2,
-    yieldTimeout:Number(options.yieldTimeout) || 120
-  });
-  return count;
-}
+const {
+  readFirestoreDocsUpdatedSince
+}=createFirestoreDeltaHelpers({
+  getDb:()=>db,
+  getFsMod:()=>fb && fb.fsMod,
+  isFirebaseReady:()=>firebaseReady,
+  isOnline:()=>navigator.onLine!==false,
+  runBoundedFirestoreTasks,
+  safetyMs:SZZ_OFFLINE_INCREMENTAL_SAFETY_MS,
+  uniqueNonEmptyStrings
+});
 
 function szzFirebaseRowFromDocSnap(docSnap){
   if(!docSnap || !docSnap.id || typeof docSnap.data!=="function") return null;
@@ -1475,19 +1463,6 @@ async function syncSzzOfflineMapRowDeltas(sinceMs=0,options={}){
     cacheCurrentFirebaseRowsForOffline();
   }
   return changedRows;
-}
-
-function siteChildLocalKind(kind){
-  return kind==="protocols" ? "protocolHistory" : kind==="serviceRecords" ? "serviceHistory" : kind==="photos" ? "photos" : kind==="attachments" ? "attachments" : "";
-}
-
-function siteChildTypeLabel(kind){
-  return kind==="protocols" ? "Protokol" : kind==="serviceRecords" ? "Servisní záznam" : kind==="attachments" ? "Příloha" : "";
-}
-
-function siteChildDeltaFields(kind){
-  if(kind==="photos" || kind==="attachments") return ["updatedAt","uploadedAt","createdAt","savedAt"];
-  return ["updatedAt","syncedAt","savedAt","createdAt","date"];
 }
 
 async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){

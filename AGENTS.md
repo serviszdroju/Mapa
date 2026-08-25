@@ -780,4 +780,8 @@ Current performance phase 335 decision: continue the monolith split by moving ca
 
 Current performance phase 336 decision: continue the monolith split by moving offline prefetch item assembly and media URL caching into `src/offline-prefetch-item-utils.js`; preserve embedded child metadata, append order, URL dedupe, Cloudinary URL helper usage, Request-based cache keys, no-cors handling, and bounded media fetch concurrency.
 
+Current performance phase 337 decision: continue the monolith split by moving site child kind/type/delta-field mapping into `src/site-child-kind-utils.js`; preserve local storage kind names, visible type labels, and incremental Firestore field lists for protocols, service records, photos, and attachments.
+
+Current performance phase 338 decision: continue the monolith split by moving generic Firestore updated-since delta reads into `src/firestore-delta-utils.js`; preserve Firebase readiness guards, online guard, timestamp/string cutoff values, incremental safety window, bounded task scheduling, and warning labels.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
