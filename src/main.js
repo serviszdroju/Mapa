@@ -285,6 +285,9 @@ import {
   createOfflineRowSelectHelpers
 } from "./offline-row-select-utils.js";
 import {
+  createOfflinePrefetchItemHelpers
+} from "./offline-prefetch-item-utils.js";
+import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
 } from "./photo-render-meta-utils.js";
@@ -349,7 +352,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-row-select-module-v489";
+const APP_BUILD_VERSION="2026-08-25-offline-prefetch-item-module-v490";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1290,6 +1293,21 @@ const {
   safeValue:safe
 });
 
+const {
+  appendOfflineChildItemsWithMeta,
+  appendOfflineItems,
+  cacheOfflineMediaUrls:cacheSzzOfflineMediaUrls,
+  embeddedItemsForOffline:szzEmbeddedItemsForOffline,
+  offlinePhotoUrls:szzOfflinePhotoUrls
+}=createOfflinePrefetchItemHelpers({
+  safeValue:safe,
+  photoDisplayUrl:item=>photoDisplayUrl(item),
+  photoFullUrl:item=>photoFullUrl(item),
+  photoThumbUrl:item=>photoThumbUrl(item),
+  runtimeCacheName:"astip-szz-v459-runtime",
+  mediaFetchConcurrency:4
+});
+
 function saveFirebaseRowsCacheForRows(source=null){
   const firebaseRows=firebaseRowsForOffline(source);
   if(firebaseRows.length && typeof window.saveFirebaseMapRowsCache==="function"){
@@ -1303,8 +1321,6 @@ function cacheCurrentFirebaseRowsForOffline(){
 }
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
-const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v459-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1317,109 +1333,6 @@ function szzIsConstrainedDevice(){
 
 function szzOfflineDetailPrefetchConcurrency(){
   return szzIsConstrainedDevice() ? 1 : SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY;
-}
-
-function szzEmbeddedItemsForOffline(site,field,typeLabel,collectionLabel,idPrefix){
-  const items=Array.isArray(site?.firebaseData?.[field]) ? site.firebaseData[field] : [];
-  const out=[];
-  for(let idx=0;idx<items.length;idx++){
-    const item=items[idx];
-    out.push({
-      ...item,
-      _type:item?._type || typeLabel || "",
-      _collection:item?._collection || collectionLabel || field,
-      _id:item?._id || `${idPrefix || field}_${idx}`
-    });
-  }
-  return out;
-}
-
-function appendOfflineItems(out,items=[]){
-  const source=Array.isArray(items) ? items : [];
-  for(const item of source) out.push(item);
-  return out;
-}
-
-function appendOfflineChildItemsWithMeta(out,items=[],typeLabel="",collectionLabel=""){
-  const source=Array.isArray(items) ? items : [];
-  for(const item of source){
-    out.push({
-      ...item,
-      _type:item._type || typeLabel,
-      _collection:item._collection || collectionLabel
-    });
-  }
-  return out;
-}
-
-function szzOfflinePhotoUrls(items=[]){
-  const urls=[];
-  const seen=new Set();
-  const addUrl=url=>{
-    const clean=safe(url);
-    if(clean && /^https?:\/\//i.test(clean) && !seen.has(clean)){
-      seen.add(clean);
-      urls.push(clean);
-    }
-  };
-  for(const item of (Array.isArray(items) ? items : [])){
-    try{
-      addUrl(photoDisplayUrl(item));
-      addUrl(photoThumbUrl(item));
-      addUrl(photoFullUrl(item));
-    }catch(e){}
-  }
-  return urls;
-}
-
-async function cacheSzzOfflineMediaUrls(urls=[]){
-  if(!("caches" in window)) return 0;
-  const seen=new Set();
-  const unique=[];
-  for(const url of (Array.isArray(urls) ? urls : [])){
-    const clean=safe(url);
-    if(clean && /^https?:\/\//i.test(clean) && !seen.has(clean)){
-      seen.add(clean);
-      unique.push(clean);
-    }
-  }
-  if(!unique.length) return 0;
-  const cache=await caches.open(SZZ_RUNTIME_CACHE_NAME);
-  let done=0;
-  let index=0;
-  const sameOrigin=url=>{
-    try{return new URL(url,location.href).origin===location.origin;}catch(e){return false;}
-  };
-  const worker=async()=>{
-    while(index<unique.length){
-      const url=unique[index++];
-      try{
-        const local=sameOrigin(url);
-        const request=new Request(url,{
-          cache:"reload",
-          mode:local ? "same-origin" : "no-cors",
-          credentials:local ? "same-origin" : "omit"
-        });
-        const cached=await cache.match(request) || await cache.match(url);
-        if(cached){
-          done++;
-          continue;
-        }
-        const response=await fetch(request);
-        if(response && (response.ok || response.type==="opaque")){
-          await cache.put(request,response.clone());
-          done++;
-        }
-      }catch(e){
-        console.warn("Offline media cache: soubor se nepodařilo uložit",url,e);
-      }
-    }
-  };
-  const workers=[];
-  const workerCount=Math.min(SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY,unique.length);
-  for(let i=0;i<workerCount;i++) workers.push(worker());
-  await Promise.allSettled(workers);
-  return done;
 }
 
 const SZZ_OFFLINE_DETAIL_META_CACHE_MS=1800;

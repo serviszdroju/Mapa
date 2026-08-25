@@ -778,4 +778,6 @@ Current performance phase 334 decision: continue the monolith split by moving ca
 
 Current performance phase 335 decision: continue the monolith split by moving cached offline Firebase-row and prefetch-row selection into `src/offline-row-select-utils.js`; preserve the same source-array identity cache, current rows index-version invalidation, Firebase doc-id filtering, prefetch `_id` dedupe order, and fallback to `window.rows`.
 
+Current performance phase 336 decision: continue the monolith split by moving offline prefetch item assembly and media URL caching into `src/offline-prefetch-item-utils.js`; preserve embedded child metadata, append order, URL dedupe, Cloudinary URL helper usage, Request-based cache keys, no-cors handling, and bounded media fetch concurrency.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
