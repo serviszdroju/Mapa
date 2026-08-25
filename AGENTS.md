@@ -682,6 +682,8 @@ Current performance phase 293 decision: continue the monolith split by moving ca
 
 Current performance phase 294 decision: continue the monolith split by moving cached data-key normalization, detail-field labels, hidden/internal field filters, note/watch field checks, fixed row ordering, and normalized value helpers into `src/data-key-utils.js`; preserve the same displayed field order, label aliases, hidden technical rows, and cache limits.
 
+Current performance phase 295 decision: continue the monolith split by moving cached record source identity and source/site matching helpers into `src/record-source-utils.js`; preserve the same source fields, normalization, multi-source protocol/photo/service matching, and WeakMap cache behavior while shrinking the main module.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

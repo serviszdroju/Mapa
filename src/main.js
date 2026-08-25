@@ -165,6 +165,9 @@ import {
   createRecordTextHelpers
 } from "./record-text-utils.js";
 import {
+  createRecordSourceHelpers
+} from "./record-source-utils.js";
+import {
   readFirestoreArrayContainsAny,
   readFirestoreEqualsAny,
   runBoundedFirestoreTasks,
@@ -237,7 +240,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-data-key-utils-module-v445";
+const APP_BUILD_VERSION="2026-08-25-record-source-utils-module-v446";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1173,7 +1176,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v445-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v446-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -3063,65 +3066,6 @@ function siteHasMultipleSources(site){
   }
   return hasMultiple;
 }
-const recordSourceIdentityCache=new WeakMap();
-function recordSourceIdentity(record){
-  if(!record) return "";
-  const values=[
-    record.siteSource,
-    record.siteSourceIdentity,
-    record.sourceIdentity,
-    record.deviceType,
-    record.source,
-    record.zdroj,
-    record.device,
-    record.deviceName,
-    record.serial,
-    record.serialNumber,
-    record.vyrobniCislo
-  ];
-  if(record && (typeof record==="object" || typeof record==="function")){
-    const cached=recordSourceIdentityCache.get(record);
-    if(
-      cached &&
-      cached.siteSource===record.siteSource &&
-      cached.siteSourceIdentity===record.siteSourceIdentity &&
-      cached.sourceIdentity===record.sourceIdentity &&
-      cached.deviceType===record.deviceType &&
-      cached.source===record.source &&
-      cached.zdroj===record.zdroj &&
-      cached.device===record.device &&
-      cached.deviceName===record.deviceName &&
-      cached.serial===record.serial &&
-      cached.serialNumber===record.serialNumber &&
-      cached.vyrobniCislo===record.vyrobniCislo
-    ){
-      return cached.identity;
-    }
-    const identity=searchNorm(values.filter(Boolean).join(" "));
-    recordSourceIdentityCache.set(record,{
-      siteSource:record.siteSource,
-      siteSourceIdentity:record.siteSourceIdentity,
-      sourceIdentity:record.sourceIdentity,
-      deviceType:record.deviceType,
-      source:record.source,
-      zdroj:record.zdroj,
-      device:record.device,
-      deviceName:record.deviceName,
-      serial:record.serial,
-      serialNumber:record.serialNumber,
-      vyrobniCislo:record.vyrobniCislo,
-      identity
-    });
-    return identity;
-  }
-  return searchNorm(values.filter(Boolean).join(" "));
-}
-function recordSourceMatchesSite(record,site){
-  const siteSource=siteSourceIdentity(site);
-  const recordSource=recordSourceIdentity(record);
-  if(!siteSource || !recordSource) return false;
-  return siteSource===recordSource || siteSource.includes(recordSource) || recordSource.includes(siteSource);
-}
 function statusPriority(r){
   const cached=ensureRowScheduleCache(r);
   return cached ? cached.priority : 10;
@@ -3555,6 +3499,13 @@ const {
 }=createRecordTextHelpers({
   getSelectedSite:()=>selectedSite,
   searchNorm
+});
+const {
+  recordSourceIdentity,
+  recordSourceMatchesSite
+}=createRecordSourceHelpers({
+  searchNorm,
+  siteSourceIdentity
 });
 
 function rowRenderFingerprint(r){
