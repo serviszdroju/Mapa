@@ -700,6 +700,8 @@ Current auth preservation decision: keep the sidebar e-mail/password login form 
 
 Current auth preservation decision: keep the startup shell visible until the main auth flow explicitly unlocks the app or shows the e-mail fallback; do not pre-hide it with `auth-resume` from old localStorage/session flags at HTML parse time, because Android/tablet users need the visible e-mail login fallback if Firebase resume stalls.
 
+Current auth preservation decision: keep startup and sidebar e-mail login controls visibly available in CSS before the main JavaScript bundle finishes loading; `.startup.auth-checking` should still show the startup shell and e-mail fields, and `.sidebar-email-login` should render as a compact grid by default so Android/tablet users are not stuck behind hidden controls.
+
 Current Android visual parity decision: the downloadable APK must show the production web app 1:1, not a separate native/Compose UI. Keep Android launcher changes web-first via fullscreen WebView/TWA-style shell unless the user explicitly asks to return to a distinct native app.
 
 Current performance phase 300 decision: continue the monolith split by moving prefix-based localStorage array/object entry scan caches into `src/local-storage-entries-utils.js`; preserve the same cache max age, localStorage length invalidation, shallow cloned returns, prefix/key clearing semantics, site-local read-cache invalidation callbacks, and legacy localStorage fallback coverage.
