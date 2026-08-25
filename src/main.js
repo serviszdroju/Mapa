@@ -387,6 +387,9 @@ import {
   createNewSiteFormFieldHelpers
 } from "./new-site-form-utils.js";
 import {
+  createNewSiteModeHelpers
+} from "./new-site-mode-utils.js";
+import {
   createEditFormHelpers
 } from "./edit-form-utils.js";
 import {
@@ -427,7 +430,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-popup-primary-v518";
+const APP_BUILD_VERSION="2026-08-25-login-stable-new-site-mode-v519";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2036,24 +2039,6 @@ const {
   safe
 });
 
-function setNewSiteModeTitle(){
-  const title=document.getElementById("drawerTitle") || detailTitleNode();
-  const sub=document.getElementById("drawerSub") || detailSubNode();
-  if(title) title.textContent="Přidat nové místo";
-  if(sub) sub.textContent="Vyplň údaje a ulož místo.";
-}
-function clearNewSiteMode(){
-  const drawerEl=drawerNode();
-  if(drawerEl) drawerEl.classList.remove("adding-new-site");
-  addSourceBaseSite=null;
-  const chooser=sourceChooserNode();
-  if(chooser){
-    chooser.style.display="none";
-    chooser.replaceChildren();
-    chooser.dataset.renderSignature="";
-  }
-}
-
 const {
   calcNewSiteGpsFromAddress,
   clearNewSiteAllFields,
@@ -2100,46 +2085,36 @@ const {
   setRows:nextRows=>{ window.rows=nextRows; rows=window.rows; }
 });
 
-function openNewSiteForm(){
-  restoreNormalDetailDrawerShell();
-  selectedSite=null;
-  addSourceBaseSite=null;
+function hideNewSiteSourceChooser(){
   const chooser=sourceChooserNode();
-  if(chooser){chooser.style.display="none";chooser.replaceChildren();chooser.dataset.renderSignature="";}
-  populateNewRegionOptions();
-  const drawerEl=drawerNode();
-  if(drawerEl){ drawerEl.classList.add("open"); drawerEl.scrollTop=0; }
-  const newSiteCard=newSiteCardNode();
-  if(newSiteCard) newSiteCard.style.display="block";
-  forceRenderNewSiteForm();
-  if(drawerEl) drawerEl.classList.add("adding-new-site");
-  renderNewSiteAllFields();
-  setNewSiteModeTitle();
-  clearNewSiteAllFields();
-  
-["newName","newAddress","newRegion","newSource","newSerial","newBatteries","newCapacity","newSets","newExtra","newAllData"].forEach(id=>{
-  const el=document.getElementById(id);
-  if(el) el.value="";
-});
-
-runAfterPaint(()=>{const n=document.getElementById("newName"); if(n){n.focus(); n.scrollIntoView({behavior:"smooth",block:"start"});}});
-  document.getElementById("editCard").style.display="none";
-  setTextIfChanged(detailTitleNode(),"Přidat nové místo");
-  setTextIfChanged(detailSubNode(),"Vyplň údaje a ulož místo.");
-  const detailTable=detailTableNode();
-  if(detailTable){
-    detailTable.dataset.detailTableMode="new";
-    delete detailTable.dataset.detailSignature;
-    const row=document.createElement("tr");
-    const label=document.createElement("td");
-    label.textContent="Nové místo";
-    const value=document.createElement("td");
-    value.textContent="Po uložení se zobrazí v mapě.";
-    row.append(label,value);
-    detailTable.replaceChildren(row);
+  if(chooser){
+    chooser.style.display="none";
+    chooser.replaceChildren();
+    chooser.dataset.renderSignature="";
   }
-  document.getElementById("newSiteStatus").textContent="";
 }
+
+const {
+  clearNewSiteMode,
+  openNewSiteForm,
+  setNewSiteModeTitle
+}=createNewSiteModeHelpers({
+  clearNewSiteAllFields,
+  detailSubNode,
+  detailTableNode,
+  detailTitleNode,
+  drawerNode,
+  forceRenderNewSiteForm,
+  newSiteCardNode,
+  populateNewRegionOptions,
+  renderNewSiteAllFields,
+  restoreNormalDetailDrawerShell,
+  runAfterPaint,
+  setAddSourceBaseSite:site=>{ addSourceBaseSite=site; },
+  setNewSiteSourceChooserHidden:hideNewSiteSourceChooser,
+  setSelectedSite:site=>{ selectedSite=site; window.selectedSite=site; },
+  setTextIfChanged
+});
 
 
 let deletedSiteIds=new Set();
