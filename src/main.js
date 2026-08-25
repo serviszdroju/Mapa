@@ -237,6 +237,9 @@ import {
 import {
   createOfflineDetailMetaHelpers
 } from "./offline-detail-meta-utils.js";
+import {
+  createOfflineRowFingerprintHelpers
+} from "./offline-row-fingerprint-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -262,7 +265,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-detail-meta-module-v455";
+const APP_BUILD_VERSION="2026-08-25-offline-row-fingerprint-module-v456";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1238,7 +1241,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v455-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v456-runtime";
 
 function szzIsConstrainedDevice(){
   try{
@@ -1432,82 +1435,10 @@ function szzRecordUpdatedMs(item={}){
   );
 }
 
-const szzRawFingerprintCache=new WeakMap();
-const szzOfflineRowFingerprintCache=new WeakMap();
-function szzCachedObjectValuesMatch(keys=[],values=[],source={},currentKeys=[]){
-  const compareKeys=Array.isArray(currentKeys) ? currentKeys : Object.keys(source || {}).sort(szzCompareCsBase);
-  if(!sameArrayValues(keys,compareKeys)) return false;
-  for(let i=0;i<keys.length;i++){
-    if(values[i]!==source[keys[i]]) return false;
-  }
-  return true;
-}
-function szzStableRawFingerprint(raw={}){
-  const source=raw || {};
-  const keys=Object.keys(source).sort(szzCompareCsBase);
-  const cacheable=source && (typeof source==="object" || typeof source==="function");
-  if(cacheable){
-    const cached=szzRawFingerprintCache.get(source);
-    if(cached && szzCachedObjectValuesMatch(cached.keys,cached.values,source,keys)) return cached.fingerprint;
-  }
-  const values=new Array(keys.length);
-  let fingerprint="";
-  for(let idx=0;idx<keys.length;idx++){
-    const key=keys[idx];
-    const value=source[key];
-    values[idx]=value;
-    if(idx) fingerprint+="\u001e";
-    fingerprint+=stableSignature([key,value]);
-  }
-  if(cacheable) szzRawFingerprintCache.set(source,{keys,values,fingerprint});
-  return fingerprint;
-}
-
-function szzOfflineRowFingerprint(row){
-  const raw=row?.raw || {};
-  const data=row?.firebaseData || {};
-  const rawFingerprint=szzStableRawFingerprint(raw);
-  if(row && (typeof row==="object" || typeof row==="function")){
-    const cached=szzOfflineRowFingerprintCache.get(row);
-    if(
-      cached &&
-      cached.firebaseDocId===row.firebaseDocId &&
-      cached.id===row.id &&
-      cached.updatedAt===data.updatedAt &&
-      cached.createdAt===data.createdAt &&
-      cached.latestProtocolDate===data.latestProtocolDate &&
-      cached.rawFingerprint===rawFingerprint
-    ){
-      return cached.fingerprint;
-    }
-    const fingerprint=stableSignature([
-      row?.firebaseDocId,
-      row?.id,
-      data.updatedAt,
-      data.createdAt,
-      data.latestProtocolDate,
-      rawFingerprint
-    ]);
-    szzOfflineRowFingerprintCache.set(row,{
-      firebaseDocId:row.firebaseDocId,
-      id:row.id,
-      updatedAt:data.updatedAt,
-      createdAt:data.createdAt,
-      latestProtocolDate:data.latestProtocolDate,
-      rawFingerprint,
-      fingerprint
-    });
-    return fingerprint;
-  }
-  return stableSignature([
-    row?.firebaseDocId,
-    row?.id,
-    data.updatedAt,
-    data.createdAt,
-    data.latestProtocolDate,
-    rawFingerprint
-  ]);
-}
+const {
+  stableRawFingerprint:szzStableRawFingerprint,
+  offlineRowFingerprint:szzOfflineRowFingerprint
+}=createOfflineRowFingerprintHelpers();
 
 function szzItemsMeta(items=[]){
   const list=Array.isArray(items) ? items : [];
