@@ -287,6 +287,9 @@ import {
 import {
   createMainProtocolHistoryViewHelpers
 } from "./main-protocol-history-view-utils.js";
+import {
+  createFilterRenderScheduler
+} from "./filter-render-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -312,7 +315,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-main-protocol-history-bindings-module-v472";
+const APP_BUILD_VERSION="2026-08-25-filter-render-scheduler-module-v473";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11662,34 +11665,12 @@ if(typeof window.bindLoginButtons==="function"){
 
 
 bindDetailShellControls();
-let filterRenderTimer=0;
-let lastFilterInputSignature="";
-function filterInputSignature(){
-  const {search,status,region}=filterControls();
-  return [
-    search ? search.value : "",
-    status ? status.value : "",
-    region ? region.value : ""
-  ].join("\u001f");
-}
-function scheduleFilterRender(delay=220){
-  const signature=filterInputSignature();
-  if(signature===lastFilterInputSignature) return;
-  lastFilterInputSignature=signature;
-  clearTimeout(filterRenderTimer);
-  filterRenderTimer=setTimeout(requestRender,delay);
-}
-function requestFilterRenderNow(){
-  const signature=filterInputSignature();
-  if(signature===lastFilterInputSignature) return;
-  lastFilterInputSignature=signature;
-  requestRender();
-}
-lastFilterInputSignature=filterInputSignature();
-const initialFilterControls=filterControls();
-initialFilterControls.search?.addEventListener("input",()=>scheduleFilterRender());
-initialFilterControls.status?.addEventListener("change",()=>{updateStatusFilterColor();requestFilterRenderNow();});
-initialFilterControls.region?.addEventListener("change",requestFilterRenderNow);
+const {bindFilterRenderControls}=createFilterRenderScheduler({
+  filterControls,
+  requestRender,
+  updateStatusFilterColor
+});
+bindFilterRenderControls();
 document.getElementById("fitBtn").addEventListener("click",fit);
 const mapBackBtn=document.getElementById("mapBackBtn");
 if(mapBackBtn) mapBackBtn.onclick=returnFromMapFocus;

@@ -744,4 +744,6 @@ Current performance phase 317 decision: continue the monolith split by moving th
 
 Current performance phase 318 decision: continue the monolith split by moving main protocol history list and date-filter bindings into `src/main-protocol-history-view-utils.js` using callbacks for current items, render refresh, processed-state saves, notifications, and detail opening; preserve the same admin gating, checkbox behavior, date filtering, row click behavior, and error messages.
 
+Current performance phase 319 decision: continue the monolith split by moving the left filter render scheduler into `src/filter-render-utils.js`; preserve the same search debounce, status/kraj filter behavior, status-color refresh, render request timing, and unchanged-filter skip logic.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
