@@ -788,4 +788,6 @@ Current performance phase 339 decision: continue the monolith split by moving of
 
 Current performance phase 340 decision: continue the monolith split by moving offline detail prefetch totals, bounded scheduling, constrained-device concurrency, background prefetch coalescing, and ready-state progress summary writes into `src/offline-detail-prefetch-runner-utils.js`; preserve per-site prefetch behavior, progress callbacks, visibility/online guards, idle scheduling, and offline status refresh.
 
+Current performance phase 341 decision: continue the monolith split by moving Firebase offline map row delta synchronization into `src/offline-map-delta-sync-utils.js`; preserve updated-since site queries, signed-user guard, background concurrency, single-row/batch upserts, yielded background batches, deferred map-cache writes, and changed-row return values.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

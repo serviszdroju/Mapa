@@ -302,6 +302,9 @@ import {
   createFirebaseRowDocHelpers
 } from "./firebase-row-doc-utils.js";
 import {
+  createOfflineMapDeltaSyncHelpers
+} from "./offline-map-delta-sync-utils.js";
+import {
   createOfflineDetailPrefetchRunner
 } from "./offline-detail-prefetch-runner-utils.js";
 import {
@@ -369,7 +372,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-auth-init-order-v497";
+const APP_BUILD_VERSION="2026-08-25-offline-map-delta-sync-module-v498";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -380,14 +383,12 @@ const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
 const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
 const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
-const SZZ_MAP_DELTA_UPSERT_BATCH_SIZE=24;
-const SZZ_MAP_DELTA_CACHE_DEFER_MS=1800;
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
   const hasUser=!!(window.currentUser || window.__authReadyUser);
   if(!hasUser){
     if(typeof window.__szzSetAuthState==="function"){
-      window.__szzSetAuthState("logged-out",{message:"Přihlaste se Google účtem @astip.cz."});
+      window.__szzSetAuthState("logged-out",{message:""});
     }else{
       const startup=document.getElementById("startupScreen");
       const appEl=document.getElementById("mainApp");
@@ -395,8 +396,8 @@ function showAppShellFast(message=""){
       const status=document.getElementById("startupStatus");
       setDisplayIfChanged(startup,"flex");
       setDisplayIfChanged(appEl,"none");
-      setDisplayIfChanged(startupButton,"");
-      if(message) setTextIfChanged(status,"Přihlaste se Google účtem @astip.cz.");
+      setDisplayIfChanged(startupButton,"none");
+      if(message) setTextIfChanged(status,"");
     }
     return;
   }
@@ -927,7 +928,7 @@ if(firebaseReady){
     const topLogoutBtn=document.getElementById("topLogoutBtn");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     setDisplayIfChanged(topLogoutBtn,"none");
-    setStartupStatus(message || "Přihlášení se obnovuje. Přihlaste se Google účtem @astip.cz.");
+    setStartupStatus(message || "Přihlášení se obnovuje. Přihlas se e-mailem a heslem.");
     scheduleBackgroundAuthRetry();
     return true;
   }
@@ -1186,8 +1187,9 @@ if(firebaseReady){
 
   window.__startFirebaseRedirectLogin=startFirebaseRedirectLogin;
   window.__signOutFirebase=signOutFirebase;
-  window.startGoogleLogin=startFirebaseRedirectLogin;
-  window.loginPopup=startFirebaseRedirectLogin;
+  window.startFirebaseGoogleLogin=startFirebaseRedirectLogin;
+  if(typeof window.startGoogleLogin!=="function") window.startGoogleLogin=window.loginPopup || startFirebaseRedirectLogin;
+  if(typeof window.loginPopup!=="function") window.loginPopup=window.startGoogleLogin || startFirebaseRedirectLogin;
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
 
   try{
@@ -1407,50 +1409,35 @@ const {
   safeValue:safe
 });
 
-async function syncSzzOfflineMapRowDeltas(sinceMs=0,options={}){
-  if(!sinceMs || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return [];
-  const signedUser=await waitForFirebaseUser(3000);
-  if(!signedUser) return [];
-  const background=options && options.background===true;
-  const {collection}=fb.fsMod;
-  const rowsById=new Map();
-  await readFirestoreDocsUpdatedSince(
-    ()=>collection(db,"sitesUnified"),
-    ["updatedAt","createdAt"],
-    sinceMs,
-    docSnap=>{
-      const row=szzFirebaseRowFromDocSnap(docSnap);
-      if(row) rowsById.set(szzFirebaseRowKey(row),row);
-    },
-    "Rozdílové načtení bodů selhalo",
-    {
-      concurrency:background ? 2 : 4,
-      yieldEvery:1,
-      yieldTimeout:background ? 180 : 120
+const {
+  syncOfflineMapRowDeltas:syncSzzOfflineMapRowDeltas
+}=createOfflineMapDeltaSyncHelpers({
+  cacheCurrentRowsForOffline:()=>cacheCurrentFirebaseRowsForOffline(),
+  getDb:()=>db,
+  getFsMod:()=>fb && fb.fsMod,
+  isFirebaseReady:()=>firebaseReady,
+  isOnline:()=>navigator.onLine!==false,
+  readFirestoreDocsUpdatedSince,
+  rowFromDocSnap:szzFirebaseRowFromDocSnap,
+  rowKey:szzFirebaseRowKey,
+  runWhenIdle,
+  upsertChangedRows:async(changedRows,{background,upsertBatchSize})=>{
+    if(typeof window.upsertFirebaseSiteRows==="function"){
+      if(background){
+        try{ window.upsertFirebaseSiteRows(changedRows,{render:false}); }catch(e){}
+        await szzYieldToBrowser(180);
+      }else{
+        try{ window.upsertFirebaseSiteRows(changedRows,{render:true}); }catch(e){}
+      }
+    }else if(typeof window.upsertFirebaseSiteRow==="function"){
+      for(let i=0;i<changedRows.length;i++){
+        try{ window.upsertFirebaseSiteRow(changedRows[i],false); }catch(e){}
+        if(background && i%upsertBatchSize===upsertBatchSize-1) await szzYieldToBrowser(180);
+      }
     }
-  );
-  const changedRows=[...rowsById.values()];
-  if(!changedRows.length) return [];
-  if(typeof window.upsertFirebaseSiteRows==="function"){
-    if(background){
-      try{ window.upsertFirebaseSiteRows(changedRows,{render:false}); }catch(e){}
-      await szzYieldToBrowser(180);
-    }else{
-      try{ window.upsertFirebaseSiteRows(changedRows,{render:true}); }catch(e){}
-    }
-  }else if(typeof window.upsertFirebaseSiteRow==="function"){
-    for(let i=0;i<changedRows.length;i++){
-      try{ window.upsertFirebaseSiteRow(changedRows[i],false); }catch(e){}
-      if(background && i%SZZ_MAP_DELTA_UPSERT_BATCH_SIZE===SZZ_MAP_DELTA_UPSERT_BATCH_SIZE-1) await szzYieldToBrowser(180);
-    }
-  }
-  if(background){
-    runWhenIdle(()=>cacheCurrentFirebaseRowsForOffline(),SZZ_MAP_DELTA_CACHE_DEFER_MS);
-  }else{
-    cacheCurrentFirebaseRowsForOffline();
-  }
-  return changedRows;
-}
+  },
+  waitForFirebaseUser
+});
 
 async function readOfflineStandaloneHistoryCollection(site,colName,typeLabel){
   if(!firebaseReady || !db || !fb.fsMod || !site || navigator.onLine===false) return [];
@@ -10510,7 +10497,7 @@ function showLogin(){
   if(window.updateAdminAppControls) window.updateAdminAppControls();
   window.__mapAppUnlocked=false;
   if(typeof window.__szzSetAuthState==="function"){
-    window.__szzSetAuthState("logged-out",{message:"Přihlaste se Google účtem @astip.cz."});
+    window.__szzSetAuthState("logged-out",{message:""});
   }else{
     const startup=document.getElementById("startupScreen");
     const app=document.getElementById("mainApp");
