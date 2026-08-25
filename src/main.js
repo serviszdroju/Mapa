@@ -247,6 +247,9 @@ import {
   createProtocolDraftStorageHelpers
 } from "./protocol-draft-storage-utils.js";
 import {
+  withLocalPhotoStore
+} from "./offline-photo-db-utils.js";
+import {
   clearLocalDetailReadCache,
   readCachedLocalDetailItems as readCachedLocalDetailItemsFromCache
 } from "./local-detail-cache-utils.js";
@@ -334,7 +337,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-local-array-key-removal-module-v482";
+const APP_BUILD_VERSION="2026-08-25-offline-photo-db-module-v483";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11940,44 +11943,6 @@ function sitePhotosStatusNode(){
 }
 function setSitePhotosStatusText(text){
   setTextIfChanged(sitePhotosStatusNode(),text);
-}
-const LOCAL_PHOTO_DB_NAME="astipMapLocalPhotos";
-const LOCAL_PHOTO_STORE="photos";
-
-function openLocalPhotoDb(){
-  return new Promise((resolve,reject)=>{
-    if(!("indexedDB" in window)){
-      reject(new Error("IndexedDB není v prohlížeči dostupné."));
-      return;
-    }
-    const req=indexedDB.open(LOCAL_PHOTO_DB_NAME,1);
-    req.onupgradeneeded=()=>{
-      const db=req.result;
-      if(!db.objectStoreNames.contains(LOCAL_PHOTO_STORE)){
-        const store=db.createObjectStore(LOCAL_PHOTO_STORE,{keyPath:"_id"});
-        store.createIndex("siteCacheKey","siteCacheKey",{unique:false});
-      }
-    };
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error || new Error("Lokální databázi fotek se nepodařilo otevřít."));
-  });
-}
-
-async function withLocalPhotoStore(mode,callback){
-  const db=await openLocalPhotoDb();
-  return new Promise((resolve,reject)=>{
-    const tx=db.transaction(LOCAL_PHOTO_STORE,mode);
-    const store=tx.objectStore(LOCAL_PHOTO_STORE);
-    let result;
-    tx.oncomplete=()=>{db.close();resolve(result);};
-    tx.onerror=()=>{db.close();reject(tx.error || new Error("Lokální databáze fotek selhala."));};
-    try{
-      callback(store,value=>{result=value;});
-    }catch(e){
-      db.close();
-      reject(e);
-    }
-  });
 }
 
 async function saveOfflinePhotoItem(item,site=selectedSite){
