@@ -308,6 +308,9 @@ import {
   createOfflineStandaloneHistoryHelpers
 } from "./offline-standalone-history-utils.js";
 import {
+  createOfflineDetailPrefetchSiteHelpers
+} from "./offline-detail-prefetch-site-utils.js";
+import {
   createOfflineDetailPrefetchRunner
 } from "./offline-detail-prefetch-runner-utils.js";
 import {
@@ -375,7 +378,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-offline-standalone-history-module-v499";
+const APP_BUILD_VERSION="2026-08-25-offline-detail-prefetch-site-module-v500";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1461,81 +1464,28 @@ const {
   siteRecordTextKeys
 });
 
-async function prefetchOfflineDetailsForSite(site,options={}){
-  const result={sites:1,protocols:0,serviceRecords:0,photos:0,attachments:0,media:0,skipped:false,changed:false,full:false};
-  if(!site || navigator.onLine===false || !firebaseReady || !db || !fb.fsMod) return result;
-  const previousMeta=readSzzOfflineSiteMeta(site);
-  const localBefore=szzLocalOfflineDetailMeta(site);
-  const incremental=options.incremental!==false && options.forceFull!==true && !!(previousMeta && previousMeta.syncedAtMs);
-  const sinceMs=incremental ? Number(previousMeta.syncedAtMs) || 0 : 0;
-  const rowFingerprintBefore=szzOfflineRowFingerprint(site);
-  const rowChanged=!previousMeta || previousMeta.rowFingerprint!==rowFingerprintBefore;
-  result.full=!incremental;
-  if((!site.firebaseData || !site.firebaseData.raw) && (!incremental || rowChanged)){
-    try{ await refreshSiteDataFromFirebase(site); }catch(e){}
-  }
-  const includeLegacyStandalone=!incremental || (!localBefore.protocols.count && !localBefore.serviceRecords.count);
-  const [childProtocols,childRecords,childPhotos,childAttachments,standaloneProtocols,standaloneRecords]=await Promise.all([
-    loadSiteChildItemsForOffline("protocols",site,sinceMs),
-    loadSiteChildItemsForOffline("serviceRecords",site,sinceMs),
-    loadSiteChildItemsForOffline("photos",site,sinceMs),
-    loadSiteChildItemsForOffline("attachments",site,sinceMs),
-    includeLegacyStandalone ? readOfflineStandaloneHistoryCollection(site,"protocols","Protokol") : Promise.resolve([]),
-    includeLegacyStandalone ? readOfflineStandaloneHistoryCollection(site,"serviceRecords","Servisní záznam") : Promise.resolve([])
-  ]);
-  const includeEmbedded=!incremental || rowChanged;
-  const embeddedProtocols=includeEmbedded ? szzEmbeddedItemsForOffline(site,"protocolHistory","Protokol","embeddedProtocols","embedded_protocol") : [];
-  const embeddedRecords=includeEmbedded ? szzEmbeddedItemsForOffline(site,"serviceHistory","Servisní záznam","embeddedServiceRecords","embedded_service") : [];
-  const embeddedPhotos=includeEmbedded ? szzEmbeddedItemsForOffline(site,"photos","","embeddedPhotos","embedded_photo") : [];
-  const embeddedAttachments=includeEmbedded ? szzEmbeddedItemsForOffline(site,"attachments","Příloha","embeddedAttachments","embedded_attachment") : [];
-  const protocols=[];
-  appendOfflineChildItemsWithMeta(protocols,childProtocols,"Protokol","siteProtocols");
-  appendOfflineItems(protocols,embeddedProtocols);
-  appendOfflineItems(protocols,standaloneProtocols);
-  const serviceRecords=[];
-  appendOfflineChildItemsWithMeta(serviceRecords,childRecords,"Servisní záznam","siteServiceRecords");
-  appendOfflineItems(serviceRecords,embeddedRecords);
-  appendOfflineItems(serviceRecords,standaloneRecords);
-  const photos=[];
-  appendOfflineItems(photos,childPhotos);
-  appendOfflineItems(photos,embeddedPhotos);
-  const attachments=[];
-  appendOfflineItems(attachments,childAttachments);
-  appendOfflineItems(attachments,embeddedAttachments);
-  if(protocols.length) mergeSiteLocalArray("protocolHistory",protocols,site,180);
-  if(serviceRecords.length) mergeSiteLocalArray("serviceHistory",serviceRecords,site,180);
-  if(photos.length) mergeSiteLocalArray("photos",photos,site,180);
-  if(attachments.length) mergeSiteLocalArray("attachments",attachments,site,180);
-  result.protocols=protocols.length;
-  result.serviceRecords=serviceRecords.length;
-  result.photos=photos.length;
-  result.attachments=attachments.length;
-  result.media=await cacheSzzOfflineMediaUrls(szzOfflinePhotoUrls(photos));
-  const localAfter=szzLocalOfflineDetailMeta(site);
-  const rowFingerprint=szzOfflineRowFingerprint(site);
-  result.changed=!!(
-    rowChanged ||
-    result.protocols ||
-    result.serviceRecords ||
-    result.photos ||
-    result.attachments ||
-    result.media ||
-    szzDetailMetaChanged(localBefore.protocols,localAfter.protocols) ||
-    szzDetailMetaChanged(localBefore.serviceRecords,localAfter.serviceRecords) ||
-    szzDetailMetaChanged(localBefore.photos,localAfter.photos) ||
-    szzDetailMetaChanged(localBefore.attachments,localAfter.attachments)
-  );
-  result.skipped=incremental && !result.changed;
-  writeSzzOfflineSiteMeta(site,{
-    rowFingerprint,
-    syncedAtMs:Date.now(),
-    protocols:localAfter.protocols,
-    serviceRecords:localAfter.serviceRecords,
-    photos:localAfter.photos,
-    attachments:localAfter.attachments
-  });
-  return result;
-}
+const {
+  prefetchOfflineDetailsForSite
+}=createOfflineDetailPrefetchSiteHelpers({
+  appendOfflineChildItemsWithMeta,
+  appendOfflineItems,
+  cacheOfflineMediaUrls:cacheSzzOfflineMediaUrls,
+  detailMetaChanged:szzDetailMetaChanged,
+  embeddedItemsForOffline:szzEmbeddedItemsForOffline,
+  getDb:()=>db,
+  getFsMod:()=>fb && fb.fsMod,
+  isFirebaseReady:()=>firebaseReady,
+  isOnline:()=>navigator.onLine!==false,
+  loadSiteChildItemsForOffline,
+  localOfflineDetailMeta:szzLocalOfflineDetailMeta,
+  mergeSiteLocalArray,
+  offlinePhotoUrls:szzOfflinePhotoUrls,
+  offlineRowFingerprint:szzOfflineRowFingerprint,
+  readOfflineSiteMeta:readSzzOfflineSiteMeta,
+  readOfflineStandaloneHistoryCollection,
+  refreshSiteDataFromFirebase,
+  writeOfflineSiteMeta:writeSzzOfflineSiteMeta
+});
 
 const {
   isConstrainedDevice:szzIsConstrainedDevice,
