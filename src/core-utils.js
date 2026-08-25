@@ -39,6 +39,11 @@ export function sameArrayValues(a=[],b=[]){
   return true;
 }
 
+export function makeLocalRecordId(prefix="local",cryptoSource=typeof window!=="undefined" ? window.crypto : null){
+  if(cryptoSource && typeof cryptoSource.randomUUID==="function") return cryptoSource.randomUUID();
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 const TEXT_NORM_CACHE_LIMIT=1200;
 export const TEXT_NORM_CACHE_MAX_LENGTH=240;
 const simpleNormCache=new Map();

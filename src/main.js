@@ -9,6 +9,7 @@ import {
   esc,
   first,
   get,
+  makeLocalRecordId,
   num,
   safe,
   sameArrayValues,
@@ -318,7 +319,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-site-local-storage-module-v475";
+const APP_BUILD_VERSION="2026-08-25-local-record-id-helper-module-v476";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9105,11 +9106,6 @@ function writeSiteLocalObject(kind,item,site=selectedSite){
   }catch(e){
     console.warn("Lokální cache se nepodařila uložit",kind,e);
   }
-}
-
-function makeLocalRecordId(prefix="local"){
-  if(window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 const SZZ_OFFLINE_QUEUE_DB_NAME="astipMapOfflineQueues";
