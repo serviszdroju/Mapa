@@ -445,7 +445,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-place-group-expanded-v525";
+const APP_BUILD_VERSION="2026-08-25-webview-offline-v526";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -936,6 +936,66 @@ if(firebaseReady){
     }
     throw new Error("Firebase Auth není dostupný.");
   }
+  async function signInWithGoogleIdToken(idToken){
+    const token=safe(idToken);
+    if(!token) throw new Error("Google nevrátil přihlašovací token.");
+    if(auth && authMod && authMod.GoogleAuthProvider && authMod.signInWithCredential){
+      const credential=authMod.GoogleAuthProvider.credential(token,null);
+      return authMod.signInWithCredential(auth,credential);
+    }
+    const compatClient=getCompatAuthClient();
+    if(
+      compatClient &&
+      window.firebase &&
+      firebase.auth &&
+      firebase.auth.GoogleAuthProvider &&
+      compatClient.signInWithCredential
+    ){
+      const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
+      return compatClient.signInWithCredential(credential);
+    }
+    throw new Error("Firebase Auth není dostupný.");
+  }
+  function androidAuthBridge(){
+    const bridge=window.SzzAndroidAuth;
+    if(!bridge || typeof bridge.startGoogleSignIn!=="function") return null;
+    try{
+      if(typeof bridge.isGoogleSignInConfigured==="function" && !bridge.isGoogleSignInConfigured()) return null;
+    }catch(e){
+      return null;
+    }
+    return bridge;
+  }
+  function signInWithAndroidGoogleIdToken(){
+    const bridge=androidAuthBridge();
+    if(!bridge) throw new Error("Android Google přihlášení není v této APK dostupné.");
+    return new Promise((resolve,reject)=>{
+      let done=false;
+      const finish=(fn,value)=>{
+        if(done) return;
+        done=true;
+        window.__szzAndroidSignInWithGoogleIdToken=null;
+        window.__szzAndroidSignInError=null;
+        fn(value);
+      };
+      window.__szzAndroidSignInWithGoogleIdToken=token=>{
+        signInWithGoogleIdToken(token)
+          .then(result=>finish(resolve,result))
+          .catch(error=>finish(reject,error));
+      };
+      window.__szzAndroidSignInError=message=>{
+        finish(reject,new Error(safe(message) || "Android Google přihlášení se nepodařilo."));
+      };
+      try{
+        bridge.startGoogleSignIn();
+      }catch(error){
+        finish(reject,error);
+      }
+      setTimeout(()=>{
+        finish(reject,new Error("Android Google přihlášení nevrátilo výsledek včas. Zkus tlačítko znovu."));
+      },90000);
+    });
+  }
   async function signInWithGoogleIdentityServices(){
     await primeCompatAuthPersistence();
     const google=await loadGoogleIdentityServices();
@@ -1001,6 +1061,9 @@ if(firebaseReady){
     throw new Error("Firebase popup přihlášení není dostupné.");
   }
   async function signInWithGoogleNoRedirect(){
+    if(androidAuthBridge()){
+      return signInWithAndroidGoogleIdToken();
+    }
     try{
       return await signInWithFirebaseGooglePopup();
     }catch(popupError){

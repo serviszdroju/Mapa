@@ -5,7 +5,6 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="place-group-expanded-v525";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -48,25 +47,6 @@ function status(msg){
   }
   const progress=document.getElementById("progress");
   if(progress && message) progress.textContent=message;
-}
-
-function firstInputValue(){
-  for(const id of arguments){
-    const el=document.getElementById(id);
-    const value=String(el && el.value || "").trim();
-    if(value) return value;
-  }
-  return "";
-}
-
-function focusFirstEmptyLoginField(){
-  for(const id of ["startupEmail","startupPassword"]){
-    const el=document.getElementById(id);
-    if(el && !String(el.value || "").trim()){
-      try{el.focus();}catch(e){}
-      return;
-    }
-  }
 }
 
 function cleanAuthResumeState(clearKnown=false){
@@ -173,6 +153,8 @@ function signInWithGoogleIdentityCompat(auth){
 }
 
 async function signInWithGoogleNoRedirectCompat(auth){
+  const bridge=androidAuthBridge();
+  if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
   try{
     return await signInWithFirebasePopupCompat(auth);
   }catch(error){
@@ -180,6 +162,53 @@ async function signInWithGoogleNoRedirectCompat(auth){
     console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",error);
     return signInWithGoogleIdentityCompat(auth);
   }
+}
+
+function androidAuthBridge(){
+  const bridge=window.SzzAndroidAuth;
+  if(!bridge || typeof bridge.startGoogleSignIn!=="function") return null;
+  try{
+    if(typeof bridge.isGoogleSignInConfigured==="function" && !bridge.isGoogleSignInConfigured()) return null;
+  }catch(error){
+    return null;
+  }
+  return bridge;
+}
+
+function signInWithAndroidGoogleCompat(auth,bridge){
+  return new Promise((resolve,reject)=>{
+    let done=false;
+    const finish=(fn,value)=>{
+      if(done) return;
+      done=true;
+      window.__szzAndroidSignInWithGoogleIdToken=null;
+      window.__szzAndroidSignInError=null;
+      fn(value);
+    };
+    window.__szzAndroidSignInWithGoogleIdToken=idToken=>{
+      try{
+        const token=String(idToken || "").trim();
+        if(!token) throw new Error("Google nevrátil přihlašovací token.");
+        const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
+        auth.signInWithCredential(credential)
+          .then(result=>finish(resolve,result))
+          .catch(error=>finish(reject,error));
+      }catch(error){
+        finish(reject,error);
+      }
+    };
+    window.__szzAndroidSignInError=message=>{
+      finish(reject,new Error(String(message || "").trim() || "Android Google přihlášení se nepodařilo."));
+    };
+    try{
+      bridge.startGoogleSignIn();
+    }catch(error){
+      finish(reject,error);
+    }
+    setTimeout(()=>{
+      finish(reject,new Error("Android Google přihlášení nevrátilo výsledek včas. Zkus tlačítko znovu."));
+    },90000);
+  });
 }
 
 function openHostedApp(){
@@ -199,7 +228,6 @@ function showAuthState(mode,options={}){
   const startup=document.getElementById("startupScreen");
   const app=document.getElementById("mainApp");
   const startupLogin=document.getElementById("startupLoginBtn");
-  const startupEmail=document.getElementById("startupEmailLogin");
   const intro=document.getElementById("startupIntro");
   const loginRow=document.getElementById("mainLoginRow");
   const topLogout=document.getElementById("topLogoutBtn");
@@ -210,14 +238,13 @@ function showAuthState(mode,options={}){
   display(topLogout,loggedIn ? "block" : "none");
 
   if(startup) startup.classList.toggle("auth-checking",normalized==="checking" || normalized==="logging-in");
-  display(startupLogin,"none");
-  display(startupEmail,loggedIn ? "none" : "grid");
+  display(startupLogin,loggedIn ? "none" : "");
   disabled(startupLogin,normalized==="checking" || normalized==="logging-in");
 
   const introText=options.intro ||
     (normalized==="checking" ? "Kontroluji přihlášení..." :
       normalized==="logging-in" ? "Připravuji přihlášení..." :
-        "Přihlas se e-mailem a heslem.");
+        "Přihlaste se Google účtem @astip.cz.");
   text(intro,introText);
   status(options.message || "");
   setTopAuthButtonMode(loggedIn ? "logout" : "login");
@@ -225,13 +252,7 @@ function showAuthState(mode,options={}){
 }
 
 function startLogin(event){
-  if(event && typeof event.preventDefault==="function") event.preventDefault();
-  if(isLocalFileApp()){
-    openHostedApp();
-    return;
-  }
-  showAuthState("logged-out",{message:"Vyplň e-mail a heslo na úvodní obrazovce.",intro:"Přihlas se e-mailem a heslem."});
-  setTimeout(focusFirstEmptyLoginField,0);
+  return startGoogleLogin(event);
 }
 
 function startGoogleLogin(event){
@@ -286,60 +307,6 @@ function startCompatGoogleLoginFallback(){
   }
 }
 
-function authMessage(error){
-  const code=String(error && error.code || "").trim();
-  if(code==="auth/operation-not-allowed") return "E-mailové přihlášení není ve Firebase zapnuté.";
-  if(code==="auth/invalid-credential" || code==="auth/wrong-password") return "E-mail nebo heslo není správné.";
-  if(code==="auth/user-not-found") return "Účet ve Firebase neexistuje.";
-  if(code==="auth/network-request-failed") return "Tablet nemá spojení pro Firebase přihlášení.";
-  return String(error && error.message || "").trim() || "Přihlášení se nepodařilo.";
-}
-
-async function emergencyEmailLogin(event){
-  if(event){
-    event.preventDefault();
-    event.stopPropagation();
-    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
-  }
-  startLogin();
-  const email=firstInputValue("startupEmail").toLowerCase();
-  const password=String(firstInputValue("startupPassword") || "");
-  if(!email || !password){
-    status("Vyplň e-mail a heslo.");
-    return;
-  }
-  if(!email.endsWith("@astip.cz")){
-    status("Přihlášení je povoleno jen pro účet @astip.cz.");
-    return;
-  }
-  status("Přihlašuji e-mailem...");
-  try{
-    const appMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
-    const authMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
-    const app=appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(firebaseConfig);
-    const auth=authMod.getAuth(app);
-    try{authMod.setPersistence && await authMod.setPersistence(auth,authMod.indexedDBLocalPersistence);}catch(e){
-      try{authMod.setPersistence && await authMod.setPersistence(auth,authMod.browserLocalPersistence);}catch(_){}
-    }
-    const result=await authMod.signInWithEmailAndPassword(auth,email,password);
-    const user=result && result.user;
-    try{
-      localStorage.setItem("astipFirebaseKnownSignedIn","1");
-      if(user && user.email) localStorage.setItem("astipFirebaseLastEmail",user.email);
-      sessionStorage.removeItem("astipFirebaseRedirectPending");
-    }catch(e){}
-    window.currentUser=user || null;
-    window.__authReadyUser=user || null;
-    status("Přihlášení potvrzeno. Otevírám servisní mapu...");
-    const target=new URL(".",location.href);
-    target.searchParams.set("v",EMAIL_LOGIN_BUILD_VERSION);
-    target.searchParams.set("login","email");
-    setTimeout(()=>location.replace(target.href),350);
-  }catch(error){
-    status("E-mailové přihlášení selhalo: " + authMessage(error));
-  }
-}
-
 function signOutAndReload(event){
   if(event && typeof event.preventDefault==="function") event.preventDefault();
   if(typeof window.__signOutFirebase==="function") window.__signOutFirebase();
@@ -361,12 +328,10 @@ function setTopAuthButtonMode(mode){
 function bindLoginButtons(){
   const handler=isLocalFileApp() ? openHostedApp : (window.loginPopup || window.startGoogleLogin);
   const startup=document.getElementById("startupLoginBtn");
-  const startupEmail=document.getElementById("startupEmailLoginBtn");
   const login=document.getElementById("loginBtn");
   const logout=document.getElementById("logoutBtn");
   const topLogout=document.getElementById("topLogoutBtn");
   if(startup) startup.onclick=startGoogleLogin;
-  if(startupEmail && typeof window.szzEmergencyEmailLogin==="function") startupEmail.onclick=window.szzEmergencyEmailLogin;
   if(login && typeof handler==="function") login.onclick=handler;
   if(logout) logout.onclick=signOutAndReload;
   if(topLogout) setTopAuthButtonMode(topLogout.dataset.authMode || (knownUser() ? "logout" : "login"));
@@ -377,14 +342,14 @@ window.__szzShowStartupChecking=(message="Kontroluji přihlášení...")=>showAu
 window.__szzShowAuthenticatedApp=(message="")=>showAuthState("logged-in",{message});
 window.__szzGetAuthState=()=>({...authUiState});
 window.__startCompatGoogleLoginFallback=startCompatGoogleLoginFallback;
-window.szzEmergencyEmailLogin=emergencyEmailLogin;
-window.loginEmail=emergencyEmailLogin;
-window.loginPopup=startLogin;
-window.startGoogleLogin=startLogin;
+window.szzEmergencyEmailLogin=event=>startGoogleLogin(event);
+window.loginEmail=window.szzEmergencyEmailLogin;
+window.loginPopup=startGoogleLogin;
+window.startGoogleLogin=startGoogleLogin;
 window.startFirebaseGoogleLogin=startGoogleLogin;
 window.bindLoginButtons=bindLoginButtons;
 window.setTopAuthButtonMode=setTopAuthButtonMode;
-window.showStartupLogin=(message="")=>showAuthState("logged-out",{message:message || "",intro:"Přihlas se e-mailem a heslem."});
+window.showStartupLogin=(message="")=>showAuthState("logged-out",{message:message || "",intro:"Přihlaste se Google účtem @astip.cz."});
 
 bindLoginButtons();
 window.addEventListener("DOMContentLoaded",bindLoginButtons);

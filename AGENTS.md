@@ -810,4 +810,8 @@ Current performance phase 350 decision: continue the monolith split by moving ne
 
 Current performance phase 351 decision: continue the monolith split by moving small edit-form helpers for region field autofill, next-check recalculation, and edited-address GPS lookup into `src/edit-form-utils.js`; preserve the same edit DOM ids, messages, date formatting, selected-site period logic, and GPS field updates.
 
+Current Android parity decision: the downloadable Android app must remain a WebView shell of the production web at `https://serviszdroju.github.io/Mapa/`, not a separate native UI or TWA. Preserve exact web layout and behavior, use native Google Credential Manager only as a login bridge into Firebase, and let the existing web offline preparation cache service data, protocols, gallery media, and attachments for offline tablet use.
+
+Current auth repair decision: do not reintroduce e-mail/password login, `signInWithRedirect`, or `__/auth/handler` flows in the production shell or Android app. Web login should use Google popup/GIS when available; Android WebView should use the native `SzzAndroidAuth` bridge to obtain a Google ID token and sign into Firebase on the same page.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
