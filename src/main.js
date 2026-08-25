@@ -270,6 +270,11 @@ import {
   protocolSourceStateValue,
   protocolSourceTestMethodLabel
 } from "./protocol-source-state-utils.js";
+import {
+  createProtocolExportHelpers,
+  historyObjectSummary,
+  isProtocolHistoryItem
+} from "./protocol-export-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -295,7 +300,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-source-state-module-v463";
+const APP_BUILD_VERSION="2026-08-25-protocol-export-utils-module-v464";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6507,63 +6512,13 @@ const {
   isAppAdmin
 });
 
-function historyObjectSummary(obj){
-  if(!obj || typeof obj!=="object") return "";
-  const labels={
-    lift:"Výtah",vent:"Vent. výt. šachty",machineLight:"Osvětlení strojovny",chuc:"CHÚC",
-    damper:"Klapka",skylight:"Světlík",gate:"Vrata",ats:"ATS",rpo:"RPO",no:"NO",
-    sprinkler:"Sprinkler",csTs:"CS/TS",blue:"modrá",b:"B",c:"C",garage:"garáže",
-    carLift:"auto výtah",barrier:"závora",parkingHouse:"park. dům",permit:"povolení",
-    training:"školení",shoes:"boty",vest:"vesta",helmet:"helma",wcOk:"WC OK",
-    wcNok:"WC NOK",lightOk:"Osvětlení OK",lightNok:"Osvětlení NOK",ladder:"Žebřík",
-    stairs:"Schody",lowCeiling:"Snížený strop",extremeTemp:"Extrémní teploty",
-    other:"jiné"
-  };
-  return Object.entries(obj)
-    .filter(([,value])=>value===true || (value!==false && safe(value)))
-    .map(([key,value])=>{
-      const label=labels[key] || key;
-      return value===true ? label : `${label}: ${value}`;
-    })
-    .join(", ");
-}
-
-function isProtocolHistoryItem(item){
-  return !!item && (
-    item._type==="Protokol" ||
-    ["protocols","siteProtocols","localProtocols","embeddedProtocols","protocolRefs"].includes(item._collection)
-  );
-}
-
-function protocolExportValue(value){
-  if(value===null || value===undefined) return "";
-  if(value && typeof value.toDate==="function") return formatDateTimeCz(value.toDate());
-  if(value instanceof Date) return formatDateTimeCz(value);
-  if(Array.isArray(value)) return value.map(protocolExportValue).filter(Boolean).join(", ");
-  if(typeof value==="object"){
-    const summary=historyObjectSummary(value);
-    if(summary) return summary;
-    try{return JSON.stringify(value)}catch(e){return String(value)}
-  }
-  return String(value).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g," ").trim();
-}
-
-function protocolWordFileNamePart(value){
-  return simpleNorm(value || "protokol")
-    .replace(/[^a-z0-9]+/g,"-")
-    .replace(/^-+|-+$/g,"")
-    .slice(0,60) || "protokol";
-}
-
-function protocolExportDatePart(protocol={}){
-  const raw=safe(protocol.date || protocol.checkDate || protocol.createdAt || "");
-  const d=parseDateValue(raw);
-  if(d){
-    const pad=n=>String(n).padStart(2,"0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  }
-  return new Date().toISOString().slice(0,10);
-}
+const {
+  protocolExportDatePart,
+  protocolExportValue,
+  protocolWordFileNamePart
+}=createProtocolExportHelpers({
+  formatDateTimeCz
+});
 
 function protocolDisplayDate(value){
   const d=parseDateValue(value);

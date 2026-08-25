@@ -726,4 +726,6 @@ Current performance phase 308 decision: continue the monolith split by moving ph
 
 Current performance phase 309 decision: continue the monolith split by moving protocol source final-state parsing and source test-method labels into `src/protocol-source-state-utils.js`; preserve the same OK/Stop normalization, Czech label text, protocol history display, document export labels, and form payload labels.
 
+Current performance phase 310 decision: continue the monolith split by moving protocol export value formatting, protocol history item detection, checkbox/object summary labels, Word filename slug creation, and export date-part formatting into `src/protocol-export-utils.js`; preserve the same Word/PDF text output, protocol history filtering, object summary text, file names, and export dates.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
