@@ -712,4 +712,6 @@ Current performance phase 302 decision: continue the monolith split by moving st
 
 Current performance phase 303 decision: continue the monolith split by moving offline item timestamp parsing and local detail meta summary helpers into `src/offline-item-meta-utils.js`; preserve the same Firebase timestamp/date fallback handling, Cloudinary version timestamp inclusion, sorted id signature, cloned meta return shape, and local detail delta comparison.
 
+Current performance phase 304 decision: continue the monolith split by moving gallery photo URL, Cloudinary transform cache, file-name, and byte-label helpers into `src/photo-url-utils.js`; preserve the same 1600px display transform, 240px thumbnail transform, original/full download URLs, WeakMap photo URL bundle cache, Cloudinary transform LRU limit, and generated `.jpg` download names.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
