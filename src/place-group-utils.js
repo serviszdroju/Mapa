@@ -1,14 +1,21 @@
 export function createPlaceGroupHelpers({
   color,
   daysToComputedNext,
+  detailKey,
   ensureRowScheduleCache,
+  getFilteredRowsSignature,
   getPlaceGroupCache,
+  getPlaceGroupsCache,
   getRows,
   getRowsIndexDirty,
   getRowsIndexVersion,
   setPlaceGroupCache,
+  setPlaceGroupsCache,
   sitePlaceGroupKey,
+  sitePlaceLabel,
   siteSourceLabel,
+  stableSignature,
+  statusText,
   szzCompareCsBase
 }){
   function sortedRowsBySourceLabel(items=[]){
@@ -112,10 +119,86 @@ export function createPlaceGroupHelpers({
     return rep ? color(rep) : "#16a34a";
   }
 
+  function markerRowSignature(row){
+    if(!row) return "";
+    const detail=detailKey(row);
+    const source=siteSourceLabel(row);
+    const status=statusText(row);
+    if(
+      row._markerSignatureDetail===detail &&
+      row._markerSignatureSource===source &&
+      row._markerSignatureStatus===status &&
+      row._markerSignatureValue
+    ){
+      return row._markerSignatureValue;
+    }
+    const value=stableSignature([detail,source,status]);
+    row._markerSignatureDetail=detail;
+    row._markerSignatureSource=source;
+    row._markerSignatureStatus=status;
+    row._markerSignatureValue=value;
+    return value;
+  }
+
+  function markerRowsSignature(rowsList){
+    let signature="";
+    const list=Array.isArray(rowsList) ? rowsList : [];
+    for(let i=0;i<list.length;i++){
+      if(i) signature+="\u001e";
+      signature+=markerRowSignature(list[i]);
+    }
+    return signature;
+  }
+
+  function groupRowsByPlace(inputRows){
+    const mapByKey=new Map();
+    const sourceRows=Array.isArray(inputRows) ? inputRows : [];
+    for(const r of sourceRows){
+      const key=sitePlaceGroupKey(r);
+      if(!mapByKey.has(key)){
+        mapByKey.set(key,{key,rows:[],lat:null,lon:null,label:sitePlaceLabel(r)});
+      }
+      const group=mapByKey.get(key);
+      group.rows.push(r);
+      if(!group.label) group.label=sitePlaceLabel(r);
+      if(!Number.isFinite(group.lat) && Number.isFinite(r.lat) && Number.isFinite(r.lon)){
+        group.lat=r.lat;
+        group.lon=r.lon;
+      }
+    }
+    const groups=[];
+    for(const group of mapByKey.values()){
+      group.rows=group.rows.sort((a,b)=>szzCompareCsBase(siteSourceLabel(a),siteSourceLabel(b)));
+      group._markerRowsSignature=markerRowsSignature(group.rows);
+      const representative=groupRepresentative(group.rows) || group.rows[0] || null;
+      group._representativeRow=representative;
+      group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
+      groups.push(group);
+    }
+    return groups;
+  }
+
+  function groupPrimaryRow(group){
+    return (group && group._representativeRow) || groupRepresentative(group && group.rows) || (group && group.rows && group.rows[0]) || null;
+  }
+
+  function cachedPlaceGroups(inputRows){
+    const signature=`${getRowsIndexVersion()}\u001f${getFilteredRowsSignature() || ""}\u001f${inputRows ? inputRows.length : 0}`;
+    const cache=getPlaceGroupsCache();
+    if(cache.sourceRows===inputRows && cache.signature===signature) return cache.groups;
+    const groups=groupRowsByPlace(inputRows);
+    setPlaceGroupsCache({sourceRows:inputRows,signature,groups});
+    return groups;
+  }
+
   return {
+    cachedPlaceGroups,
     cachedRowsByPlaceGroup,
     groupColor,
+    groupPrimaryRow,
     groupRepresentative,
+    groupRowsByPlace,
+    markerRowsSignature,
     siteHasMultipleSources,
     siteSiblingRows,
     sortedRowsBySourceLabel,

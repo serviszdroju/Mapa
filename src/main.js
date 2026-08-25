@@ -445,7 +445,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-sidebar-render-module-v524";
+const APP_BUILD_VERSION="2026-08-25-place-group-expanded-v525";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2195,9 +2195,13 @@ const {
 window.sitePlaceLabel=sitePlaceLabel;
 window.sitePlaceGroupKey=sitePlaceGroupKey;
 const {
+  cachedPlaceGroups,
   cachedRowsByPlaceGroup,
   groupColor,
+  groupPrimaryRow,
   groupRepresentative,
+  groupRowsByPlace,
+  markerRowsSignature,
   siteHasMultipleSources,
   siteSiblingRows,
   sortedRowsBySourceLabel,
@@ -2206,14 +2210,21 @@ const {
 }=createPlaceGroupHelpers({
   color,
   daysToComputedNext,
+  detailKey,
   ensureRowScheduleCache,
+  getFilteredRowsSignature:()=>filteredRowsCache.signature,
   getPlaceGroupCache:()=>siteRowsByPlaceGroupCache,
+  getPlaceGroupsCache:()=>placeGroupsCache,
   getRows:()=>rows,
   getRowsIndexDirty:()=>rowsIndexDirty,
   getRowsIndexVersion:()=>rowsIndexVersion,
   setPlaceGroupCache:nextCache=>{ siteRowsByPlaceGroupCache=nextCache; },
+  setPlaceGroupsCache:nextCache=>{ placeGroupsCache=nextCache; },
   sitePlaceGroupKey,
+  sitePlaceLabel,
   siteSourceLabel,
+  stableSignature,
+  statusText,
   szzCompareCsBase
 });
 const {
@@ -2251,72 +2262,6 @@ const {
   siteSourceLabel,
   statusText
 });
-function markerRowSignature(row){
-  if(!row) return "";
-  const detail=detailKey(row);
-  const source=siteSourceLabel(row);
-  const status=statusText(row);
-  if(
-    row._markerSignatureDetail===detail &&
-    row._markerSignatureSource===source &&
-    row._markerSignatureStatus===status &&
-    row._markerSignatureValue
-  ){
-    return row._markerSignatureValue;
-  }
-  const value=stableSignature([detail,source,status]);
-  row._markerSignatureDetail=detail;
-  row._markerSignatureSource=source;
-  row._markerSignatureStatus=status;
-  row._markerSignatureValue=value;
-  return value;
-}
-function markerRowsSignature(rowsList){
-  let signature="";
-  const list=Array.isArray(rowsList) ? rowsList : [];
-  for(let i=0;i<list.length;i++){
-    if(i) signature+="\u001e";
-    signature+=markerRowSignature(list[i]);
-  }
-  return signature;
-}
-function groupRowsByPlace(inputRows){
-  const mapByKey=new Map();
-  const sourceRows=Array.isArray(inputRows) ? inputRows : [];
-  for(const r of sourceRows){
-    const key=sitePlaceGroupKey(r);
-    if(!mapByKey.has(key)){
-      mapByKey.set(key,{key,rows:[],lat:null,lon:null,label:sitePlaceLabel(r)});
-    }
-    const group=mapByKey.get(key);
-    group.rows.push(r);
-    if(!group.label) group.label=sitePlaceLabel(r);
-    if(!Number.isFinite(group.lat) && Number.isFinite(r.lat) && Number.isFinite(r.lon)){
-      group.lat=r.lat;
-      group.lon=r.lon;
-    }
-  }
-  const groups=[];
-  for(const group of mapByKey.values()){
-    group.rows=group.rows.sort((a,b)=>szzCompareCsBase(siteSourceLabel(a),siteSourceLabel(b)));
-    group._markerRowsSignature=markerRowsSignature(group.rows);
-    const representative=groupRepresentative(group.rows) || group.rows[0] || null;
-    group._representativeRow=representative;
-    group._nextSortValue=representative ? (daysToComputedNext(representative) ?? 999999) : 999999;
-    groups.push(group);
-  }
-  return groups;
-}
-function groupPrimaryRow(group){
-  return (group && group._representativeRow) || groupRepresentative(group && group.rows) || (group && group.rows && group.rows[0]) || null;
-}
-function cachedPlaceGroups(inputRows){
-  const signature=`${rowsIndexVersion}\u001f${filteredRowsCache.signature || ""}\u001f${inputRows ? inputRows.length : 0}`;
-  if(placeGroupsCache.sourceRows===inputRows && placeGroupsCache.signature===signature) return placeGroupsCache.groups;
-  const groups=groupRowsByPlace(inputRows);
-  placeGroupsCache={sourceRows:inputRows,signature,groups};
-  return groups;
-}
 let sourcePopupLastHandledKey="";
 let sourcePopupLastHandledAt=0;
 function resetSourcePopupActivationGuard(){
