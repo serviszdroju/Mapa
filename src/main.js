@@ -300,7 +300,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-protocol-export-utils-module-v464";
+const APP_BUILD_VERSION="2026-08-25-login-reset-google-v465";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -315,6 +315,18 @@ const SZZ_MAP_DELTA_UPSERT_BATCH_SIZE=24;
 const SZZ_MAP_DELTA_CACHE_DEFER_MS=1800;
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
+  const hasUser=!!(window.currentUser || window.__authReadyUser);
+  if(!hasUser){
+    const startup=document.getElementById("startupScreen");
+    const appEl=document.getElementById("mainApp");
+    const startupButton=document.getElementById("startupLoginBtn");
+    const status=document.getElementById("startupStatus");
+    setDisplayIfChanged(startup,"flex");
+    setDisplayIfChanged(appEl,"none");
+    setDisplayIfChanged(startupButton,"");
+    if(message) setTextIfChanged(status,"Přihlaste se Google účtem @astip.cz.");
+    return;
+  }
   window.__szzFastShellShown=true;
   window.__mapAppUnlocked=true;
   try{ if(window.setStartupAuthChecking) window.setStartupAuthChecking(false); }catch(e){}
@@ -527,16 +539,13 @@ if(firebaseReady){
   const firebaseBox=document.getElementById("firebaseBox");
   setDisplayIfChanged(firebaseBox,"none");
 
-  const AUTH_REDIRECT_PENDING_KEY="astipFirebaseRedirectPending";
+  const AUTH_POPUP_TIMEOUT_MS=8000;
   let lastAuthMessage="";
   function authPending(){
-    try{return safe(sessionStorage.getItem(AUTH_REDIRECT_PENDING_KEY));}catch(e){return "";}
-  }
-  function setAuthPending(reason="redirect"){
-    try{sessionStorage.setItem(AUTH_REDIRECT_PENDING_KEY,reason);}catch(e){}
+    return false;
   }
   function clearAuthPending(){
-    try{sessionStorage.removeItem(AUTH_REDIRECT_PENDING_KEY);}catch(e){}
+    try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
   }
   function setStartupStatus(message){
     lastAuthMessage=message || "";
@@ -558,6 +567,15 @@ if(firebaseReady){
     }
     if(code==="auth/operation-not-supported-in-this-environment"){
       return "Firebase přihlášení v tomto prostředí nefunguje. Otevři web přes https://serviszdroju.github.io/Mapa/.";
+    }
+    if(code==="auth/operation-not-allowed"){
+      return "Google přihlášení není ve Firebase zapnuté nebo není povolený tento způsob přihlášení.";
+    }
+    if(code==="auth/invalid-credential" || code==="auth/wrong-password"){
+      return "Přihlašovací údaje nejsou správné nebo účet není povolený.";
+    }
+    if(code==="auth/user-not-found"){
+      return "Účet ve Firebase neexistuje.";
     }
     if(code==="auth/popup-blocked"){
       return "Prohlížeč zablokoval přihlašovací okno. Povol popup okno pro tento web nebo zkus tlačítko znovu.";
@@ -589,44 +607,7 @@ if(firebaseReady){
     if(compatClient && provider && compatClient.signInWithPopup) return compatClient.signInWithPopup(provider);
     return Promise.reject(new Error("Firebase Auth není dostupný."));
   }
-  function signInWithGoogleRedirect(provider){
-    if(auth && authMod.signInWithRedirect){
-      const resolver=redirectResolver();
-      if(resolver) return authMod.signInWithRedirect(auth,provider,resolver);
-      return authMod.signInWithRedirect(auth,provider);
-    }
-    const compatClient=getCompatAuthClient();
-    if(compatClient && provider && compatClient.signInWithRedirect) return compatClient.signInWithRedirect(provider);
-    return Promise.reject(new Error("Firebase Auth není dostupný."));
-  }
-  function signInWithEmailPassword(email,password){
-    if(auth && authMod.signInWithEmailAndPassword){
-      return authMod.signInWithEmailAndPassword(auth,email,password);
-    }
-    const compatClient=getCompatAuthClient();
-    if(compatClient && compatClient.signInWithEmailAndPassword) return compatClient.signInWithEmailAndPassword(email,password);
-    return Promise.reject(new Error("Firebase e-mail přihlášení není dostupné."));
-  }
   async function googleRedirectResultUser(){
-    await primeCompatAuthPersistence();
-    if(authMod.getRedirectResult && auth){
-      try{
-        const resolver=redirectResolver();
-        const result=resolver ? await authMod.getRedirectResult(auth,resolver) : await authMod.getRedirectResult(auth);
-        if(result && result.user) return result.user;
-      }catch(e){
-        console.warn("Redirect výsledek přihlášení se nepodařilo načíst",e);
-      }
-    }
-    const compatClient=getCompatAuthClient();
-    if(compatClient && compatClient.getRedirectResult){
-      try{
-        const result=await compatClient.getRedirectResult();
-        if(result && result.user) return result.user;
-      }catch(e){
-        console.warn("Compat redirect výsledek přihlášení se nepodařilo načíst",e);
-      }
-    }
     return currentAuthCandidate();
   }
   function setProgressStatus(message){
@@ -672,10 +653,38 @@ if(firebaseReady){
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     if(typeof updateAdminAppControls==="function") updateAdminAppControls();
   }
-  async function startFirebaseRedirectLogin(){
-    if(!firebaseReady || (!auth && !getCompatAuthClient())) return;
+  function showStartupLogin(message=""){
+    const startup=document.getElementById("startupScreen");
+    const appEl=document.getElementById("mainApp");
+    const button=document.getElementById("startupLoginBtn");
+    setDisplayIfChanged(startup,"flex");
+    setDisplayIfChanged(appEl,"none");
+    setDisplayIfChanged(button,"");
+    if(message) setStartupStatus(message);
+  }
+  async function startFirebaseGoogleLogin(){
+    if(!firebaseReady || (!auth && !getCompatAuthClient())){
+      setStartupAuthChecking(false);
+      setStartupStatus("Firebase přihlášení se ještě načítá. Zkus tlačítko znovu za pár sekund.");
+      return;
+    }
     clearExplicitSignOut();
     primeCompatAuthPersistence();
+    const androidAuthBridge=window.SzzAndroidAuth;
+    const androidNativeLoginConfigured=!!(
+      androidAuthBridge &&
+      typeof androidAuthBridge.startGoogleSignIn==="function" &&
+      typeof androidAuthBridge.isGoogleSignInConfigured==="function" &&
+      androidAuthBridge.isGoogleSignInConfigured()
+    );
+    if(androidNativeLoginConfigured){
+      window.__loginRequested=true;
+      clearAuthPending();
+      setStartupAuthChecking(true);
+      setStartupStatus("Otevírám Android přihlášení Google...");
+      androidAuthBridge.startGoogleSignIn();
+      return;
+    }
     const provider=googleRedirectProvider();
     try{
       clearAuthPending();
@@ -705,53 +714,14 @@ if(firebaseReady){
         "auth/operation-not-supported-in-this-environment"
       ].includes(code);
       if(browserPopupIssue){
-        try{
-          setAuthPending("redirect");
-          setStartupAuthChecking(true);
-          setStartupStatus("Popup okno nejde otevřít. Přesměrovávám na Google přihlášení...");
-          await signInWithGoogleRedirect(provider);
-          return;
-        }catch(redirectError){
-          clearAuthPending();
-          setStartupAuthChecking(false);
-          setStartupStatus("Přihlášení selhalo: " + authErrorText(redirectError));
-          return;
-        }
+        clearAuthPending();
+        setStartupAuthChecking(false);
+        showStartupLogin("Google přihlášení se v tomto prohlížeči nedokončilo. Povol vyskakovací okna pro tento web a zkus tlačítko znovu.");
+        return;
       }
       clearAuthPending();
       setStartupAuthChecking(false);
       setStartupStatus("Přihlášení selhalo: " + authErrorText(e));
-    }
-  }
-  async function startFirebaseEmailLogin(){
-    if(!firebaseReady || (!auth && !getCompatAuthClient())) return;
-    const email=safe(document.getElementById("startupEmail")?.value).toLowerCase();
-    const password=String(document.getElementById("startupPassword")?.value || "");
-    const button=document.getElementById("startupEmailLoginBtn");
-    if(!email || !password){
-      setStartupStatus("Vyplň e-mail a heslo.");
-      return;
-    }
-    if(!isAllowedLoginEmail(email)){
-      setStartupStatus("Přihlášení je povolené jen pro účty @astip.cz.");
-      return;
-    }
-    clearExplicitSignOut();
-    clearAuthPending();
-    await primeCompatAuthPersistence();
-    if(button) button.disabled=true;
-    try{
-      window.__loginRequested=true;
-      setStartupStatus("Přihlašuji e-mailem...");
-      const result=await signInWithEmailPassword(email,password);
-      const user=(result && result.user) || currentAuthCandidate();
-      if(user) await handleAuthorizedUser(user);
-      else setStartupStatus("E-mail přihlášení se nevrátilo dokončené. Zkus to znovu.");
-    }catch(e){
-      setStartupAuthChecking(false);
-      setStartupStatus("Přihlášení e-mailem selhalo: " + authErrorText(e));
-    }finally{
-      if(button) button.disabled=false;
     }
   }
   async function signOutFirebase(){
@@ -824,6 +794,13 @@ if(firebaseReady){
   }
   function keepAppOpenDuringAuthRestore(message){
     if(explicitSignOutPending()) return false;
+    const restored=currentAuthCandidate();
+    if(!restored){
+      clearSignedUser();
+      showLogin();
+      showStartupLogin(message || "Přihlaste se Google účtem @astip.cz.");
+      return false;
+    }
     setStartupAuthChecking(false);
     try{document.documentElement.classList.add("auth-resume");}catch(e){}
     showApp();
@@ -1035,7 +1012,8 @@ if(firebaseReady){
         }
         if(!explicitSignOutPending()){
           clearSignedUser();
-          keepAppOpenDuringAuthRestore("Přihlášení se nepodařilo obnovit. Mapa zůstává otevřená, pro úpravy klikni na Přihlásit technika.");
+          showLogin();
+          showStartupLogin("Přihlášení se nepodařilo obnovit. Přihlaste se Google účtem @astip.cz.");
           return;
         }
         forgetKnownSignedIn();
@@ -1050,7 +1028,8 @@ if(firebaseReady){
     }
     const knownSession=knownSignedIn() && !explicitSignOutPending();
     if(knownSession && navigator.onLine===false){
-      keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
+      showLogin();
+      showStartupLogin("Offline režim: pro otevření servisních dat musí být na tabletu už uložené Firebase přihlášení.");
       return;
     }
     const restoringKnownSession=knownSession && Date.now()-authBootStartedAt<AUTH_RESTORE_GRACE_MS;
@@ -1069,13 +1048,15 @@ if(firebaseReady){
           return;
         }
         if(Date.now()-authBootStartedAt>=AUTH_RESTORE_GRACE_MS){
-          keepAppOpenDuringAuthRestore("Přihlášení se zatím nepodařilo obnovit. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní a přihlášení zkusím obnovit na pozadí.");
+          showLogin();
+          showStartupLogin("Přihlášení se zatím nepodařilo obnovit. Přihlaste se Google účtem @astip.cz.");
         }
       },600);
       return;
     }
     if(knownSession || appIsOpenOrHasRows()){
-      keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
+      showLogin();
+      showStartupLogin("Přihlášení se obnovuje na pozadí. Pokud se mapa neotevře sama, přihlaste se Google účtem.");
       return;
     }
     if(explicitSignOutPending()){
@@ -1093,14 +1074,17 @@ if(firebaseReady){
       return;
     }
     clearSignedUser();
-    keepAppOpenDuringAuthRestore("Nejsi přihlášený k Firebase. Servisní data se načtou po přihlášení; případná lokální cache se použije jen pro dříve přihlášené zařízení.");
+    showLogin();
+    showStartupLogin("Nejste přihlášený k Firebase. Přihlaste se Google účtem @astip.cz.");
   }
 
-  window.__startFirebaseRedirectLogin=startFirebaseRedirectLogin;
+  window.__startFirebaseGoogleLogin=startFirebaseGoogleLogin;
+  window.__startFirebaseRedirectLogin=startFirebaseGoogleLogin;
   window.__signOutFirebase=signOutFirebase;
-  window.startGoogleLogin=startFirebaseRedirectLogin;
-  window.loginPopup=startFirebaseRedirectLogin;
-  window.loginEmail=startFirebaseEmailLogin;
+  window.__szzAndroidSignInWithGoogleIdToken=signInWithAndroidGoogleIdToken;
+  window.__szzAndroidSignInError=handleAndroidSignInError;
+  window.startGoogleLogin=startFirebaseGoogleLogin;
+  window.loginPopup=startFirebaseGoogleLogin;
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
 
   try{
@@ -1276,7 +1260,7 @@ function cacheCurrentFirebaseRowsForOffline(){
 
 const SZZ_OFFLINE_DETAIL_PREFETCH_CONCURRENCY=3;
 const SZZ_OFFLINE_MEDIA_FETCH_CONCURRENCY=4;
-const SZZ_RUNTIME_CACHE_NAME="astip-szz-v459-runtime";
+const SZZ_RUNTIME_CACHE_NAME="astip-szz-v465-runtime";
 
 function szzIsConstrainedDevice(){
   try{

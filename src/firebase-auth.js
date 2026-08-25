@@ -202,7 +202,7 @@ export function setStartupAuthChecking(checking){
   const intro=document.getElementById("startupIntro");
   if(startup) startup.classList.toggle("auth-checking",!!checking);
   setDisplayIfChangedLocal(btn,checking ? "none" : "");
-  setTextIfChangedLocal(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.");
+  setTextIfChangedLocal(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se Google účtem @astip.cz.");
 }
 
 function emailSet(values=[]){
