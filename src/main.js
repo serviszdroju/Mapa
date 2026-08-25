@@ -23,6 +23,7 @@ import {
   GOOGLE_WEB_CLIENT_ID,
   authBootStartedAt,
   clearExplicitSignOut,
+  compatGoogleProvider,
   compatFirebaseReady,
   createAuthAccessHelpers,
   ensureCompatAuthPersistence,
@@ -426,7 +427,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-25-delete-site-module-v517";
+const APP_BUILD_VERSION="2026-08-25-popup-primary-v518";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -829,6 +830,7 @@ if(firebaseReady){
 
   const AUTH_REDIRECT_PENDING_KEY="astipFirebaseRedirectPending";
   let lastAuthMessage="";
+  let authLoginInProgress=false;
   function authPending(){
     try{return safe(sessionStorage.getItem(AUTH_REDIRECT_PENDING_KEY));}catch(e){return "";}
   }
@@ -958,6 +960,41 @@ if(firebaseReady){
       },90000);
     });
   }
+  function modularGoogleProvider(){
+    if(!authMod || !authMod.GoogleAuthProvider) return null;
+    const provider=new authMod.GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
+    provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
+    return provider;
+  }
+  async function signInWithFirebaseGooglePopup(){
+    await primeCompatAuthPersistence({load:true});
+    const compatClient=getCompatAuthClient();
+    const compatProvider=compatGoogleProvider();
+    if(compatClient && compatProvider && typeof compatClient.signInWithPopup==="function"){
+      return compatClient.signInWithPopup(compatProvider);
+    }
+    const provider=modularGoogleProvider();
+    if(auth && provider && authMod && typeof authMod.signInWithPopup==="function"){
+      const resolver=redirectResolver();
+      return resolver ? authMod.signInWithPopup(auth,provider,resolver) : authMod.signInWithPopup(auth,provider);
+    }
+    throw new Error("Firebase popup přihlášení není dostupné.");
+  }
+  async function signInWithGoogleNoRedirect(){
+    try{
+      return await signInWithFirebaseGooglePopup();
+    }catch(popupError){
+      const code=safe(popupError && popupError.code);
+      const message=safe(popupError && popupError.message);
+      if(/popup-closed-by-user|cancelled-popup-request|access_denied|cancel/i.test(`${code} ${message}`)){
+        throw popupError;
+      }
+      console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",popupError);
+      return signInWithGoogleIdentityServices();
+    }
+  }
   async function googleRedirectResultUser(){
     await primeCompatAuthPersistence();
     const compatClient=getCompatAuthClient();
@@ -1013,11 +1050,19 @@ if(firebaseReady){
   }
   async function startFirebaseRedirectLogin(){
     if(!firebaseReady || (!auth && !getCompatAuthClient())){
-      setStartupStatus("Firebase přihlášení ještě není připravené. Zkontroluj internet a zkus to znovu.");
+      const message="Firebase přihlášení ještě není připravené. Zkontroluj internet a zkus to znovu.";
+      setStartupAuthChecking(false);
+      if(typeof window.__szzSetAuthState==="function"){
+        window.__szzSetAuthState("logged-out",{message,intro:"Přihlaste se Google účtem @astip.cz."});
+      }else{
+        showLogin();
+        setStartupStatus(message);
+      }
       return;
     }
     clearExplicitSignOut();
     clearAuthPending();
+    authLoginInProgress=true;
     try{
       await primeCompatAuthPersistence();
       try{document.documentElement.classList.remove("auth-resume");}catch(e){}
@@ -1035,7 +1080,7 @@ if(firebaseReady){
       if(activeEmail && !isAllowedLoginEmail(activeEmail)){
         setStartupStatus("Otevírám Google přihlášení, vyber účet @astip.cz...");
       }
-      const loginResult=await signInWithGoogleIdentityServices();
+      const loginResult=await signInWithGoogleNoRedirect();
       const loginUser=loginResult && loginResult.user ? loginResult.user : await waitForAuthCandidate(5000);
       if(loginUser){
         await handleAuthorizedUser(loginUser);
@@ -1057,6 +1102,8 @@ if(firebaseReady){
       setStartupAuthChecking(false);
       showLogin();
       setStartupStatus("Přihlášení selhalo: " + authErrorText(e));
+    }finally{
+      authLoginInProgress=false;
     }
   }
   function startGoogleLoginFromUi(event){
@@ -1064,6 +1111,7 @@ if(firebaseReady){
     return startFirebaseRedirectLogin();
   }
   async function signOutFirebase(){
+    authLoginInProgress=false;
     try{
       markExplicitSignOut();
       forgetKnownSignedIn();
@@ -1326,6 +1374,11 @@ if(firebaseReady){
     }
   }
   function handleSignedOut(){
+    if(authLoginInProgress){
+      setStartupAuthChecking(true);
+      setStartupStatus("Čekám na dokončení Google přihlášení...");
+      return;
+    }
     if(authPending()){
       setStartupAuthChecking(true);
       setStartupStatus("Kontroluji přihlášení...");
