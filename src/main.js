@@ -432,6 +432,9 @@ import {
   dedupeSiteRows,
   siteDedupKeysFromRaw
 } from "./row-dedup-utils.js";
+import {
+  createFirebaseLoadReportHelpers
+} from "./firebase-load-report-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -468,7 +471,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-row-dedup-module-v535";
+const APP_BUILD_VERSION="2026-08-26-firebase-report-module-v536";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2965,28 +2968,15 @@ function closeDetailDrawer(){
 window.closeDetailDrawer=closeDetailDrawer;
 window.siteDedupKeysFromRaw = siteDedupKeysFromRaw;
 window.dedupeSiteRows = dedupeSiteRows;
-function isFirebaseRowHidden(row,openedDocId=""){
-  if(!row || !deletedSiteIds || !deletedSiteIds.has(row.id)) return false;
-  return !(openedDocId && String(row.firebaseDocId || "")===openedDocId);
-}
-function hiddenFirebaseRowInfo(row){
-  return {
-    id:String(row && row.id || ""),
-    docId:String(row && row.firebaseDocId || ""),
-    title:String((row && row.raw && (row.raw["Název"] || row.raw["Adresa / umístění"] || row.raw["Adresa_GPS"])) || (row && row.adresa) || "")
-  };
-}
-function updateFirebaseLoadReport(firebaseRows,dedupedRows,hiddenRows=[],duplicateRows=[]){
-  window.__lastFirebaseLoadReport={
-    docs:Array.isArray(firebaseRows)?firebaseRows.length:0,
-    afterDedupe:Array.isArray(dedupedRows)?dedupedRows.length:0,
-    shown:rows.length,
-    duplicateCount:Array.isArray(duplicateRows)?duplicateRows.length:0,
-    duplicateRows:Array.isArray(duplicateRows)?duplicateRows:[],
-    hiddenCount:Array.isArray(hiddenRows)?hiddenRows.length:0,
-    hiddenRows:Array.isArray(hiddenRows)?hiddenRows:[]
-  };
-}
+const {
+  hiddenFirebaseRowInfo,
+  isFirebaseRowHidden,
+  updateFirebaseLoadReport
+}=createFirebaseLoadReportHelpers({
+  getDeletedSiteIds:()=>deletedSiteIds,
+  getRows:()=>rows,
+  setLastFirebaseLoadReport:report=>{ window.__lastFirebaseLoadReport=report; }
+});
 function openFirebaseRowAfterRender(openDocId){
   if(!openDocId) return;
   const r=findRowByAnyId(openDocId);
