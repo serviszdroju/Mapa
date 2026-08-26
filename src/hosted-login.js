@@ -5,7 +5,6 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="detail-status-buttons-module-v541";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -77,6 +76,9 @@ function popupShouldNotFallback(error){
 function authErrorText(error){
   const code=String(error && error.code || "").trim();
   const message=String(error && error.message || "").trim();
+  if(/Android Google|Google odmítl konfiguraci APK|RESULT_CANCELED|APK\s+\d|kód\s+\d+/i.test(message)){
+    return message;
+  }
   if(/popup_failed_to_open|popup_blocked|auth\/popup-blocked/i.test(`${code} ${message}`)){
     return "Prohlížeč zablokoval Google přihlašovací okno. Povol popup okna pro tento web a zkus tlačítko znovu.";
   }

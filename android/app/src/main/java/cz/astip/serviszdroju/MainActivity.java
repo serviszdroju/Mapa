@@ -317,7 +317,7 @@ public class MainActivity extends Activity {
             return;
         }
         googleSignInBusy = true;
-        startCredentialManagerGoogleSignIn(webClientId);
+        startLegacyGoogleSignIn(webClientId);
     }
 
     private void startCredentialManagerGoogleSignIn(String webClientId) {
@@ -356,29 +356,32 @@ public class MainActivity extends Activity {
                 @Override
                 public void onError(GetCredentialException error) {
                     googleSignInCancellation = null;
-                    startLegacyGoogleSignIn(webClientId, credentialManagerErrorText(error));
+                    startLegacyGoogleSignIn(webClientId);
                 }
             }
         );
     }
 
-    private void startLegacyGoogleSignIn(String webClientId, String fallbackReason) {
+    private void startLegacyGoogleSignIn(String webClientId) {
         try {
             GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
+                .requestProfile()
                 .requestIdToken(webClientId)
                 .setHostedDomain("astip.cz")
                 .build();
             GoogleSignInClient client = GoogleSignIn.getClient(this, options);
-            startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
+            client.signOut().addOnCompleteListener(task -> {
+                try {
+                    startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
+                } catch (Exception error) {
+                    googleSignInBusy = false;
+                    deliverAndroidAuthError("Google přihlášení v aplikaci nešlo otevřít. " + compactErrorText(error));
+                }
+            });
         } catch (Exception error) {
             googleSignInBusy = false;
-            deliverAndroidAuthError(
-                "Google přihlášení v aplikaci selhalo. "
-                    + fallbackReason
-                    + " "
-                    + compactErrorText(error)
-            );
+            deliverAndroidAuthError("Google přihlášení v aplikaci selhalo při přípravě. " + compactErrorText(error));
         }
     }
 
@@ -411,9 +414,13 @@ public class MainActivity extends Activity {
     }
 
     private void deliverAndroidAuthError(String message) {
+        String fullMessage = message == null || message.trim().isEmpty()
+            ? "Google přihlášení se nepodařilo."
+            : message.trim();
+        fullMessage = fullMessage + "\nAPK " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ").";
         evaluateWebScript(
             "window.__szzAndroidSignInError&&window.__szzAndroidSignInError("
-                + JSONObject.quote(message == null ? "Google přihlášení se nepodařilo." : message)
+                + JSONObject.quote(fullMessage)
                 + ");"
         );
     }
@@ -467,14 +474,18 @@ public class MainActivity extends Activity {
             return;
         }
         if (requestCode == GOOGLE_SIGN_IN_REQUEST) {
-            handleLegacyGoogleSignInResult(data);
+            handleLegacyGoogleSignInResult(resultCode, data);
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void handleLegacyGoogleSignInResult(Intent data) {
+    private void handleLegacyGoogleSignInResult(int resultCode, Intent data) {
         googleSignInBusy = false;
+        if (resultCode == RESULT_CANCELED && data == null) {
+            deliverAndroidAuthError("Google přihlášení se v Androidu zavřelo bez výsledku (RESULT_CANCELED). Pokud jsi účet nevybíral, tablet nepustil Google dialog.");
+            return;
+        }
         try {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             GoogleSignInAccount account = task.getResult(ApiException.class);
