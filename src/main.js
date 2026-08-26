@@ -413,6 +413,9 @@ import {
 import {
   createMapMarkerRenderHelpers
 } from "./map-marker-render-utils.js";
+import {
+  createSourcePopupHelpers
+} from "./source-popup-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -448,7 +451,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-map-marker-module-v527";
+const APP_BUILD_VERSION="2026-08-26-source-popup-module-v528";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2294,6 +2297,21 @@ const {
   szzCompareCsBase
 });
 const {
+  groupPopupHtml,
+  resetSourcePopupActivationGuard
+}=createSourcePopupHelpers({
+  detailKey,
+  escValue:esc,
+  getLeaflet:()=>typeof L==="undefined" ? null : L,
+  getMap:()=>map,
+  markerRowsSignature,
+  openDetailById:key=>window.openDetailById(key),
+  siteSourceLabel,
+  stableSignature,
+  statusText
+});
+window.resetSourcePopupActivationGuard=resetSourcePopupActivationGuard;
+const {
   bindMapViewportRendering,
   groupHasUsableGps,
   renderMapGroups,
@@ -2307,7 +2325,7 @@ const {
   getMap:()=>map,
   getRowsIndexVersion:()=>rowsIndexVersion,
   groupColor,
-  groupPopupHtml:group=>groupPopupHtml(group),
+  groupPopupHtml,
   groupPrimaryRow,
   markerRowsSignature,
   openDetailById:key=>window.openDetailById(key),
@@ -2348,74 +2366,6 @@ const {
   siteSourceLabel,
   statusText
 });
-let sourcePopupLastHandledKey="";
-let sourcePopupLastHandledAt=0;
-function resetSourcePopupActivationGuard(){
-  sourcePopupLastHandledKey="";
-  sourcePopupLastHandledAt=0;
-}
-window.resetSourcePopupActivationGuard=resetSourcePopupActivationGuard;
-function activateSourcePopupButton(sourceBtn,event){
-  if(!sourceBtn) return false;
-  const key=sourceBtn.getAttribute("data-source-popup-key");
-  if(!key) return false;
-  if(event){
-    if(event.cancelable) event.preventDefault();
-    event.stopPropagation();
-    if(event.stopImmediatePropagation) event.stopImmediatePropagation();
-    try{
-      if(typeof L!=="undefined" && L.DomEvent) L.DomEvent.stopPropagation(event);
-    }catch(e){}
-  }
-  const now=Date.now();
-  if(sourcePopupLastHandledKey===key && now-sourcePopupLastHandledAt<450) return true;
-  sourcePopupLastHandledKey=key;
-  sourcePopupLastHandledAt=now;
-  window.openDetailById(key);
-  try{
-    if(map && typeof map.closePopup==="function") map.closePopup();
-  }catch(e){}
-  return true;
-}
-function handleSourcePopupActivation(event){
-  const target=event && event.target;
-  const sourceBtn=target && target.closest ? target.closest("[data-source-popup-key]") : null;
-  if(sourceBtn) activateSourcePopupButton(sourceBtn,event);
-}
-document.addEventListener("click",handleSourcePopupActivation,true);
-document.addEventListener("touchend",handleSourcePopupActivation,{capture:true,passive:false});
-function sourceButtonHtml(row){
-  return `<button class="source-popup-btn" type="button" data-source-popup-key="${esc(detailKey(row))}">${esc(siteSourceLabel(row))}<small>${esc(statusText(row))}</small></button>`;
-}
-function groupPopupHtml(group){
-  if(!group) return "";
-  const rowsInGroup=group.rows || [];
-  const primary=rowsInGroup[0] || null;
-  const signature=stableSignature([
-    group.key || "",
-    group.label || "",
-    primary ? primary.adresa || "" : "",
-    rowsInGroup.length,
-    group._markerRowsSignature || markerRowsSignature(rowsInGroup)
-  ]);
-  if(group._popupHtmlSignature===signature && group._popupHtml){
-    return group._popupHtml;
-  }
-  let html="";
-  if(rowsInGroup.length<=1){
-    const r=primary;
-    html=r ? `<b>${esc(r.adresa||"Bez názvu")}</b><br>${esc(siteSourceLabel(r))}<br>${esc(statusText(r))}<br><button class="source-popup-btn source-popup-detail-btn" type="button" data-source-popup-key="${esc(detailKey(r))}">Detail</button>` : "";
-  }else{
-    let sourceButtonsHtml="";
-    for(const row of rowsInGroup){
-      sourceButtonsHtml+=sourceButtonHtml(row);
-    }
-    html=`<b>${esc(group.label || "Místo")}</b><br>${rowsInGroup.length} zdrojů na jednom místě<div class="source-popup-list">${sourceButtonsHtml}</div>`;
-  }
-  group._popupHtmlSignature=signature;
-  group._popupHtml=html;
-  return html;
-}
 function setNewDataFieldValue(key,value){
   const next=String(value || "");
   (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
