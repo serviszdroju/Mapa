@@ -451,6 +451,9 @@ import {
 import {
   createDetailStatusButtonHelpers
 } from "./detail-status-button-utils.js";
+import {
+  createDetailTableDisplayHelpers
+} from "./detail-table-display-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -487,7 +490,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-webview-offline-v543";
+const APP_BUILD_VERSION="2026-08-26-detail-table-display-module-v544";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4270,56 +4273,14 @@ function shouldWatchSelf(raw){
   return explicitWatchSelfFromRaw(raw)===true;
 }
 
-function detailTableRows(r){
-  const raw=rawForSiteFieldLookup(r);
-  const rows=[];
-  for(const spec of USER_SITE_DATA_FIELDS){
-    if(spec.hideInDetail) continue;
-    rows.push({spec,value:userSiteFieldValue(r,spec,raw)});
-  }
-  return rows;
-}
-
-function detailTableSignature(rowsForDetail){
-  const rows=Array.isArray(rowsForDetail) ? rowsForDetail : [];
-  let signature="";
-  for(let i=0;i<rows.length;i++){
-    const {spec,value}=rows[i];
-    const key=String(spec.key);
-    const text=String(value);
-    if(i) signature+="\u001f";
-    signature+=`${key.length}:${key}\u001e${text.length}:${text}`;
-  }
-  return signature;
-}
-
-function renderDetailTable(table,r){
-  if(!table) return;
-  table.classList.remove("data-edit-table");
-  table.classList.add("history-item","small","detail-history-table");
-  const rowsForDetail=detailTableRows(r);
-  const signature=detailTableSignature(rowsForDetail);
-  if(table.dataset.detailTableMode==="display" && table.dataset.detailSignature===signature && table.childElementCount){
-    return;
-  }
-  const fragment=document.createDocumentFragment();
-  for(const {spec,value} of rowsForDetail){
-    const row=document.createElement("div");
-    row.className="history-detail-row";
-    if(spec.type==="textarea" || String(value || "").includes("\n")) row.classList.add("detail-multiline-row");
-    if(spec.important) row.classList.add("detail-important-row");
-    const label=document.createElement("span");
-    label.textContent=spec.label;
-    const valueCell=document.createElement("span");
-    valueCell.className="history-detail-value";
-    valueCell.textContent=userSiteDisplayText(spec,value);
-    row.append(label,valueCell);
-    fragment.appendChild(row);
-  }
-  table.replaceChildren(fragment);
-  table.dataset.detailTableMode="display";
-  table.dataset.detailSignature=signature;
-}
+const {
+  renderDetailTable
+}=createDetailTableDisplayHelpers({
+  rawForSiteFieldLookup,
+  userSiteDataFields:USER_SITE_DATA_FIELDS,
+  userSiteDisplayText,
+  userSiteFieldValue
+});
 
 window.openDetail=function(i){
   restoreNormalDetailDrawerShell();
