@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.use_as_origin"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "cz.astip.serviszdroju",
+      "sha256_cert_fingerprints": [
+        "20:83:2E:A4:AC:3C:06:33:6B:BF:91:00:20:6A:B6:64:02:88:37:B1:A4:81:F3:AD:FA:CE:02:49:23:2F:F1:F5"
+      ]
+    }
+  }
+]

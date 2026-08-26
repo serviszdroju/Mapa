@@ -25,6 +25,7 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -63,6 +64,8 @@ import java.util.concurrent.Executor;
 public class MainActivity extends Activity {
     private static final String SZZ_WEB_HOST = "serviszdroju.github.io";
     private static final String SZZ_WEB_PATH = "/Mapa";
+    private static final String SZZ_ASSET_ROOT = "Mapa";
+    private static final String SZZ_PUBLIC_APK_URL = "https://serviszdroju.github.io/Mapa/downloads/szz-servis-zdroju-android.apk";
     private static final int FILE_CHOOSER_REQUEST = 2301;
     private static final int LOCATION_REQUEST = 2302;
     private static final int CAMERA_REQUEST = 2303;
@@ -165,6 +168,17 @@ public class MainActivity extends Activity {
         }
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return request == null ? null : localApkAssetResponse(request.getUrl());
+            }
+
+            @SuppressWarnings("deprecation")
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                return localApkAssetResponse(Uri.parse(url));
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 return handleUrl(request.getUrl());
             }
@@ -244,6 +258,7 @@ public class MainActivity extends Activity {
 
     private boolean handleUrl(Uri uri) {
         if (uri == null) return false;
+        if (isSzzApkDownloadUrl(uri)) return openExternalUrl(Uri.parse(SZZ_PUBLIC_APK_URL));
         if (isSzzWebUrl(uri)) return false;
         if (isGoogleAuthUrl(uri)) {
             deliverAndroidAuthError("Google přihlášení se v aplikaci otevírá nativně. Vrať se a stiskni Přihlásit přes Google znovu.");
@@ -257,6 +272,14 @@ public class MainActivity extends Activity {
             SZZ_WEB_HOST.equals(uri.getHost()) &&
             uri.getPath() != null &&
             uri.getPath().startsWith(SZZ_WEB_PATH);
+    }
+
+    private boolean isSzzApkDownloadUrl(Uri uri) {
+        String path = uri == null || uri.getPath() == null ? "" : uri.getPath();
+        return "https".equals(uri.getScheme()) &&
+            SZZ_WEB_HOST.equals(uri.getHost()) &&
+            path.startsWith(SZZ_WEB_PATH + "/downloads/") &&
+            path.toLowerCase(Locale.ROOT).endsWith(".apk");
     }
 
     private boolean isGoogleAuthUrl(Uri uri) {
@@ -274,6 +297,84 @@ public class MainActivity extends Activity {
         }
     }
 
+    private WebResourceResponse localApkAssetResponse(Uri uri) {
+        if (uri == null || !isSzzWebUrl(uri) || isSzzApkDownloadUrl(uri)) return null;
+        String assetPath = localAssetPathFor(uri);
+        if (assetPath == null) return null;
+        WebResourceResponse response = openAssetResponse(assetPath);
+        if (response != null) return response;
+        return isDocumentRequest(uri) ? openAssetResponse(SZZ_ASSET_ROOT + "/index.html") : null;
+    }
+
+    private String localAssetPathFor(Uri uri) {
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        String relative = path.startsWith(SZZ_WEB_PATH) ? path.substring(SZZ_WEB_PATH.length()) : path;
+        relative = relative.replaceFirst("^/+", "");
+        if (relative.isEmpty()) relative = "index.html";
+        String decoded = Uri.decode(relative);
+        if (decoded == null || decoded.startsWith("/") || decoded.contains("..") || decoded.indexOf('\0') >= 0) {
+            return null;
+        }
+        return SZZ_ASSET_ROOT + "/" + decoded;
+    }
+
+    private boolean isDocumentRequest(Uri uri) {
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        String name = path.substring(path.lastIndexOf('/') + 1);
+        return name.isEmpty() || !name.contains(".");
+    }
+
+    private WebResourceResponse openAssetResponse(String assetPath) {
+        try {
+            return new WebResourceResponse(
+                mimeTypeForAsset(assetPath),
+                charsetForAsset(assetPath),
+                200,
+                "OK",
+                java.util.Collections.singletonMap("Cache-Control", "no-store"),
+                getAssets().open(assetPath)
+            );
+        } catch (Exception error) {
+            return null;
+        }
+    }
+
+    private String mimeTypeForAsset(String assetPath) {
+        String extension = assetPath.substring(assetPath.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        switch (extension) {
+            case "html": return "text/html";
+            case "js":
+            case "mjs": return "application/javascript";
+            case "css": return "text/css";
+            case "json": return "application/json";
+            case "webmanifest": return "application/manifest+json";
+            case "png": return "image/png";
+            case "jpg":
+            case "jpeg": return "image/jpeg";
+            case "svg": return "image/svg+xml";
+            case "rtf": return "application/rtf";
+            case "wasm": return "application/wasm";
+            default: return "application/octet-stream";
+        }
+    }
+
+    private String charsetForAsset(String assetPath) {
+        String extension = assetPath.substring(assetPath.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        switch (extension) {
+            case "html":
+            case "js":
+            case "mjs":
+            case "css":
+            case "json":
+            case "webmanifest":
+            case "svg":
+            case "rtf":
+                return "UTF-8";
+            default:
+                return null;
+        }
+    }
+
     private void injectAndroidBootstrap() {
         evaluateWebScript(
             "(function(){"
@@ -283,13 +384,11 @@ public class MainActivity extends Activity {
                 + "window.__szzAndroidOfflineBusy=true;"
                 + "Promise.resolve().then(function(){"
                 + "if(typeof window.cacheAppShellForOffline==='function')return window.cacheAppShellForOffline({force:false});"
-                + "}).then(function(){"
-                + "if(typeof window.prepareSzzOfflineAppData==='function')return window.prepareSzzOfflineAppData({reason:'android-auto',silent:true,skipOfflineMap:true});"
                 + "}).catch(function(e){console.warn('Android offline priprava selhala',e);"
                 + "}).finally(function(){window.__szzAndroidOfflineBusy=false;});"
                 + "};"
-                + "setTimeout(window.__szzAndroidOfflineWarmup,1500);"
-                + "window.addEventListener('online',function(){setTimeout(window.__szzAndroidOfflineWarmup,1500);});"
+                + "setTimeout(window.__szzAndroidOfflineWarmup,800);"
+                + "window.addEventListener('online',function(){setTimeout(window.__szzAndroidOfflineWarmup,800);});"
                 + "})();"
         );
     }

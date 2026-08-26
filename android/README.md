@@ -11,11 +11,12 @@ vzhled, ovladani, detail, galerie, protokoly a dokumenty chovaly stejne jako web
 - povoluje cookies, localStorage, IndexedDB a service worker pro offline cache,
 - pouziva nativni Google Credential Manager s fallbackem na klasicky Google Sign-In a predava Firebase ID token webu pres `SzzAndroidAuth`,
 - podporuje GPS, vyber fotek a foceni pres webovy upload,
-- po nacteni webu automaticky spusti tichou pripravu offline dat pres `prepareSzzOfflineAppData`.
+- po nacteni webu pripravi jen app shell cache; servisni data se synchronizuji az po prihlaseni a z lokalni cache se zobrazuji co nejdrive.
 
-Prvni prihlaseny online beh stahuje servisni body a k nim dostupne protokoly, servisni zaznamy,
-galerii/fotky a prilohy do lokalni cache. Dalsi behy kontroluji jen zmeny, aby aplikace na tabletu
-nebrzdila.
+APK obsahuje webove soubory, Leaflet, ikony, loga a sablony dokladu v `android/app/src/main/assets/Mapa`,
+takze prvni obrazovka neni zavisla na GitHub Pages ani Leaflet CDN. Servisni body, protokoly,
+galerie/fotky a prilohy se po prihlaseni ukladaji do lokalni cache a dalsi behy maji sahat jen na zmeny,
+aby aplikace na tabletu nebrzdila.
 
 ## Build
 

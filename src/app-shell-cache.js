@@ -10,8 +10,13 @@ const APP_SHELL_URLS=[
   "./szz-app-icon-maskable-512.png",
   "./podpis-tipek.png",
   "./podpis-tipek.jpg",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  "./vendor/leaflet/leaflet.css",
+  "./vendor/leaflet/leaflet.js",
+  "./vendor/leaflet/images/layers.png",
+  "./vendor/leaflet/images/layers-2x.png",
+  "./vendor/leaflet/images/marker-icon.png",
+  "./vendor/leaflet/images/marker-icon-2x.png",
+  "./vendor/leaflet/images/marker-shadow.png"
 ];
 
 export function currentAppShellUrls(baseUrls=APP_SHELL_URLS){
@@ -52,10 +57,9 @@ function isSzzAppShellResourceUrl(url){
     const path=absolute.pathname;
     if(absolute.origin===location.origin){
       return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(path);
     }
-    return absolute.hostname==="unpkg.com" &&
-      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
+    return false;
   }catch(e){
     return false;
   }

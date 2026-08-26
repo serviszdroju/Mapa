@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v545";
+const CACHE_VERSION = "astip-szz-v546";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -21,13 +21,17 @@ const PRECACHE_URLS = [
   "./szz-logo.png",
   "./szz-logo-display.png",
   "./podpis-tipek.png",
-  "./podpis-tipek.jpg"
+  "./podpis-tipek.jpg",
+  "./vendor/leaflet/leaflet.css",
+  "./vendor/leaflet/leaflet.js",
+  "./vendor/leaflet/images/layers.png",
+  "./vendor/leaflet/images/layers-2x.png",
+  "./vendor/leaflet/images/marker-icon.png",
+  "./vendor/leaflet/images/marker-icon-2x.png",
+  "./vendor/leaflet/images/marker-shadow.png"
 ];
 
-const EXTERNAL_PRECACHE_URLS = [
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-];
+const EXTERNAL_PRECACHE_URLS = [];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -157,12 +161,11 @@ function isClientShellUrl(url) {
     const scope = new URL(self.registration.scope);
     if (url.origin === self.location.origin && url.pathname.startsWith(scope.pathname)) {
       return url.pathname.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname) ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname) ||
         url.pathname === scope.pathname ||
         url.pathname === `${scope.pathname}index.html`;
     }
-    return url.hostname === "unpkg.com" &&
-      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(url.pathname);
+    return false;
   } catch (error) {
     return false;
   }
@@ -304,7 +307,6 @@ function isRuntimeCacheAllowed(request) {
     const url = new URL(request.url);
     if (url.origin === self.location.origin) return true;
     if (isMapTileRequest(request)) return true;
-    if (url.hostname === "unpkg.com" && ["script", "style"].includes(request.destination)) return true;
     if (url.hostname === "www.gstatic.com" && ["script", "style", "font"].includes(request.destination)) return true;
     if (url.hostname === "res.cloudinary.com" && request.destination === "image") return true;
     return request.destination === "image";
@@ -319,11 +321,10 @@ function isStaticAssetRequest(request) {
     if (url.origin === self.location.origin) {
       return request.destination !== "document" && (
         url.pathname.includes("/assets/") ||
-        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(url.pathname)
+        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname)
       );
     }
-    return url.hostname === "unpkg.com" &&
-      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(url.pathname);
+    return false;
   } catch (error) {
     return false;
   }

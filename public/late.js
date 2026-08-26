@@ -2479,7 +2479,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-26-detail-lazy-load-module-v545";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-26-apk-local-web-v546";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -2535,8 +2535,13 @@ const SZZ_INSTALL_SHELL_URLS=[
   "./szz-app-icon-maskable-512.png",
   "./podpis-tipek.png",
   "./podpis-tipek.jpg",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  "./vendor/leaflet/leaflet.css",
+  "./vendor/leaflet/leaflet.js",
+  "./vendor/leaflet/images/layers.png",
+  "./vendor/leaflet/images/layers-2x.png",
+  "./vendor/leaflet/images/marker-icon.png",
+  "./vendor/leaflet/images/marker-icon-2x.png",
+  "./vendor/leaflet/images/marker-shadow.png"
 ];
 
 function szzInstallCurrentShellUrls(baseUrls=SZZ_INSTALL_SHELL_URLS){
@@ -2577,10 +2582,9 @@ function szzInstallIsShellResourceUrl(url){
     const path=absolute.pathname;
     if(absolute.origin===location.origin){
       return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg))$/.test(path);
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(path);
     }
-    return absolute.hostname==="unpkg.com" &&
-      /^\/leaflet@1\.9\.4\/dist\/leaflet\.(?:css|js)$/.test(path);
+    return false;
   }catch(e){
     return false;
   }
