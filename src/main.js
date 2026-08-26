@@ -371,6 +371,7 @@ import {
   createMainProtocolHistoryViewHelpers
 } from "./main-protocol-history-view-utils.js";
 import {
+  createFilterDomHelpers,
   createFilterOptionHelpers,
   createFilterRenderScheduler
 } from "./filter-render-utils.js";
@@ -458,7 +459,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-map-fit-module-v531";
+const APP_BUILD_VERSION="2026-08-26-filter-dom-module-v532";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1985,8 +1986,13 @@ window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 
 window.appRegionOptions = () => APP_REGION_OPTIONS.slice();
 const {
+  clearFiltersForOpenedSite,
+  filterControls
+}=createFilterDomHelpers({
+  updateStatusFilterColor:()=>updateStatusFilterColor()
+});
+const {
   filters,
-  statusFilterClass,
   updateStatusFilterColor
 }=createFilterOptionHelpers({
   regionOptions:APP_REGION_OPTIONS,
@@ -3179,30 +3185,6 @@ function dedupeSiteRows(inputRows,preferredDocId=null){
 }
 window.siteDedupKeysFromRaw = siteDedupKeysFromRaw;
 window.dedupeSiteRows = dedupeSiteRows;
-let filterControlCache=null;
-function filterControls(){
-  if(
-    filterControlCache &&
-    filterControlCache.search?.isConnected &&
-    filterControlCache.status?.isConnected &&
-    filterControlCache.region?.isConnected
-  ){
-    return filterControlCache;
-  }
-  filterControlCache={
-    search:document.getElementById("search"),
-    status:document.getElementById("statusFilter"),
-    region:document.getElementById("regionFilter")
-  };
-  return filterControlCache;
-}
-function clearFiltersForOpenedSite(){
-  const {search,status,region}=filterControls();
-  if(search && search.value!=="") search.value="";
-  if(status && status.value!=="") status.value="";
-  if(region && region.value!=="") region.value="";
-  updateStatusFilterColor();
-}
 function isFirebaseRowHidden(row,openedDocId=""){
   if(!row || !deletedSiteIds || !deletedSiteIds.has(row.id)) return false;
   return !(openedDocId && String(row.firebaseDocId || "")===openedDocId);

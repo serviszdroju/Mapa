@@ -142,3 +142,39 @@ export function createFilterOptionHelpers({
     updateStatusFilterColor
   };
 }
+
+export function createFilterDomHelpers({
+  updateStatusFilterColor
+}={}){
+  let filterControlCache=null;
+
+  function filterControls(){
+    if(
+      filterControlCache &&
+      filterControlCache.search?.isConnected &&
+      filterControlCache.status?.isConnected &&
+      filterControlCache.region?.isConnected
+    ){
+      return filterControlCache;
+    }
+    filterControlCache={
+      search:document.getElementById("search"),
+      status:document.getElementById("statusFilter"),
+      region:document.getElementById("regionFilter")
+    };
+    return filterControlCache;
+  }
+
+  function clearFiltersForOpenedSite(){
+    const {search,status,region}=filterControls();
+    if(search && search.value!=="") search.value="";
+    if(status && status.value!=="") status.value="";
+    if(region && region.value!=="") region.value="";
+    if(typeof updateStatusFilterColor==="function") updateStatusFilterColor();
+  }
+
+  return {
+    clearFiltersForOpenedSite,
+    filterControls
+  };
+}
