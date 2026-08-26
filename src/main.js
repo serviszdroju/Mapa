@@ -424,6 +424,9 @@ import {
 import {
   createMapFitHelpers
 } from "./map-fit-utils.js";
+import {
+  createAppRenderLoopHelpers
+} from "./app-render-loop-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -443,6 +446,7 @@ let mergeSiteLocalArrayImpl=null;
 let rows=[], csvRows=[], originalCsvRows=[], extraSites=[], selectedSite=null, addSourceBaseSite=null, editCache={};
 let firebaseUnifiedPrimary = firebaseReady;
 let map=null, layer=null;
+let appRenderLoop=null;
 window.__firebaseConfig = firebaseConfig;
 window.firebaseReady = firebaseReady;
 window.__firebaseConfigured = firebaseConfigured;
@@ -459,7 +463,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-filter-dom-module-v532";
+const APP_BUILD_VERSION="2026-08-26-render-loop-module-v533";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2411,6 +2415,21 @@ const {
   syncRowIndexes
 });
 window.fit=fit;
+appRenderLoop=createAppRenderLoopHelpers({
+  bindMapViewportRendering,
+  cachedPlaceGroups,
+  filtered,
+  getRows:()=>rows,
+  getRowsGpsCount:()=>rowsGpsCountCache,
+  inCzSk,
+  renderCounters,
+  renderMapGroups,
+  renderSidebarGroups,
+  resetFirebaseRowsAutoReload,
+  setLastVisiblePlaceGroups:groups=>{ lastVisiblePlaceGroups=groups; },
+  setWindowRows:nextRows=>{ window.rows=nextRows; },
+  syncRowIndexes
+});
 function setNewDataFieldValue(key,value){
   const next=String(value || "");
   (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
@@ -2560,7 +2579,6 @@ let siteRowIndexByOriginalIndex=new Map();
 let csvRowsByAnyId=new Map();
 let rowsGpsCountCache=0;
 let lastVisiblePlaceGroups=[];
-let renderRequested=false;
 let rowsIndexVersion=0;
 let rowsIndexDirty=true;
 let indexedRowsRef=null;
@@ -2890,30 +2908,11 @@ window.openDetailById=function(id){
   return false;
 };
 function render(){
-  syncRowIndexes();
-  window.rows=rows;
-  if(rows.length) resetFirebaseRowsAutoReload();
-  bindMapViewportRendering();
-  const vis=filtered();
-  const gpsRows=[];
-  for(const r of vis){
-    if(inCzSk(r)) gpsRows.push(r);
-  }
-  const mapGroups=cachedPlaceGroups(gpsRows);
-  const sidebarGroups=cachedPlaceGroups(vis);
-  lastVisiblePlaceGroups=mapGroups;
-  renderMapGroups(mapGroups);
-  renderSidebarGroups(sidebarGroups);
-  renderCounters(vis.length,rowsGpsCountCache);
+  return appRenderLoop && appRenderLoop.render();
 }
 window.render=render;
 function requestRender(){
-  if(renderRequested) return;
-  renderRequested=true;
-  requestAnimationFrame(()=>{
-    renderRequested=false;
-    render();
-  });
+  return appRenderLoop && appRenderLoop.requestRender();
 }
 window.requestRender=requestRender;
 let mapFocusDetailKey="";
