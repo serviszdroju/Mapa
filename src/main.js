@@ -438,6 +438,9 @@ import {
 import {
   createSharedPlaceEditHelpers
 } from "./shared-place-edit-utils.js";
+import {
+  createControlDateDisplayHelpers
+} from "./control-date-display-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -474,7 +477,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-shared-place-edit-module-v538";
+const APP_BUILD_VERSION="2026-08-26-control-date-module-v539";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -3832,44 +3835,22 @@ function warrantyValueFixed(value){
   return clean;
 }
 
-function showControlDateDisplay(r){
-  const lastBox=detailLastCheckNode();
-  const nextBox=detailNextCheckNode();
-  setTextIfChanged(lastBox,formatDateCz(parseDateValue(r.posledni)) || r.posledni || "-");
-  setTextIfChanged(nextBox,displayNext(r) || r.pristi || "-");
-}
-
-function showControlDateInputs(r){
-  const lastBox=detailLastCheckNode();
-  const nextBox=detailNextCheckNode();
-  if(lastBox){
-    const input=document.createElement("input");
-    input.id="detailLastCheckInput";
-    input.type="date";
-    input.value=dateInputValueFromAny(r.posledni);
-    lastBox.replaceChildren(input);
-  }
-  if(nextBox){
-    const input=document.createElement("input");
-    input.id="detailNextCheckInput";
-    input.type="date";
-    input.value=dateInputValueFromAny(computedNextDate(r));
-    nextBox.replaceChildren(input);
-  }
-  const lastInput=document.getElementById("detailLastCheckInput");
-  const nextInput=document.getElementById("detailNextCheckInput");
-  const periodInput=document.querySelector('#detailTable [data-key="Perioda kontrol"]');
-  if(lastInput && nextInput){
-    const recalc=()=>{
-      const d=parseDateValue(lastInput.value);
-      if(!d) return;
-      const months=periodInput && periodInput.value==="12" ? 12 : periodInput && periodInput.value==="6" ? 6 : periodMonths(selectedSite || r);
-      nextInput.value=dateInputValueFromAny(addMonths(d, months));
-    };
-    lastInput.addEventListener("change",recalc);
-    if(periodInput) periodInput.addEventListener("change",recalc);
-  }
-}
+const {
+  showControlDateDisplay,
+  showControlDateInputs
+}=createControlDateDisplayHelpers({
+  addMonths,
+  computedNextDate,
+  dateInputValueFromAny,
+  detailLastCheckNode,
+  detailNextCheckNode,
+  displayNext,
+  formatDateCz,
+  getSelectedSite:()=>selectedSite,
+  parseDateValue,
+  periodMonths,
+  setTextIfChanged
+});
 
 
 function addNewDataRowToTable(){
