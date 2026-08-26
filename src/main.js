@@ -454,6 +454,9 @@ import {
 import {
   createDetailTableDisplayHelpers
 } from "./detail-table-display-utils.js";
+import {
+  createDetailLazyLoadHelpers
+} from "./detail-lazy-load-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -490,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-detail-table-display-module-v544";
+const APP_BUILD_VERSION="2026-08-26-detail-lazy-load-module-v545";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4691,130 +4694,50 @@ function editCurrentHistoryProtocol(){
   setProtocolStatusText("Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.");
 }
 
-let detailLazyLoadKey="";
-let detailLazyLoadState={historyLoaded:false,historyLoading:false,photosLoaded:false,photosLoading:false,attachmentsLoaded:false,attachmentsLoading:false};
-function detailLazyKey(site=selectedSite){
-  if(!site) return "";
-  return String(detailKey(site) || site.firebaseDocId || site.raw?.["Firebase_doc_id"] || site.id || "").trim();
-}
-function activeDetailTabName(){
-  return drawerNode()?.dataset?.detailTab || "data";
-}
-function sameDetailLazySite(site=selectedSite){
-  return !!site && detailLazyKey(site)===detailLazyLoadKey;
-}
-function resetDetailLazyLoadState(site){
-  detailLazyLoadKey=detailLazyKey(site);
-  detailLazyLoadState={historyLoaded:false,historyLoading:false,photosLoaded:false,photosLoading:false,attachmentsLoaded:false,attachmentsLoading:false};
-  detailHistoryItems=[];
-  detailHistoryIndex=0;
-  detailHistoryRenderSignature="";
-  sitePhotoItems=[];
-  sitePhotoIndex=0;
-  sitePhotoRenderSignature="";
-  const history=detailHistoryNode();
-  if(history) history.textContent="Zatím nenačteno.";
-  const photoList=sitePhotosListNode();
-  if(photoList){
-    const placeholder=document.createElement("div");
-    placeholder.className="site-photos-empty";
-    placeholder.textContent="Fotografie se načtou po otevření Galerie.";
-    photoList.replaceChildren(placeholder);
-  }
-  siteAttachmentItems=[];
-  siteAttachmentRenderSignature="";
-  const attachmentList=siteAttachmentsNode("siteAttachmentsList");
-  if(attachmentList){
-    const placeholder=document.createElement("div");
-    placeholder.className="site-photos-empty";
-    placeholder.textContent="Přílohy se načtou po otevření záložky Přílohy.";
-    attachmentList.replaceChildren(placeholder);
-  }
-  setSitePhotosStatusText("");
-  setSiteAttachmentsStatusText("");
-  updateOfficialProtocolSourceInfo();
-}
-function startDetailAsyncLoads(site){
-  resetDetailLazyLoadState(site);
-  try{ resetSitePhotoInput(); }catch(e){}
-  try{ resetSiteAttachmentInput(); }catch(e){}
-}
-
-function ensureDetailAsyncLoads(site){
-  return ensureDetailTabLoad(activeDetailTabName(),site);
-}
-function ensureDetailTabLoad(tabName=activeDetailTabName(),site=selectedSite){
-  if(!site || !sameDetailLazySite(site)) return;
-  if(tabName==="gallery"){
-    if(detailLazyLoadState.photosLoaded || detailLazyLoadState.photosLoading) return;
-    detailLazyLoadState.photosLoading=true;
-    const st=sitePhotosStatusNode();
-    if(st && !st.textContent) setSitePhotosStatusText("Načítám fotografie...");
-    Promise.resolve(loadSitePhotos(site))
-      .then(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.photosLoaded=true; })
-      .catch(e=>{
-        detailLazyLoadState.photosLoaded=false;
-        console.warn("Načtení fotografií detailu selhalo",e);
-      })
-      .finally(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.photosLoading=false; });
-  }
-  if(tabName==="attachments"){
-    if(detailLazyLoadState.attachmentsLoaded || detailLazyLoadState.attachmentsLoading) return;
-    detailLazyLoadState.attachmentsLoading=true;
-    const st=siteAttachmentsStatusNode();
-    if(st && !st.textContent) setSiteAttachmentsStatusText("Načítám přílohy...");
-    Promise.resolve(loadSiteAttachments(site))
-      .then(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.attachmentsLoaded=true; })
-      .catch(e=>{
-        detailLazyLoadState.attachmentsLoaded=false;
-        console.warn("Načtení příloh detailu selhalo",e);
-      })
-      .finally(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.attachmentsLoading=false; });
-  }
-  if(tabName==="protocol" || tabName==="document"){
-    if(detailLazyLoadState.historyLoaded || detailLazyLoadState.historyLoading) return;
-    detailLazyLoadState.historyLoading=true;
-    Promise.resolve(loadHistory(site.id))
-      .then(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.historyLoaded=true; })
-      .catch(e=>{
-        detailLazyLoadState.historyLoaded=false;
-        console.warn("Načtení historie detailu selhalo",e);
-      })
-      .finally(()=>{ if(sameDetailLazySite(site)) detailLazyLoadState.historyLoading=false; });
-  }
-}
+const {
+  activeDetailTabName,
+  detailLazyKey,
+  ensureDetailAsyncLoads,
+  ensureDetailTabLoad,
+  refreshDetailTabLoad,
+  refreshLoadedDetailTabs,
+  resetDetailLazyLoadState,
+  sameDetailLazySite,
+  startDetailAsyncLoads
+}=createDetailLazyLoadHelpers({
+  detailHistoryNode,
+  detailKey,
+  drawerNode,
+  getSelectedSite:()=>selectedSite,
+  loadHistory,
+  loadSiteAttachments,
+  loadSitePhotos,
+  resetDetailHistory:()=>{
+    detailHistoryItems=[];
+    detailHistoryIndex=0;
+    detailHistoryRenderSignature="";
+  },
+  resetSiteAttachmentInput,
+  resetSiteAttachments:()=>{
+    siteAttachmentItems=[];
+    siteAttachmentRenderSignature="";
+  },
+  resetSitePhotoInput,
+  resetSitePhotos:()=>{
+    sitePhotoItems=[];
+    sitePhotoIndex=0;
+    sitePhotoRenderSignature="";
+  },
+  safe,
+  setSiteAttachmentsStatusText,
+  setSitePhotosStatusText,
+  siteAttachmentsNode,
+  siteAttachmentsStatusNode,
+  sitePhotosListNode,
+  sitePhotosStatusNode,
+  updateOfficialProtocolSourceInfo
+});
 window.ensureDetailTabLoad=ensureDetailTabLoad;
-function refreshDetailTabLoad(tabName=activeDetailTabName(),site=selectedSite){
-  if(!site || !sameDetailLazySite(site)) return;
-  if(tabName==="gallery"){
-    detailLazyLoadState.photosLoaded=false;
-    if(detailLazyLoadState.photosLoading) return;
-    ensureDetailTabLoad("gallery",site);
-  }
-  if(tabName==="attachments"){
-    detailLazyLoadState.attachmentsLoaded=false;
-    if(detailLazyLoadState.attachmentsLoading) return;
-    ensureDetailTabLoad("attachments",site);
-  }
-  if(tabName==="protocol" || tabName==="document"){
-    detailLazyLoadState.historyLoaded=false;
-    if(detailLazyLoadState.historyLoading) return;
-    ensureDetailTabLoad(tabName,site);
-  }
-}
-function refreshLoadedDetailTabs(site=selectedSite){
-  if(!site || !sameDetailLazySite(site)) return;
-  const active=activeDetailTabName();
-  if(active==="gallery" || detailLazyLoadState.photosLoaded){
-    refreshDetailTabLoad("gallery",site);
-  }
-  if(active==="attachments" || detailLazyLoadState.attachmentsLoaded){
-    refreshDetailTabLoad("attachments",site);
-  }
-  if(active==="protocol" || active==="document" || detailLazyLoadState.historyLoaded){
-    refreshDetailTabLoad(active==="document" ? "document" : "protocol",site);
-  }
-}
 window.refreshLoadedDetailTabs=refreshLoadedDetailTabs;
 
 const {
