@@ -448,6 +448,9 @@ import {
 import {
   createControlDateDisplayHelpers
 } from "./control-date-display-utils.js";
+import {
+  createDetailStatusButtonHelpers
+} from "./detail-status-button-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -484,7 +487,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-status-raw-patch-module-v540";
+const APP_BUILD_VERSION="2026-08-26-detail-status-buttons-module-v541";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4045,24 +4048,13 @@ async function saveAllDataEdits(){
   }
 }
 
-function updateOrderedButton(){
-  const btn=document.getElementById("toggleOrderedBtn");
-  if(!btn || !selectedSite) return;
-  btn.textContent=selectedSite.ordered === true ? "Objednáno" : "Kontrola objednána";
-  btn.className=selectedSite.ordered === true ? "secondary ordered-toggle-active" : "secondary";
-}
-function updateRepairButton(){
-  const btn=document.getElementById("toggleRepairBtn");
-  if(!btn || !selectedSite) return;
-  btn.textContent=selectedSite.repairOrdered === true ? "Oprava objednána" : "Objednaná oprava";
-  btn.className=selectedSite.repairOrdered === true ? "secondary repair-toggle-active" : "secondary";
-}
-function updateStopButton(){
-  const btn=document.getElementById("toggleStopBtn");
-  if(!btn || !selectedSite) return;
-  btn.textContent=selectedSite.stopped === true ? "Stop Stav aktivní" : "Stop Stav";
-  btn.className=selectedSite.stopped === true ? "secondary stop-toggle-active" : "secondary";
-}
+const {
+  updateOrderedButton,
+  updateRepairButton,
+  updateStopButton
+}=createDetailStatusButtonHelpers({
+  getSelectedSite:()=>selectedSite
+});
 
 function rowWithMapStatusPatch(row,patch={},firebaseDocId=""){
   if(!row || !isFirebaseUnifiedRow(row)) return row;
