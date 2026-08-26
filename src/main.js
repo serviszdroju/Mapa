@@ -420,6 +420,9 @@ import {
 import {
   createFirebaseAutoReloadHelpers
 } from "./firebase-auto-reload-utils.js";
+import {
+  createMapFitHelpers
+} from "./map-fit-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -455,7 +458,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-filter-options-module-v530";
+const APP_BUILD_VERSION="2026-08-26-map-fit-module-v531";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2391,6 +2394,17 @@ const {
   waitForFirebaseUser
 });
 window.scheduleFirebaseRowsAutoReload=scheduleFirebaseRowsAutoReload;
+const {
+  fit,
+  resetFitBoundsCache
+}=createMapFitHelpers({
+  filtered,
+  getFilteredRowsSignature:()=>filteredRowsCache.signature,
+  getMap:()=>map,
+  inCzSk,
+  syncRowIndexes
+});
+window.fit=fit;
 function setNewDataFieldValue(key,value){
   const next=String(value || "");
   (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
@@ -2550,7 +2564,6 @@ let indexedCsvRowsLength=-1;
 let filteredRowsCache={signature:"",rows:[]};
 let placeGroupsCache={sourceRows:null,signature:"",groups:[]};
 let siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
-let fitBoundsPointsCache={signature:"",points:[]};
 
 function markRowsDirty(){
   rowsIndexDirty=true;
@@ -2559,7 +2572,7 @@ function markRowsDirty(){
   siteRowsByPlaceGroupCache={rowsRef:null,version:-1,map:new Map()};
   resetMapRenderCaches();
   resetSidebarRenderCaches();
-  fitBoundsPointsCache={signature:"",points:[]};
+  resetFitBoundsCache();
 }
 
 function installRowsWindowBridge(){
@@ -2897,22 +2910,6 @@ function requestRender(){
   });
 }
 window.requestRender=requestRender;
-function fit(){
-  syncRowIndexes();
-  const visibleRows=filtered();
-  const signature=`${filteredRowsCache.signature || ""}\u001f${visibleRows.length}`;
-  let pts=fitBoundsPointsCache.signature===signature ? fitBoundsPointsCache.points : null;
-  if(!pts){
-    pts=[];
-    for(const r of visibleRows){
-      if(inCzSk(r)) pts.push([r.lat,r.lon]);
-    }
-    fitBoundsPointsCache={signature,points:pts};
-  }
-  if(pts.length)map.fitBounds(pts,{padding:[30,30]});
-}
-window.fit=fit;
-
 let mapFocusDetailKey="";
 let mapFocusReturnHandler=null;
 let manualGpsPickHandler=null;
