@@ -416,6 +416,9 @@ import {
 import {
   createSourcePopupHelpers
 } from "./source-popup-utils.js";
+import {
+  createFirebaseAutoReloadHelpers
+} from "./firebase-auto-reload-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -451,7 +454,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-source-popup-module-v528";
+const APP_BUILD_VERSION="2026-08-26-firebase-auto-reload-module-v529";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2366,6 +2369,17 @@ const {
   siteSourceLabel,
   statusText
 });
+const {
+  resetFirebaseRowsAutoReload,
+  scheduleFirebaseRowsAutoReload
+}=createFirebaseAutoReloadHelpers({
+  getFirebaseReady:()=>firebaseReady,
+  getFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
+  getRows:()=>rows,
+  getWindow:()=>window,
+  waitForFirebaseUser
+});
+window.scheduleFirebaseRowsAutoReload=scheduleFirebaseRowsAutoReload;
 function setNewDataFieldValue(key,value){
   const next=String(value || "");
   (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
@@ -2872,63 +2886,6 @@ function requestRender(){
   });
 }
 window.requestRender=requestRender;
-const FIREBASE_EMPTY_RELOAD_KEY="astipFirebaseEmptyReloadCount";
-let firebaseRowsAutoReloadTimer=null;
-function hasLoadedRows(){
-  return Array.isArray(rows) && rows.length>0;
-}
-function resetFirebaseRowsAutoReload(){
-  try{sessionStorage.removeItem(FIREBASE_EMPTY_RELOAD_KEY);}catch(e){}
-}
-function firebaseAutoReloadCount(){
-  try{return Number(sessionStorage.getItem(FIREBASE_EMPTY_RELOAD_KEY) || "0") || 0;}catch(e){return 0;}
-}
-function setFirebaseAutoReloadCount(count){
-  try{sessionStorage.setItem(FIREBASE_EMPTY_RELOAD_KEY,String(count));}catch(e){}
-}
-async function scheduleFirebaseRowsAutoReload(delay=9000){
-  if(!window.__szzAllowAutomaticFullFirebaseReload){
-    return;
-  }
-  if(hasLoadedRows()){
-    resetFirebaseRowsAutoReload();
-    return;
-  }
-  const nextCount=firebaseAutoReloadCount()+1;
-  if(nextCount>3){
-    const gps=document.getElementById("gpsBox");
-    if(gps){
-      gps.style.display="block";
-      gps.className="notice err";
-      gps.textContent="Body se zatím nenačetly. Zkontroluj přihlášení přes účet @astip.cz nebo oprávnění Firebase a použij ruční obnovení.";
-    }
-    return;
-  }
-  setFirebaseAutoReloadCount(nextCount);
-  clearTimeout(firebaseRowsAutoReloadTimer);
-  firebaseRowsAutoReloadTimer=setTimeout(async()=>{
-    if(!firebaseReady || !firebaseUnifiedPrimary) return;
-    if(hasLoadedRows()){
-      resetFirebaseRowsAutoReload();
-      return;
-    }
-    const signedUser=await waitForFirebaseUser(2500);
-    if(!signedUser) return;
-    if(typeof window.loadFirebaseSitesUnified==="function"){
-      try{await window.loadFirebaseSitesUnified();}catch(e){console.warn("Opakované načtení Firebase selhalo",e);}
-    }
-    if(hasLoadedRows()){
-      resetFirebaseRowsAutoReload();
-      return;
-    }
-    const p=document.getElementById("progress");
-    if(p) p.textContent=`Body se zatím nenačetly, zkouším znovu (${nextCount}/3)...`;
-    if(nextCount<3){
-      scheduleFirebaseRowsAutoReload(Math.min(delay*1.7,30000));
-    }
-  },delay);
-}
-window.scheduleFirebaseRowsAutoReload=scheduleFirebaseRowsAutoReload;
 function filters(){
   const {status:st,region:kr}=filterControls();
   if(!st || !kr) return;
