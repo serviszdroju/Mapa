@@ -41,20 +41,27 @@ import {
   setStartupAuthChecking
 } from "./firebase-auth.js";
 import {
-  MAP_STATUS_COLOR_KEYS,
-  MAP_STATUS_TEXT_KEYS,
-  ORDERED_STATUS_FLAG_KEYS,
-  REPAIR_STATUS_FLAG_KEYS,
   WATCH_SELF_RAW_KEYS,
   applyWatchSelfAliases,
   canonicalWatchSelfValue,
   explicitWatchSelfFromRaw,
-  mapStatusColorMatches,
   orderedFlagFromRaw,
   repairOrderFlagFromRaw,
   restoreFirebaseMapStatusRawValues,
   stopFlagFromRaw
 } from "./map-status.js";
+import {
+  applyStopStatusRawPatch,
+  clearRawStatusColorWhere,
+  clearRawStatusTextWhere,
+  mapStatusRawPatchFromStatePatch,
+  rawStatusColorLooksOrdered,
+  rawStatusColorLooksRepairOrdered,
+  rawStatusColorLooksStopped,
+  rawStatusTextLooksOrdered,
+  rawStatusTextLooksRepairOrdered,
+  rawStatusTextLooksStopped
+} from "./map-status-raw-patch-utils.js";
 import {
   LAST_CHECK_KEYS,
   NEXT_CHECK_KEYS,
@@ -477,7 +484,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-control-date-module-v539";
+const APP_BUILD_VERSION="2026-08-26-status-raw-patch-module-v540";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4057,122 +4064,6 @@ function updateStopButton(){
   btn.className=selectedSite.stopped === true ? "secondary stop-toggle-active" : "secondary";
 }
 
-function setRawFlagKeys(target={},keys=[],active=false){
-  keys.forEach(key=>{
-    target[key]=active ? "ANO" : "NE";
-  });
-  return target;
-}
-function rawStatusTextLooksOrdered(value){
-  const text=simpleNorm(value);
-  return text.includes("objednan") && !text.includes("oprava");
-}
-function rawStatusTextLooksRepairOrdered(value){
-  const text=simpleNorm(value);
-  return text.includes("oprava") && text.includes("objednan");
-}
-function rawStatusColorLooksOrdered(value){
-  return mapStatusColorMatches({"Barva bodu":value},["eab308","facc15"],["zluta","yellow"]);
-}
-function rawStatusColorLooksRepairOrdered(value){
-  return mapStatusColorMatches({"Barva bodu":value},["2563eb","3b82f6"],["modra","blue"]);
-}
-function clearRawStatusTextWhere(target={},currentRaw={},predicate=()=>false){
-  MAP_STATUS_TEXT_KEYS.forEach(key=>{
-    if(predicate(currentRaw[key]) || predicate(target[key])) target[key]="";
-  });
-  return target;
-}
-function clearRawStatusColorWhere(target={},currentRaw={},predicate=()=>false){
-  MAP_STATUS_COLOR_KEYS.forEach(key=>{
-    if(predicate(currentRaw[key]) || predicate(target[key])) target[key]="";
-  });
-  return target;
-}
-function setCanonicalRawStatus(target={},status="",color=""){
-  target["Stav pro mapu"]=status;
-  target["Stav_kontroly"]=status;
-  target["Status"]=status;
-  if(color){
-    target["Barva bodu"]=color;
-    target["Barva_bodu"]=color;
-  }
-  return target;
-}
-
-function mapStatusRawPatchFromStatePatch(patch={},currentRaw={}){
-  const rawPatch={};
-  if(Object.prototype.hasOwnProperty.call(patch,"repairOrdered")){
-    const active=patch.repairOrdered === true;
-    setRawFlagKeys(rawPatch,REPAIR_STATUS_FLAG_KEYS,active);
-    if(active){
-      setRawFlagKeys(rawPatch,ORDERED_STATUS_FLAG_KEYS,false);
-      applyStopStatusRawPatch(rawPatch,false,currentRaw);
-      setCanonicalRawStatus(rawPatch,"Objednaná oprava","#2563eb");
-    }
-    if(!active){
-      clearRawStatusTextWhere(rawPatch,currentRaw,rawStatusTextLooksRepairOrdered);
-      clearRawStatusColorWhere(rawPatch,currentRaw,rawStatusColorLooksRepairOrdered);
-    }
-  }
-  if(Object.prototype.hasOwnProperty.call(patch,"ordered")){
-    const active=patch.ordered === true;
-    setRawFlagKeys(rawPatch,ORDERED_STATUS_FLAG_KEYS,active);
-    if(active){
-      setRawFlagKeys(rawPatch,REPAIR_STATUS_FLAG_KEYS,false);
-      applyStopStatusRawPatch(rawPatch,false,currentRaw);
-      setCanonicalRawStatus(rawPatch,"Kontrola objednaná","#eab308");
-    }else{
-      clearRawStatusTextWhere(rawPatch,currentRaw,rawStatusTextLooksOrdered);
-      clearRawStatusColorWhere(rawPatch,currentRaw,rawStatusColorLooksOrdered);
-    }
-  }
-  if(Object.prototype.hasOwnProperty.call(patch,"stopped")){
-    const active=patch.stopped === true;
-    if(active){
-      setRawFlagKeys(rawPatch,ORDERED_STATUS_FLAG_KEYS,false);
-      setRawFlagKeys(rawPatch,REPAIR_STATUS_FLAG_KEYS,false);
-    }
-    applyStopStatusRawPatch(rawPatch,active,currentRaw);
-  }
-  return rawPatch;
-}
-const STOP_STATUS_FLAG_KEYS=["Stop Stav","Stop stav","Stop_stav","Stop","Zdroj ve Stop Stavu","Odstaveno","Mimo provoz"];
-const STOP_STATUS_TEXT_KEYS=MAP_STATUS_TEXT_KEYS;
-const STOP_STATUS_COLOR_KEYS=MAP_STATUS_COLOR_KEYS;
-function rawStatusTextLooksStopped(value){
-  const text=simpleNorm(value);
-  return text.includes("stop") || text.includes("mimo provoz");
-}
-function rawStatusColorLooksStopped(value){
-  const compact=simpleNorm(value).replace(/[^a-z0-9#]/g,"");
-  const cleanHex=compact.replace(/^#/,"");
-  return ["64748b","94a3b8"].includes(cleanHex) || ["seda","gray","grey"].some(word=>compact.includes(word));
-}
-function applyStopStatusRawPatch(target={},active=false,currentRaw={}){
-  STOP_STATUS_FLAG_KEYS.forEach(key=>{
-    target[key]=active ? "ANO" : "NE";
-  });
-  if(active){
-    target["Stav pro mapu"]="Stop Stav";
-    target["Stav_kontroly"]="Stop Stav";
-    target["Status"]="Stop Stav";
-    target["Barva bodu"]="#64748b";
-    target["Barva_bodu"]="#64748b";
-    return target;
-  }
-  STOP_STATUS_TEXT_KEYS.forEach(key=>{
-    if(rawStatusTextLooksStopped(currentRaw[key]) || rawStatusTextLooksStopped(target[key])){
-      target[key]="";
-    }
-  });
-  STOP_STATUS_COLOR_KEYS.forEach(key=>{
-    if(rawStatusColorLooksStopped(currentRaw[key]) || rawStatusColorLooksStopped(target[key])){
-      target[key]="";
-    }
-  });
-  return target;
-}
 function rowWithMapStatusPatch(row,patch={},firebaseDocId=""){
   if(!row || !isFirebaseUnifiedRow(row)) return row;
   const raw=row.raw || {};
