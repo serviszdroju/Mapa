@@ -371,6 +371,7 @@ import {
   createMainProtocolHistoryViewHelpers
 } from "./main-protocol-history-view-utils.js";
 import {
+  createFilterOptionHelpers,
   createFilterRenderScheduler
 } from "./filter-render-utils.js";
 import {
@@ -454,7 +455,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-firebase-auto-reload-module-v529";
+const APP_BUILD_VERSION="2026-08-26-filter-options-module-v530";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1980,6 +1981,16 @@ window.cacheVisibleMapTiles=cacheVisibleMapTiles;
 window.cacheCzechOfflineMap=cacheCzechOfflineMap;
 
 window.appRegionOptions = () => APP_REGION_OPTIONS.slice();
+const {
+  filters,
+  statusFilterClass,
+  updateStatusFilterColor
+}=createFilterOptionHelpers({
+  regionOptions:APP_REGION_OPTIONS,
+  statusOptions:APP_STATUS_FILTER_OPTIONS,
+  filterControls
+});
+window.filters=filters;
 const authAccessHelpers=createAuthAccessHelpers({
   adminEmails:APP_ADMIN_EMAILS,
   allowedEmails:APP_ALLOWED_EMAILS,
@@ -2886,72 +2897,6 @@ function requestRender(){
   });
 }
 window.requestRender=requestRender;
-function filters(){
-  const {status:st,region:kr}=filterControls();
-  if(!st || !kr) return;
-  const currentStatus=st.value;
-  const currentRegion=kr.value;
-  const signature=`status:${APP_STATUS_FILTER_OPTIONS.join("|")};region:${APP_REGION_OPTIONS.join("|")}`;
-  if(st.dataset.filterOptionsSignature!==signature){
-    const statusFragment=document.createDocumentFragment();
-    const statusAll=document.createElement("option");
-    statusAll.value="";
-    statusAll.textContent="Vše";
-    statusFragment.appendChild(statusAll);
-    APP_STATUS_FILTER_OPTIONS.forEach(v=>{
-      const o=document.createElement("option");
-      o.value=v;
-      o.textContent=v;
-      const cls=statusFilterClass(v);
-      if(cls) o.className=cls;
-      if(cls==="status-red"){o.style.backgroundColor="#fee2e2";o.style.color="#991b1b";}
-      if(cls==="status-orange"){o.style.backgroundColor="#ffedd5";o.style.color="#9a3412";}
-      if(cls==="status-yellow"){o.style.backgroundColor="#fef3c7";o.style.color="#92400e";}
-      if(cls==="status-blue"){o.style.backgroundColor="#dbeafe";o.style.color="#1d4ed8";}
-      if(cls==="status-green"){o.style.backgroundColor="#dcfce7";o.style.color="#166534";}
-      if(cls==="status-gray"){o.style.backgroundColor="#f1f5f9";o.style.color="#334155";}
-      if(cls==="status-pink"){o.style.backgroundColor="#fdf2f8";o.style.color="#9d174d";}
-      statusFragment.appendChild(o);
-    });
-    st.replaceChildren(statusFragment);
-    st.dataset.filterOptionsSignature=signature;
-  }
-  if(kr.dataset.filterOptionsSignature!==signature){
-    const regionFragment=document.createDocumentFragment();
-    const regionAll=document.createElement("option");
-    regionAll.value="";
-    regionAll.textContent="Vše";
-    regionFragment.appendChild(regionAll);
-    APP_REGION_OPTIONS.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;regionFragment.appendChild(o)});
-    kr.replaceChildren(regionFragment);
-    kr.dataset.filterOptionsSignature=signature;
-  }
-  if((currentStatus===""||APP_STATUS_FILTER_OPTIONS.includes(currentStatus))&&st.value!==currentStatus) st.value=currentStatus;
-  if((currentRegion===""||APP_REGION_OPTIONS.includes(currentRegion))&&kr.value!==currentRegion) kr.value=currentRegion;
-  updateStatusFilterColor();
-}
-window.filters=filters;
-function statusFilterClass(v){
-  if(v==="Propadlá kontrola") return "status-red";
-  if(v==="1–30 dní k termínu") return "status-orange";
-  if(v==="Kontrola objednaná") return "status-yellow";
-  if(v==="Objednaná oprava") return "status-blue";
-  if(v==="Stop Stav") return "status-gray";
-  if(v==="OK / ostatní") return "status-green";
-  if(v==="Hlídáme termín sami") return "status-pink";
-  return "";
-}
-function updateStatusFilterColor(){
-  const st=filterControls().status;
-  if(!st) return;
-  const cls=statusFilterClass(st.value);
-  const previous=st.dataset.statusFilterClass || "";
-  if(previous===cls) return;
-  if(previous) st.classList.remove(previous);
-  else st.classList.remove("status-red","status-orange","status-yellow","status-blue","status-green","status-gray","status-pink");
-  if(cls) st.classList.add(cls);
-  st.dataset.statusFilterClass=cls;
-}
 function fit(){
   syncRowIndexes();
   const visibleRows=filtered();
