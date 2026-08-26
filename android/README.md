@@ -9,7 +9,7 @@ vzhled, ovladani, detail, galerie, protokoly a dokumenty chovaly stejne jako web
 - otevre stejny webovy shell jako GitHub Pages,
 - drzi uzivatele uvnitr aplikace, vcetne tlacitka Zpet,
 - povoluje cookies, localStorage, IndexedDB a service worker pro offline cache,
-- pouziva nativni Google Credential Manager a predava Firebase ID token webu pres `SzzAndroidAuth`,
+- pouziva nativni Google Credential Manager s fallbackem na klasicky Google Sign-In a predava Firebase ID token webu pres `SzzAndroidAuth`,
 - podporuje GPS, vyber fotek a foceni pres webovy upload,
 - po nacteni webu automaticky spusti tichou pripravu offline dat pres `prepareSzzOfflineAppData`.
 
@@ -32,3 +32,6 @@ Debug APK bude v:
 Soubor pro webove tlacitko se publikuje jako:
 
 `public/downloads/szz-servis-zdroju-android.apk`
+
+Pokud aplikace ukaze chybu Google prihlaseni s kodem `10`, neni problem ve webu: v Google Cloud/Firebase
+chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni APK.

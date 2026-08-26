@@ -18,15 +18,15 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 2
-        versionName "1.1.0-webview-offline"
+        versionCode 3
+        versionName "1.1.1-webview-offline"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&v=webview-offline-v526\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&v=webview-offline-v537\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
     }
@@ -68,5 +68,6 @@ dependencies {
     implementation "androidx.core:core:1.17.0"
     implementation "androidx.credentials:credentials:1.3.0"
     implementation "androidx.credentials:credentials-play-services-auth:1.3.0"
+    implementation "com.google.android.gms:play-services-auth:21.1.1"
     implementation "com.google.android.libraries.identity.googleid:googleid:1.1.1"
 }

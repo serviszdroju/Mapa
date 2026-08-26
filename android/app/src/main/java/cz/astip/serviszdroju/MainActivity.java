@@ -42,6 +42,12 @@ import androidx.credentials.GetCredentialRequest;
 import androidx.credentials.GetCredentialResponse;
 import androidx.credentials.exceptions.GetCredentialException;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
@@ -61,6 +67,7 @@ public class MainActivity extends Activity {
     private static final int LOCATION_REQUEST = 2302;
     private static final int CAMERA_REQUEST = 2303;
     private static final int NOTIFICATION_REQUEST = 2304;
+    private static final int GOOGLE_SIGN_IN_REQUEST = 2305;
     private static final Set<String> AUTH_HOSTS = new HashSet<>(Arrays.asList(
         "accounts.google.com",
         "apis.google.com",
@@ -310,6 +317,10 @@ public class MainActivity extends Activity {
             return;
         }
         googleSignInBusy = true;
+        startCredentialManagerGoogleSignIn(webClientId);
+    }
+
+    private void startCredentialManagerGoogleSignIn(String webClientId) {
         googleSignInCancellation = new CancellationSignal();
         GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
@@ -344,12 +355,39 @@ public class MainActivity extends Activity {
 
                 @Override
                 public void onError(GetCredentialException error) {
-                    googleSignInBusy = false;
                     googleSignInCancellation = null;
-                    deliverAndroidAuthError("Google přihlášení bylo zrušeno nebo se nepodařilo.");
+                    startLegacyGoogleSignIn(webClientId, credentialManagerErrorText(error));
                 }
             }
         );
+    }
+
+    private void startLegacyGoogleSignIn(String webClientId, String fallbackReason) {
+        try {
+            GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .requestIdToken(webClientId)
+                .setHostedDomain("astip.cz")
+                .build();
+            GoogleSignInClient client = GoogleSignIn.getClient(this, options);
+            startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
+        } catch (Exception error) {
+            googleSignInBusy = false;
+            deliverAndroidAuthError(
+                "Google přihlášení v aplikaci selhalo. "
+                    + fallbackReason
+                    + " "
+                    + compactErrorText(error)
+            );
+        }
+    }
+
+    private String credentialManagerErrorText(GetCredentialException error) {
+        String type = error == null ? "" : String.valueOf(error.getType());
+        String message = error == null || error.getMessage() == null ? "" : error.getMessage();
+        String details = (type + " " + message).trim();
+        if (details.isEmpty()) return "Credential Manager nevrátil účet.";
+        return "Credential Manager nevrátil účet: " + details + ".";
     }
 
     private GoogleIdTokenCredential googleCredentialFrom(GetCredentialResponse result) {
@@ -428,7 +466,62 @@ public class MainActivity extends Activity {
             cameraCaptureUri = null;
             return;
         }
+        if (requestCode == GOOGLE_SIGN_IN_REQUEST) {
+            handleLegacyGoogleSignInResult(data);
+            return;
+        }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void handleLegacyGoogleSignInResult(Intent data) {
+        googleSignInBusy = false;
+        try {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            GoogleSignInAccount account = task.getResult(ApiException.class);
+            if (account == null) {
+                deliverAndroidAuthError("Google přihlášení nevrátilo účet.");
+                return;
+            }
+            String email = account.getEmail() == null ? "" : account.getEmail().toLowerCase(Locale.ROOT);
+            if (!email.endsWith("@astip.cz")) {
+                deliverAndroidAuthError("Použij firemní účet @astip.cz.");
+                return;
+            }
+            String idToken = account.getIdToken();
+            if (idToken == null || idToken.trim().isEmpty()) {
+                deliverAndroidAuthError("Google přihlášení nevrátilo ID token. Zkontroluj Google OAuth konfiguraci APK.");
+                return;
+            }
+            deliverAndroidGoogleIdToken(idToken);
+        } catch (ApiException error) {
+            deliverAndroidAuthError(legacyGoogleSignInErrorText(error));
+        } catch (Exception error) {
+            deliverAndroidAuthError("Google přihlášení v aplikaci selhalo. " + compactErrorText(error));
+        }
+    }
+
+    private String legacyGoogleSignInErrorText(ApiException error) {
+        int statusCode = error == null ? 0 : error.getStatusCode();
+        if (statusCode == 10) {
+            return "Google odmítl konfiguraci APK (kód 10). Ve Firebase/Google Cloud musí být Android OAuth klient pro balíček cz.astip.serviszdroju a podpis této APK.";
+        }
+        if (statusCode == 12500) {
+            return "Google přihlášení selhalo v Google Play Services (kód 12500). Zkontroluj účet Google, Play Services a OAuth konfiguraci.";
+        }
+        if (statusCode == 12501) {
+            return "Google přihlášení bylo zavřené nebo zrušené (kód 12501). Zkus tlačítko znovu a vyber účet @astip.cz.";
+        }
+        if (statusCode == 12502) {
+            return "Google přihlášení už běží (kód 12502). Počkej pár sekund a zkus to znovu.";
+        }
+        return "Google přihlášení v aplikaci selhalo (kód " + statusCode + "). " + compactErrorText(error);
+    }
+
+    private String compactErrorText(Exception error) {
+        if (error == null) return "";
+        String message = error.getMessage();
+        if (message == null || message.trim().isEmpty()) return error.getClass().getSimpleName();
+        return message.trim();
     }
 
     private Uri[] fileChooserResultUris(int resultCode, Intent data) {
