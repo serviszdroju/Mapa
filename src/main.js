@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-apk-local-web-v546";
+const APP_BUILD_VERSION="2026-08-26-apk-auth-stable-v547";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1263,6 +1263,7 @@ if(firebaseReady){
     return new Promise(resolve=>setTimeout(resolve,ms));
   }
   let backgroundAuthRetryTimer=null;
+  let lastAuthorizedUserAt=0;
   function currentAuthCandidate(){
     return safeSyncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null;
   }
@@ -1274,7 +1275,9 @@ if(firebaseReady){
     return !!(window.__mapAppUnlocked || visibleApp || resumed || loadedRows || window.__firebaseUnifiedRowsLoaded);
   }
   function shouldKeepAppOpenOnAuthNull(){
-    return !explicitSignOutPending() && (knownSignedIn() || appIsOpenOrHasRows());
+    const runtimeAuthorized=lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<30*60*1000;
+    const offlineKnownSession=knownSignedIn() && navigator.onLine===false;
+    return !explicitSignOutPending() && (runtimeAuthorized || offlineKnownSession || authPending());
   }
   async function waitForAuthCandidate(timeoutMs=3500){
     const started=Date.now();
@@ -1308,6 +1311,8 @@ if(firebaseReady){
       const restored=await tryRestoreAuthCandidate(3500);
       if(restored){
         handleAuthorizedUser(restored);
+      }else if(shouldKeepAppOpenOnAuthNull()){
+        scheduleBackgroundAuthRetry(Math.min(Math.max(delayMs*2,5000),30000));
       }
     },delayMs);
   }
@@ -1488,6 +1493,7 @@ if(firebaseReady){
       showLogin();
       return;
     }
+    lastAuthorizedUserAt=Date.now();
     rememberKnownSignedIn(user);
     setStartupAuthChecking(false);
     const topLogoutBtn=document.getElementById("topLogoutBtn");
@@ -1547,6 +1553,12 @@ if(firebaseReady){
       return;
     }
     const knownSession=knownSignedIn() && !explicitSignOutPending();
+    if(shouldKeepAppOpenOnAuthNull() && appIsOpenOrHasRows()){
+      keepAppOpenDuringAuthRestore(navigator.onLine===false
+        ? "Offline režim. Používám lokálně uložené body, protokoly a fotky."
+        : "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+      return;
+    }
     if(knownSession && navigator.onLine===false){
       keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
       return;
@@ -1618,7 +1630,7 @@ if(firebaseReady){
       await finishRedirectLoginIfPending();
     }else{
       const restored=await googleRedirectResultUser() || await tryRestoreAuthCandidate(2500);
-      if(restored) setSignedUser(restored);
+      if(restored) await handleAuthorizedUser(restored);
     }
   }catch(e){
     clearAuthPending();

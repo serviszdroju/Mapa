@@ -55,6 +55,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -613,7 +614,7 @@ public class MainActivity extends Activity {
     private String legacyGoogleSignInErrorText(ApiException error) {
         int statusCode = error == null ? 0 : error.getStatusCode();
         if (statusCode == 10) {
-            return "Google odmítl konfiguraci APK (kód 10). Ve Firebase/Google Cloud musí být Android OAuth klient pro balíček cz.astip.serviszdroju a podpis této APK.";
+            return "Google odmítl konfiguraci APK (kód 10). Ve Firebase/Google Cloud musí být Android OAuth klient pro balíček cz.astip.serviszdroju a SHA-1 podpis této APK: " + signingCertificateSha1() + ".";
         }
         if (statusCode == 12500) {
             return "Google přihlášení selhalo v Google Play Services (kód 12500). Zkontroluj účet Google, Play Services a OAuth konfiguraci.";
@@ -632,6 +633,34 @@ public class MainActivity extends Activity {
         String message = error.getMessage();
         if (message == null || message.trim().isEmpty()) return error.getClass().getSimpleName();
         return message.trim();
+    }
+
+    private String signingCertificateSha1() {
+        try {
+            android.content.pm.PackageInfo info;
+            android.content.pm.Signature[] signatures;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
+                if (info.signingInfo == null) return "nezjištěno";
+                signatures = info.signingInfo.hasMultipleSigners()
+                    ? info.signingInfo.getApkContentsSigners()
+                    : info.signingInfo.getSigningCertificateHistory();
+            } else {
+                info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES);
+                signatures = info.signatures;
+            }
+            if (signatures == null || signatures.length == 0) return "nezjištěno";
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            byte[] sha1 = digest.digest(signatures[0].toByteArray());
+            StringBuilder builder = new StringBuilder();
+            for (byte b : sha1) {
+                if (builder.length() > 0) builder.append(':');
+                builder.append(String.format(Locale.ROOT, "%02X", b));
+            }
+            return builder.toString();
+        } catch (Exception error) {
+            return "nezjištěno";
+        }
     }
 
     private Uri[] fileChooserResultUris(int resultCode, Intent data) {
