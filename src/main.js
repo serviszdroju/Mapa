@@ -427,6 +427,9 @@ import {
 import {
   createAppRenderLoopHelpers
 } from "./app-render-loop-utils.js";
+import {
+  createMapFocusHelpers
+} from "./map-focus-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -463,7 +466,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-render-loop-module-v533";
+const APP_BUILD_VERSION="2026-08-26-map-focus-module-v534";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2430,6 +2433,29 @@ appRenderLoop=createAppRenderLoopHelpers({
   setWindowRows:nextRows=>{ window.rows=nextRows; },
   syncRowIndexes
 });
+const {
+  beginManualGpsPick,
+  closeMapFocusIfIdle,
+  returnFromMapFocus,
+  showMapFocusLocation,
+  showSelectedSiteOnMap
+}=createMapFocusHelpers({
+  detailKey,
+  drawerNode,
+  escValue:esc,
+  getLeaflet:()=>typeof L==="undefined" ? null : L,
+  getMap:()=>map,
+  getSelectedSite:()=>selectedSite,
+  invalidateMapAfterPaint,
+  openDetailById:key=>window.openDetailById(key),
+  runAfterTwoPaints,
+  showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); },
+  statusText
+});
+window.showSelectedSiteOnMap=showSelectedSiteOnMap;
+window.showMapFocusLocation=showMapFocusLocation;
+window.returnFromMapFocus=returnFromMapFocus;
+window.beginManualGpsPick=beginManualGpsPick;
 function setNewDataFieldValue(key,value){
   const next=String(value || "");
   (newSiteFieldElementsByKey().get(key) || []).forEach(el=>{
@@ -2915,105 +2941,6 @@ function requestRender(){
   return appRenderLoop && appRenderLoop.requestRender();
 }
 window.requestRender=requestRender;
-let mapFocusDetailKey="";
-let mapFocusReturnHandler=null;
-let manualGpsPickHandler=null;
-let manualGpsPickMarker=null;
-function setMapFocusMode(active){
-  document.body.classList.toggle("map-focus-mode", !!active);
-  invalidateMapAfterPaint();
-}
-function beginManualGpsPick(options={}){
-  if(manualGpsPickHandler){
-    try{map.off("click",manualGpsPickHandler);}catch(e){}
-    manualGpsPickHandler=null;
-  }
-  mapFocusReturnHandler=typeof options.reopen==="function" ? options.reopen : null;
-  setMapFocusMode(true);
-  const center=map.getCenter();
-  runAfterTwoPaints(()=>{
-    try{
-      L.popup({closeButton:false,autoClose:true})
-        .setLatLng(center)
-        .setContent(`<b>${esc(options.title || "Vyber místo na mapě")}</b><br>Klikni přímo na budovu nebo vstup. GPS se doplní automaticky.`)
-        .openOn(map);
-    }catch(e){}
-  },120);
-  manualGpsPickHandler=async e=>{
-    try{map.off("click",manualGpsPickHandler);}catch(_e){}
-    manualGpsPickHandler=null;
-    const lat=Number(e.latlng.lat.toFixed(6));
-    const lon=Number(e.latlng.lng.toFixed(6));
-    try{
-      if(manualGpsPickMarker) map.removeLayer(manualGpsPickMarker);
-      manualGpsPickMarker=L.circleMarker([lat,lon],{radius:10,color:"#111827",weight:2,fillColor:"#2563eb",fillOpacity:.95}).addTo(map);
-      manualGpsPickMarker.bindPopup("Ručně vybrané GPS").openPopup();
-    }catch(_e){}
-    try{
-      if(typeof options.apply==="function") await options.apply(lat,lon);
-      showSaveConfirmation(options.confirmation || "GPS vybráno z mapy.");
-    }catch(err){
-      const st=document.getElementById(options.statusId || "editStatus");
-      if(st) st.textContent="Chyba uložení GPS z mapy: "+err.message;
-    }
-    const reopen=typeof options.reopen==="function" ? options.reopen : null;
-    mapFocusReturnHandler=null;
-    setMapFocusMode(false);
-    runAfterTwoPaints(()=>{
-      try{map.invalidateSize(true);}catch(_e){}
-      if(reopen) reopen();
-    });
-  };
-  map.on("click",manualGpsPickHandler);
-}
-function showMapFocusLocation(lat,lon,title,subtitle,returnHandler){
-  if(!Number.isFinite(lat) || !Number.isFinite(lon)){
-    return;
-  }
-  mapFocusReturnHandler=typeof returnHandler==="function" ? returnHandler : null;
-  setMapFocusMode(true);
-  const latlng=[lat,lon];
-  runAfterTwoPaints(()=>{
-    try{
-      map.setView(latlng, Math.max(map.getZoom() || 0, 16));
-      L.popup({closeButton:false,autoClose:true})
-        .setLatLng(latlng)
-        .setContent(`<b>${esc(title || "Bod na mapě")}</b>${subtitle ? `<br>${esc(subtitle)}` : ""}`)
-        .openOn(map);
-    }catch(e){}
-  });
-}
-function showSelectedSiteOnMap(){
-  if(!selectedSite) return;
-  const st=document.getElementById("editStatus");
-  if(!Number.isFinite(selectedSite.lat) || !Number.isFinite(selectedSite.lon)){
-    if(st) st.textContent="Bod nemá platné GPS souřadnice.";
-    return;
-  }
-  mapFocusDetailKey=detailKey(selectedSite) || selectedSite.id;
-  const drawer=drawerNode();
-  if(drawer) drawer.classList.remove("open");
-  showMapFocusLocation(selectedSite.lat, selectedSite.lon, selectedSite.adresa || "Bez názvu", statusText(selectedSite), null);
-}
-function returnFromMapFocus(){
-  const key=mapFocusDetailKey;
-  const handler=mapFocusReturnHandler;
-  if(manualGpsPickHandler){
-    try{map.off("click",manualGpsPickHandler);}catch(e){}
-    manualGpsPickHandler=null;
-  }
-  mapFocusReturnHandler=null;
-  setMapFocusMode(false);
-  runAfterTwoPaints(()=>{
-    try{map.invalidateSize(true);}catch(e){}
-    if(handler) handler();
-    else if(key) window.openDetailById(key);
-  });
-}
-window.showSelectedSiteOnMap=showSelectedSiteOnMap;
-window.showMapFocusLocation=showMapFocusLocation;
-window.returnFromMapFocus=returnFromMapFocus;
-window.beginManualGpsPick=beginManualGpsPick;
 function closeDetailDrawer(){
   try{ setProtocolFormOpen(false,{skipPrefill:true}); }catch(e){
     try{ setProtocolFormFullscreen(false); }catch(_e){}
@@ -3024,11 +2951,7 @@ function closeDetailDrawer(){
     drawer.classList.remove("protocol-form-fullscreen");
   }
   document.body.classList.remove("protocol-form-fullscreen");
-  if(document.body.classList.contains("map-focus-mode") && !manualGpsPickHandler){
-    mapFocusDetailKey="";
-    mapFocusReturnHandler=null;
-    setMapFocusMode(false);
-  }
+  closeMapFocusIfIdle();
   if(typeof window.resetSourcePopupActivationGuard==="function"){
     window.resetSourcePopupActivationGuard();
   }
