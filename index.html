@@ -35,7 +35,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="apk-native-auth-resume-v556";
+  const EMAIL_LOGIN_BUILD_VERSION="apk-native-mail-signature-auth-v557";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -48,6 +48,8 @@ try{
   const GOOGLE_WEB_CLIENT_ID="304123957651-8nnf5s40h56r63uiqddooioiu7fqh8pk.apps.googleusercontent.com";
   const GOOGLE_IDENTITY_SCRIPT_URL="https://accounts.google.com/gsi/client";
   let googleIdentityScriptPromise=null;
+  let pendingGoogleLoginRequested=false;
+  let pendingGoogleLoginTimer=null;
   window.__firebaseConfig=window.__firebaseConfig || INLINE_FIREBASE_CONFIG;
   function textValue(value){return String(value==null?"":value).trim();}
   function node(id){return document.getElementById(id);}
@@ -172,6 +174,84 @@ try{
     if(google) google.style.display="";
     if(intro) intro.textContent="Přihlaste se Google účtem @astip.cz.";
     status(message || "");
+  }
+
+  function appVisibleForAuthResume(){
+    const app=node("mainApp");
+    const visibleApp=!!(app && app.style.display && app.style.display!=="none");
+    const loadedRows=Array.isArray(window.rows) && window.rows.length;
+    return !!(window.__mapAppUnlocked || window.__firebaseUnifiedRowsLoaded || visibleApp || loadedRows);
+  }
+
+  function isAndroidTransientAuthError(error){
+    const message=String(error && (error.message || error.code) || error || "");
+    return /Android Google přihlášení nevrátilo výsledek včas|Tiché obnovení Android přihlášení|native-resume|auth-null/i.test(message);
+  }
+
+  function shouldKeepMapOpenOnLoginError(error){
+    let explicitSignOut=false;
+    try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+    return !explicitSignOut && isAndroidTransientAuthError(error) && appVisibleForAuthResume();
+  }
+
+  function clearAuthStatusNotice(){
+    const startupStatus=node("startupStatus");
+    if(startupStatus) startupStatus.textContent="";
+    const gps=node("gpsBox");
+    if(gps && /Přihlášení selhalo|Android Google/i.test(gps.textContent || "")){
+      gps.textContent="";
+      gps.style.display="none";
+    }
+    const progress=node("progress");
+    if(progress && /Přihlášení selhalo|Android Google/i.test(progress.textContent || "")) progress.textContent="";
+  }
+
+  function runReadyGoogleLogin(){
+    if(typeof window.__startFirebaseRedirectLogin==="function"){
+      pendingGoogleLoginRequested=false;
+      if(pendingGoogleLoginTimer){
+        clearTimeout(pendingGoogleLoginTimer);
+        pendingGoogleLoginTimer=null;
+      }
+      Promise.resolve(window.__startFirebaseRedirectLogin()).catch(err=>{
+        if(shouldKeepMapOpenOnLoginError(err)){
+          clearAuthStatusNotice();
+          return;
+        }
+        status("Přihlášení se nepodařilo spustit: " + ((err && (err.code || err.message)) || err || ""));
+      });
+      return true;
+    }
+    if(typeof window.__startCompatGoogleLoginFallback==="function"){
+      pendingGoogleLoginRequested=false;
+      if(pendingGoogleLoginTimer){
+        clearTimeout(pendingGoogleLoginTimer);
+        pendingGoogleLoginTimer=null;
+      }
+      window.__startCompatGoogleLoginFallback();
+      return true;
+    }
+    return false;
+  }
+
+  function queueGoogleLoginUntilReady(){
+    pendingGoogleLoginRequested=true;
+    status("Připravuji přihlášení...");
+    if(runReadyGoogleLogin()) return;
+    const started=Date.now();
+    const tick=()=>{
+      if(!pendingGoogleLoginRequested) return;
+      if(runReadyGoogleLogin()) return;
+      if(Date.now()-started<10000){
+        pendingGoogleLoginTimer=setTimeout(tick,150);
+        return;
+      }
+      pendingGoogleLoginRequested=false;
+      pendingGoogleLoginTimer=null;
+      showLogin("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
+    };
+    if(pendingGoogleLoginTimer) clearTimeout(pendingGoogleLoginTimer);
+    pendingGoogleLoginTimer=setTimeout(tick,150);
   }
 
   function signInWithFirebasePopupCompat(auth){
@@ -307,17 +387,8 @@ try{
     }
     window.__loginRequested=true;
     status("Připravuji přihlášení...");
-    if(typeof window.__startFirebaseRedirectLogin==="function"){
-      Promise.resolve(window.__startFirebaseRedirectLogin()).catch(err=>{
-        status("Přihlášení se nepodařilo spustit: " + ((err && (err.code || err.message)) || err || ""));
-      });
-      return;
-    }
-    if(typeof window.__startCompatGoogleLoginFallback==="function"){
-      window.__startCompatGoogleLoginFallback();
-      return;
-    }
-    showLogin("Přihlášení ještě není připravené. Zkus tlačítko znovu za pár sekund.");
+    if(runReadyGoogleLogin()) return;
+    queueGoogleLoginUntilReady();
   }
 
   window.__startCompatGoogleLoginFallback=function(){
@@ -341,6 +412,11 @@ try{
           setTimeout(()=>location.reload(),400);
         }
       }).catch(err=>{
+        if(shouldKeepMapOpenOnLoginError(err)){
+          try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
+          clearAuthStatusNotice();
+          return;
+        }
         try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
         try{localStorage.removeItem("astipFirebaseKnownSignedIn");}catch(e){}
         try{localStorage.removeItem("astipFirebaseLastEmail");}catch(e){}
@@ -350,6 +426,11 @@ try{
         showLogin("Přihlášení selhalo: " + authErrorText(err));
       });
     }catch(err){
+      if(shouldKeepMapOpenOnLoginError(err)){
+        try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
+        clearAuthStatusNotice();
+        return;
+      }
       try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
       try{localStorage.removeItem("astipFirebaseKnownSignedIn");}catch(e){}
       try{localStorage.removeItem("astipFirebaseLastEmail");}catch(e){}
@@ -363,6 +444,7 @@ try{
   window.szzEmergencyEmailLogin=function(event){return startGoogleLogin(event);};
   window.loginEmail=window.szzEmergencyEmailLogin;
   window.loginPopup=startGoogleLogin;
+  window.__szzRunPendingLogin=runReadyGoogleLogin;
 
   function signOutAndReload(event){
     if(event && typeof event.preventDefault==="function") event.preventDefault();
@@ -419,7 +501,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-Crz-i4EW.js"></script>
+  <script type="module" crossorigin src="./assets/index-CskNKTLD.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-Bme3tZvi.css">
 </head>
 <body>
@@ -861,7 +943,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=apk-native-auth-resume-v556"></script>
+<script async src="./late.js?v=apk-native-mail-signature-auth-v557"></script>
 
 
 
