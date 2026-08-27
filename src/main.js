@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-native-auth-resume-v556";
+const APP_BUILD_VERSION="2026-08-27-apk-native-mail-signature-auth-v557";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1270,6 +1270,11 @@ if(firebaseReady){
       }
     }catch(e){
       clearAuthPending();
+      if(isAndroidTransientAuthError(e) && appIsOpenOrHasRows() && !explicitSignOutPending()){
+        console.warn("Android přihlášení se obnoví na pozadí, mapa zůstává otevřená",e);
+        keepAppOpenDuringAuthRestore("");
+        return;
+      }
       if(navigator.onLine!==false) forgetKnownSignedIn();
       try{document.documentElement.classList.remove("auth-resume");}catch(e){}
       setStartupAuthChecking(false);
@@ -1323,6 +1328,10 @@ if(firebaseReady){
     const loadedRows=(Array.isArray(rows) && rows.length) || (Array.isArray(window.rows) && window.rows.length);
     return !!(window.__mapAppUnlocked || visibleApp || resumed || loadedRows || window.__firebaseUnifiedRowsLoaded);
   }
+  function isAndroidTransientAuthError(error){
+    const message=safe(error && (error.message || error.code) || error);
+    return /Android Google přihlášení nevrátilo výsledek včas|Tiché obnovení Android přihlášení|native-resume|auth-null/i.test(message);
+  }
   function shouldKeepAppOpenOnAuthNull(){
     const runtimeAuthorized=lastAuthorizedUserAt && appIsOpenOrHasRows();
     const androidAuthorized=isAndroidShellRuntime() && lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<ANDROID_AUTH_RESUME_KEEP_OPEN_MS && androidHasStoredAuth();
@@ -1367,12 +1376,15 @@ if(firebaseReady){
     if(androidSilentAuthPromise) return androidSilentAuthPromise;
     if(lastAndroidSilentAuthAt && now-lastAndroidSilentAuthAt<12000) return null;
     lastAndroidSilentAuthAt=now;
+    const keepQuiet=appIsOpenOrHasRows();
     androidSilentAuthPromise=(async()=>{
       try{
-        setStartupAuthChecking(true);
-        setStartupStatus(reason==="auth-null"
-          ? "Obnovuji Android přihlášení..."
-          : "Kontroluji Android přihlášení...");
+        if(!keepQuiet){
+          setStartupAuthChecking(true);
+          setStartupStatus(reason==="auth-null"
+            ? "Obnovuji Android přihlášení..."
+            : "Kontroluji Android přihlášení...");
+        }
         const result=await signInWithAndroidGoogleIdToken({silent:true});
         const user=result && result.user ? result.user : await waitForAuthCandidate(3500);
         if(user){
@@ -1381,6 +1393,10 @@ if(firebaseReady){
         }
       }catch(e){
         console.warn("Tiché obnovení Android přihlášení selhalo",e);
+        if(keepQuiet){
+          setStartupAuthChecking(false);
+          setProgressStatus("");
+        }
       }finally{
         androidSilentAuthPromise=null;
       }
@@ -1727,6 +1743,7 @@ if(firebaseReady){
   if(typeof window.loginPopup!=="function") window.loginPopup=startGoogleLoginFromUi;
   window.__startCompatGoogleLoginFallback=startGoogleLoginFromUi;
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
+  if(typeof window.__szzRunPendingLogin==="function") window.__szzRunPendingLogin();
 
   try{
     setStartupStatus("Kontroluji přihlášení...");
@@ -4805,7 +4822,7 @@ function fillProtocolFormFromHistory(protocol={}){
   setProtocolFieldValue("protoSourceState",protocolSourceStateValue(protocol));
   setProtocolFieldValue("protoSourceTestMethod",protocol.sourceTestMethod || protocol.testMethod || "");
   setProtocolFieldValue("protoClientSign",protocol.clientSign || protocol.customer || "");
-  setProtocolFieldValue("protoTechSign",protocol.techSign || protocol.technician || protocol.createdBy || protocol.technicianEmail || currentUser?.email || "");
+  setProtocolFieldValue("protoTechSign",protocolTechnicianDisplayName(protocol,{allowCurrentFallback:true}));
   updateProtocolSourceStateUi();
 
   const backed=protocol.backedDevices || {};
@@ -5067,6 +5084,97 @@ function protocolTechnicianSignatureImageBytes(protocol={}){
   return imageBytesFromPngDataUrl(safe(protocol.techSignatureDataUrl || protocol.technicianSignatureDataUrl || ""));
 }
 
+function technicianKnownKeyFromValue(value=""){
+  const text=safe(value);
+  if(!text) return "";
+  const lower=text.toLowerCase();
+  const norm=simpleNorm(text);
+  const compact=norm.replace(/\s+/g,"");
+  if(
+    lower.includes("tipek") ||
+    norm.includes("michal tipek") ||
+    compact.includes("michaltipek")
+  ) return "tipek";
+  if(
+    lower.includes("jan.soldan") ||
+    lower.includes("jansoldan") ||
+    norm.includes("jan soldan") ||
+    compact.includes("jansoldan")
+  ) return "soldan";
+  return "";
+}
+
+function technicianKnownDisplayName(key=""){
+  if(key==="tipek") return "Ing. Michal Tipek";
+  if(key==="soldan") return "Ing. Jan Soldan";
+  return "";
+}
+
+function normalizeTechnicianDisplayName(value=""){
+  const text=safe(value);
+  if(!text) return "";
+  const known=technicianKnownDisplayName(technicianKnownKeyFromValue(text));
+  if(known) return known;
+  if(/^ing\.?\s+/i.test(text)) return text.replace(/^ing\.?\s+/i,"Ing. ");
+  if(text.includes("@")){
+    const local=text.split("@")[0].replace(/[._-]+/g," ").trim();
+    return local ? local.replace(/\b\w/g,char=>char.toUpperCase()) : text;
+  }
+  return text;
+}
+
+function protocolTechnicianEmail(protocol={},options={}){
+  const candidates=[
+    protocol.technicianEmail,
+    protocol.techEmail,
+    protocol.createdBy
+  ];
+  if(options.allowUpdatedBy) candidates.push(protocol.updatedBy);
+  if(options.allowCurrentFallback) candidates.push(currentUser?.email,currentUserEmail(),lastKnownUserEmail());
+  for(const candidate of candidates){
+    const email=safe(candidate).toLowerCase();
+    if(email && email.includes("@")) return email;
+  }
+  return "";
+}
+
+function protocolTechnicianDisplayName(protocol={},options={}){
+  const primary=[
+    protocol.techSign,
+    protocol.technician,
+    protocol.technicianName,
+    protocol.technicianDisplayName
+  ].map(normalizeTechnicianDisplayName).find(Boolean);
+  if(primary) return primary;
+  const email=protocolTechnicianEmail(protocol,{allowCurrentFallback:false});
+  const emailName=normalizeTechnicianDisplayName(email || protocol.technicianEmail || protocol.techEmail || "");
+  if(emailName) return emailName;
+  if(options.allowCurrentFallback){
+    return normalizeTechnicianDisplayName(
+      currentUser?.displayName ||
+      currentUser?.email ||
+      currentUserEmail() ||
+      lastKnownUserEmail() ||
+      ""
+    );
+  }
+  return "";
+}
+
+function normalizeProtocolTechnicianFields(protocol={},options={}){
+  const email=protocolTechnicianEmail(protocol,{allowCurrentFallback:!!options.allowCurrentFallback});
+  const display=protocolTechnicianDisplayName({...protocol,technicianEmail:protocol.technicianEmail || email},{
+    allowCurrentFallback:!!options.allowCurrentFallback
+  });
+  return {
+    ...protocol,
+    technicianEmail:protocol.technicianEmail || email,
+    techEmail:protocol.techEmail || email,
+    technicianName:protocol.technicianName || display,
+    techSign:display || protocol.techSign || protocol.technician || ""
+  };
+}
+
 function wordSignatureImageRun(relId="rIdSignature",options={}){
   const cx=Number(options.cx) || 2600000;
   const cy=Number(options.cy) || 760000;
@@ -5088,7 +5196,7 @@ function wordClientSignatureCellXml(protocol={},options={}){
 }
 
 function wordTechnicianSignatureCellXml(protocol={}){
-  const tech=protocol.techSign || protocol.technician || currentUser?.displayName || currentUser?.email || "";
+  const tech=protocolTechnicianDisplayName(protocol,{allowCurrentFallback:true});
   const parts=[];
   if(safe(tech)) parts.push(wordParagraph(tech,{size:18,after:protocolTechnicianSignatureImageBytes(protocol) ? 20 : 0}));
   if(protocolTechnicianSignatureImageBytes(protocol)){
@@ -6506,8 +6614,25 @@ function downloadBlobFile(filename,blob){
 
 const technicianSignatureDataUrlCache=new Map();
 const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
-function technicianSignatureEmail(protocol={}){
-  return safe(protocol.technicianEmail || protocol.createdBy || protocol.updatedBy || currentUserEmail()).toLowerCase();
+function technicianSignatureKnownKey(protocol={}){
+  return technicianKnownKeyFromValue([
+    protocol.techSign,
+    protocol.technician,
+    protocol.technicianName,
+    protocol.technicianDisplayName,
+    protocol.technicianEmail,
+    protocol.techEmail,
+    protocol.createdBy
+  ].map(safe).filter(Boolean).join(" "));
+}
+function technicianSignatureEmail(protocol={},options={}){
+  return protocolTechnicianEmail(protocol,{allowCurrentFallback:!!options.allowCurrentFallback});
+}
+function technicianSignatureLookupKey(protocol={},options={}){
+  const email=technicianSignatureEmail(protocol,options);
+  if(email) return email;
+  const known=technicianSignatureKnownKey(protocol);
+  return known ? `known:${known}` : "";
 }
 function technicianSignatureDocIds(email=""){
   const clean=safe(email).toLowerCase();
@@ -6518,19 +6643,47 @@ function technicianSignatureDocIds(email=""){
     simpleNorm(clean).replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")
   ]);
 }
+async function loadKnownTechnicianSignatureDataUrl(protocol={}){
+  const key=technicianSignatureKnownKey(protocol);
+  if(key!=="tipek") return "";
+  const cacheKey="known:tipek";
+  if(technicianSignatureDataUrlCache.has(cacheKey)) return technicianSignatureDataUrlCache.get(cacheKey) || "";
+  try{
+    const response=await fetch(OFFICIAL_TIPEK_SIGNATURE_URL,{cache:"force-cache"});
+    if(!response.ok) throw new Error(`Podpis Tipek se nepodařilo načíst (${response.status}).`);
+    const blob=await response.blob();
+    const dataUrl=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result || ""));
+      reader.onerror=()=>reject(reader.error || new Error("Podpis Tipek se nepodařilo převést."));
+      reader.readAsDataURL(blob);
+    });
+    technicianSignatureDataUrlCache.set(cacheKey,dataUrl);
+    return dataUrl;
+  }catch(e){
+    console.warn("Výchozí podpis technika se nepodařilo načíst",e);
+    technicianSignatureDataUrlCache.set(cacheKey,"");
+    return "";
+  }
+}
 async function loadTechnicianSignatureDataUrl(protocol={}){
-  const email=technicianSignatureEmail(protocol);
-  if(!email || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false) return "";
-  if(technicianSignatureDataUrlCache.has(email)) return technicianSignatureDataUrlCache.get(email) || "";
+  const lookupKey=technicianSignatureLookupKey(protocol);
+  if(!lookupKey) return "";
+  if(technicianSignatureDataUrlCache.has(lookupKey)) return technicianSignatureDataUrlCache.get(lookupKey) || "";
   const remember=value=>{
     const dataUrl=safe(value);
-    technicianSignatureDataUrlCache.set(email,dataUrl);
+    technicianSignatureDataUrlCache.set(lookupKey,dataUrl);
     return dataUrl;
   };
   const pickSignature=data=>{
     if(!data || typeof data!=="object") return "";
     return safe(data.signatureDataUrl || data.technicianSignatureDataUrl || data.dataUrl || data.pngDataUrl || "");
   };
+  const email=lookupKey.startsWith("known:") ? "" : lookupKey;
+  if(!email || !firebaseReady || !db || !fb.fsMod || navigator.onLine===false){
+    const fallback=await loadKnownTechnicianSignatureDataUrl(protocol);
+    return fallback ? remember(fallback) : "";
+  }
   try{
     const {doc,getDoc,collection,query,where,limit:getLimit,getDocs}=fb.fsMod;
     for(const docId of technicianSignatureDocIds(email)){
@@ -6555,7 +6708,7 @@ async function loadTechnicianSignatureDataUrl(protocol={}){
   }catch(e){
     console.warn("Podpis technika se nepodařilo načíst",e);
   }
-  return remember("");
+  return remember(await loadKnownTechnicianSignatureDataUrl(protocol));
 }
 async function enrichProtocolWithTechnicianSignature(protocol={}){
   if(protocolTechnicianSignatureImageBytes(protocol)) return protocol;
@@ -6775,17 +6928,18 @@ async function openTechnicianSignatureDialog(){
 }
 window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
 
-async function preparedProtocolFilled(protocol){
+async function preparedProtocolFilled(protocol,options={}){
   if(!protocol) return null;
-  return enrichProtocolWithTechnicianSignature({
+  const allowCurrentTechnicianFallback=options.allowCurrentTechnicianFallback!==false;
+  return enrichProtocolWithTechnicianSignature(normalizeProtocolTechnicianFields({
     ...protocol,
-    createdBy:protocol.createdBy || protocol.technicianEmail || currentUser?.email || ""
-  });
+    createdBy:protocol.createdBy || protocol.technicianEmail || ""
+  },{allowCurrentFallback:allowCurrentTechnicianFallback}));
 }
 
-async function preparedProtocolExport(protocol){
+async function preparedProtocolExport(protocol,options={}){
   if(!protocol) return null;
-  const filled=await preparedProtocolFilled(protocol);
+  const filled=await preparedProtocolFilled(protocol,options);
   const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
   const fileName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
   return {
@@ -6820,7 +6974,7 @@ function protocolMailSubject(protocol={}){
 function protocolMailSenderName(protocol={}){
   const email=currentUserEmail();
   const fromEmail=email ? email.split("@")[0].replace(/[._-]+/g," ").trim() : "";
-  return safe(
+  return normalizeTechnicianDisplayName(
     currentUser?.displayName ||
     protocol.senderName ||
     protocol.technician ||
@@ -7149,7 +7303,7 @@ function protocolPdfDrawSignatureGrid(state,protocol={},clientImage=null,techIma
     ctx.strokeRect(x,y,colW,rowHeight);
   });
   protocolPdfDrawSignatureCell(ctx,state.marginX,y,colW,rowHeight,protocol.clientSign || "",clientImage);
-  protocolPdfDrawSignatureCell(ctx,state.marginX+colW,y,colW,rowHeight,protocol.techSign || protocol.technician || currentUser?.displayName || currentUser?.email || "",techImage);
+  protocolPdfDrawSignatureCell(ctx,state.marginX+colW,y,colW,rowHeight,protocolTechnicianDisplayName(protocol),techImage);
   state.y+=rowHeight;
   protocolPdfDrawParagraph(state,"(čitelně + podpis)",{size:16,after:35});
 }
@@ -7166,7 +7320,7 @@ function protocolPdfDocumentContext(protocol={}){
   };
 }
 
-async function renderProtocolPdfPageCanvases(protocol={}){
+async function renderProtocolPdfPageCanvases(protocol={},options={}){
   const clientImage=await loadDataUrlImage(protocol.clientSignatureDataUrl || protocol.clientSignature || "").catch(()=>null);
   const techImage=await loadDataUrlImage(protocol.techSignatureDataUrl || protocol.technicianSignatureDataUrl || "").catch(()=>null);
   const state={
@@ -7197,7 +7351,9 @@ async function renderProtocolPdfPageCanvases(protocol={}){
   protocolPdfDrawFormField(state,"11) Perioda zkoušky provozuschopnosti:",protocolPeriodText(protocol));
   protocolPdfDrawFormField(state,"12) Zařízení pracuje ve vyhovujících podmínkách (odůvodnění):",protocolConditionsText(protocol));
   protocolPdfDrawFormField(state,"14) Poznámka pro zákazníka:",protocol.customerNote || protocol.noteForCustomer,9630,{keepWithNextDxa:650});
-  protocolPdfDrawFormField(state,"15) Chceck list:",protocol.checklist || protocol.checkList || protocol.chceckList,9630,{keepWithNextDxa:650});
+  if(!options.omitChecklist){
+    protocolPdfDrawFormField(state,"15) Chceck list:",protocol.checklist || protocol.checkList || protocol.chceckList,9630,{keepWithNextDxa:650});
+  }
   protocolPdfDrawFormField(state,"Stav zdroje po kontrole:",data.sourceState);
   protocolPdfDrawSignatureGrid(state,protocol,clientImage,techImage);
   state.pages.forEach((page,idx)=>{
@@ -7277,21 +7433,27 @@ function buildPdfFromJpegPages(pages=[]){
   return concatBytes(chunks);
 }
 
-async function buildProtocolPdfBlob(protocol={}){
-  const pages=await renderProtocolPdfPageCanvases(protocol);
+async function buildProtocolPdfBlob(protocol={},options={}){
+  const pages=await renderProtocolPdfPageCanvases(protocol,options);
   return new Blob([buildPdfFromJpegPages(pages)],{type:"application/pdf"});
 }
 
-async function preparedProtocolPdfExport(protocol){
+async function preparedProtocolPdfExport(protocol,options={}){
   if(!protocol) return null;
-  const filled=await preparedProtocolFilled(protocol);
+  const filled=await preparedProtocolFilled(protocol,{
+    allowCurrentTechnicianFallback:options.allowCurrentTechnicianFallback!==false
+  });
+  if(options.requireTechnicianSignature && !protocolTechnicianSignatureImageBytes(filled)){
+    const tech=protocolTechnicianDisplayName(filled) || "technik z protokolu";
+    throw new Error(`Technik ${tech} nemá uložený podpis. Nejdřív ulož podpis technika, aby bylo možné poslat PDF zákazníkovi.`);
+  }
   const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
   const wordName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
   const fileName=protocolPdfFileNameFromWord(wordName);
   return {
     filled,
     fileName,
-    blob:await buildProtocolPdfBlob(filled)
+    blob:await buildProtocolPdfBlob(filled,{omitChecklist:!!options.omitChecklist})
   };
 }
 
@@ -7309,7 +7471,11 @@ async function sendProtocolByMail(protocol,recipientEmail=""){
     throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
   }
   setProtocolStatusText("Připravuji PDF protokol pro e-mail...");
-  const prepared=await preparedProtocolPdfExport(protocol);
+  const prepared=await preparedProtocolPdfExport(protocol,{
+    allowCurrentTechnicianFallback:false,
+    omitChecklist:true,
+    requireTechnicianSignature:true
+  });
   setProtocolStatusText(`Odesílám PDF protokol na ${toEmail}...`);
   const sendMail=fb.fnMod.httpsCallable(mailFunctions,"sendProtocolMail");
   await sendMail({
@@ -8750,7 +8916,7 @@ function renderHistory(){
     ["Typ záznamu", d._type || "Záznam"],
     ["Datum", historyDateLabel(d)],
     ["Uloženo", historySavedDateLabel(d)],
-    ["Technik", d.technician || d.techSign || d.createdBy || d.technicianEmail || ""],
+    ["Technik", protocolTechnicianDisplayName(d)],
     ["Zařízení", d.deviceType || d.siteSource || ""],
     ["Výrobní číslo", d.serial || ""],
     ["Adresa", d.place || d.siteAddress || d.siteName || ""],
@@ -12093,7 +12259,7 @@ async function prefillProtocol(){
   setProtocolFieldValue("protoDate",new Date().toISOString().slice(0,10));
   setProtocolFieldValue("protoPlace",address);
   setProtocolFieldValue("protoContacts",contacts);
-  setProtocolFieldValue("protoTechSign",currentUser?.displayName || currentUser?.email || "");
+  setProtocolFieldValue("protoTechSign",normalizeTechnicianDisplayName(currentUser?.displayName || currentUser?.email || lastKnownUserEmail() || ""));
   setProtocolFieldValue("protoPeriod",period);
   setProtocolFieldValue("protoDeviceType",deviceType);
   setProtocolFieldValue("protoSerial",serial);
@@ -12184,10 +12350,15 @@ function protocolPayload(){
   const nowIso=new Date().toISOString();
   const originalCreatedAt=original.createdAt && typeof original.createdAt.toDate==="function" ? original.createdAt.toDate().toISOString() : (safe(original.createdAt) || nowIso);
   const identity=siteRecordIdentity(selectedSite);
+  const originalTechnicianEmail=protocolTechnicianEmail(original,{allowCurrentFallback:false});
+  const technicianEmail=originalTechnicianEmail || currentUser?.email || lastKnownUserEmail() || "";
+  const originalTechnicianName=protocolTechnicianDisplayName(original,{allowCurrentFallback:false});
   return {
     _id:protocolEditId() || "",
     ...identity,
-    technicianEmail:currentUser?.email || lastKnownUserEmail() || "",
+    technicianEmail,
+    techEmail:original.techEmail || technicianEmail,
+    createdBy:original.createdBy || originalTechnicianEmail || "",
     date:val("protoDate"),
     selectedDevice:val("protoDeviceType"),
     deviceType:val("protoDeviceType"),
@@ -12274,7 +12445,8 @@ function protocolPayload(){
     submittedForProcessing:protocolHandoffForProcessing(original),
     clientSign:val("protoClientSign"),
     clientSignatureDataUrl:signature,
-    techSign:val("protoTechSign") || (currentUser?.displayName || currentUser?.email || lastKnownUserEmail() || ""),
+    techSign:normalizeTechnicianDisplayName(val("protoTechSign") || originalTechnicianName || currentUser?.displayName || currentUser?.email || lastKnownUserEmail() || ""),
+    technicianName:normalizeTechnicianDisplayName(val("protoTechSign") || originalTechnicianName || ""),
     savedAt:nowIso,
     createdAt:originalCreatedAt,
     updatedAt:protocolEditId() ? nowIso : ""
@@ -12289,7 +12461,7 @@ if(exportProtocolFormBtn){
       return;
     }
     const payload=protocolPayload();
-    payload.createdBy=currentUser?.email || payload.technicianEmail || "";
+    payload.createdBy=payload.createdBy || payload.technicianEmail || currentUser?.email || "";
     exportProtocolToWord(payload);
   });
 }
@@ -12302,7 +12474,7 @@ if(mailProtocolFormBtn){
       return;
     }
     const payload=protocolPayload();
-    payload.createdBy=currentUser?.email || payload.technicianEmail || "";
+    payload.createdBy=payload.createdBy || payload.technicianEmail || currentUser?.email || "";
     const recipient=promptProtocolMailRecipient(payload);
     if(!recipient) return;
     mailProtocolFormBtn.disabled=true;
@@ -12388,7 +12560,7 @@ protocolFormEl.addEventListener("submit",async e=>{
   const payload=protocolPayload();
   const editingId=protocolEditId();
   const editing=!!editingId;
-  payload.createdBy=protocolEditState?.item?.createdBy || currentUser?.email || lastKnownUserEmail() || "";
+  payload.createdBy=protocolEditState?.item?.createdBy || payload.createdBy || payload.technicianEmail || currentUser?.email || lastKnownUserEmail() || "";
   payload.updatedBy=currentUser?.email || lastKnownUserEmail() || "";
   payload.clearManualStatusAfterSave=false;
   const saveFingerprint=protocolSaveFingerprint(payload,selectedSite,editingId);
@@ -12437,7 +12609,7 @@ protocolFormEl.addEventListener("submit",async e=>{
     const {collection,doc,setDoc,serverTimestamp}=fb.fsMod;
     const ref=editing ? doc(db,"protocols",editingId) : doc(collection(db,"protocols"));
     payload._id=ref.id;
-    payload.createdBy=currentUser.email || payload.createdBy;
+    payload.createdBy=payload.createdBy || payload.technicianEmail || currentUser.email || "";
     const childOk=await saveSiteChildItem("protocols",ref.id,payload,selectedSite);
     const embeddedOk=childOk ? true : await appendEmbeddedSiteItem("protocolHistory",payload,selectedSite);
     appendSiteLocalArray("protocolHistory",payload,selectedSite,120);

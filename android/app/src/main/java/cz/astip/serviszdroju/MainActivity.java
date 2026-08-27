@@ -493,7 +493,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void restoreGoogleSignIn() {
-            runOnUiThread(() -> startSilentGoogleSignIn(false));
+            runOnUiThread(() -> startSilentGoogleSignIn(true));
         }
 
         @JavascriptInterface

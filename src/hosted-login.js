@@ -5,13 +5,15 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="apk-native-auth-resume-v556";
+const EMAIL_LOGIN_BUILD_VERSION="apk-native-mail-signature-auth-v557";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
   mode:"checking",
   message:""
 };
+let pendingGoogleLoginRequested=false;
+let pendingGoogleLoginTimer=null;
 
 function isLocalFileApp(){
   return window.location.protocol==="file:";
@@ -57,6 +59,35 @@ function cleanAuthResumeState(clearKnown=false){
     try{localStorage.removeItem("astipFirebaseLastEmail");}catch(e){}
   }
   try{document.documentElement.classList.remove("auth-resume");}catch(e){}
+}
+
+function appVisibleForAuthResume(){
+  const app=document.getElementById("mainApp");
+  const visibleApp=!!(app && app.style.display && app.style.display!=="none");
+  const loadedRows=Array.isArray(window.rows) && window.rows.length;
+  return !!(window.__mapAppUnlocked || window.__firebaseUnifiedRowsLoaded || visibleApp || loadedRows);
+}
+
+function isAndroidTransientAuthError(error){
+  const message=String(error && (error.message || error.code) || error || "");
+  return /Android Google přihlášení nevrátilo výsledek včas|Tiché obnovení Android přihlášení|native-resume|auth-null/i.test(message);
+}
+
+function shouldKeepMapOpenOnLoginError(error){
+  let explicitSignOut=false;
+  try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+  return !explicitSignOut && isAndroidTransientAuthError(error) && (appVisibleForAuthResume() || knownUser());
+}
+
+function clearAuthStatusNotice(){
+  text(document.getElementById("startupStatus"),"");
+  const gps=document.getElementById("gpsBox");
+  if(gps && /Přihlášení selhalo|Android Google/i.test(gps.textContent || "")){
+    gps.textContent="";
+    gps.style.display="none";
+  }
+  const progress=document.getElementById("progress");
+  if(progress && /Přihlášení selhalo|Android Google/i.test(progress.textContent || "")) progress.textContent="";
 }
 
 function googleIdentityLoginError(error){
@@ -269,6 +300,57 @@ function startLogin(event){
   return startGoogleLogin(event);
 }
 
+function runReadyGoogleLogin(){
+  if(typeof window.__startFirebaseRedirectLogin==="function"){
+    pendingGoogleLoginRequested=false;
+    if(pendingGoogleLoginTimer){
+      clearTimeout(pendingGoogleLoginTimer);
+      pendingGoogleLoginTimer=null;
+    }
+    Promise.resolve(window.__startFirebaseRedirectLogin()).catch(err=>{
+      if(shouldKeepMapOpenOnLoginError(err)){
+        clearAuthStatusNotice();
+        showAuthState("logged-in",{message:""});
+        return;
+      }
+      showAuthState("logged-out",{
+        message:"Přihlášení se nepodařilo spustit: " + ((err && (err.code || err.message)) || err || "")
+      });
+    });
+    return true;
+  }
+  if(typeof window.__startCompatGoogleLoginFallback==="function"){
+    pendingGoogleLoginRequested=false;
+    if(pendingGoogleLoginTimer){
+      clearTimeout(pendingGoogleLoginTimer);
+      pendingGoogleLoginTimer=null;
+    }
+    window.__startCompatGoogleLoginFallback();
+    return true;
+  }
+  return false;
+}
+
+function queueGoogleLoginUntilReady(){
+  pendingGoogleLoginRequested=true;
+  showAuthState("logging-in",{message:"Připravuji přihlášení..."});
+  if(runReadyGoogleLogin()) return;
+  const started=Date.now();
+  const tick=()=>{
+    if(!pendingGoogleLoginRequested) return;
+    if(runReadyGoogleLogin()) return;
+    if(Date.now()-started<10000){
+      pendingGoogleLoginTimer=setTimeout(tick,150);
+      return;
+    }
+    pendingGoogleLoginRequested=false;
+    pendingGoogleLoginTimer=null;
+    showAuthState("logged-out",{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
+  };
+  if(pendingGoogleLoginTimer) clearTimeout(pendingGoogleLoginTimer);
+  pendingGoogleLoginTimer=setTimeout(tick,150);
+}
+
 function startGoogleLogin(event){
   if(event && typeof event.preventDefault==="function") event.preventDefault();
   if(isLocalFileApp()){
@@ -277,19 +359,8 @@ function startGoogleLogin(event){
   }
   window.__loginRequested=true;
   showAuthState("logging-in",{message:"Připravuji přihlášení..."});
-  if(typeof window.__startFirebaseRedirectLogin==="function"){
-    Promise.resolve(window.__startFirebaseRedirectLogin()).catch(err=>{
-      showAuthState("logged-out",{
-        message:"Přihlášení se nepodařilo spustit: " + ((err && (err.code || err.message)) || err || "")
-      });
-    });
-    return;
-  }
-  if(typeof window.__startCompatGoogleLoginFallback==="function"){
-    window.__startCompatGoogleLoginFallback();
-    return;
-  }
-  showAuthState("logged-out",{message:"Přihlášení ještě není připravené. Zkus tlačítko znovu za pár sekund."});
+  if(runReadyGoogleLogin()) return;
+  queueGoogleLoginUntilReady();
 }
 
 function startCompatGoogleLoginFallback(){
@@ -312,10 +383,22 @@ function startCompatGoogleLoginFallback(){
         setTimeout(()=>location.reload(),400);
       }
     }).catch(err=>{
+      if(shouldKeepMapOpenOnLoginError(err)){
+        cleanAuthResumeState(false);
+        clearAuthStatusNotice();
+        showAuthState("logged-in",{message:""});
+        return;
+      }
       cleanAuthResumeState(true);
       showAuthState("logged-out",{message:"Přihlášení selhalo: " + authErrorText(err)});
     });
   }catch(err){
+    if(shouldKeepMapOpenOnLoginError(err)){
+      cleanAuthResumeState(false);
+      clearAuthStatusNotice();
+      showAuthState("logged-in",{message:""});
+      return;
+    }
     cleanAuthResumeState(true);
     showAuthState("logged-out",{message:"Přihlášení selhalo: " + authErrorText(err)});
   }
@@ -360,6 +443,7 @@ window.__szzShowStartupChecking=(message="Kontroluji přihlášení...")=>showAu
 window.__szzShowAuthenticatedApp=(message="")=>showAuthState("logged-in",{message});
 window.__szzGetAuthState=()=>({...authUiState});
 window.__startCompatGoogleLoginFallback=startCompatGoogleLoginFallback;
+window.__szzRunPendingLogin=runReadyGoogleLogin;
 window.szzEmergencyEmailLogin=event=>startGoogleLogin(event);
 window.loginEmail=window.szzEmergencyEmailLogin;
 window.loginPopup=startGoogleLogin;
