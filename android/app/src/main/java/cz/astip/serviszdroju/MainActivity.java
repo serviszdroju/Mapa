@@ -439,7 +439,14 @@ public class MainActivity extends Activity {
 
     private void restoreAndroidAuthIfStored(long delayMs) {
         if (!isOnline() || !SzzAndroidAuthStore.hasGoogleIdToken(this) || webView == null) return;
-        webView.postDelayed(() -> startSilentGoogleSignIn(true), Math.max(0L, delayMs));
+        webView.postDelayed(
+            () -> evaluateWebScript(
+                "(function(){try{"
+                    + "if(typeof window.__szzAndroidAuthMaybeRestore==='function')window.__szzAndroidAuthMaybeRestore('native-resume');"
+                    + "}catch(e){}})();"
+            ),
+            Math.max(0L, delayMs)
+        );
     }
 
     private final class AndroidAuthBridge {
@@ -447,6 +454,36 @@ public class MainActivity extends Activity {
         public boolean isGoogleSignInConfigured() {
             return BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID != null &&
                 !BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID.trim().isEmpty();
+        }
+
+        @JavascriptInterface
+        public boolean hasStoredGoogleSignIn() {
+            return SzzAndroidAuthStore.hasGoogleIdToken(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String storedEmail() {
+            String email = SzzAndroidAuthStore.email(MainActivity.this);
+            return email == null ? "" : email;
+        }
+
+        @JavascriptInterface
+        public String storedAuthJson() {
+            JSONObject json = new JSONObject();
+            try {
+                long savedAt = SzzAndroidAuthStore.savedAt(MainActivity.this);
+                json.put("ok", true);
+                json.put("hasStoredAuth", SzzAndroidAuthStore.hasGoogleIdToken(MainActivity.this));
+                json.put("email", SzzAndroidAuthStore.email(MainActivity.this));
+                json.put("savedAt", savedAt);
+                json.put("ageMs", savedAt > 0 ? Math.max(0L, System.currentTimeMillis() - savedAt) : 0L);
+            } catch (Exception error) {
+                try {
+                    json.put("ok", false);
+                    json.put("error", compactErrorText(error));
+                } catch (Exception ignored) {}
+            }
+            return json.toString();
         }
 
         @JavascriptInterface

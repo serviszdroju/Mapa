@@ -39,10 +39,10 @@ chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.11-native-protocol-sync` (`versionCode 13`);
+- verze: `1.1.12-native-auth-restore` (`versionCode 14`);
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-native-protocol-sync-v552`;
-- SHA-256 souboru APK: `cd64d011c0f24178ef0ea933fdcadaf77fb4303bc9ad8f6d43bddbf4bea93c79`;
+- build weboveho shellu: `apk-native-auth-restore-v553`;
+- SHA-256 souboru APK: `a7720ca065f7d7ee9fd33e4b5a2543900e8e8becb3731d9e69f3130b4df7a437`;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
@@ -64,8 +64,9 @@ Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
   a odstrani ho z webove offline fronty bez duplicitniho zapisu;
 - umi tise obnovit Android Google prihlaseni pres `SzzAndroidAuth.restoreGoogleSignIn()`,
   kdyz Firebase session ve WebView dobehne nebo se dočasne ztrati;
-- pri startu a navratu aplikace zkusi obnovit ulozene Android prihlaseni tise, bez rusive chyby
-  na uvodni obrazovce;
+- pri startu a navratu aplikace uz neposila Google ID token do webu naslepo; web si obnovu
+  vyzada az s pripravenym callbackem a mapa se jako prihlasena otevře az po potvrzeni
+  Firebase uzivatele;
 - uklada rozpracovany protokol do Room pres `SzzAndroidOffline` a vynuti flush pri
   `onPause()`/`onStop()`;
 - lokalni kamerove snimky uklada do interni slozky aplikace `szz-media/photos` misto cache.
