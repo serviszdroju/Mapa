@@ -110,4 +110,7 @@ public interface SzzOfflineDao {
 
     @Query("UPDATE protocols SET sync_state = :state, firebase_id = :firebaseId, raw_json = :rawJson, updated_at = :updatedAt, last_sync_error = :lastError WHERE local_id = :localId")
     void updateProtocolSyncState(String localId, String state, String firebaseId, String rawJson, String updatedAt, String lastError);
+
+    @Query("UPDATE sites SET sync_state = :state, firebase_id = :firebaseId, raw_json = :rawJson, updated_at = :updatedAt, last_sync_error = :lastError WHERE local_id = :localId")
+    void updateSiteSyncState(String localId, String state, String firebaseId, String rawJson, String updatedAt, String lastError);
 }

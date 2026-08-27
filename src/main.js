@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-native-auth-restore-v553";
+const APP_BUILD_VERSION="2026-08-27-apk-native-site-sync-v554";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1851,7 +1851,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v553-runtime",
+  runtimeCacheName:"astip-szz-v554-runtime",
   mediaFetchConcurrency:4
 });
 

@@ -39,10 +39,10 @@ chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.12-native-auth-restore` (`versionCode 14`);
+- verze: `1.1.13-native-site-sync` (`versionCode 15`);
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-native-auth-restore-v553`;
-- SHA-256 souboru APK: `a7720ca065f7d7ee9fd33e4b5a2543900e8e8becb3731d9e69f3130b4df7a437`;
+- build weboveho shellu: `apk-native-site-sync-v554`;
+- SHA-256 souboru APK: `2621550ae3f0702796bdfa11337e833c3db70f5f1b1c2fc8214c8160e5b7f592`;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
@@ -52,6 +52,8 @@ Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 - uklada snapshoty fotografii a priloh do Room tabulek `photos` a `attachments` a umi je
   vratit webu pres `cachedPhotosJson()` / `cachedAttachmentsJson()`;
 - uklada offline vytvorene fotografie a prilohy jako trvale polozky ve `sync_outbox`;
+- uklada offline pridane body/zdroje jako trvale polozky ve `sync_outbox` a WorkManager je
+  po navratu internetu odesila do `sitesUnified`;
 - WorkManager odesila offline fotografie a prilohy nativne po navratu internetu: pouzije
   ulozeny Android Google ID token, vymeni ho za Firebase token, nahraje fotku na Cloudinary
   a zapise metadata do `sitesUnified/{site}/photos` nebo `attachments`;

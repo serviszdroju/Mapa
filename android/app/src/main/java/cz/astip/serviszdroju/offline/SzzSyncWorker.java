@@ -23,11 +23,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
 
 public final class SzzSyncWorker extends Worker {
@@ -84,6 +88,9 @@ public final class SzzSyncWorker extends Worker {
                     syncPhoto(dao, operation, session);
                 } else if (SyncOperation.UPLOAD_ATTACHMENT.name().equals(opName)) {
                     syncAttachment(dao, operation, session);
+                } else if (SyncOperation.UPSERT_SITE.name().equals(opName)
+                    || SyncOperation.UPSERT_SOURCE.name().equals(opName)) {
+                    syncSite(dao, operation, session);
                 } else if (SyncOperation.UPSERT_PROTOCOL.name().equals(opName)) {
                     syncProtocol(dao, operation, session);
                 } else {
@@ -205,6 +212,59 @@ public final class SzzSyncWorker extends Worker {
         dao.markOutboxSynced(operation.operationId, syncedAt);
     }
 
+    private static void syncSite(SzzOfflineDao dao, OfflineEntities.SyncOutboxEntity operation, FirebaseSession session) throws Exception {
+        JSONObject payload = payload(operation);
+        String requestedDocId = firstText(payload, "docId", "firebaseDocId", "siteDocId", "Firebase_doc_id", "siteId");
+        if (requestedDocId.isEmpty()) requestedDocId = trim(operation.entityLocalId);
+
+        JSONObject raw = payload.optJSONObject("raw");
+        if (raw == null) {
+            raw = new JSONObject(payload.toString());
+            raw.remove("dedupKeys");
+            raw.remove("createdAt");
+            raw.remove("updatedAt");
+            raw.remove("createdBy");
+            raw.remove("updatedBy");
+            raw.remove("reason");
+            raw.remove("manualEntry");
+            raw.remove("migratedFromCsv");
+        }
+        if (requestedDocId.isEmpty()) requestedDocId = firstText(raw, "Firebase_doc_id", "docId", "firebaseDocId");
+        if (requestedDocId.isEmpty()) throw new PermanentException("Offline bod nemá Firebase identifikátor.");
+
+        raw = completeSiteRaw(raw, requestedDocId);
+        JSONArray dedupKeys = payload.optJSONArray("dedupKeys");
+        if (dedupKeys == null || dedupKeys.length() == 0) dedupKeys = siteDedupKeys(raw);
+        DuplicateSite duplicate = findDuplicateSite(dedupKeys, requestedDocId, session.firebaseIdToken);
+        String targetDocId = duplicate == null ? requestedDocId : duplicate.id;
+        raw = duplicate == null
+            ? completeSiteRaw(raw, targetDocId)
+            : mergeSiteRaw(duplicate.data.optJSONObject("raw"), raw, targetDocId);
+        dedupKeys = siteDedupKeys(raw);
+
+        String syncedAt = isoNow();
+        JSONObject savedData = new JSONObject();
+        savedData.put("raw", raw);
+        savedData.put("dedupKeys", dedupKeys);
+        savedData.put("updatedAt", syncedAt);
+        savedData.put("updatedBy", session.email);
+        savedData.put("manualEntry", true);
+        savedData.put("migratedFromCsv", false);
+        savedData.put("name", firstText(raw, "N\u00e1zev", "Adresa / um\u00edst\u011bn\u00ed", "Adresa_GPS"));
+        Double lat = jsonNumber(raw, "GPS_lat");
+        Double lon = jsonNumber(raw, "GPS_lon");
+        savedData.put("lat", lat == null ? JSONObject.NULL : lat);
+        savedData.put("lon", lon == null ? JSONObject.NULL : lon);
+        if (duplicate == null) {
+            savedData.put("createdAt", firstText(payload, "createdAt").isEmpty() ? syncedAt : firstText(payload, "createdAt"));
+            savedData.put("createdBy", firstText(payload, "createdBy").isEmpty() ? session.email : firstText(payload, "createdBy"));
+        }
+
+        writeDocumentMerge(FIRESTORE_ROOT + "/sitesUnified/" + path(targetDocId), savedData, session.firebaseIdToken);
+        dao.upsertSite(siteEntityFromSiteData(targetDocId, savedData, syncedAt));
+        dao.markOutboxSynced(operation.operationId, syncedAt);
+    }
+
     private static FirebaseSession exchangeGoogleToken(String googleIdToken) throws Exception {
         JSONObject body = new JSONObject();
         body.put("postBody", "id_token=" + urlEncode(googleIdToken) + "&providerId=google.com");
@@ -273,6 +333,127 @@ public final class SzzSyncWorker extends Worker {
         HttpResult result = patchJson(url, firestoreDocument(data), firebaseIdToken);
         if (result.status == 401 || result.status == 403) throw new AuthException("Firebase relace vypršela. Přihlas se v aplikaci znovu.");
         if (result.status == 429 || result.status >= 500) throw new RetryableException("Firebase potvrzení synchronizace je dočasně nedostupné (" + result.status + ").");
+    }
+
+    private static void writeDocumentMerge(String url, JSONObject payload, String firebaseIdToken) throws Exception {
+        String maskedUrl = firestoreUpdateMaskUrl(url, payload);
+        HttpResult result = patchJson(maskedUrl, firestoreDocument(payload), firebaseIdToken);
+        if (result.status == 401 || result.status == 403) throw new AuthException("Firebase nepovolil uložit změnu. Přihlas se v aplikaci znovu.");
+        if (result.status == 429 || result.status >= 500) throw new RetryableException("Firebase uložení je dočasně nedostupné (" + result.status + ").");
+        if (result.status < 200 || result.status >= 300) throw new PermanentException(firebaseError(result, "Firebase nepovolil uložit bod."));
+    }
+
+    private static String firestoreUpdateMaskUrl(String url, JSONObject payload) {
+        StringBuilder out = new StringBuilder(url);
+        boolean first = !url.contains("?");
+        Iterator<String> keys = payload.keys();
+        while (keys.hasNext()) {
+            out.append(first ? "?" : "&");
+            first = false;
+            out.append("updateMask.fieldPaths=").append(path(keys.next()));
+        }
+        return out.toString();
+    }
+
+    @Nullable
+    private static DuplicateSite findDuplicateSite(JSONArray dedupKeys, String skipDocId, String firebaseIdToken) throws Exception {
+        List<String> keys = stringList(dedupKeys);
+        if (keys.isEmpty()) return null;
+        for (int offset = 0; offset < keys.size(); offset += 10) {
+            JSONArray chunk = new JSONArray();
+            int end = Math.min(keys.size(), offset + 10);
+            for (int i = offset; i < end; i++) chunk.put(keys.get(i));
+            JSONObject body = new JSONObject();
+            JSONObject query = new JSONObject();
+            JSONArray from = new JSONArray();
+            from.put(new JSONObject().put("collectionId", "sitesUnified"));
+            query.put("from", from);
+            query.put("where", new JSONObject().put("fieldFilter", new JSONObject()
+                .put("field", new JSONObject().put("fieldPath", "dedupKeys"))
+                .put("op", "ARRAY_CONTAINS_ANY")
+                .put("value", new JSONObject().put("arrayValue", firestoreStringArray(chunk)))));
+            query.put("limit", 6);
+            body.put("structuredQuery", query);
+
+            HttpResult result = postJson(FIRESTORE_ROOT + ":runQuery", body, firebaseIdToken);
+            if (result.status == 401 || result.status == 403) throw new AuthException("Firebase relace vypršela. Přihlas se v aplikaci znovu.");
+            if (result.status == 429 || result.status >= 500) throw new RetryableException("Firebase kontrola duplicit je dočasně nedostupná (" + result.status + ").");
+            if (result.status < 200 || result.status >= 300) continue;
+
+            JSONArray rows = new JSONArray(result.body == null || result.body.isEmpty() ? "[]" : result.body);
+            for (int i = 0; i < rows.length(); i++) {
+                JSONObject document = rows.optJSONObject(i) == null ? null : rows.optJSONObject(i).optJSONObject("document");
+                DuplicateSite duplicate = duplicateSiteFromDocument(document);
+                if (duplicate == null) continue;
+                if (!trim(skipDocId).isEmpty() && trim(skipDocId).equals(duplicate.id)) continue;
+                return duplicate;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private static DuplicateSite duplicateSiteFromDocument(@Nullable JSONObject document) throws JSONException {
+        if (document == null) return null;
+        String name = trim(document.optString("name"));
+        int slash = name.lastIndexOf('/');
+        String id = slash >= 0 ? name.substring(slash + 1) : name;
+        if (id.isEmpty()) return null;
+        return new DuplicateSite(id, firestoreDocumentData(document));
+    }
+
+    private static JSONObject firestoreDocumentData(JSONObject document) throws JSONException {
+        JSONObject fields = document.optJSONObject("fields");
+        return firestorePlainFields(fields == null ? new JSONObject() : fields);
+    }
+
+    private static JSONObject firestorePlainFields(JSONObject fields) throws JSONException {
+        JSONObject out = new JSONObject();
+        Iterator<String> keys = fields.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            out.put(key, firestorePlainValue(fields.optJSONObject(key)));
+        }
+        return out;
+    }
+
+    private static Object firestorePlainValue(@Nullable JSONObject value) throws JSONException {
+        if (value == null) return JSONObject.NULL;
+        if (value.has("nullValue")) return JSONObject.NULL;
+        if (value.has("booleanValue")) return value.optBoolean("booleanValue");
+        if (value.has("integerValue")) {
+            try {
+                return Long.parseLong(value.optString("integerValue"));
+            } catch (Exception ignored) {
+                return value.optString("integerValue");
+            }
+        }
+        if (value.has("doubleValue")) return value.optDouble("doubleValue");
+        if (value.has("stringValue")) return value.optString("stringValue");
+        if (value.has("timestampValue")) return value.optString("timestampValue");
+        JSONObject map = value.optJSONObject("mapValue");
+        if (map != null) return firestorePlainFields(map.optJSONObject("fields") == null ? new JSONObject() : map.optJSONObject("fields"));
+        JSONObject array = value.optJSONObject("arrayValue");
+        if (array != null) {
+            JSONArray out = new JSONArray();
+            JSONArray values = array.optJSONArray("values");
+            if (values != null) {
+                for (int i = 0; i < values.length(); i++) out.put(firestorePlainValue(values.optJSONObject(i)));
+            }
+            return out;
+        }
+        return JSONObject.NULL;
+    }
+
+    private static JSONObject firestoreStringArray(JSONArray values) throws JSONException {
+        JSONObject arrayValue = new JSONObject();
+        JSONArray out = new JSONArray();
+        for (int i = 0; i < values.length(); i++) {
+            String value = trim(values.optString(i, ""));
+            if (!value.isEmpty()) out.put(new JSONObject().put("stringValue", value));
+        }
+        arrayValue.put("values", out);
+        return arrayValue;
     }
 
     private static JSONObject firestoreDocument(JSONObject data) throws JSONException {
@@ -463,6 +644,176 @@ public final class SzzSyncWorker extends Worker {
             : prefix + transform + "/" + rest;
     }
 
+    private static JSONObject completeSiteRaw(JSONObject raw, String docId) throws JSONException {
+        JSONObject out = compactSiteRaw(raw);
+        String address = firstText(out, "Adresa / um\u00edst\u011bn\u00ed");
+        if (!address.isEmpty() && firstText(out, "N\u00e1zev").isEmpty()) out.put("N\u00e1zev", address);
+        if (firstText(out, "Hl\u00edd\u00e1me sami term\u00edn").isEmpty()) out.put("Hl\u00edd\u00e1me sami term\u00edn", "ne");
+        if (firstText(out, "Perioda kontrol").isEmpty()) out.put("Perioda kontrol", "12");
+        if (firstText(out, "Zdroj_dat").isEmpty()) out.put("Zdroj_dat", "Firebase");
+        if (!trim(docId).isEmpty()) {
+            out.put("Firebase_doc_id", trim(docId));
+            if (firstText(out, "Kl\u00ed\u010d_adresy").isEmpty()) out.put("Kl\u00ed\u010d_adresy", "firebase_" + trim(docId));
+        }
+        return compactSiteRaw(out);
+    }
+
+    private static JSONObject compactSiteRaw(JSONObject raw) throws JSONException {
+        JSONObject out = new JSONObject();
+        if (raw == null) return out;
+        Iterator<String> keys = raw.keys();
+        while (keys.hasNext()) {
+            String key = trim(keys.next());
+            if (key.isEmpty()) continue;
+            if (key.matches("(?i)^Sloupec_\\d+$")) continue;
+            Object value = raw.opt(key);
+            if (value == null || value == JSONObject.NULL) continue;
+            if (value instanceof String) {
+                String text = trim((String) value);
+                if (text.isEmpty()) continue;
+                out.put(key, text);
+            } else {
+                out.put(key, value);
+            }
+        }
+        return out;
+    }
+
+    private static JSONObject mergeSiteRaw(@Nullable JSONObject existingRaw, JSONObject incomingRaw, String docId) throws JSONException {
+        JSONObject out = completeSiteRaw(existingRaw == null ? new JSONObject() : existingRaw, docId);
+        Iterator<String> keys = incomingRaw.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            Object value = incomingRaw.opt(key);
+            if (value == null || value == JSONObject.NULL) continue;
+            if (value instanceof String && trim((String) value).isEmpty()) continue;
+            if (firstText(out, key).isEmpty()) out.put(key, value);
+        }
+
+        Double existingLat = jsonNumber(out, "GPS_lat");
+        Double existingLon = jsonNumber(out, "GPS_lon");
+        Double incomingLat = jsonNumber(incomingRaw, "GPS_lat");
+        Double incomingLon = jsonNumber(incomingRaw, "GPS_lon");
+        boolean existingVisible = visibleGps(existingLat, existingLon);
+        boolean incomingVisible = visibleGps(incomingLat, incomingLon);
+        if (incomingVisible && !existingVisible) {
+            out.put("GPS_lat", incomingRaw.opt("GPS_lat"));
+            out.put("GPS_lon", incomingRaw.opt("GPS_lon"));
+        } else {
+            if (existingLat == null && incomingLat != null) out.put("GPS_lat", incomingRaw.opt("GPS_lat"));
+            if (existingLon == null && incomingLon != null) out.put("GPS_lon", incomingRaw.opt("GPS_lon"));
+        }
+        return completeSiteRaw(out, docId);
+    }
+
+    private static boolean visibleGps(@Nullable Double lat, @Nullable Double lon) {
+        return lat != null && lon != null && lat >= 47.0 && lat <= 51.5 && lon >= 12.0 && lon <= 23.0;
+    }
+
+    private static JSONArray siteDedupKeys(JSONObject raw) throws JSONException {
+        JSONArray keys = new JSONArray();
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> sourceParts = new ArrayList<>();
+        String sourceType = firstText(raw, "Popis_zdroje", "Zdroj", "Jak\u00fd zdroj", "Kontrolovan\u00e9 za\u0159\u00edzen\u00ed", "Typ za\u0159\u00edzen\u00ed", "Za\u0159\u00edzen\u00ed", "Zarizeni", "Upraven\u00fd zdroj");
+        String sourceSerial = firstText(raw, "V\u00fdrobn\u00ed \u010d\u00edslo", "Vyrobni cislo", "V\u00fdrobn\u00ed_\u010d\u00edslo", "Vyrobn\u00ed_\u010d\u00edslo", "S\u00e9riov\u00e9 \u010d\u00edslo", "Seriove cislo", "Serial", "Serial number", "Zdroj");
+        if (!sourceType.isEmpty()) sourceParts.add(sourceType);
+        if (!sourceSerial.isEmpty()) sourceParts.add(sourceSerial);
+        String source = siteDedupValue(join(sourceParts, " "));
+        addSiteDedupKey(keys, seen, source, "name", firstText(raw, "N\u00e1zev"));
+        addSiteDedupKey(keys, seen, source, "address", firstText(raw, "Adresa / um\u00edst\u011bn\u00ed"));
+        addSiteDedupKey(keys, seen, source, "address", firstText(raw, "Adresa_GPS"));
+        addSiteDedupKey(keys, seen, source, "address", firstText(raw, "Um\u00edst\u011bn\u00ed"));
+        addSiteDedupKey(keys, seen, source, "address", firstText(raw, "Um\u00edst\u011bn\u00ed zdroje"));
+        addSiteDedupKey(keys, seen, source, "address", firstText(raw, "P\u016fvodn\u00ed adresa / um\u00edst\u011bn\u00ed"));
+        return keys;
+    }
+
+    private static void addSiteDedupKey(JSONArray keys, Set<String> seen, String source, String prefix, String value) throws JSONException {
+        String normalized = siteDedupValue(value);
+        if (normalized.length() < 3) return;
+        addSiteDedupKeyValue(keys, seen, source, prefix, normalized);
+        String[] parts = normalized.split(" ");
+        java.util.Arrays.sort(parts);
+        String sorted = join(java.util.Arrays.asList(parts), " ").trim();
+        if (!sorted.isEmpty() && !sorted.equals(normalized)) addSiteDedupKeyValue(keys, seen, source, prefix, "sorted:" + sorted);
+    }
+
+    private static void addSiteDedupKeyValue(JSONArray keys, Set<String> seen, String source, String prefix, String value) throws JSONException {
+        String key = source.isEmpty() ? prefix + ":" + value : prefix + "_source:" + value + "|" + source;
+        if (seen.add(key)) keys.put(key);
+    }
+
+    private static String siteDedupValue(String value) {
+        String text = trim(value);
+        if (text.isEmpty()) return "";
+        String normalized = Normalizer.normalize(text.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+            .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
+            .replaceAll("[_\\\\/,. ;:()\\-]+", " ")
+            .replaceAll("\\b(ceska republika|slovensko|cr|sr)\\b", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+        return normalized;
+    }
+
+    private static List<String> stringList(@Nullable JSONArray values) {
+        List<String> out = new ArrayList<>();
+        if (values == null) return out;
+        Set<String> seen = new LinkedHashSet<>();
+        for (int i = 0; i < values.length(); i++) {
+            String value = trim(values.optString(i, ""));
+            if (!value.isEmpty() && seen.add(value)) out.add(value);
+        }
+        return out;
+    }
+
+    private static String join(List<String> values, String separator) {
+        StringBuilder out = new StringBuilder();
+        for (String value : values) {
+            String text = trim(value);
+            if (text.isEmpty()) continue;
+            if (out.length() > 0) out.append(separator);
+            out.append(text);
+        }
+        return out.toString();
+    }
+
+    @Nullable
+    private static Double jsonNumber(JSONObject object, String key) {
+        if (object == null || key == null || !object.has(key) || object.isNull(key)) return null;
+        Object value = object.opt(key);
+        if (value instanceof Number) {
+            double number = ((Number) value).doubleValue();
+            return Double.isNaN(number) || Double.isInfinite(number) ? null : number;
+        }
+        String text = trim(object.optString(key, "")).replace(',', '.');
+        if (text.isEmpty()) return null;
+        try {
+            double number = Double.parseDouble(text);
+            return Double.isNaN(number) || Double.isInfinite(number) ? null : number;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static OfflineEntities.SiteEntity siteEntityFromSiteData(String docId, JSONObject savedData, String now) {
+        JSONObject raw = savedData == null ? null : savedData.optJSONObject("raw");
+        OfflineEntities.SiteEntity site = new OfflineEntities.SiteEntity();
+        site.localId = trim(docId);
+        site.firebaseId = trim(docId);
+        site.name = firstText(raw, "N\u00e1zev", "Adresa / um\u00edst\u011bn\u00ed", "Adresa_GPS");
+        site.address = firstText(raw, "Adresa / um\u00edst\u011bn\u00ed", "Adresa_GPS", "Um\u00edst\u011bn\u00ed");
+        site.region = firstText(raw, "Kraj");
+        site.contact = firstText(raw, "Kontakt");
+        site.latitude = jsonNumber(raw, "GPS_lat");
+        site.longitude = jsonNumber(raw, "GPS_lon");
+        site.createdAt = firstText(savedData, "createdAt");
+        site.updatedAt = firstText(savedData, "updatedAt");
+        if (site.updatedAt == null || site.updatedAt.isEmpty()) site.updatedAt = now;
+        site.syncState = SyncState.SYNCED.name();
+        site.rawJson = savedData == null ? "{}" : savedData.toString();
+        return site;
+    }
+
     private static void putIfMissing(JSONObject object, String key, String value) throws JSONException {
         if (object == null || key == null || value == null || value.trim().isEmpty()) return;
         if (!object.has(key) || object.isNull(key) || trim(object.optString(key)).isEmpty()) object.put(key, value);
@@ -517,6 +868,8 @@ public final class SzzSyncWorker extends Worker {
             dao.updateAttachmentSyncState(operation.entityLocalId, SyncState.FAILED.name(), "", operation.payloadJson, updatedAt, compact);
         } else if (OfflineTables.PROTOCOLS.equals(operation.entityTable)) {
             dao.updateProtocolSyncState(operation.entityLocalId, SyncState.FAILED.name(), "", operation.payloadJson, updatedAt, compact);
+        } else if (OfflineTables.SITES.equals(operation.entityTable)) {
+            dao.updateSiteSyncState(operation.entityLocalId, SyncState.FAILED.name(), operation.entityLocalId, operation.payloadJson, updatedAt, compact);
         }
     }
 
@@ -587,6 +940,16 @@ public final class SzzSyncWorker extends Worker {
         FirebaseSession(String firebaseIdToken, String email) {
             this.firebaseIdToken = firebaseIdToken;
             this.email = email == null ? "" : email;
+        }
+    }
+
+    private static final class DuplicateSite {
+        final String id;
+        final JSONObject data;
+
+        DuplicateSite(String id, JSONObject data) {
+            this.id = id == null ? "" : id;
+            this.data = data == null ? new JSONObject() : data;
         }
     }
 

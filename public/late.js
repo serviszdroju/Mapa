@@ -1718,6 +1718,61 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(window.removeOfflineSiteQueueItem) window.removeOfflineSiteQueueItem(id).catch(()=>{});
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   }
+  function androidOfflineBridge(){
+    try{return window.SzzAndroidOffline || null;}catch(e){return null;}
+  }
+  function androidOutboxOperation(operationId){
+    const bridge=androidOfflineBridge();
+    if(!bridge || typeof bridge.outboxOperationJson!=="function") return null;
+    try{
+      const parsed=JSON.parse(String(bridge.outboxOperationJson(String(operationId || "")) || "{}"));
+      return parsed && parsed.ok && parsed.found ? parsed.item || null : null;
+    }catch(e){
+      return null;
+    }
+  }
+  function markAndroidOutboxSynced(operationId){
+    const bridge=androidOfflineBridge();
+    if(!bridge || typeof bridge.markOutboxSynced!=="function") return false;
+    try{
+      bridge.markOutboxSynced(String(operationId || ""));
+      return true;
+    }catch(e){
+      console.warn("Android outbox potvrzení bodu selhalo",e);
+      return false;
+    }
+  }
+  function enqueueOfflineSiteToAndroid(queuedItem){
+    const bridge=androidOfflineBridge();
+    if(!bridge || typeof bridge.enqueueOutbox!=="function" || !queuedItem || !queuedItem.docId || !queuedItem.raw) return false;
+    const docId=String(queuedItem.docId || "");
+    const payload={
+      docId,
+      raw:{...(queuedItem.raw || {})},
+      dedupKeys:dedupKeys(queuedItem.raw || {}),
+      createdAt:queuedItem.createdAt || new Date().toISOString(),
+      updatedAt:queuedItem.updatedAt || new Date().toISOString(),
+      createdBy:queuedItem.createdBy || "",
+      updatedBy:queuedItem.updatedBy || queuedItem.createdBy || "",
+      reason:queuedItem.reason || "Offline režim",
+      manualEntry:true,
+      migratedFromCsv:false
+    };
+    try{
+      bridge.enqueueOutbox(JSON.stringify({
+        operationId:`site:${docId}`,
+        entityTable:"sites",
+        entityLocalId:docId,
+        operation:"UPSERT_SITE",
+        payloadJson:JSON.stringify(payload)
+      }));
+      if(typeof bridge.requestSync==="function") bridge.requestSync();
+      return true;
+    }catch(e){
+      console.warn("Offline bod se nepodařilo uložit do Android fronty",e);
+      return false;
+    }
+  }
   function saveUnifiedSiteRawOffline(rawInput={},opts={},reason=""){
     const docId=String(opts.docId || rawInput.Firebase_doc_id || rawInput["Firebase_doc_id"] || `offline_${Date.now()}_${Math.random().toString(36).slice(2,7)}`);
     let raw=completeFirebaseRaw(rawInput || {}, docId);
@@ -1735,6 +1790,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     };
     queue.push(queuedItem);
     writeOfflineSiteQueue(queue);
+    enqueueOfflineSiteToAndroid(queuedItem);
     let row=rowFromDoc(docId,{raw,createdAt:now,updatedAt:now,manualEntry:true,localOnly:true,offline:true});
     let loadedRows=null;
     if(typeof window.upsertFirebaseSiteRow==="function"){
@@ -1785,9 +1841,16 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     const syncedRows=[];
     for(const item of queue){
       try{
+        const androidOperation=androidOutboxOperation(`site:${item.docId}`);
+        if(androidOperation && String(androidOperation.status || "").toUpperCase()==="SYNCED"){
+          removeOfflineSiteFromQueue(item.docId);
+          synced++;
+          continue;
+        }
         const result=await saveUnifiedSiteRaw(item.raw,{docId:item.docId,skipOffline:true});
         if(result && result.row) syncedRows.push({id:result.id || item.docId,row:result.row});
         removeOfflineSiteFromQueue(item.docId);
+        markAndroidOutboxSynced(`site:${item.docId}`);
         synced++;
       }catch(e){
         console.warn("Offline bod/zdroj se nepodařilo synchronizovat",item.docId,e);
@@ -2550,7 +2613,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-27-apk-native-protocol-sync-v552";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-27-apk-native-site-sync-v554";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
