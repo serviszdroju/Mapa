@@ -250,7 +250,11 @@ export function setStartupAuthChecking(checking){
   const btn=document.getElementById("startupLoginBtn");
   const intro=document.getElementById("startupIntro");
   if(startup) startup.classList.toggle("auth-checking",!!checking);
-  setDisplayIfChangedLocal(btn,checking ? "none" : "");
+  setDisplayIfChangedLocal(btn,"");
+  if(btn){
+    btn.disabled=false;
+    btn.removeAttribute("aria-disabled");
+  }
   setTextIfChangedLocal(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.");
 }
 

@@ -91,6 +91,7 @@ public class MainActivity extends Activity {
     private CancellationSignal googleSignInCancellation;
     private boolean googleSignInBusy;
     private SzzOfflineRepository offlineRepository;
+    private boolean forceLocalAssetFallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -232,9 +233,12 @@ public class MainActivity extends Activity {
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                     request != null &&
                     request.isForMainFrame() &&
-                    !isOnline()
+                    isSzzWebUrl(request.getUrl())
                 ) {
+                    forceLocalAssetFallback = true;
                     view.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+                    view.loadUrl(BuildConfig.LAUNCH_URL);
+                    return;
                 }
                 super.onReceivedError(view, request, error);
             }
@@ -330,6 +334,7 @@ public class MainActivity extends Activity {
 
     private WebResourceResponse localApkAssetResponse(Uri uri) {
         if (uri == null || !isSzzWebUrl(uri) || isSzzApkDownloadUrl(uri)) return null;
+        if (isOnline() && !forceLocalAssetFallback) return null;
         String assetPath = localAssetPathFor(uri);
         if (assetPath == null) return null;
         WebResourceResponse response = openAssetResponse(assetPath);

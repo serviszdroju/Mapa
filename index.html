@@ -35,7 +35,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="auth-startup-timeout-v559";
+  const EMAIL_LOGIN_BUILD_VERSION="android-live-shell-v560";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -205,7 +205,11 @@ try{
       startup.style.display="flex";
     }
     if(app) app.style.display="none";
-    if(google) google.style.display="";
+    if(google){
+      google.style.display="";
+      google.disabled=false;
+      google.removeAttribute("aria-disabled");
+    }
     if(intro) intro.textContent="Přihlaste se Google účtem @astip.cz.";
     status(message || "");
   }
@@ -549,8 +553,11 @@ try{
     bindLoginButtons();
   }
 
+  let startupAuthWatchdogStarted=false;
   function scheduleStartupAuthWatchdog(){
-    setTimeout(releaseStuckStartupChecking,9000);
+    if(startupAuthWatchdogStarted) return;
+    startupAuthWatchdogStarted=true;
+    [5000,9000,15000,30000].forEach(delay=>setTimeout(releaseStuckStartupChecking,delay));
   }
 
   window.__szzReleaseStuckStartupChecking=releaseStuckStartupChecking;
@@ -583,14 +590,14 @@ try{
     <img class="logo-img" src="./szz-logo-display.png" alt="Servis záložních zdrojů logo">
     <h1>Servis záložních zdrojů</h1>
     <p id="startupIntro">Kontroluji přihlášení...</p>
-    <button class="secondary" id="startupLoginBtn" type="button" onclick="window.loginPopup(event)" style="display:none">Přihlásit přes Google</button>
+    <button class="secondary" id="startupLoginBtn" type="button" onclick="window.loginPopup(event)">Přihlásit přes Google</button>
     <p id="startupStatus" class="small"></p>
   </div>
 </div>
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android-v555.apk" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=android-live-shell-v560" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
@@ -1020,7 +1027,7 @@ Protokol na: ..."></textarea>
 <script type="module" src="./src/detail-tabs.js"></script>
 <script type="module" src="./src/hosted-login.js"></script>
 <script type="module" src="./src/main.js"></script>
-<script async src="./late.js?v=auth-startup-timeout-v559"></script>
+<script async src="./late.js?v=android-live-shell-v560"></script>
 
 
 

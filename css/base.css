@@ -101,7 +101,7 @@ display:flex;align-items:center;justify-content:center;z-index:5000;
 html.auth-resume #startupScreen{display:none !important}
 html.auth-resume #mainApp{display:grid !important}
 .startup.auth-checking{display:flex}
-.startup.auth-checking #startupLoginBtn{display:none}
+.startup.auth-checking #startupLoginBtn{display:inline-flex}
 .startup-card{
 width:min(420px,92vw);background:white;border-radius:28px;padding:32px;
 box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center

@@ -32,18 +32,20 @@ Debug APK bude v:
 
 Soubor pro webove tlacitko se publikuje jako:
 
-`public/downloads/szz-servis-zdroju-android-v555.apk`
+`public/downloads/szz-servis-zdroju-android-v560.apk`
 
 Pokud aplikace ukaze chybu Google prihlaseni s kodem `10`, neni problem ve webu: v Google Cloud/Firebase
 chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni APK.
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.14-native-edit-sync` (`versionCode 16`);
-- primarni stazeni: `downloads/szz-servis-zdroju-android-v555.apk`;
+- verze: `1.1.16-live-shell-auth` (`versionCode 18`);
+- primarni stazeni: `downloads/szz-servis-zdroju-android.apk`;
+- verzovana kopie: `downloads/szz-servis-zdroju-android-v560.apk`;
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-native-edit-sync-v555`;
-- SHA-256 souboru APK: `206c437442d1dd708a6be31f9a32933ab8758aba1225d3ab9ff8e6a3930d9101`;
+- build weboveho shellu: `android-live-shell-v560`;
+- SHA-256 souboru APK: `c509c72b3e0ee89a82b7c1257ca274c84b0f92904a5485b887e8c9f914ea53b9`;
+- online spousteni bere aktualni GitHub Pages shell, zabalene HTML/CSS/JS slouzi jako offline nebo chybovy fallback;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`

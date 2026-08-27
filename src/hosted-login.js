@@ -5,7 +5,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="auth-startup-timeout-v559";
+const EMAIL_LOGIN_BUILD_VERSION="android-live-shell-v560";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -313,7 +313,7 @@ function showAuthState(mode,options={}){
 
   if(startup) startup.classList.toggle("auth-checking",normalized==="checking" || normalized==="logging-in");
   display(startupLogin,loggedIn ? "none" : "");
-  disabled(startupLogin,normalized==="checking" || normalized==="logging-in");
+  disabled(startupLogin,normalized==="logging-in");
 
   const introText=options.intro ||
     (normalized==="checking" ? "Kontroluji přihlášení..." :

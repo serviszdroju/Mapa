@@ -818,6 +818,8 @@ Current refresh auth decision: refreshing an already-open/auth-restoring map mus
 
 Current startup auth decision: the startup "Kontroluji přihlášení..." screen must have a timeout fallback. If Firebase/Android auth does not verify a user quickly, reveal the normal Google login button instead of leaving the app stuck; do not unlock operational data solely from a stale localStorage known-session flag.
 
+Current Android shell decision: the native Android WebView wrapper must prefer the live GitHub Pages app shell while online and use bundled APK web assets only as an offline/failure fallback. Startup/login fixes on the web must not be trapped behind stale bundled APK HTML.
+
 Current protocol mail decision: PDF protocols sent by e-mail must omit internal point 15 "Chceck list", must include the signature for the technician stored on the protocol/site visit rather than the currently generating user, and must stop before sending if that technician signature cannot be resolved. Silent Android auth restore failures must not show a login error over an already-open map, and an early first tap on Google login should be queued until the Firebase login handler is ready.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
