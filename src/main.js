@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-room-media-v550";
+const APP_BUILD_VERSION="2026-08-27-apk-room-media-v551";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -581,7 +581,7 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
       return;
     }
     if(typeof unifiedLoader==="function"){
-      Promise.resolve(unifiedLoader(null,{offlineCacheOnly:true,skipFirestoreCache:true})).then(done).catch(e=>console.warn("Offline cache bodů se nepodařila načíst",e));
+      Promise.resolve(unifiedLoader(null,{offlineCacheOnly:true,skipFirestoreCache:true,allowOnlineCache:true})).then(done).catch(e=>console.warn("Offline cache bodů se nepodařila načíst",e));
       return;
     }
     if(Date.now()-started<timeoutMs){
@@ -1455,7 +1455,7 @@ if(firebaseReady){
     }
     if(typeof window.loadFirebaseSitesUnified==="function"){
       try{
-        const cachedRows=await window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true,skipFirestoreCache:true});
+        const cachedRows=await window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true,skipFirestoreCache:true,allowOnlineCache:true});
         if(Array.isArray(cachedRows) && cachedRows.length){
           resetFirebaseRowsAutoReload();
           runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth(reason).catch(e=>{
@@ -1809,7 +1809,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v459-runtime",
+  runtimeCacheName:"astip-szz-v551-runtime",
   mediaFetchConcurrency:4
 });
 
@@ -4681,6 +4681,7 @@ function fillProtocolFormFromHistory(protocol={}){
   setProtocolFieldValue("protoConditionsReason",protocol.conditionsReason || "");
   setProtocolFieldValue("protoNotes",protocol.notes || protocol.issues || "");
   setProtocolFieldValue("protoCustomerNote",protocol.customerNote || protocol.noteForCustomer || "");
+  setProtocolFieldValue("protoChecklist",protocol.checklist || protocol.checkList || protocol.chceckList || "");
   setProtocolFieldValue("protoSourceState",protocolSourceStateValue(protocol));
   setProtocolFieldValue("protoSourceTestMethod",protocol.sourceTestMethod || protocol.testMethod || "");
   setProtocolFieldValue("protoClientSign",protocol.clientSign || protocol.customer || "");
@@ -5144,6 +5145,7 @@ function protocolLegendXml(){
     ["Zařízení pracuje ve vyhovujících podmínkách","v odůvodnění uvést např. teplotu okolí, vlhkost, prašnost, mechanické poškození nebo znepřístupněné zařízení."],
     ["Poznámky","např. UPS je plně funkční, STOP STAV, vadná akumulátorová sada, vadná deska střídače apd."],
     ["Poznámka pro zákazníka","poznámka, která se propíše do Dokladu provozuschopnosti."],
+    ["Chceck list","vše atypické, co se týká zdroje."],
     ["Stav zdroje po kontrole","výsledek kontroly zdroje: v pořádku nebo Stop Stav."]
   ];
   return wordParagraph("Legenda:",{bold:true,size:20,before:90,after:40}) +
@@ -5175,6 +5177,7 @@ function buildProtocolWordDocumentXml(protocol={}){
     wordFormField("12) Zařízení pracuje ve vyhovujících podmínkách (odůvodnění):",protocolConditionsText(protocol)),
     wordFormField("13) Poznámky:",protocol.notes || protocol.issues),
     wordFormField("14) Poznámka pro zákazníka:",protocol.customerNote || protocol.noteForCustomer),
+    wordFormField("15) Chceck list:",protocol.checklist || protocol.checkList || protocol.chceckList),
     wordFormField("Stav zdroje po kontrole:",[
       protocolSourceStateLabel(protocol),
       protocolSourceStateValue(protocol)==="ok" ? protocolSourceTestMethodLabel(protocol.sourceTestMethod || protocol.testMethod) : ""
@@ -7074,6 +7077,7 @@ async function renderProtocolPdfPageCanvases(protocol={}){
   protocolPdfDrawFormField(state,"11) Perioda zkoušky provozuschopnosti:",protocolPeriodText(protocol));
   protocolPdfDrawFormField(state,"12) Zařízení pracuje ve vyhovujících podmínkách (odůvodnění):",protocolConditionsText(protocol));
   protocolPdfDrawFormField(state,"14) Poznámka pro zákazníka:",protocol.customerNote || protocol.noteForCustomer,9630,{keepWithNextDxa:650});
+  protocolPdfDrawFormField(state,"15) Chceck list:",protocol.checklist || protocol.checkList || protocol.chceckList,9630,{keepWithNextDxa:650});
   protocolPdfDrawFormField(state,"Stav zdroje po kontrole:",data.sourceState);
   protocolPdfDrawSignatureGrid(state,protocol,clientImage,techImage);
   state.pages.forEach((page,idx)=>{
@@ -8616,6 +8620,7 @@ function renderHistory(){
     ["Dostupnost", historyObjectSummary(d.availability)],
     ["Zjištění / poznámky", d.issues || d.notes || d.conditionsReason || ""],
     ["Poznámka pro zákazníka", d.customerNote || d.noteForCustomer || ""],
+    ["Chceck list", d.checklist || d.checkList || d.chceckList || ""],
     ["Doporučení", d.recommendation || ""],
     ["Podpis objednavatele", d.clientSignatureDataUrl ? "uložen elektronicky" : ""]
   ].filter(([,value])=>safe(value));
@@ -11975,6 +11980,7 @@ async function prefillProtocol(){
       setIfEmpty("protoOtherAvailability", last.availability.other);
     }
 
+    setIfEmpty("protoChecklist", last.checklist || last.checkList || last.chceckList);
     setProtocolStatusText("Předvyplněno z posledního uloženého protokolu a dat místa.");
   }else{
     setProtocolStatusText("Předvyplněno z dat místa.");
@@ -12071,6 +12077,9 @@ function protocolPayload(){
     conditionsReason:val("protoConditionsReason"),
     notes:val("protoNotes"),
     customerNote:val("protoCustomerNote"),
+    checklist:val("protoChecklist"),
+    checkList:val("protoChecklist"),
+    chceckList:val("protoChecklist"),
     sourceState:val("protoSourceState"),
     sourceStateLabel:protocolSourceStateLabel({sourceState:val("protoSourceState")}),
     sourceTestMethod:val("protoSourceTestMethod"),
@@ -12389,7 +12398,9 @@ async function refreshFirebaseUnifiedPrimary(){
       return true;
     }
     if(firebaseRowsWereLoadedFromNetwork()) return true;
-    const loadOptions=navigator.onLine===false ? {} : {force:true,skipLocalCache:true,skipFirestoreCache:true};
+    const loadOptions=navigator.onLine===false
+      ? {offlineCacheOnly:true,skipFirestoreCache:true,allowOnlineCache:true}
+      : {auto:true,allowOnlineCache:true,skipFirestoreCache:true};
     await window.loadFirebaseSitesUnified(null,loadOptions);
     return true;
   }
