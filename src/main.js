@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-room-sites-v549";
+const APP_BUILD_VERSION="2026-08-27-apk-room-media-v550";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -7511,6 +7511,17 @@ function androidOfflineCall(method,payload){
   }
 }
 
+function androidOfflineReadJson(method,limit=5000){
+  const bridge=androidOfflineBridge();
+  if(!bridge || typeof bridge[method]!=="function") return null;
+  try{
+    return JSON.parse(String(bridge[method](limit) || "{}"));
+  }catch(e){
+    console.warn("Android offline čtení selhalo",method,e);
+    return null;
+  }
+}
+
 function androidOfflineSiteLocalId(site=selectedSite){
   const keys=siteRecordKeys(site);
   return keys[0] || selectedSiteDocId(site) || detailKey(site) || safe(site?.id) || "unknown-site";
@@ -7529,6 +7540,62 @@ function saveProtocolDraftToAndroid(site,draft){
     sourceLocalId:androidOfflineSourceLocalId(site),
     savedAt:draft.savedAt || new Date().toISOString(),
     payloadJson:JSON.stringify(draft)
+  });
+}
+
+function readAndroidCachedRecords(method,site=selectedSite,limit=5000){
+  const parsed=androidOfflineReadJson(method,limit);
+  const items=Array.isArray(parsed?.items) ? parsed.items : [];
+  if(!site) return items;
+  return items.filter(item=>{
+    try{ return recordMatchesSite(item,site); }
+    catch(e){ return false; }
+  });
+}
+
+function saveMediaSnapshotToAndroid(method,site,items){
+  if(!Array.isArray(items) || !items.length) return false;
+  const compactItems=items.filter(item=>item && typeof item==="object");
+  if(!compactItems.length) return false;
+  return androidOfflineCall(method,{
+    siteLocalId:androidOfflineSiteLocalId(site),
+    sourceLocalId:androidOfflineSourceLocalId(site),
+    savedAt:new Date().toISOString(),
+    items:compactItems
+  });
+}
+
+function savePhotosSnapshotToAndroid(site,items){
+  return saveMediaSnapshotToAndroid("savePhotosSnapshot",site,items);
+}
+
+function saveAttachmentsSnapshotToAndroid(site,items){
+  return saveMediaSnapshotToAndroid("saveAttachmentsSnapshot",site,items);
+}
+
+function saveLocalPhotoToAndroid(site,photoPayload){
+  if(!photoPayload) return false;
+  const localId=safe(photoPayload._id || photoPayload.id) || makeLocalRecordId("photo");
+  const payload={...photoPayload,_id:localId};
+  return androidOfflineCall("saveLocalPhoto",{
+    operationId:`photo:${localId}`,
+    localId,
+    sourceLocalId:androidOfflineSourceLocalId(site),
+    siteLocalId:androidOfflineSiteLocalId(site),
+    payloadJson:JSON.stringify(payload)
+  });
+}
+
+function saveLocalAttachmentToAndroid(site,attachmentPayload){
+  if(!attachmentPayload) return false;
+  const localId=safe(attachmentPayload._id || attachmentPayload.id) || makeLocalRecordId("attachment");
+  const payload={...attachmentPayload,_id:localId};
+  return androidOfflineCall("saveLocalAttachment",{
+    operationId:`attachment:${localId}`,
+    localId,
+    sourceLocalId:androidOfflineSourceLocalId(site),
+    siteLocalId:androidOfflineSiteLocalId(site),
+    payloadJson:JSON.stringify(payload)
   });
 }
 
@@ -10415,7 +10482,9 @@ async function syncOfflinePhotos(options={}){
         const embeddedOk=childOk ? true : await appendEmbeddedSiteItem("photos",payload,site);
         if(!childOk && !embeddedOk) throw new Error("Firebase nepovolil uložit odkaz k bodu.");
         appendSiteLocalArray("photos",payload,site,0);
+        savePhotosSnapshotToAndroid(site,[payload]);
         await removeOfflinePhotoItem(id,site,item);
+        markAndroidOutboxSynced(`photo:${id}`);
         if(selectedSite && recordMatchesSite(payload,selectedSite)){
           sitePhotoItems=[payload,...sitePhotoItems.filter(photo=>safe(photo._id)!==id)];
           renderSitePhotos(sitePhotoItems,true);
@@ -11236,6 +11305,7 @@ async function loadSitePhotos(site=selectedSite){
     items.sort((a,b)=>historyTimeValue(b)-historyTimeValue(a));
     renderSitePhotos(items);
     setSitePhotosStatusText(message || (items.length ? `Načteno fotografií: ${items.length}.` : ""));
+    savePhotosSnapshotToAndroid(site,items);
   };
   let offlinePhotosPromise=null;
   const mergeOfflinePhotosOnce=async()=>{
@@ -11248,6 +11318,11 @@ async function loadSitePhotos(site=selectedSite){
   };
 
   if(site){
+    const androidPhotos=readAndroidCachedRecords("cachedPhotosJson",site,5000);
+    for(let idx=0;idx<androidPhotos.length;idx++){
+      const item=androidPhotos[idx];
+      addPhoto({...item,_id:item._id || `android_photo_${idx}`,_androidRoom:true});
+    }
     const localPhotos=readSiteLocalArray("photos",site);
     for(let idx=0;idx<localPhotos.length;idx++){
       const item=localPhotos[idx];
@@ -11381,6 +11456,7 @@ async function uploadSitePhotos(){
         syncQueuedAt:createdAt
       };
       await saveOfflinePhotoItem(photoPayload,selectedSite);
+      saveLocalPhotoToAndroid(selectedSite,photoPayload);
       offlineCount++;
       renderSitePhotos([photoPayload,...sitePhotoItems.filter(photo=>safe(photo._id)!==photoPayload._id)]);
     };
@@ -11431,6 +11507,7 @@ async function uploadSitePhotos(){
       const childOk=await saveSiteChildItem("photos",photoId,photoPayload,selectedSite);
       const embeddedOk=childOk ? true : await appendEmbeddedSiteItem("photos",photoPayload,selectedSite);
       appendSiteLocalArray("photos",photoPayload,selectedSite,0);
+      savePhotosSnapshotToAndroid(selectedSite,[photoPayload]);
       if(!childOk && !embeddedOk){
         localOnlyCount++;
         setSitePhotosStatusText("Fotografie je na Cloudinary. Firebase nepovolil uložení odkazu k bodu, proto je odkaz uložen lokálně v tomto prohlížeči.");
@@ -11586,8 +11663,13 @@ async function loadSiteAttachments(site=selectedSite){
     siteAttachmentItems=items.slice();
     renderSiteAttachments(siteAttachmentItems);
     setSiteAttachmentsStatusText(message || (items.length ? `Načteno příloh: ${items.length}.` : ""));
+    saveAttachmentsSnapshotToAndroid(site,items);
   };
   const siblings=attachmentSiblingRows(site);
+  if(site){
+    const androidAttachments=readAndroidCachedRecords("cachedAttachmentsJson",site,5000);
+    androidAttachments.forEach((item,idx)=>addAttachment({...item,_id:item._id || `android_attachment_${idx}`,_androidRoom:true}));
+  }
   siblings.forEach(sibling=>{
     readSiteLocalArray("attachments",sibling).forEach(addAttachment);
     const embedded=Array.isArray(sibling?.firebaseData?.attachments) ? sibling.firebaseData.attachments : [];
@@ -11653,6 +11735,10 @@ async function uploadSiteAttachments(){
       uploadedBy:userEmail || "nepřihlášený uživatel",
       createdAt,
       uploadedAt:createdAt,
+      _offline:!onlineSaveAvailable,
+      _syncStatus:onlineSaveAvailable ? "online" : "local",
+      localOnly:!onlineSaveAvailable,
+      syncQueuedAt:onlineSaveAvailable ? "" : createdAt,
       sharedPlaceKey:sitePlaceGroupKey(selectedSite),
       sharedPlaceName:sitePlaceLabel(selectedSite) || selectedSite.adresa || ""
     };
@@ -11663,6 +11749,8 @@ async function uploadSiteAttachments(){
         if(!childOk) await appendEmbeddedSiteItem("attachments",payload,sibling);
       }
       appendSiteLocalArray("attachments",payload,sibling,180);
+      if(onlineSaveAvailable) saveAttachmentsSnapshotToAndroid(sibling,[payload]);
+      else saveLocalAttachmentToAndroid(sibling,payload);
     }
     addLocalAttachmentToCurrentView(basePayload);
     savedCount++;

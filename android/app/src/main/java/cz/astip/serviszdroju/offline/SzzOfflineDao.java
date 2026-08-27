@@ -28,7 +28,13 @@ public interface SzzOfflineDao {
     void upsertPhoto(OfflineEntities.PhotoEntity photo);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void upsertPhotos(List<OfflineEntities.PhotoEntity> photos);
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsertAttachment(OfflineEntities.AttachmentEntity attachment);
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void upsertAttachments(List<OfflineEntities.AttachmentEntity> attachments);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsertMySite(OfflineEntities.MySiteEntity site);
@@ -56,6 +62,24 @@ public interface SzzOfflineDao {
 
     @Query("SELECT raw_json FROM sites WHERE deleted_at IS NULL AND raw_json IS NOT NULL AND raw_json != '' ORDER BY updated_at DESC LIMIT :limit")
     List<String> cachedSiteRawJson(int limit);
+
+    @Query("SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL")
+    int cachedPhotoCount();
+
+    @Query("SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL AND upload_state != 'SYNCED'")
+    int pendingPhotoCount();
+
+    @Query("SELECT raw_json FROM photos WHERE deleted_at IS NULL AND raw_json IS NOT NULL AND raw_json != '' ORDER BY updated_at DESC, added_at DESC LIMIT :limit")
+    List<String> cachedPhotoRawJson(int limit);
+
+    @Query("SELECT COUNT(*) FROM attachments WHERE deleted_at IS NULL")
+    int cachedAttachmentCount();
+
+    @Query("SELECT COUNT(*) FROM attachments WHERE deleted_at IS NULL AND upload_state != 'SYNCED'")
+    int pendingAttachmentCount();
+
+    @Query("SELECT raw_json FROM attachments WHERE deleted_at IS NULL AND raw_json IS NOT NULL AND raw_json != '' ORDER BY updated_at DESC, created_at DESC LIMIT :limit")
+    List<String> cachedAttachmentRawJson(int limit);
 
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE status != 'SYNCED'")
     int pendingOutboxCount();

@@ -129,6 +129,92 @@ public final class SzzOfflineRepository {
         });
     }
 
+    public void savePhotosSnapshot(String payloadJson, Callback callback) {
+        run(callback, () -> {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            JSONArray items = payload.optJSONArray("items");
+            String sourceLocalId = optional(payload, "sourceLocalId");
+            String now = isoNow();
+            List<OfflineEntities.PhotoEntity> photos = new ArrayList<>();
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    OfflineEntities.PhotoEntity photo = photoEntityFromPayload(items.optJSONObject(i), sourceLocalId, now, false);
+                    if (photo != null) photos.add(photo);
+                }
+            }
+            if (!photos.isEmpty()) {
+                database.runInTransaction(() -> dao.upsertPhotos(photos));
+            }
+            return countsJson();
+        });
+    }
+
+    public void saveLocalPhoto(String payloadJson, Callback callback) {
+        run(callback, () -> {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            String now = isoNow();
+            OfflineEntities.PhotoEntity photo = photoEntityFromPayload(payload, optional(payload, "sourceLocalId"), now, true);
+            if (photo == null) throw new JSONException("Fotografii nejde ulozit bez localId.");
+            OfflineEntities.SyncOutboxEntity operation = outboxOperation(
+                payload.optString("operationId", "photo-" + photo.localId),
+                OfflineTables.PHOTOS,
+                photo.localId,
+                SyncOperation.UPLOAD_PHOTO.name(),
+                photo.rawJson,
+                now
+            );
+            database.runInTransaction(() -> {
+                dao.upsertPhoto(photo);
+                dao.enqueueSyncOperation(operation);
+            });
+            enqueueSyncWork();
+            return countsJson();
+        });
+    }
+
+    public void saveAttachmentsSnapshot(String payloadJson, Callback callback) {
+        run(callback, () -> {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            JSONArray items = payload.optJSONArray("items");
+            String sourceLocalId = optional(payload, "sourceLocalId");
+            String now = isoNow();
+            List<OfflineEntities.AttachmentEntity> attachments = new ArrayList<>();
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    OfflineEntities.AttachmentEntity attachment = attachmentEntityFromPayload(items.optJSONObject(i), sourceLocalId, now, false);
+                    if (attachment != null) attachments.add(attachment);
+                }
+            }
+            if (!attachments.isEmpty()) {
+                database.runInTransaction(() -> dao.upsertAttachments(attachments));
+            }
+            return countsJson();
+        });
+    }
+
+    public void saveLocalAttachment(String payloadJson, Callback callback) {
+        run(callback, () -> {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            String now = isoNow();
+            OfflineEntities.AttachmentEntity attachment = attachmentEntityFromPayload(payload, optional(payload, "sourceLocalId"), now, true);
+            if (attachment == null) throw new JSONException("Prilohu nejde ulozit bez localId.");
+            OfflineEntities.SyncOutboxEntity operation = outboxOperation(
+                payload.optString("operationId", "attachment-" + attachment.localId),
+                OfflineTables.ATTACHMENTS,
+                attachment.localId,
+                SyncOperation.UPLOAD_ATTACHMENT.name(),
+                attachment.rawJson,
+                now
+            );
+            database.runInTransaction(() -> {
+                dao.upsertAttachment(attachment);
+                dao.enqueueSyncOperation(operation);
+            });
+            enqueueSyncWork();
+            return countsJson();
+        });
+    }
+
     public void enqueueOutbox(String payloadJson, Callback callback) {
         run(callback, () -> {
             JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
@@ -159,10 +245,20 @@ public final class SzzOfflineRepository {
     }
 
     public String cachedSitesJson(int limit) {
+        return cachedRowsJson("cachedSites", dao.cachedSiteCount(), dao.cachedSiteRawJson(cappedLimit(limit)));
+    }
+
+    public String cachedPhotosJson(int limit) {
+        return cachedRowsJson("cachedPhotos", dao.cachedPhotoCount(), dao.cachedPhotoRawJson(cappedLimit(limit)));
+    }
+
+    public String cachedAttachmentsJson(int limit) {
+        return cachedRowsJson("cachedAttachments", dao.cachedAttachmentCount(), dao.cachedAttachmentRawJson(cappedLimit(limit)));
+    }
+
+    private String cachedRowsJson(String countKey, int totalCount, List<String> rows) {
         JSONObject result = new JSONObject();
         try {
-            int cappedLimit = Math.max(1, Math.min(limit <= 0 ? 5000 : limit, 20000));
-            List<String> rows = dao.cachedSiteRawJson(cappedLimit);
             JSONArray items = new JSONArray();
             for (String row : rows) {
                 try {
@@ -171,7 +267,7 @@ public final class SzzOfflineRepository {
             }
             result.put("ok", true);
             result.put("count", items.length());
-            result.put("cachedSites", dao.cachedSiteCount());
+            result.put(countKey, totalCount);
             result.put("items", items);
         } catch (Exception error) {
             try {
@@ -180,6 +276,10 @@ public final class SzzOfflineRepository {
             } catch (Exception ignored) {}
         }
         return result.toString();
+    }
+
+    private static int cappedLimit(int limit) {
+        return Math.max(1, Math.min(limit <= 0 ? 5000 : limit, 20000));
     }
 
     public SzzOfflineDao dao() {
@@ -206,6 +306,10 @@ public final class SzzOfflineRepository {
         result.put("protocolDrafts", dao.protocolDraftCount());
         result.put("pendingOutbox", dao.pendingOutboxCount());
         result.put("cachedSites", dao.cachedSiteCount());
+        result.put("cachedPhotos", dao.cachedPhotoCount());
+        result.put("pendingPhotos", dao.pendingPhotoCount());
+        result.put("cachedAttachments", dao.cachedAttachmentCount());
+        result.put("pendingAttachments", dao.pendingAttachmentCount());
         return result;
     }
 
@@ -233,6 +337,131 @@ public final class SzzOfflineRepository {
         site.syncState = SyncState.SYNCED.name();
         site.rawJson = item.toString();
         return site;
+    }
+
+    private OfflineEntities.PhotoEntity photoEntityFromPayload(JSONObject payload, String defaultSourceLocalId, String now, boolean pending) {
+        JSONObject raw = mediaRawPayload(payload, defaultSourceLocalId);
+        if (raw == null) return null;
+        String rawJson = raw.toString();
+        String localId = firstText(payload, raw, "localId", "photoId", "_id", "id", "firebaseId", "firebaseDocId", "cloudinaryPublicId");
+        if (localId == null) {
+            String fallback = firstText(raw, "fullUrl", "displayUrl", "thumbUrl", "url", "dataUrl");
+            if (fallback != null) localId = "photo-" + Integer.toHexString(fallback.hashCode());
+        }
+        if (localId == null) return null;
+
+        OfflineEntities.PhotoEntity photo = new OfflineEntities.PhotoEntity();
+        photo.localId = localId;
+        photo.sourceLocalId = firstText(payload, raw, "sourceLocalId", "siteLocalId", "sourceGroupKey", "sourceIdentity", "siteDocId", "siteKey", "firebaseDocId");
+        if (photo.sourceLocalId == null) photo.sourceLocalId = defaultSourceLocalId;
+        photo.firebaseId = firstText(payload, raw, "firebaseId", "firebaseDocId", "_id", "id");
+        photo.folderDate = firstText(raw, payload, "photoFolder", "folderName", "folder", "cloudinaryFolderDate");
+        photo.localOriginalPath = firstText(raw, payload, "localOriginalPath", "localPath", "filePath");
+        photo.localThumbPath = firstText(raw, payload, "localThumbPath", "thumbLocalPath");
+        photo.cloudinaryUrl = firstText(raw, payload, "cloudinaryUrl", "fullUrl", "displayUrl", "url");
+        photo.sha256 = firstText(raw, payload, "sha256", "checksum");
+        photo.uploadState = pending || truthy(raw, "_offline") || truthy(raw, "localOnly") ? SyncState.PENDING.name() : SyncState.SYNCED.name();
+        photo.uploadedByEmail = firstText(raw, payload, "uploadedBy", "uploadedByEmail", "createdBy", "technicianEmail");
+        photo.takenAt = firstText(raw, payload, "takenAt", "createdAt");
+        photo.addedAt = firstText(raw, payload, "addedAt", "uploadedAt", "createdAt", "savedAt");
+        photo.updatedAt = firstText(raw, payload, "updatedAt", "syncedAt", "uploadedAt", "createdAt");
+        if (photo.updatedAt == null) photo.updatedAt = now;
+        photo.deletedAt = firstText(raw, payload, "deletedAt", "deleted_at");
+        photo.rawJson = rawJson;
+        return photo;
+    }
+
+    private OfflineEntities.AttachmentEntity attachmentEntityFromPayload(JSONObject payload, String defaultSourceLocalId, String now, boolean pending) {
+        JSONObject raw = mediaRawPayload(payload, defaultSourceLocalId);
+        if (raw == null) return null;
+        String rawJson = raw.toString();
+        String localId = firstText(payload, raw, "localId", "attachmentId", "_id", "id", "firebaseId", "firebaseDocId", "fileName");
+        if (localId == null) {
+            String fallback = firstText(raw, "downloadUrl", "remoteUrl", "url", "dataUrl", "fileName");
+            if (fallback != null) localId = "attachment-" + Integer.toHexString(fallback.hashCode());
+        }
+        if (localId == null) return null;
+
+        OfflineEntities.AttachmentEntity attachment = new OfflineEntities.AttachmentEntity();
+        attachment.localId = localId;
+        attachment.sourceLocalId = firstText(payload, raw, "sourceLocalId", "siteLocalId", "sourceGroupKey", "sourceIdentity", "siteDocId", "siteKey", "firebaseDocId");
+        if (attachment.sourceLocalId == null) attachment.sourceLocalId = defaultSourceLocalId;
+        attachment.firebaseId = firstText(payload, raw, "firebaseId", "firebaseDocId", "_id", "id");
+        attachment.fileName = firstText(raw, payload, "fileName", "originalFileName", "name");
+        attachment.mimeType = firstText(raw, payload, "mimeType", "type");
+        attachment.localPath = firstText(raw, payload, "localPath", "filePath");
+        attachment.remoteUrl = firstText(raw, payload, "remoteUrl", "downloadUrl", "url", "dataUrl");
+        attachment.sha256 = firstText(raw, payload, "sha256", "checksum");
+        attachment.uploadState = pending || truthy(raw, "_offline") || truthy(raw, "localOnly") || "localInline".equals(firstText(raw, "storageMode")) ? SyncState.PENDING.name() : SyncState.SYNCED.name();
+        attachment.createdAt = firstText(raw, payload, "createdAt", "uploadedAt", "savedAt");
+        attachment.updatedAt = firstText(raw, payload, "updatedAt", "uploadedAt", "createdAt");
+        if (attachment.updatedAt == null) attachment.updatedAt = now;
+        attachment.deletedAt = firstText(raw, payload, "deletedAt", "deleted_at");
+        attachment.rawJson = rawJson;
+        return attachment;
+    }
+
+    private static JSONObject rawPayload(JSONObject payload) {
+        if (payload == null) return null;
+        JSONObject nested = payload.optJSONObject("payload");
+        if (nested != null) return nested;
+        String rawText = optional(payload, "payloadJson");
+        if (rawText != null) {
+            try {
+                return new JSONObject(rawText);
+            } catch (Exception ignored) {}
+        }
+        return payload;
+    }
+
+    private static JSONObject mediaRawPayload(JSONObject payload, String defaultSourceLocalId) {
+        JSONObject raw = rawPayload(payload);
+        if (raw == null) return null;
+        String siteLocalId = firstText(payload, raw, "siteLocalId", "siteId", "siteKey", "siteDocId", "firebaseDocId");
+        String sourceLocalId = firstText(payload, raw, "sourceLocalId", "sourceIdentity", "sourceGroupKey");
+        if (sourceLocalId == null) sourceLocalId = defaultSourceLocalId;
+        try {
+            if (siteLocalId != null) {
+                putIfMissing(raw, "siteLocalId", siteLocalId);
+                putIfMissing(raw, "siteId", siteLocalId);
+                putIfMissing(raw, "siteKey", siteLocalId);
+                appendJsonArrayUnique(raw, "siteKeys", siteLocalId);
+            }
+            if (sourceLocalId != null) {
+                putIfMissing(raw, "sourceLocalId", sourceLocalId);
+                putIfMissing(raw, "sourceIdentity", sourceLocalId);
+            }
+        } catch (Exception ignored) {}
+        return raw;
+    }
+
+    private static void putIfMissing(JSONObject object, String key, String value) throws JSONException {
+        if (object == null || key == null || value == null) return;
+        if (!object.has(key) || object.isNull(key) || optional(object, key) == null) {
+            object.put(key, value);
+        }
+    }
+
+    private static void appendJsonArrayUnique(JSONObject object, String key, String value) throws JSONException {
+        if (object == null || key == null || value == null) return;
+        JSONArray values = object.optJSONArray(key);
+        if (values == null) {
+            values = new JSONArray();
+            object.put(key, values);
+        }
+        for (int i = 0; i < values.length(); i++) {
+            if (value.equals(values.optString(i, ""))) return;
+        }
+        values.put(value);
+    }
+
+    private static boolean truthy(JSONObject object, String key) {
+        if (object == null || key == null || !object.has(key) || object.isNull(key)) return false;
+        Object value = object.opt(key);
+        if (value instanceof Boolean) return (Boolean) value;
+        if (value instanceof Number) return ((Number) value).doubleValue() != 0;
+        String text = String.valueOf(value).trim().toLowerCase(Locale.ROOT);
+        return "true".equals(text) || "1".equals(text) || "yes".equals(text) || "ano".equals(text);
     }
 
     private static String firstText(JSONObject primary, JSONObject secondary, String... keys) {

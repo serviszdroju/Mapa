@@ -18,15 +18,15 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 10
-        versionName "1.1.8-room-sites"
+        versionCode 11
+        versionName "1.1.9-room-media"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=apk-room-sites-v549\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=apk-room-media-v550\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
     }

@@ -489,6 +489,48 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void savePhotosSnapshot(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.savePhotosSnapshot(payloadJson, androidOfflineCallback("photos-snapshot"));
+        }
+
+        @JavascriptInterface
+        public void saveLocalPhoto(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.saveLocalPhoto(payloadJson, androidOfflineCallback("photo"));
+        }
+
+        @JavascriptInterface
+        public String cachedPhotosJson(int limit) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
+            return repository.cachedPhotosJson(limit);
+        }
+
+        @JavascriptInterface
+        public void saveAttachmentsSnapshot(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.saveAttachmentsSnapshot(payloadJson, androidOfflineCallback("attachments-snapshot"));
+        }
+
+        @JavascriptInterface
+        public void saveLocalAttachment(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.saveLocalAttachment(payloadJson, androidOfflineCallback("attachment"));
+        }
+
+        @JavascriptInterface
+        public String cachedAttachmentsJson(int limit) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
+            return repository.cachedAttachmentsJson(limit);
+        }
+
+        @JavascriptInterface
         public void enqueueOutbox(String payloadJson) {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return;

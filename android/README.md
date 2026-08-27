@@ -39,16 +39,19 @@ chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.8-room-sites` (`versionCode 10`);
+- verze: `1.1.9-room-media` (`versionCode 11`);
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-room-sites-v549`;
-- SHA-256 souboru APK: `492aa19f241dc5b263b80427da2ce08614e264ae40675f7527258e6f7c75ccaf`;
+- build weboveho shellu: `apk-room-media-v550`;
+- SHA-256 souboru APK: `1ace49da228e43d15f55d977ab528aa920035e6131328378ea8184b6580221cb`;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
   a `conflicts`;
 - uklada snapshot servisnich bodu do Room tabulky `sites` a pri Android startu ho umi
   vratit webu pres `SzzAndroidOffline.cachedSitesJson()`;
+- uklada snapshoty fotografii a priloh do Room tabulek `photos` a `attachments` a umi je
+  vratit webu pres `cachedPhotosJson()` / `cachedAttachmentsJson()`;
+- uklada offline vytvorene fotografie a prilohy jako trvale polozky ve `sync_outbox`;
 - umi tise obnovit Android Google prihlaseni pres `SzzAndroidAuth.restoreGoogleSignIn()`,
   kdyz Firebase session ve WebView dobehne nebo se dočasne ztrati;
 - uklada rozpracovany protokol do Room pres `SzzAndroidOffline` a vynuti flush pri
