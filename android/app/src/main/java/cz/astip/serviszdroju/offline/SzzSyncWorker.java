@@ -84,6 +84,8 @@ public final class SzzSyncWorker extends Worker {
                     syncPhoto(dao, operation, session);
                 } else if (SyncOperation.UPLOAD_ATTACHMENT.name().equals(opName)) {
                     syncAttachment(dao, operation, session);
+                } else if (SyncOperation.UPSERT_PROTOCOL.name().equals(opName)) {
+                    syncProtocol(dao, operation, session);
                 } else {
                     deferUnsupported(dao, operation);
                 }
@@ -178,6 +180,31 @@ public final class SzzSyncWorker extends Worker {
         dao.markOutboxSynced(operation.operationId, syncedAt);
     }
 
+    private static void syncProtocol(SzzOfflineDao dao, OfflineEntities.SyncOutboxEntity operation, FirebaseSession session) throws Exception {
+        JSONObject payload = payload(operation);
+        String childId = entityId(operation, payload, "protocolId");
+        String siteDocId = siteDocId(payload);
+        if (childId.isEmpty()) throw new PermanentException("Protokol nemá lokální identifikátor.");
+        if (siteDocId.isEmpty()) throw new PermanentException("Protokol nemá Firebase bod.");
+
+        String syncedAt = isoNow();
+        payload.put("_id", childId);
+        payload.put("_offline", false);
+        payload.put("_syncStatus", "online");
+        payload.put("localOnly", false);
+        payload.put("syncedAt", syncedAt);
+        payload.put("syncedBy", session.email);
+        payload.put("updatedBy", session.email);
+        putIfMissing(payload, "createdBy", session.email);
+        putIfMissing(payload, "savedAt", syncedAt);
+
+        writeChild("protocols", siteDocId, childId, payload, session.firebaseIdToken);
+        writeTopLevel("protocols", childId, payload, session.firebaseIdToken);
+        touchParent(siteDocId, syncedAt, session.firebaseIdToken);
+        dao.updateProtocolSyncState(operation.entityLocalId, SyncState.SYNCED.name(), childId, payload.toString(), syncedAt, null);
+        dao.markOutboxSynced(operation.operationId, syncedAt);
+    }
+
     private static FirebaseSession exchangeGoogleToken(String googleIdToken) throws Exception {
         JSONObject body = new JSONObject();
         body.put("postBody", "id_token=" + urlEncode(googleIdToken) + "&providerId=google.com");
@@ -223,6 +250,15 @@ public final class SzzSyncWorker extends Worker {
 
     private static void writeChild(String collection, String siteDocId, String childId, JSONObject payload, String firebaseIdToken) throws Exception {
         String url = FIRESTORE_ROOT + "/sitesUnified/" + path(siteDocId) + "/" + path(collection) + "/" + path(childId);
+        writeDocument(url, payload, firebaseIdToken);
+    }
+
+    private static void writeTopLevel(String collection, String childId, JSONObject payload, String firebaseIdToken) throws Exception {
+        String url = FIRESTORE_ROOT + "/" + path(collection) + "/" + path(childId);
+        writeDocument(url, payload, firebaseIdToken);
+    }
+
+    private static void writeDocument(String url, JSONObject payload, String firebaseIdToken) throws Exception {
         HttpResult result = patchJson(url, firestoreDocument(payload), firebaseIdToken);
         if (result.status == 401 || result.status == 403) throw new AuthException("Firebase nepovolil uložit změnu. Přihlas se v aplikaci znovu.");
         if (result.status == 429 || result.status >= 500) throw new RetryableException("Firebase uložení je dočasně nedostupné (" + result.status + ").");
@@ -479,6 +515,8 @@ public final class SzzSyncWorker extends Worker {
             dao.updatePhotoSyncState(operation.entityLocalId, SyncState.FAILED.name(), "", operation.payloadJson, updatedAt, compact);
         } else if (OfflineTables.ATTACHMENTS.equals(operation.entityTable)) {
             dao.updateAttachmentSyncState(operation.entityLocalId, SyncState.FAILED.name(), "", operation.payloadJson, updatedAt, compact);
+        } else if (OfflineTables.PROTOCOLS.equals(operation.entityTable)) {
+            dao.updateProtocolSyncState(operation.entityLocalId, SyncState.FAILED.name(), "", operation.payloadJson, updatedAt, compact);
         }
     }
 

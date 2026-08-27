@@ -107,4 +107,7 @@ public interface SzzOfflineDao {
 
     @Query("UPDATE attachments SET upload_state = :state, remote_url = :remoteUrl, raw_json = :rawJson, updated_at = :updatedAt, last_sync_error = :lastError WHERE local_id = :localId")
     void updateAttachmentSyncState(String localId, String state, String remoteUrl, String rawJson, String updatedAt, String lastError);
+
+    @Query("UPDATE protocols SET sync_state = :state, firebase_id = :firebaseId, raw_json = :rawJson, updated_at = :updatedAt, last_sync_error = :lastError WHERE local_id = :localId")
+    void updateProtocolSyncState(String localId, String state, String firebaseId, String rawJson, String updatedAt, String lastError);
 }

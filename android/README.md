@@ -39,10 +39,10 @@ chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.10-native-sync` (`versionCode 12`);
+- verze: `1.1.11-native-protocol-sync` (`versionCode 13`);
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-native-sync-v551`;
-- SHA-256 souboru APK: `7b4bbd430403e05cf0bcb3ad36879728db09aac251159a56e9d47dbd713ec80a`;
+- build weboveho shellu: `apk-native-protocol-sync-v552`;
+- SHA-256 souboru APK: `cd64d011c0f24178ef0ea933fdcadaf77fb4303bc9ad8f6d43bddbf4bea93c79`;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
@@ -59,6 +59,9 @@ Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
   pokusu nenahrala duplicitne;
 - webova sync vrstva pri dalsim otevreni pozna nativne synchronizovane fotky a odstrani je
   z webove offline fronty bez duplicitniho uploadu;
+- WorkManager umi odeslat i offline protokoly do `sitesUnified/{site}/protocols/{id}` a
+  top-level `protocols/{id}`; web po dalsim otevreni pozna nativne synchronizovany protokol
+  a odstrani ho z webove offline fronty bez duplicitniho zapisu;
 - umi tise obnovit Android Google prihlaseni pres `SzzAndroidAuth.restoreGoogleSignIn()`,
   kdyz Firebase session ve WebView dobehne nebo se dočasne ztrati;
 - pri startu a navratu aplikace zkusi obnovit ulozene Android prihlaseni tise, bez rusive chyby
