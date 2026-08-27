@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-room-outbox-v548";
+const APP_BUILD_VERSION="2026-08-27-apk-room-sites-v549";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1017,7 +1017,7 @@ if(firebaseReady){
     }
     return bridge;
   }
-  function signInWithAndroidGoogleIdToken(){
+  function signInWithAndroidGoogleIdToken(options={}){
     const bridge=androidAuthBridge();
     if(!bridge) throw new Error("Android Google přihlášení není v této APK dostupné.");
     return new Promise((resolve,reject)=>{
@@ -1038,7 +1038,8 @@ if(firebaseReady){
         finish(reject,new Error(safe(message) || "Android Google přihlášení se nepodařilo."));
       };
       try{
-        bridge.startGoogleSignIn();
+        if(options.silent && typeof bridge.restoreGoogleSignIn==="function") bridge.restoreGoogleSignIn();
+        else bridge.startGoogleSignIn();
       }catch(error){
         finish(reject,error);
       }
@@ -1304,6 +1305,40 @@ if(firebaseReady){
       backgroundAuthRetryTimer=null;
     }
   }
+  let androidSilentAuthPromise=null;
+  let lastAndroidSilentAuthAt=0;
+  function canTryAndroidSilentAuth(){
+    if(explicitSignOutPending() || authLoginInProgress) return false;
+    const bridge=androidAuthBridge();
+    return !!(bridge && typeof bridge.restoreGoogleSignIn==="function");
+  }
+  async function tryAndroidSilentAuth(reason="restore"){
+    if(!canTryAndroidSilentAuth()) return null;
+    const now=Date.now();
+    if(lastAndroidSilentAuthAt && now-lastAndroidSilentAuthAt<12000) return null;
+    if(androidSilentAuthPromise) return androidSilentAuthPromise;
+    lastAndroidSilentAuthAt=now;
+    androidSilentAuthPromise=(async()=>{
+      try{
+        setStartupAuthChecking(true);
+        setStartupStatus(reason==="auth-null"
+          ? "Obnovuji Android přihlášení..."
+          : "Kontroluji Android přihlášení...");
+        const result=await signInWithAndroidGoogleIdToken({silent:true});
+        const user=result && result.user ? result.user : await waitForAuthCandidate(3500);
+        if(user){
+          await handleAuthorizedUser(user);
+          return user;
+        }
+      }catch(e){
+        console.warn("Tiché obnovení Android přihlášení selhalo",e);
+      }finally{
+        androidSilentAuthPromise=null;
+      }
+      return null;
+    })();
+    return androidSilentAuthPromise;
+  }
   function scheduleBackgroundAuthRetry(delayMs=2500){
     if(backgroundAuthRetryTimer || explicitSignOutPending()) return;
     backgroundAuthRetryTimer=setTimeout(async()=>{
@@ -1311,6 +1346,8 @@ if(firebaseReady){
       const restored=await tryRestoreAuthCandidate(3500);
       if(restored){
         handleAuthorizedUser(restored);
+      }else if(await tryAndroidSilentAuth("auth-null")){
+        return;
       }else if(shouldKeepAppOpenOnAuthNull()){
         scheduleBackgroundAuthRetry(Math.min(Math.max(delayMs*2,5000),30000));
       }
@@ -1511,44 +1548,65 @@ if(firebaseReady){
       },900);
     }
   }
+  function handleExplicitSignedOutUi(){
+    forgetKnownSignedIn();
+    setStartupAuthChecking(false);
+    clearSignedUser();
+    const topLogoutBtn=document.getElementById("topLogoutBtn");
+    setDisplayIfChanged(topLogoutBtn,"none");
+    showLogin();
+    if(lastAuthMessage && lastAuthMessage!=="Kontroluji přihlášení..."){
+      setStartupStatus(lastAuthMessage);
+    }else{
+      setStartupStatus("");
+    }
+  }
+  function showSignedOutLogin(message){
+    clearSignedUser();
+    setStartupAuthChecking(false);
+    showLogin();
+    setStartupStatus(message || "Nejsi přihlášený k Firebase. Servisní data se načtou po přihlášení; případná lokální cache se použije jen pro dříve přihlášené zařízení.");
+  }
+  function tryAndroidAuthThenLogin(message){
+    if(!canTryAndroidSilentAuth()) return false;
+    setStartupAuthChecking(true);
+    setStartupStatus("Obnovuji Android přihlášení...");
+    tryAndroidSilentAuth("auth-null").then(user=>{
+      if(user) return;
+      forgetKnownSignedIn();
+      showSignedOutLogin(message || "Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.");
+    });
+    return true;
+  }
   function handleSignedOut(){
     if(authLoginInProgress){
       setStartupAuthChecking(true);
       setStartupStatus("Čekám na dokončení Google přihlášení...");
       return;
     }
+    if(explicitSignOutPending()){
+      handleExplicitSignedOutUi();
+      return;
+    }
     if(authPending()){
       setStartupAuthChecking(true);
       setStartupStatus("Kontroluji přihlášení...");
-      finishRedirectLoginIfPending().then(done=>{
+      finishRedirectLoginIfPending().then(async done=>{
         if(done) return;
         const restored=currentAuthCandidate();
         if(restored){
           handleAuthorizedUser(restored);
           return;
         }
+        const androidUser=await tryAndroidSilentAuth("auth-null");
+        if(androidUser) return;
         clearAuthPending();
         if(navigator.onLine===false && shouldKeepAppOpenOnAuthNull()){
           keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
           return;
         }
-        if(!explicitSignOutPending()){
-          if(navigator.onLine!==false) forgetKnownSignedIn();
-          clearSignedUser();
-          setStartupAuthChecking(false);
-          const topLogoutBtn=document.getElementById("topLogoutBtn");
-          setDisplayIfChanged(topLogoutBtn,"none");
-          showLogin();
-          setStartupStatus("Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.");
-          return;
-        }
-        forgetKnownSignedIn();
-        setStartupAuthChecking(false);
-        clearSignedUser();
-        const topLogoutBtn=document.getElementById("topLogoutBtn");
-        setDisplayIfChanged(topLogoutBtn,"none");
-        showLogin();
-        setStartupStatus("");
+        if(navigator.onLine!==false) forgetKnownSignedIn();
+        showSignedOutLogin("Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.");
       });
       return;
     }
@@ -1573,46 +1631,25 @@ if(firebaseReady){
           handleAuthorizedUser(restored);
           return;
         }
+        if(tryAndroidAuthThenLogin("Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.")) return;
         if(Date.now()-authBootStartedAt<AUTH_RESTORE_GRACE_MS){
           handleSignedOut();
           return;
         }
-        if(Date.now()-authBootStartedAt>=AUTH_RESTORE_GRACE_MS){
-          if(navigator.onLine===false){
-            keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
-          }else{
-            forgetKnownSignedIn();
-            clearSignedUser();
-            setStartupAuthChecking(false);
-            showLogin();
-            setStartupStatus("Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.");
-          }
+        if(navigator.onLine===false){
+          keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
+        }else{
+          forgetKnownSignedIn();
+          showSignedOutLogin("Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.");
         }
       },600);
       return;
     }
-    if(navigator.onLine===false && (knownSession || appIsOpenOrHasRows())){
-      keepAppOpenDuringAuthRestore("Přihlášení se obnovuje na pozadí. Pokud je dostupná lokální Firebase cache, mapa zůstane dočasně otevřená z ní.");
-      return;
-    }
-    if(explicitSignOutPending()){
-      forgetKnownSignedIn();
-      setStartupAuthChecking(false);
-      clearSignedUser();
-      const topLogoutBtn=document.getElementById("topLogoutBtn");
-      setDisplayIfChanged(topLogoutBtn,"none");
-      showLogin();
-      if(lastAuthMessage && lastAuthMessage!=="Kontroluji přihlášení..."){
-        setStartupStatus(lastAuthMessage);
-      }else{
-        setStartupStatus("");
-      }
+    if(knownSession && navigator.onLine!==false && tryAndroidAuthThenLogin("Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.")){
       return;
     }
     if(knownSession && navigator.onLine!==false) forgetKnownSignedIn();
-    clearSignedUser();
-    showLogin();
-    setStartupStatus("Nejsi přihlášený k Firebase. Servisní data se načtou po přihlášení; případná lokální cache se použije jen pro dříve přihlášené zařízení.");
+    showSignedOutLogin();
   }
 
   window.__startFirebaseRedirectLogin=startGoogleLoginFromUi;

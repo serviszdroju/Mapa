@@ -13,6 +13,9 @@ public interface SzzOfflineDao {
     void upsertSite(OfflineEntities.SiteEntity site);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void upsertSites(List<OfflineEntities.SiteEntity> sites);
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     void upsertSource(OfflineEntities.SourceEntity source);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -47,6 +50,12 @@ public interface SzzOfflineDao {
 
     @Query("SELECT COUNT(*) FROM protocol_drafts")
     int protocolDraftCount();
+
+    @Query("SELECT COUNT(*) FROM sites WHERE deleted_at IS NULL")
+    int cachedSiteCount();
+
+    @Query("SELECT raw_json FROM sites WHERE deleted_at IS NULL AND raw_json IS NOT NULL AND raw_json != '' ORDER BY updated_at DESC LIMIT :limit")
+    List<String> cachedSiteRawJson(int limit);
 
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE status != 'SYNCED'")
     int pendingOutboxCount();

@@ -10,11 +10,14 @@ import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.UUID;
@@ -105,6 +108,27 @@ public final class SzzOfflineRepository {
         });
     }
 
+    public void saveSitesSnapshot(String payloadJson, Callback callback) {
+        run(callback, () -> {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            JSONArray items = payload.optJSONArray("items");
+            if (items == null) items = payload.optJSONArray("rows");
+            String now = isoNow();
+            List<OfflineEntities.SiteEntity> sites = new ArrayList<>();
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    JSONObject item = items.optJSONObject(i);
+                    OfflineEntities.SiteEntity site = siteEntityFromCacheItem(item, now);
+                    if (site != null) sites.add(site);
+                }
+            }
+            if (!sites.isEmpty()) {
+                database.runInTransaction(() -> dao.upsertSites(sites));
+            }
+            return countsJson();
+        });
+    }
+
     public void enqueueOutbox(String payloadJson, Callback callback) {
         run(callback, () -> {
             JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
@@ -134,6 +158,30 @@ public final class SzzOfflineRepository {
         run(callback, this::countsJson);
     }
 
+    public String cachedSitesJson(int limit) {
+        JSONObject result = new JSONObject();
+        try {
+            int cappedLimit = Math.max(1, Math.min(limit <= 0 ? 5000 : limit, 20000));
+            List<String> rows = dao.cachedSiteRawJson(cappedLimit);
+            JSONArray items = new JSONArray();
+            for (String row : rows) {
+                try {
+                    items.put(new JSONObject(row == null ? "{}" : row));
+                } catch (Exception ignored) {}
+            }
+            result.put("ok", true);
+            result.put("count", items.length());
+            result.put("cachedSites", dao.cachedSiteCount());
+            result.put("items", items);
+        } catch (Exception error) {
+            try {
+                result.put("ok", false);
+                result.put("error", compact(error));
+            } catch (Exception ignored) {}
+        }
+        return result.toString();
+    }
+
     public SzzOfflineDao dao() {
         return dao;
     }
@@ -157,7 +205,78 @@ public final class SzzOfflineRepository {
         JSONObject result = new JSONObject();
         result.put("protocolDrafts", dao.protocolDraftCount());
         result.put("pendingOutbox", dao.pendingOutboxCount());
+        result.put("cachedSites", dao.cachedSiteCount());
         return result;
+    }
+
+    private OfflineEntities.SiteEntity siteEntityFromCacheItem(JSONObject item, String now) {
+        if (item == null) return null;
+        JSONObject raw = item.optJSONObject("raw");
+        String docId = required(item, "docId", "");
+        if (docId.isEmpty() && raw != null) docId = required(raw, "Firebase_doc_id", "");
+        if (docId.isEmpty()) docId = required(item, "id", "");
+        if (docId.isEmpty()) return null;
+
+        OfflineEntities.SiteEntity site = new OfflineEntities.SiteEntity();
+        site.localId = docId;
+        site.firebaseId = docId;
+        site.name = firstText(raw, item, "N\u00e1zev", "name", "nazev", "Adresa / um\u00edst\u011bn\u00ed", "Adresa_GPS");
+        site.address = firstText(raw, item, "Adresa / um\u00edst\u011bn\u00ed", "Adresa_GPS", "address", "adresa");
+        site.region = firstText(raw, item, "Kraj", "region", "kraj");
+        site.contact = firstText(raw, item, "Kontakt", "contact", "kontakt");
+        site.latitude = firstNumber(raw, item, "GPS_lat", "lat", "latitude");
+        site.longitude = firstNumber(raw, item, "GPS_lon", "lon", "longitude");
+        site.createdAt = firstText(item, raw, "createdAt", "created_at");
+        site.updatedAt = firstText(item, raw, "updatedAt", "updated_at", "savedAt");
+        if (site.updatedAt == null) site.updatedAt = now;
+        site.deletedAt = firstText(item, raw, "deletedAt", "deleted_at");
+        site.syncState = SyncState.SYNCED.name();
+        site.rawJson = item.toString();
+        return site;
+    }
+
+    private static String firstText(JSONObject primary, JSONObject secondary, String... keys) {
+        String value = firstText(primary, keys);
+        if (value != null) return value;
+        return firstText(secondary, keys);
+    }
+
+    private static String firstText(JSONObject object, String... keys) {
+        if (object == null || keys == null) return null;
+        for (String key : keys) {
+            String value = optional(object, key);
+            if (value != null) return value;
+        }
+        return null;
+    }
+
+    private static Double firstNumber(JSONObject primary, JSONObject secondary, String... keys) {
+        Double value = firstNumber(primary, keys);
+        if (value != null) return value;
+        return firstNumber(secondary, keys);
+    }
+
+    private static Double firstNumber(JSONObject object, String... keys) {
+        if (object == null || keys == null) return null;
+        for (String key : keys) {
+            if (!object.has(key) || object.isNull(key)) continue;
+            Object raw = object.opt(key);
+            double value;
+            if (raw instanceof Number) {
+                value = ((Number) raw).doubleValue();
+            } else {
+                String text = String.valueOf(raw).trim().replace(',', '.');
+                if (text.isEmpty()) continue;
+                try {
+                    value = Double.parseDouble(text);
+                } catch (Exception ignored) {
+                    continue;
+                }
+            }
+            if (Double.isNaN(value) || Double.isInfinite(value)) continue;
+            return value;
+        }
+        return null;
     }
 
     private OfflineEntities.SyncOutboxEntity outboxOperation(
@@ -201,6 +320,12 @@ public final class SzzOfflineRepository {
     private static String optional(JSONObject object, String key) {
         String value = object == null ? "" : object.optString(key, "");
         return value == null || value.trim().isEmpty() ? null : value.trim();
+    }
+
+    private static String compact(Exception error) {
+        if (error == null) return "";
+        String message = error.getMessage();
+        return message == null || message.trim().isEmpty() ? error.getClass().getSimpleName() : message.trim();
     }
 
     private static String isoNow() {

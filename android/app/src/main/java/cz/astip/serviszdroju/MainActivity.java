@@ -445,6 +445,11 @@ public class MainActivity extends Activity {
         public void startGoogleSignIn() {
             runOnUiThread(() -> startNativeGoogleSignIn());
         }
+
+        @JavascriptInterface
+        public void restoreGoogleSignIn() {
+            runOnUiThread(() -> startSilentGoogleSignIn());
+        }
     }
 
     private final class AndroidOfflineBridge {
@@ -467,6 +472,20 @@ public class MainActivity extends Activity {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return;
             repository.saveLocalProtocol(payloadJson, androidOfflineCallback("protocol"));
+        }
+
+        @JavascriptInterface
+        public void saveSitesSnapshot(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.saveSitesSnapshot(payloadJson, androidOfflineCallback("sites-snapshot"));
+        }
+
+        @JavascriptInterface
+        public String cachedSitesJson(int limit) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
+            return repository.cachedSitesJson(limit);
         }
 
         @JavascriptInterface
@@ -532,6 +551,40 @@ public class MainActivity extends Activity {
         startLegacyGoogleSignIn(webClientId);
     }
 
+    private void startSilentGoogleSignIn() {
+        if (googleSignInBusy) return;
+        String webClientId = BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID == null
+            ? ""
+            : BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID.trim();
+        if (webClientId.isEmpty()) {
+            deliverAndroidAuthError("V APK chybí Google OAuth konfigurace. Je potřeba nainstalovat novou APK z tlačítka Stáhnout aplikaci.");
+            return;
+        }
+        googleSignInBusy = true;
+        try {
+            GoogleSignInClient client = GoogleSignIn.getClient(this, googleSignInOptions(webClientId));
+            Task<GoogleSignInAccount> task = client.silentSignIn();
+            if (task.isSuccessful()) {
+                googleSignInBusy = false;
+                deliverGoogleSignInAccount(task.getResult());
+                return;
+            }
+            task.addOnCompleteListener(result -> {
+                googleSignInBusy = false;
+                try {
+                    deliverGoogleSignInAccount(result.getResult(ApiException.class));
+                } catch (ApiException error) {
+                    deliverAndroidAuthError("Tiché obnovení Android přihlášení se nepodařilo. " + legacyGoogleSignInErrorText(error));
+                } catch (Exception error) {
+                    deliverAndroidAuthError("Tiché obnovení Android přihlášení selhalo. " + compactErrorText(error));
+                }
+            });
+        } catch (Exception error) {
+            googleSignInBusy = false;
+            deliverAndroidAuthError("Tiché obnovení Android přihlášení selhalo při přípravě. " + compactErrorText(error));
+        }
+    }
+
     private void startCredentialManagerGoogleSignIn(String webClientId) {
         googleSignInCancellation = new CancellationSignal();
         GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
@@ -576,13 +629,7 @@ public class MainActivity extends Activity {
 
     private void startLegacyGoogleSignIn(String webClientId) {
         try {
-            GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestEmail()
-                .requestProfile()
-                .requestIdToken(webClientId)
-                .setHostedDomain("astip.cz")
-                .build();
-            GoogleSignInClient client = GoogleSignIn.getClient(this, options);
+            GoogleSignInClient client = GoogleSignIn.getClient(this, googleSignInOptions(webClientId));
             client.signOut().addOnCompleteListener(task -> {
                 try {
                     startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
@@ -595,6 +642,15 @@ public class MainActivity extends Activity {
             googleSignInBusy = false;
             deliverAndroidAuthError("Google přihlášení v aplikaci selhalo při přípravě. " + compactErrorText(error));
         }
+    }
+
+    private GoogleSignInOptions googleSignInOptions(String webClientId) {
+        return new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestProfile()
+            .requestIdToken(webClientId)
+            .setHostedDomain("astip.cz")
+            .build();
     }
 
     private String credentialManagerErrorText(GetCredentialException error) {
@@ -701,26 +757,30 @@ public class MainActivity extends Activity {
         try {
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             GoogleSignInAccount account = task.getResult(ApiException.class);
-            if (account == null) {
-                deliverAndroidAuthError("Google přihlášení nevrátilo účet.");
-                return;
-            }
-            String email = account.getEmail() == null ? "" : account.getEmail().toLowerCase(Locale.ROOT);
-            if (!email.endsWith("@astip.cz")) {
-                deliverAndroidAuthError("Použij firemní účet @astip.cz.");
-                return;
-            }
-            String idToken = account.getIdToken();
-            if (idToken == null || idToken.trim().isEmpty()) {
-                deliverAndroidAuthError("Google přihlášení nevrátilo ID token. Zkontroluj Google OAuth konfiguraci APK.");
-                return;
-            }
-            deliverAndroidGoogleIdToken(idToken);
+            deliverGoogleSignInAccount(account);
         } catch (ApiException error) {
             deliverAndroidAuthError(legacyGoogleSignInErrorText(error));
         } catch (Exception error) {
             deliverAndroidAuthError("Google přihlášení v aplikaci selhalo. " + compactErrorText(error));
         }
+    }
+
+    private void deliverGoogleSignInAccount(GoogleSignInAccount account) {
+        if (account == null) {
+            deliverAndroidAuthError("Google přihlášení nevrátilo účet.");
+            return;
+        }
+        String email = account.getEmail() == null ? "" : account.getEmail().toLowerCase(Locale.ROOT);
+        if (!email.endsWith("@astip.cz")) {
+            deliverAndroidAuthError("Použij firemní účet @astip.cz.");
+            return;
+        }
+        String idToken = account.getIdToken();
+        if (idToken == null || idToken.trim().isEmpty()) {
+            deliverAndroidAuthError("Google přihlášení nevrátilo ID token. Zkontroluj Google OAuth konfiguraci APK.");
+            return;
+        }
+        deliverAndroidGoogleIdToken(idToken);
     }
 
     private String legacyGoogleSignInErrorText(ApiException error) {

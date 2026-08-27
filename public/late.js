@@ -1495,9 +1495,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   const MAP_ROWS_CACHE_STORE="rows";
   const MAP_ROWS_CACHE_RECORD_KEY="latest";
   const MAP_ROWS_CACHE_SAVE_DELAY_MS=120;
+  const MAP_ROWS_ANDROID_CACHE_SAVE_DELAY_MS=450;
+  const MAP_ROWS_ANDROID_CACHE_BATCH_SIZE=120;
   let mapRowsCacheSaveTimer=0;
   let mapRowsCacheSaveVersion=0;
   let pendingMapRowsCacheItems=[];
+  let mapRowsAndroidCacheSaveTimer=0;
+  let mapRowsAndroidCacheSaveVersion=0;
+  let pendingMapRowsAndroidCacheItems=[];
   function rawHasOwnKeys(raw){
     if(!raw || typeof raw!=="object") return false;
     for(const key in raw){
@@ -1511,6 +1516,53 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       raw:row.raw || {},
       latestProtocolDate:row.firebaseData?.latestProtocolDate || ""
     })).filter(item=>item.docId && rawHasOwnKeys(item.raw));
+  }
+  function androidOfflineBridge(){
+    const bridge=window.SzzAndroidOffline;
+    return bridge && typeof bridge==="object" ? bridge : null;
+  }
+  function saveMapRowsCacheAndroidItems(items){
+    const bridge=androidOfflineBridge();
+    if(!bridge || typeof bridge.saveSitesSnapshot!=="function" || !Array.isArray(items) || !items.length) return;
+    const total=items.length;
+    const savedAt=Date.now();
+    for(let offset=0; offset<total; offset+=MAP_ROWS_ANDROID_CACHE_BATCH_SIZE){
+      const batch=items.slice(offset,offset+MAP_ROWS_ANDROID_CACHE_BATCH_SIZE);
+      const payload=JSON.stringify({
+        savedAt,
+        offset,
+        total,
+        items:batch
+      });
+      setTimeout(()=>{
+        try{ bridge.saveSitesSnapshot(payload); }
+        catch(e){ console.warn("Android Room cache bodů se nepodařila uložit",e); }
+      },Math.floor(offset/MAP_ROWS_ANDROID_CACHE_BATCH_SIZE)*40);
+    }
+  }
+  function scheduleMapRowsCacheAndroidSave(items){
+    const bridge=androidOfflineBridge();
+    if(!bridge || typeof bridge.saveSitesSnapshot!=="function" || !items.length) return;
+    pendingMapRowsAndroidCacheItems=items;
+    const saveVersion=++mapRowsAndroidCacheSaveVersion;
+    clearTimeout(mapRowsAndroidCacheSaveTimer);
+    mapRowsAndroidCacheSaveTimer=setTimeout(()=>{
+      const latestItems=pendingMapRowsAndroidCacheItems;
+      pendingMapRowsAndroidCacheItems=[];
+      if(saveVersion===mapRowsAndroidCacheSaveVersion) saveMapRowsCacheAndroidItems(latestItems);
+    },MAP_ROWS_ANDROID_CACHE_SAVE_DELAY_MS);
+  }
+  function readMapRowsCacheAndroid(){
+    try{
+      const bridge=androidOfflineBridge();
+      if(!bridge || typeof bridge.cachedSitesJson!=="function") return [];
+      const text=bridge.cachedSitesJson(20000);
+      const parsed=JSON.parse(String(text || "{}"));
+      const items=Array.isArray(parsed.items) ? parsed.items : [];
+      return rowsFromMapRowsCacheItems(items);
+    }catch(e){
+      return [];
+    }
   }
   function openMapRowsCacheDb(){
     return new Promise((resolve,reject)=>{
@@ -1601,6 +1653,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       if(!items.length) return;
       writeMapRowsCacheMeta(items);
       scheduleMapRowsCacheIndexedDbSave(items);
+      scheduleMapRowsCacheAndroidSave(items);
     }catch(e){
       console.warn("Cache bodů se nepodařila uložit",e);
     }
@@ -1763,6 +1816,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   async function readMapRowsCacheFast(){
     if(pendingMapRowsCacheItems.length) return rowsFromMapRowsCacheItems(pendingMapRowsCacheItems);
+    const androidRows=readMapRowsCacheAndroid();
+    if(androidRows.length) return androidRows;
     const indexed=await readMapRowsCacheIndexedDb();
     return indexed.length ? indexed : readMapRowsCache();
   }
@@ -2479,7 +2534,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-27-apk-room-outbox-v548";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-27-apk-room-sites-v549";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
