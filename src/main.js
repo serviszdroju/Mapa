@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-native-site-sync-v554";
+const APP_BUILD_VERSION="2026-08-27-apk-native-edit-sync-v555";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1291,8 +1291,12 @@ if(firebaseReady){
   }
   let backgroundAuthRetryTimer=null;
   let lastAuthorizedUserAt=0;
+  const ANDROID_AUTH_RESUME_KEEP_OPEN_MS=8*60*60*1000;
   function currentAuthCandidate(){
     return safeSyncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null;
+  }
+  function isAndroidShellRuntime(){
+    return !!(window.__szzAndroidShell || window.SzzAndroidAuth);
   }
   function appIsOpenOrHasRows(){
     const appEl=document.getElementById("mainApp");
@@ -1303,8 +1307,9 @@ if(firebaseReady){
   }
   function shouldKeepAppOpenOnAuthNull(){
     const runtimeAuthorized=lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<30*60*1000;
+    const androidAuthorized=isAndroidShellRuntime() && lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<ANDROID_AUTH_RESUME_KEEP_OPEN_MS && androidHasStoredAuth();
     const offlineKnownSession=knownSignedIn() && navigator.onLine===false;
-    return !explicitSignOutPending() && (runtimeAuthorized || offlineKnownSession || authPending());
+    return !explicitSignOutPending() && (runtimeAuthorized || androidAuthorized || offlineKnownSession || authPending());
   }
   async function waitForAuthCandidate(timeoutMs=3500){
     const started=Date.now();
@@ -1341,8 +1346,8 @@ if(firebaseReady){
   async function tryAndroidSilentAuth(reason="restore"){
     if(!canTryAndroidSilentAuth()) return null;
     const now=Date.now();
-    if(lastAndroidSilentAuthAt && now-lastAndroidSilentAuthAt<12000) return null;
     if(androidSilentAuthPromise) return androidSilentAuthPromise;
+    if(lastAndroidSilentAuthAt && now-lastAndroidSilentAuthAt<12000) return null;
     lastAndroidSilentAuthAt=now;
     androidSilentAuthPromise=(async()=>{
       try{
@@ -1609,6 +1614,11 @@ if(firebaseReady){
     setStartupStatus("Obnovuji Android přihlášení...");
     tryAndroidSilentAuth("auth-null").then(user=>{
       if(user) return;
+      if(isAndroidShellRuntime() && androidHasStoredAuth() && appIsOpenOrHasRows() && !explicitSignOutPending()){
+        keepAppOpenDuringAuthRestore("Android přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+        scheduleBackgroundAuthRetry(10000);
+        return;
+      }
       forgetKnownSignedIn();
       showSignedOutLogin(message || "Přihlášení se neobnovilo. Přihlas se znovu Google účtem @astip.cz.");
     });
@@ -1851,7 +1861,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v554-runtime",
+  runtimeCacheName:"astip-szz-v555-runtime",
   mediaFetchConcurrency:4
 });
 
@@ -3272,7 +3282,6 @@ async function propagateSharedPlaceEditsToSiblingSources(siblingRows=[],sharedRa
   if(!validSiblings.length || !keys.length) return 0;
 
   const identityKeys=new Set();
-  const {doc,setDoc,serverTimestamp}=fb.fsMod;
   let saved=0;
 
   for(const sibling of validSiblings){
@@ -3289,21 +3298,16 @@ async function propagateSharedPlaceEditsToSiblingSources(siblingRows=[],sharedRa
       gpsAddress:sharedRaw["Adresa_GPS"] || "",
       gpsLat:sharedRaw["GPS_lat"] || "",
       gpsLon:sharedRaw["GPS_lon"] || "",
-      updatedBy:currentUser?.email || "",
+      updatedBy:siteEditUserEmail(),
       updatedAt:new Date().toISOString()
     };
 
     try{
       if(docId && isFirebaseUnifiedRow(sibling)){
-        await setDoc(doc(db,"sitesUnified",docId),{
-          raw:mergedRaw,
-          dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(mergedRaw) : [],
-          name:mergedRaw["Název"] || mergedRaw["Adresa / umístění"] || mergedRaw["Adresa_GPS"] || "",
-          lat:Number.isFinite(lat) ? lat : null,
-          lon:Number.isFinite(lon) ? lon : null,
-          updatedBy:currentUser?.email || "",
-          updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-        },{merge:true});
+        await saveUnifiedSiteRawPatchOrQueue(sibling,sharedRaw,{
+          docId,
+          reason:"Sdílená úprava adresy zdroje"
+        });
       }
       await saveLegacySiteEditIfNeeded(selectedKey,edit,sibling);
       editCache[selectedKey]={...(editCache[selectedKey] || editCache[sibling.id] || {}), ...edit};
@@ -3350,34 +3354,25 @@ async function saveSelectedSiteGpsPosition(lat,lon,found={},address=""){
     gpsAddress:gpsText,
     gpsLat:latText,
     gpsLon:lonText,
-    updatedBy:(currentUser && currentUser.email) || "",
+    updatedBy:siteEditUserEmail(),
     updatedAt:new Date().toISOString()
   };
   const matches=(row)=>selectedSiteMatchForSave(row,selectedKey,firebaseDocId);
   const sharedSiblingRows=siteSiblingRows(selectedSite)
     .filter(row=>!selectedSiteMatchForSave(row,selectedKey,firebaseDocId));
   let siblingAddressUpdates=0;
+  let persistentSave=false;
 
-  if(firebaseReady && currentUser && firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
-    const {doc,setDoc,serverTimestamp}=fb.fsMod;
-    const mergedRaw={...(selectedSite.raw||{}), ...editedRaw, Firebase_doc_id:firebaseDocId};
-    if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
-    await setDoc(doc(db,"sitesUnified",firebaseDocId),{
-      raw:mergedRaw,
-      dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(mergedRaw) : [],
-      name:mergedRaw["Název"] || mergedRaw["Adresa / umístění"] || mergedRaw["Adresa_GPS"] || "",
-      lat,
-      lon,
-      updatedBy:currentUser.email,
-      updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-    },{merge:true});
-    await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
-  }else if(firebaseReady && currentUser){
-    await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
+  if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
+    const result=await saveUnifiedSiteRawPatchOrQueue(selectedSite,editedRaw,{
+      docId:firebaseDocId,
+      reason:"Uložení GPS polohy"
+    });
+    persistentSave=!!(result && (result.saved || result.queued));
   }
-  if(firebaseReady && currentUser){
-    siblingAddressUpdates=await propagateSharedPlaceEditsToSiblingSources(sharedSiblingRows,editedRaw);
-  }
+  const legacySaved=await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
+  persistentSave=persistentSave || !!legacySaved;
+  siblingAddressUpdates=await propagateSharedPlaceEditsToSiblingSources(sharedSiblingRows,editedRaw);
 
   editCache[selectedKey]={...(editCache[selectedKey]||editCache[selectedSite.id]||{}), ...edit};
   if(firebaseDocId) editCache[firebaseDocId]={...(editCache[firebaseDocId]||{}), ...edit};
@@ -3407,11 +3402,11 @@ async function saveSelectedSiteGpsPosition(lat,lon,found={},address=""){
     if(window.map && window.map.setView) window.map.setView([lat,lon],15);
   }catch(e){}
   if(typeof showSaveConfirmation==="function"){
-    showSaveConfirmation(firebaseReady && currentUser
+    showSaveConfirmation(persistentSave
       ? (siblingAddressUpdates ? "GPS poloha uložena i u dalších zdrojů." : "GPS poloha uložena.")
-      : "GPS poloha dopočítána.");
+      : "GPS poloha uložena v lokální cache.");
   }
-  return !!(firebaseReady && currentUser);
+  return !!persistentSave;
 }
 
 async function dataAddressToGps(){
@@ -3617,7 +3612,6 @@ function legacySiteEditDocKey(value){
 
 async function saveLegacySiteEditIfNeeded(selectedKey,edit,site=selectedSite){
   if(shouldSkipLegacySiteEdits(site)) return false;
-  const {doc,setDoc}=fb.fsMod;
   const identity=siteRecordIdentity(site);
   const raw=(site && site.raw) || {};
   const payload={
@@ -3648,11 +3642,101 @@ async function saveLegacySiteEditIfNeeded(selectedKey,edit,site=selectedSite){
     raw["Umístění"],
     raw["Původní adresa / umístění"]
   ].map(legacySiteEditDocKey)).slice(0,20);
+  keys.forEach(key=>setLegacyEditCacheEntry(key,payload));
+  const canWriteLegacy=!!(firebaseReady && currentUser && db && fb.fsMod && typeof fb.fsMod.doc==="function" && typeof fb.fsMod.setDoc==="function" && navigator.onLine!==false);
+  if(!canWriteLegacy) return false;
+  const {doc,setDoc}=fb.fsMod;
   for(const key of keys){
     await setDoc(doc(db,"siteEdits",key),payload,{merge:true});
-    setLegacyEditCacheEntry(key,payload);
   }
   return true;
+}
+
+function siteEditUserEmail(){
+  try{
+    return safe(currentUser?.email || currentUserEmail?.() || lastKnownUserEmail?.() || "");
+  }catch(e){
+    try{return safe(currentUser?.email || lastKnownUserEmail?.() || "");}
+    catch(_e){return "";}
+  }
+}
+
+function canWriteFirebaseSiteNow(){
+  return !!(firebaseReady && currentUser && db && fb.fsMod && typeof fb.fsMod.doc==="function" && typeof fb.fsMod.setDoc==="function" && navigator.onLine!==false);
+}
+
+function siteRawForAndroidUpsert(site,rawPatch={},docId=""){
+  const raw={...(site?.raw || {}), ...(rawPatch || {})};
+  const finalDocId=safe(docId || site?.firebaseDocId || raw["Firebase_doc_id"] || selectedSiteDocId(site));
+  if(finalDocId) raw["Firebase_doc_id"]=finalDocId;
+  if(finalDocId && !raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+finalDocId;
+  return {raw,docId:finalDocId};
+}
+
+function firebaseSiteUpdatePayloadFromRaw(raw={},updatedBy=""){
+  const lat=num(raw["GPS_lat"]);
+  const lon=num(raw["GPS_lon"]);
+  const {serverTimestamp}=fb.fsMod || {};
+  return {
+    raw,
+    dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(raw) : [],
+    name:raw["Název"] || raw["Adresa / umístění"] || raw["Adresa_GPS"] || "",
+    lat:Number.isFinite(lat) ? lat : null,
+    lon:Number.isFinite(lon) ? lon : null,
+    updatedBy,
+    updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
+  };
+}
+
+function enqueueUnifiedSiteUpsertToAndroid(site,rawPatch={},options={}){
+  const {raw,docId}=siteRawForAndroidUpsert(site,rawPatch,options.docId || "");
+  if(!docId) return false;
+  const updatedBy=safe(options.updatedBy || siteEditUserEmail());
+  const now=new Date().toISOString();
+  const payload={
+    docId,
+    raw,
+    dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(raw) : [],
+    updatedAt:now,
+    updatedBy,
+    reason:safe(options.reason || "Úprava bodu offline"),
+    manualEntry:true,
+    migratedFromCsv:false
+  };
+  const queued=androidOfflineCall("enqueueOutbox",{
+    operationId:`site:${docId}`,
+    entityTable:"sites",
+    entityLocalId:docId,
+    operation:"UPSERT_SITE",
+    payloadJson:JSON.stringify(payload)
+  });
+  if(queued){
+    const bridge=androidOfflineBridge();
+    if(bridge && typeof bridge.requestSync==="function"){
+      try{bridge.requestSync();}catch(e){}
+    }
+    if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("site");
+    if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
+  }
+  return queued;
+}
+
+async function saveUnifiedSiteRawPatchOrQueue(site,rawPatch={},options={}){
+  const {raw,docId}=siteRawForAndroidUpsert(site,rawPatch,options.docId || "");
+  if(!docId || !isFirebaseUnifiedRow(site)) return {saved:false,queued:false,docId,raw};
+  const updatedBy=safe(options.updatedBy || siteEditUserEmail());
+  if(canWriteFirebaseSiteNow()){
+    try{
+      const {doc,setDoc}=fb.fsMod;
+      await setDoc(doc(db,"sitesUnified",docId),firebaseSiteUpdatePayloadFromRaw(raw,updatedBy),{merge:true});
+      markAndroidOutboxSynced(`site:${docId}`);
+      return {saved:true,queued:false,docId,raw};
+    }catch(e){
+      console.warn("Online uložení bodu selhalo, ukládám do Android fronty",e);
+    }
+  }
+  const queued=enqueueUnifiedSiteUpsertToAndroid(site,raw,{...options,docId,updatedBy});
+  return {saved:false,queued,docId,raw};
 }
 
 function orderedEditableKeys(r){
@@ -4010,8 +4094,6 @@ function addNewDataRowToTable(){
 async function saveAllDataEdits(){
   const st=document.getElementById("editStatus");
   if(!selectedSite){ if(st) st.textContent="Není vybrané místo."; return; }
-  if(!firebaseReady){ if(st) st.textContent="Firebase není nastavený."; return; }
-  if(!currentUser){ if(st) st.textContent="Nejdřív se přihlaš."; return; }
 
   const editedRaw={};
   USER_SITE_DATA_FIELDS.forEach(spec=>{
@@ -4060,7 +4142,6 @@ async function saveAllDataEdits(){
 
   try{
     const selectedKey=detailKey(selectedSite) || selectedSite.id;
-    const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const sharedPlaceEdits=sharedPlaceEditsFromRaw(editedRaw);
     const sharedSiblingRows=Object.keys(sharedPlaceEdits).length
       ? siteSiblingRows(selectedSite).filter(row=>!selectedSiteMatchForSave(row,selectedKey,selectedSiteDocId(selectedSite)))
@@ -4077,7 +4158,7 @@ async function saveAllDataEdits(){
       lastCheck,
       nextCheck,
       noOrder: watchSelf,
-      updatedBy: currentUser.email,
+      updatedBy: siteEditUserEmail(),
       updatedAt: new Date().toISOString()
     };
     if(cancelOrderedByDateChange) edit.ordered=false;
@@ -4088,21 +4169,13 @@ async function saveAllDataEdits(){
       const rowDocId=safe(row.firebaseDocId || (row.raw && row.raw["Firebase_doc_id"]) || "");
       return detailKey(row)===selectedKey || row.id===selectedKey || (firebaseDocId && rowDocId===firebaseDocId);
     };
+    let queuedForSync=false;
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
-      const mergedRaw={...(selectedSite.raw||{}), ...editedRaw, Firebase_doc_id:firebaseDocId};
-      if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
-      const lat=num(mergedRaw["GPS_lat"]);
-      const lon=num(mergedRaw["GPS_lon"]);
-      const firebaseUpdate={
-        raw:mergedRaw,
-        dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(mergedRaw) : [],
-        name:mergedRaw["Název"] || mergedRaw["Adresa / umístění"] || mergedRaw["Adresa_GPS"] || "",
-        lat:Number.isFinite(lat) ? lat : null,
-        lon:Number.isFinite(lon) ? lon : null,
-        updatedBy:currentUser.email,
-        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-      };
-      await setDoc(doc(db,"sitesUnified",firebaseDocId), firebaseUpdate, {merge:true});
+      const result=await saveUnifiedSiteRawPatchOrQueue(selectedSite,editedRaw,{
+        docId:firebaseDocId,
+        reason:"Úprava detailu místa"
+      });
+      queuedForSync=!!(result && result.queued);
     }
     const siblingAddressUpdates=await propagateSharedPlaceEditsToSiblingSources(sharedSiblingRows,sharedPlaceEdits);
 
@@ -4135,8 +4208,9 @@ async function saveAllDataEdits(){
     saveFirebaseRowsCacheForRows(rows);
 
     const siblingText=siblingAddressUpdates ? ` Sdílené řádky propsány i do dalších zdrojů: ${siblingAddressUpdates}.` : "";
-    if(st) st.textContent=cancelOrderedByDateChange ? `Data uložena. Objednaná kontrola byla zrušena kvůli změně termínu.${siblingText}` : `Data uložena.${siblingText}`;
-    showSaveConfirmation(cancelOrderedByDateChange ? "Data uložena, objednání kontroly zrušeno." : (siblingAddressUpdates ? "Sdílené řádky uloženy pro celé místo." : "Data uložena."));
+    const syncText=queuedForSync ? " Čeká na synchronizaci." : "";
+    if(st) st.textContent=cancelOrderedByDateChange ? `Data uložena. Objednaná kontrola byla zrušena kvůli změně termínu.${siblingText}${syncText}` : `Data uložena.${siblingText}${syncText}`;
+    showSaveConfirmation(queuedForSync ? "Data uložena v tabletu, odešlou se po připojení." : (cancelOrderedByDateChange ? "Data uložena, objednání kontroly zrušeno." : (siblingAddressUpdates ? "Sdílené řádky uloženy pro celé místo." : "Data uložena.")));
     const reopenKey=(selectedSite && (detailKey(selectedSite) || selectedSite.firebaseDocId || selectedKey)) || selectedKey;
     render();
     if(selectedSite && Number.isFinite(selectedSite.lat) && Number.isFinite(selectedSite.lon)){
@@ -4187,41 +4261,36 @@ function updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,fallbackSite
 async function toggleRepairFromDetail(){
   const st=document.getElementById("editStatus");
   if(!selectedSite){ if(st) st.textContent="Není vybrané místo."; return; }
-  if(!firebaseReady){ if(st) st.textContent="Firebase není nastavený."; return; }
-  if(!currentUser){ if(st) st.textContent="Nejdřív se přihlaš."; return; }
 
   const selectedKey=detailKey(selectedSite) || selectedSite.id;
   const repairOrdered=selectedSite.repairOrdered !== true;
   try{
-    const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const existingEdit=editCache[selectedKey] || editCache[selectedSite.id] || {};
     const currentRaw={...(selectedSite.raw || {}),...((existingEdit.rawEdits && typeof existingEdit.rawEdits==="object") ? existingEdit.rawEdits : {})};
     const statusPatch=mapStatusRawPatchFromStatePatch({repairOrdered},currentRaw);
     const edit={
       repairOrdered,
       rawEdits:{...(existingEdit.rawEdits || {}),...statusPatch},
-      updatedBy:currentUser.email,
+      updatedBy:siteEditUserEmail(),
       updatedAt:new Date().toISOString()
     };
 
     const firebaseDocId=selectedSite.firebaseDocId || (selectedSite.raw && selectedSite.raw["Firebase_doc_id"]) || "";
+    let queuedForSync=false;
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
-      const mergedRaw={...(selectedSite.raw||{}), Firebase_doc_id:firebaseDocId};
-      Object.assign(mergedRaw,mapStatusRawPatchFromStatePatch({repairOrdered},mergedRaw));
-      if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
-      await setDoc(doc(db,"sitesUnified",firebaseDocId),{
-        raw:mergedRaw,
-        dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(mergedRaw) : [],
-        updatedBy:currentUser.email,
-        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-      },{merge:true});
+      const result=await saveUnifiedSiteRawPatchOrQueue(selectedSite,statusPatch,{
+        docId:firebaseDocId,
+        reason:"Změna stavu objednané opravy"
+      });
+      queuedForSync=!!(result && result.queued);
     }
 
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
     selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,{repairOrdered});
-    if(st) st.textContent=repairOrdered ? "Oprava označena jako objednaná." : "Objednání opravy zrušeno.";
-    showSaveConfirmation(repairOrdered ? "Oprava objednána." : "Objednání opravy zrušeno.");
+    const syncText=queuedForSync ? " Čeká na synchronizaci." : "";
+    if(st) st.textContent=(repairOrdered ? "Oprava označena jako objednaná." : "Objednání opravy zrušeno.")+syncText;
+    showSaveConfirmation(queuedForSync ? "Stav uložen v tabletu, odešle se po připojení." : (repairOrdered ? "Oprava objednána." : "Objednání opravy zrušeno."));
     render();
     updateRepairButton();
   }catch(e){
@@ -4232,41 +4301,36 @@ async function toggleRepairFromDetail(){
 async function toggleOrderedFromDetail(){
   const st=document.getElementById("editStatus");
   if(!selectedSite){ if(st) st.textContent="Není vybrané místo."; return; }
-  if(!firebaseReady){ if(st) st.textContent="Firebase není nastavený."; return; }
-  if(!currentUser){ if(st) st.textContent="Nejdřív se přihlaš."; return; }
 
   const selectedKey=detailKey(selectedSite) || selectedSite.id;
   const ordered=selectedSite.ordered !== true;
   try{
-    const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const existingEdit=editCache[selectedKey] || editCache[selectedSite.id] || {};
     const currentRaw={...(selectedSite.raw || {}),...((existingEdit.rawEdits && typeof existingEdit.rawEdits==="object") ? existingEdit.rawEdits : {})};
     const statusPatch=mapStatusRawPatchFromStatePatch({ordered},currentRaw);
     const edit={
       ordered,
       rawEdits:{...(existingEdit.rawEdits || {}),...statusPatch},
-      updatedBy:currentUser.email,
+      updatedBy:siteEditUserEmail(),
       updatedAt:new Date().toISOString()
     };
 
     const firebaseDocId=selectedSite.firebaseDocId || (selectedSite.raw && selectedSite.raw["Firebase_doc_id"]) || "";
+    let queuedForSync=false;
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
-      const mergedRaw={...(selectedSite.raw||{}), Firebase_doc_id:firebaseDocId};
-      Object.assign(mergedRaw,mapStatusRawPatchFromStatePatch({ordered},mergedRaw));
-      if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
-      await setDoc(doc(db,"sitesUnified",firebaseDocId),{
-        raw:mergedRaw,
-        dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(mergedRaw) : [],
-        updatedBy:currentUser.email,
-        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-      },{merge:true});
+      const result=await saveUnifiedSiteRawPatchOrQueue(selectedSite,statusPatch,{
+        docId:firebaseDocId,
+        reason:"Změna stavu objednané kontroly"
+      });
+      queuedForSync=!!(result && result.queued);
     }
 
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
     selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,{ordered});
-    if(st) st.textContent=ordered ? "Kontrola označena jako objednaná." : "Objednání kontroly zrušeno.";
-    showSaveConfirmation(ordered ? "Kontrola objednána." : "Objednání zrušeno.");
+    const syncText=queuedForSync ? " Čeká na synchronizaci." : "";
+    if(st) st.textContent=(ordered ? "Kontrola označena jako objednaná." : "Objednání kontroly zrušeno.")+syncText;
+    showSaveConfirmation(queuedForSync ? "Stav uložen v tabletu, odešle se po připojení." : (ordered ? "Kontrola objednána." : "Objednání zrušeno."));
     render();
     updateOrderedButton();
   }catch(e){
@@ -4277,41 +4341,36 @@ async function toggleOrderedFromDetail(){
 async function toggleStopFromDetail(){
   const st=document.getElementById("editStatus");
   if(!selectedSite){ if(st) st.textContent="Není vybrané místo."; return; }
-  if(!firebaseReady){ if(st) st.textContent="Firebase není nastavený."; return; }
-  if(!currentUser){ if(st) st.textContent="Nejdřív se přihlaš."; return; }
 
   const selectedKey=detailKey(selectedSite) || selectedSite.id;
   const stopped=selectedSite.stopped !== true;
   try{
-    const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const existingEdit=editCache[selectedKey] || editCache[selectedSite.id] || {};
     const currentRaw={...(selectedSite.raw || {}),...((existingEdit.rawEdits && typeof existingEdit.rawEdits==="object") ? existingEdit.rawEdits : {})};
     const statusPatch=mapStatusRawPatchFromStatePatch({stopped},currentRaw);
     const edit={
       stopped,
       rawEdits:{...(existingEdit.rawEdits || {}),...statusPatch},
-      updatedBy:currentUser.email,
+      updatedBy:siteEditUserEmail(),
       updatedAt:new Date().toISOString()
     };
 
     const firebaseDocId=selectedSite.firebaseDocId || (selectedSite.raw && selectedSite.raw["Firebase_doc_id"]) || "";
+    let queuedForSync=false;
     if(firebaseDocId && isFirebaseUnifiedRow(selectedSite)){
-      const mergedRaw={...(selectedSite.raw||{}), Firebase_doc_id:firebaseDocId};
-      Object.assign(mergedRaw,mapStatusRawPatchFromStatePatch({stopped},mergedRaw));
-      if(!mergedRaw["Klíč_adresy"]) mergedRaw["Klíč_adresy"]="firebase_"+firebaseDocId;
-      await setDoc(doc(db,"sitesUnified",firebaseDocId),{
-        raw:mergedRaw,
-        dedupKeys:typeof window.siteDedupKeysFromRaw==="function" ? window.siteDedupKeysFromRaw(mergedRaw) : [],
-        updatedBy:currentUser.email,
-        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-      },{merge:true});
+      const result=await saveUnifiedSiteRawPatchOrQueue(selectedSite,statusPatch,{
+        docId:firebaseDocId,
+        reason:"Změna Stop Stav"
+      });
+      queuedForSync=!!(result && result.queued);
     }
 
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...existingEdit,...edit};
     selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,{stopped});
-    if(st) st.textContent=stopped ? "Zdroj je označený jako Stop Stav." : "Stop Stav byl zrušen.";
-    showSaveConfirmation(stopped ? "Stop Stav uložen." : "Stop Stav zrušen.");
+    const syncText=queuedForSync ? " Čeká na synchronizaci." : "";
+    if(st) st.textContent=(stopped ? "Zdroj je označený jako Stop Stav." : "Stop Stav byl zrušen.")+syncText;
+    showSaveConfirmation(queuedForSync ? "Stav uložen v tabletu, odešle se po připojení." : (stopped ? "Stop Stav uložen." : "Stop Stav zrušen."));
     render();
     updateStopButton();
   }catch(e){
@@ -10034,31 +10093,50 @@ if(deleteSiteBtn) deleteSiteBtn.onclick=deleteSelectedSite;
 
 document.getElementById("saveEditBtn").onclick=async()=>{
   const st=document.getElementById("editStatus");
-  if(!firebaseReady){st.textContent="Firebase není nastavený.";return;}
-  if(!currentUser){st.textContent="Nejdřív se přihlaš.";return;}
   if(!selectedSite){st.textContent="Není vybrané místo.";return;}
+  const rawEdits={
+    "Název":document.getElementById("editName").value,
+    "Kontakt":document.getElementById("editContact").value,
+    "Popis_zdroje":document.getElementById("editSource").value,
+    "Kontrola objednaná":document.getElementById("editOrdered").checked ? "ANO" : "NE",
+    "Objednáno":document.getElementById("editOrdered").checked ? "ANO" : "NE",
+    "Adresa_GPS":document.getElementById("editGpsAddress").value,
+    "GPS_lat":document.getElementById("editGpsLat").value,
+    "GPS_lon":document.getElementById("editGpsLon").value,
+    "Poslední_kontrola":document.getElementById("editLastCheck").value,
+    "Příští_kontrola":document.getElementById("editNextCheck").value,
+    "Poznámky":document.getElementById("editNotes").value
+  };
   const edit={
-    name:document.getElementById("editName").value,
-    contact:document.getElementById("editContact").value,
-    source:document.getElementById("editSource").value,
+    name:rawEdits["Název"],
+    contact:rawEdits["Kontakt"],
+    source:rawEdits["Popis_zdroje"],
     ordered:document.getElementById("editOrdered").checked,
-    gpsAddress:document.getElementById("editGpsAddress").value,
-    gpsLat:document.getElementById("editGpsLat").value,
-    gpsLon:document.getElementById("editGpsLon").value,
-    lastCheck:document.getElementById("editLastCheck").value,
-    nextCheck:document.getElementById("editNextCheck").value,
-    notes:document.getElementById("editNotes").value,
-    updatedBy:currentUser.email,
+    gpsAddress:rawEdits["Adresa_GPS"],
+    gpsLat:rawEdits["GPS_lat"],
+    gpsLon:rawEdits["GPS_lon"],
+    lastCheck:rawEdits["Poslední_kontrola"],
+    nextCheck:rawEdits["Příští_kontrola"],
+    notes:rawEdits["Poznámky"],
+    rawEdits,
+    updatedBy:siteEditUserEmail(),
     updatedAt:new Date().toISOString()
   };
   try{
     const selectedKey=detailKey(selectedSite) || selectedSite.id;
+    const firebaseDocId=selectedSiteDocId(selectedSite);
+    const result=firebaseDocId && isFirebaseUnifiedRow(selectedSite)
+      ? await saveUnifiedSiteRawPatchOrQueue(selectedSite,rawEdits,{
+        docId:firebaseDocId,
+        reason:"Úprava bodu ze záložního editoru"
+      })
+      : null;
     await saveLegacySiteEditIfNeeded(selectedKey,edit,selectedSite);
     editCache[selectedKey]={...(editCache[selectedKey]||editCache[selectedSite.id]||{}),...edit};
-    selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,selectedSiteDocId(selectedSite),selectedSite,edit);
+    selectedSite=updateSingleSelectedRowAfterEdit(selectedKey,firebaseDocId,selectedSite,edit);
     render(); window.openDetailById(selectedKey);
-    st.textContent="Úpravy uloženy.";
-    showSaveConfirmation("Úpravy uloženy.");
+    st.textContent=result?.queued ? "Úpravy uloženy v tabletu. Čekají na synchronizaci." : "Úpravy uloženy.";
+    showSaveConfirmation(result?.queued ? "Úpravy uloženy v tabletu, odešlou se po připojení." : "Úpravy uloženy.");
   }catch(e){st.textContent="Chyba uložení: "+e.message;}
 };
 const serviceForm=document.getElementById("serviceForm");

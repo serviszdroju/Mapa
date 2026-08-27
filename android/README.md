@@ -39,10 +39,10 @@ chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.13-native-site-sync` (`versionCode 15`);
+- verze: `1.1.14-native-edit-sync` (`versionCode 16`);
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-native-site-sync-v554`;
-- SHA-256 souboru APK: `2621550ae3f0702796bdfa11337e833c3db70f5f1b1c2fc8214c8160e5b7f592`;
+- build weboveho shellu: `apk-native-edit-sync-v555`;
+- SHA-256 souboru APK: `2733a77af82a719b8fdf6686b448731a090f4c0e54575ba13508d2718c0eed01`;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
