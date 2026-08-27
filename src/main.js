@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-no-refresh-login-popup-v558";
+const APP_BUILD_VERSION="2026-08-27-auth-startup-timeout-v559";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -505,6 +505,14 @@ const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
 const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
 const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
+const FIREBASE_MODULE_IMPORT_TIMEOUT_MS=9000;
+function withTimeout(promise,timeoutMs,message){
+  let timer=null;
+  const timeout=new Promise((_,reject)=>{
+    timer=setTimeout(()=>reject(new Error(message || "Operace trvala příliš dlouho.")),timeoutMs);
+  });
+  return Promise.race([promise,timeout]).finally(()=>{ if(timer) clearTimeout(timer); });
+}
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
   const hasUser=!!(window.currentUser || window.__authReadyUser);
@@ -556,7 +564,8 @@ function showAppShellFast(message=""){
       const status=document.getElementById("startupStatus");
       setDisplayIfChanged(startup,"flex");
       setDisplayIfChanged(appEl,"none");
-      setDisplayIfChanged(startupButton,"none");
+      setDisplayIfChanged(startupButton,"");
+      setTextIfChanged(document.getElementById("startupIntro"),"Přihlaste se Google účtem @astip.cz.");
       if(message) setTextIfChanged(status,"");
     }
     return;
@@ -822,11 +831,11 @@ if(firebaseReady){
   let authMod=null;
   let fsMod=null;
   try{
-    [appMod,authMod,fsMod] = await Promise.all([
+    [appMod,authMod,fsMod] = await withTimeout(Promise.all([
       import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
       import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
       import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
-    ]);
+    ]),FIREBASE_MODULE_IMPORT_TIMEOUT_MS,"Firebase knihovny se nenačetly včas.");
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
     const compatAvailable=!!(ensureCompatFirebaseApp() && window.firebase && firebase.auth);
@@ -1083,9 +1092,10 @@ if(firebaseReady){
       }catch(error){
         finish(reject,error);
       }
+      const timeoutMs=options.silent ? 9000 : 90000;
       setTimeout(()=>{
         finish(reject,new Error("Android Google přihlášení nevrátilo výsledek včas. Zkus tlačítko znovu."));
-      },90000);
+      },timeoutMs);
     });
   }
   async function signInWithGoogleIdentityServices(){
@@ -1615,6 +1625,7 @@ if(firebaseReady){
   }
   async function handleAuthorizedUser(user){
     clearBackgroundAuthRetry();
+    clearStartupAuthFallback();
     clearAuthPending();
     clearExplicitSignOut();
     setSignedUser(user);
@@ -1669,6 +1680,7 @@ if(firebaseReady){
     }
   }
   function showSignedOutLogin(message){
+    clearStartupAuthFallback();
     clearSignedUser();
     setStartupAuthChecking(false);
     showLogin();
@@ -1767,6 +1779,34 @@ if(firebaseReady){
     showSignedOutLogin();
   }
 
+  let startupAuthFallbackTimer=null;
+  function clearStartupAuthFallback(){
+    if(startupAuthFallbackTimer){
+      clearTimeout(startupAuthFallbackTimer);
+      startupAuthFallbackTimer=null;
+    }
+  }
+  function scheduleStartupAuthFallback(){
+    clearStartupAuthFallback();
+    startupAuthFallbackTimer=setTimeout(()=>{
+      startupAuthFallbackTimer=null;
+      if(authLoginInProgress || currentAuthCandidate() || explicitSignOutPending()) return;
+      const startup=document.getElementById("startupScreen");
+      const appEl=document.getElementById("mainApp");
+      const intro=document.getElementById("startupIntro");
+      const appVisible=!!(appEl && appEl.style.display && appEl.style.display!=="none");
+      const startupStillChecking=!!(startup && (startup.classList.contains("auth-checking") || /Kontroluji|Obnovuji/i.test(String(intro && intro.textContent || ""))));
+      if(!startupStillChecking || appVisible) return;
+      clearAuthPending();
+      setStartupAuthChecking(false);
+      if(typeof window.__szzReleaseStuckStartupChecking==="function"){
+        window.__szzReleaseStuckStartupChecking();
+      }else{
+        showSignedOutLogin("Přihlášení se zatím neověřilo. Klikni na Přihlásit přes Google.");
+      }
+    },AUTH_RESTORE_GRACE_MS+3000);
+  }
+
   window.__startFirebaseRedirectLogin=startGoogleLoginFromUi;
   window.__signOutFirebase=signOutFirebase;
   window.startFirebaseGoogleLogin=startGoogleLoginFromUi;
@@ -1776,6 +1816,7 @@ if(firebaseReady){
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
   if(typeof window.__szzRunPendingLogin==="function") window.__szzRunPendingLogin();
 
+  scheduleStartupAuthFallback();
   try{
     setStartupStatus("Kontroluji přihlášení...");
     await primeCompatAuthPersistence();

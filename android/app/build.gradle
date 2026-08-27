@@ -26,7 +26,7 @@ android {
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=no-refresh-login-popup-v558\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=auth-startup-timeout-v559\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
         buildConfigField "String", "FIREBASE_WEB_API_KEY", "\"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88\""
