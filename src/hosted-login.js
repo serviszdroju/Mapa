@@ -5,7 +5,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="apk-native-mail-signature-auth-v557";
+const EMAIL_LOGIN_BUILD_VERSION="no-refresh-login-popup-v558";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -14,6 +14,8 @@ const authUiState={
 };
 let pendingGoogleLoginRequested=false;
 let pendingGoogleLoginTimer=null;
+let lastGoogleLoginInteractionAt=0;
+const GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS=15000;
 
 function isLocalFileApp(){
   return window.location.protocol==="file:";
@@ -37,6 +39,38 @@ function disabled(el,value){
 
 function knownUser(){
   return window.currentUser || window.__authReadyUser || (window.auth && window.auth.currentUser) || null;
+}
+
+function activeUserGesture(){
+  try{
+    return !!(navigator.userActivation && navigator.userActivation.isActive);
+  }catch(e){
+    return false;
+  }
+}
+
+function rememberGoogleLoginInteraction(event){
+  if(event && typeof event.preventDefault==="function"){
+    event.preventDefault();
+    lastGoogleLoginInteractionAt=Date.now();
+    try{window.__szzGoogleLoginInteractionAt=lastGoogleLoginInteractionAt;}catch(e){}
+    return true;
+  }
+  return false;
+}
+
+function hasRecentGoogleLoginInteraction(){
+  const globalAt=Number(window.__szzGoogleLoginInteractionAt || 0);
+  const at=Math.max(lastGoogleLoginInteractionAt,Number.isFinite(globalAt) ? globalAt : 0);
+  return activeUserGesture() || (at>0 && Date.now()-at<GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS);
+}
+
+function clearPendingGoogleLogin(){
+  pendingGoogleLoginRequested=false;
+  if(pendingGoogleLoginTimer){
+    clearTimeout(pendingGoogleLoginTimer);
+    pendingGoogleLoginTimer=null;
+  }
 }
 
 function status(msg){
@@ -292,7 +326,6 @@ function showAuthState(mode,options={}){
 }
 
 function startLogin(event){
-  if(event && typeof event.preventDefault==="function") event.preventDefault();
   if(isLocalFileApp()){
     openHostedApp();
     return;
@@ -300,14 +333,16 @@ function startLogin(event){
   return startGoogleLogin(event);
 }
 
-function runReadyGoogleLogin(){
+function runReadyGoogleLogin(options={}){
+  const explicit=options.explicit===true || hasRecentGoogleLoginInteraction();
+  if(!explicit && !pendingGoogleLoginRequested) return false;
+  if(!explicit){
+    clearPendingGoogleLogin();
+    return false;
+  }
   if(typeof window.__startFirebaseRedirectLogin==="function"){
-    pendingGoogleLoginRequested=false;
-    if(pendingGoogleLoginTimer){
-      clearTimeout(pendingGoogleLoginTimer);
-      pendingGoogleLoginTimer=null;
-    }
-    Promise.resolve(window.__startFirebaseRedirectLogin()).catch(err=>{
+    clearPendingGoogleLogin();
+    Promise.resolve(window.__startFirebaseRedirectLogin({explicit:true})).catch(err=>{
       if(shouldKeepMapOpenOnLoginError(err)){
         clearAuthStatusNotice();
         showAuthState("logged-in",{message:""});
@@ -320,25 +355,23 @@ function runReadyGoogleLogin(){
     return true;
   }
   if(typeof window.__startCompatGoogleLoginFallback==="function"){
-    pendingGoogleLoginRequested=false;
-    if(pendingGoogleLoginTimer){
-      clearTimeout(pendingGoogleLoginTimer);
-      pendingGoogleLoginTimer=null;
-    }
-    window.__startCompatGoogleLoginFallback();
+    clearPendingGoogleLogin();
+    window.__startCompatGoogleLoginFallback({explicit:true});
     return true;
   }
   return false;
 }
 
-function queueGoogleLoginUntilReady(){
+function queueGoogleLoginUntilReady(options={}){
+  const explicit=options.explicit===true || hasRecentGoogleLoginInteraction();
+  if(!explicit) return false;
   pendingGoogleLoginRequested=true;
   showAuthState("logging-in",{message:"Připravuji přihlášení..."});
-  if(runReadyGoogleLogin()) return;
+  if(runReadyGoogleLogin({explicit:true})) return true;
   const started=Date.now();
   const tick=()=>{
     if(!pendingGoogleLoginRequested) return;
-    if(runReadyGoogleLogin()) return;
+    if(runReadyGoogleLogin({explicit:true})) return;
     if(Date.now()-started<10000){
       pendingGoogleLoginTimer=setTimeout(tick,150);
       return;
@@ -349,21 +382,24 @@ function queueGoogleLoginUntilReady(){
   };
   if(pendingGoogleLoginTimer) clearTimeout(pendingGoogleLoginTimer);
   pendingGoogleLoginTimer=setTimeout(tick,150);
+  return true;
 }
 
 function startGoogleLogin(event){
-  if(event && typeof event.preventDefault==="function") event.preventDefault();
+  const explicit=rememberGoogleLoginInteraction(event) || hasRecentGoogleLoginInteraction();
   if(isLocalFileApp()){
     openHostedApp();
     return;
   }
+  if(!explicit) return false;
   window.__loginRequested=true;
   showAuthState("logging-in",{message:"Připravuji přihlášení..."});
-  if(runReadyGoogleLogin()) return;
-  queueGoogleLoginUntilReady();
+  if(runReadyGoogleLogin({explicit:true})) return true;
+  return queueGoogleLoginUntilReady({explicit:true});
 }
 
-function startCompatGoogleLoginFallback(){
+function startCompatGoogleLoginFallback(options={}){
+  if(!(options.explicit===true || hasRecentGoogleLoginInteraction())) return false;
   try{
     if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
       showAuthState("logged-out",{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
@@ -443,7 +479,7 @@ window.__szzShowStartupChecking=(message="Kontroluji přihlášení...")=>showAu
 window.__szzShowAuthenticatedApp=(message="")=>showAuthState("logged-in",{message});
 window.__szzGetAuthState=()=>({...authUiState});
 window.__startCompatGoogleLoginFallback=startCompatGoogleLoginFallback;
-window.__szzRunPendingLogin=runReadyGoogleLogin;
+window.__szzRunPendingLogin=()=>runReadyGoogleLogin({explicit:hasRecentGoogleLoginInteraction()});
 window.szzEmergencyEmailLogin=event=>startGoogleLogin(event);
 window.loginEmail=window.szzEmergencyEmailLogin;
 window.loginPopup=startGoogleLogin;

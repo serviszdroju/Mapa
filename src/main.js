@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-native-mail-signature-auth-v557";
+const APP_BUILD_VERSION="2026-08-27-no-refresh-login-popup-v558";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1221,7 +1221,37 @@ if(firebaseReady){
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     safeUpdateAdminAppControls();
   }
-  async function startFirebaseRedirectLogin(){
+  const GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS=15000;
+  function activeGoogleLoginGesture(){
+    try{
+      return !!(navigator.userActivation && navigator.userActivation.isActive);
+    }catch(e){
+      return false;
+    }
+  }
+  function rememberGoogleLoginInteraction(event){
+    if(event && typeof event.preventDefault==="function"){
+      event.preventDefault();
+      try{window.__szzGoogleLoginInteractionAt=Date.now();}catch(e){}
+      return true;
+    }
+    return false;
+  }
+  function hasRecentGoogleLoginInteraction(){
+    const at=Number(window.__szzGoogleLoginInteractionAt || 0);
+    return activeGoogleLoginGesture() || (Number.isFinite(at) && at>0 && Date.now()-at<GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS);
+  }
+  function isExplicitGoogleLoginRequest(options){
+    return !!(options && options.explicit===true) || hasRecentGoogleLoginInteraction();
+  }
+  async function startFirebaseRedirectLogin(options={}){
+    if(!isExplicitGoogleLoginRequest(options)){
+      window.__loginRequested=false;
+      if(appIsOpenOrHasRows() && !explicitSignOutPending()){
+        keepAppOpenDuringAuthRestore("");
+      }
+      return false;
+    }
     if(!firebaseReady || (!auth && !getCompatAuthClient())){
       const message="Firebase přihlášení ještě není připravené. Zkontroluj internet a zkus to znovu.";
       setStartupAuthChecking(false);
@@ -1284,9 +1314,10 @@ if(firebaseReady){
       authLoginInProgress=false;
     }
   }
-  function startGoogleLoginFromUi(event){
-    if(event && typeof event.preventDefault==="function") event.preventDefault();
-    return startFirebaseRedirectLogin();
+  function startGoogleLoginFromUi(eventOrOptions){
+    const fromEvent=rememberGoogleLoginInteraction(eventOrOptions);
+    const explicit=fromEvent || !!(eventOrOptions && eventOrOptions.explicit===true) || hasRecentGoogleLoginInteraction();
+    return startFirebaseRedirectLogin({explicit});
   }
   async function signOutFirebase(){
     authLoginInProgress=false;

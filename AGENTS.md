@@ -814,6 +814,8 @@ Current Android parity decision: the downloadable Android app must remain a WebV
 
 Current auth repair decision: do not reintroduce e-mail/password login, `signInWithRedirect`, or `__/auth/handler` flows in the production shell or Android app. Web login should use Google popup/GIS when available; Android WebView should use the native `SzzAndroidAuth` bridge to obtain a Google ID token and sign into Firebase on the same page.
 
+Current refresh auth decision: refreshing an already-open/auth-restoring map must never auto-open the Google account chooser. Google popup/GIS/native login may start only from a fresh user click on the login button; background auth restore should keep the map open from cached data and retry silently.
+
 Current protocol mail decision: PDF protocols sent by e-mail must omit internal point 15 "Chceck list", must include the signature for the technician stored on the protocol/site visit rather than the currently generating user, and must stop before sending if that technician signature cannot be resolved. Silent Android auth restore failures must not show a login error over an already-open map, and an early first tap on Google login should be queued until the Firebase login handler is ready.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
