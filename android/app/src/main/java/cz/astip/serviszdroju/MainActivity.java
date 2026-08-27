@@ -52,6 +52,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
+import cz.astip.serviszdroju.offline.SzzAndroidAuthStore;
 import cz.astip.serviszdroju.offline.SzzOfflineRepository;
 
 import org.json.JSONObject;
@@ -138,6 +139,7 @@ public class MainActivity extends Activity {
         super.onResume();
         if (webView != null) webView.onResume();
         if (offlineRepository != null) offlineRepository.enqueueSyncWork();
+        restoreAndroidAuthIfStored(1600);
     }
 
     @Override
@@ -221,6 +223,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 CookieManager.getInstance().flush();
                 injectAndroidBootstrap();
+                restoreAndroidAuthIfStored(900);
             }
 
             @Override
@@ -434,6 +437,11 @@ public class MainActivity extends Activity {
         );
     }
 
+    private void restoreAndroidAuthIfStored(long delayMs) {
+        if (!isOnline() || !SzzAndroidAuthStore.hasGoogleIdToken(this) || webView == null) return;
+        webView.postDelayed(() -> startSilentGoogleSignIn(true), Math.max(0L, delayMs));
+    }
+
     private final class AndroidAuthBridge {
         @JavascriptInterface
         public boolean isGoogleSignInConfigured() {
@@ -448,7 +456,22 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void restoreGoogleSignIn() {
-            runOnUiThread(() -> startSilentGoogleSignIn());
+            runOnUiThread(() -> startSilentGoogleSignIn(false));
+        }
+
+        @JavascriptInterface
+        public void signOut() {
+            SzzAndroidAuthStore.clear(MainActivity.this);
+            runOnUiThread(() -> {
+                try {
+                    String webClientId = BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID == null
+                        ? ""
+                        : BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID.trim();
+                    if (!webClientId.isEmpty()) {
+                        GoogleSignIn.getClient(MainActivity.this, googleSignInOptions(webClientId)).signOut();
+                    }
+                } catch (Exception ignored) {}
+            });
         }
     }
 
@@ -486,6 +509,13 @@ public class MainActivity extends Activity {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
             return repository.cachedSitesJson(limit);
+        }
+
+        @JavascriptInterface
+        public String countsJson() {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
+            return repository.countsJsonString();
         }
 
         @JavascriptInterface
@@ -528,6 +558,20 @@ public class MainActivity extends Activity {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
             return repository.cachedAttachmentsJson(limit);
+        }
+
+        @JavascriptInterface
+        public String outboxJson(int limit) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
+            return repository.outboxJson(limit);
+        }
+
+        @JavascriptInterface
+        public String outboxOperationJson(String operationId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
+            return repository.outboxOperationJson(operationId);
         }
 
         @JavascriptInterface
@@ -593,13 +637,13 @@ public class MainActivity extends Activity {
         startLegacyGoogleSignIn(webClientId);
     }
 
-    private void startSilentGoogleSignIn() {
+    private void startSilentGoogleSignIn(boolean quiet) {
         if (googleSignInBusy) return;
         String webClientId = BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID == null
             ? ""
             : BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID.trim();
         if (webClientId.isEmpty()) {
-            deliverAndroidAuthError("V APK chybí Google OAuth konfigurace. Je potřeba nainstalovat novou APK z tlačítka Stáhnout aplikaci.");
+            if (!quiet) deliverAndroidAuthError("V APK chybí Google OAuth konfigurace. Je potřeba nainstalovat novou APK z tlačítka Stáhnout aplikaci.");
             return;
         }
         googleSignInBusy = true;
@@ -616,14 +660,14 @@ public class MainActivity extends Activity {
                 try {
                     deliverGoogleSignInAccount(result.getResult(ApiException.class));
                 } catch (ApiException error) {
-                    deliverAndroidAuthError("Tiché obnovení Android přihlášení se nepodařilo. " + legacyGoogleSignInErrorText(error));
+                    if (!quiet) deliverAndroidAuthError("Tiché obnovení Android přihlášení se nepodařilo. " + legacyGoogleSignInErrorText(error));
                 } catch (Exception error) {
-                    deliverAndroidAuthError("Tiché obnovení Android přihlášení selhalo. " + compactErrorText(error));
+                    if (!quiet) deliverAndroidAuthError("Tiché obnovení Android přihlášení selhalo. " + compactErrorText(error));
                 }
             });
         } catch (Exception error) {
             googleSignInBusy = false;
-            deliverAndroidAuthError("Tiché obnovení Android přihlášení selhalo při přípravě. " + compactErrorText(error));
+            if (!quiet) deliverAndroidAuthError("Tiché obnovení Android přihlášení selhalo při přípravě. " + compactErrorText(error));
         }
     }
 
@@ -654,7 +698,7 @@ public class MainActivity extends Activity {
                             deliverAndroidAuthError("Použij firemní účet @astip.cz.");
                             return;
                         }
-                        deliverAndroidGoogleIdToken(credential.getIdToken());
+                        deliverAndroidGoogleIdToken(credential.getIdToken(), email);
                     } catch (Exception error) {
                         deliverAndroidAuthError(error.getMessage() == null ? "Google přihlášení se nepodařilo." : error.getMessage());
                     }
@@ -716,6 +760,12 @@ public class MainActivity extends Activity {
     }
 
     private void deliverAndroidGoogleIdToken(String idToken) {
+        deliverAndroidGoogleIdToken(idToken, "");
+    }
+
+    private void deliverAndroidGoogleIdToken(String idToken, String email) {
+        SzzAndroidAuthStore.saveGoogleIdToken(this, idToken, email);
+        if (offlineRepository != null) offlineRepository.enqueueSyncWork();
         evaluateWebScript(
             "window.__szzAndroidSignInWithGoogleIdToken&&window.__szzAndroidSignInWithGoogleIdToken("
                 + JSONObject.quote(idToken == null ? "" : idToken)
@@ -814,6 +864,7 @@ public class MainActivity extends Activity {
         }
         String email = account.getEmail() == null ? "" : account.getEmail().toLowerCase(Locale.ROOT);
         if (!email.endsWith("@astip.cz")) {
+            SzzAndroidAuthStore.clear(this);
             deliverAndroidAuthError("Použij firemní účet @astip.cz.");
             return;
         }
@@ -822,7 +873,7 @@ public class MainActivity extends Activity {
             deliverAndroidAuthError("Google přihlášení nevrátilo ID token. Zkontroluj Google OAuth konfiguraci APK.");
             return;
         }
-        deliverAndroidGoogleIdToken(idToken);
+        deliverAndroidGoogleIdToken(idToken, email);
     }
 
     private String legacyGoogleSignInErrorText(ApiException error) {

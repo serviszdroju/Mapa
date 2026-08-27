@@ -5,7 +5,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="apk-room-media-v550";
+const EMAIL_LOGIN_BUILD_VERSION="apk-native-sync-v551";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -318,6 +318,10 @@ function startCompatGoogleLoginFallback(){
 
 function signOutAndReload(event){
   if(event && typeof event.preventDefault==="function") event.preventDefault();
+  try{
+    const bridge=window.SzzAndroidAuth;
+    if(bridge && typeof bridge.signOut==="function") bridge.signOut();
+  }catch(error){}
   if(typeof window.__signOutFirebase==="function") window.__signOutFirebase();
   else location.reload();
 }

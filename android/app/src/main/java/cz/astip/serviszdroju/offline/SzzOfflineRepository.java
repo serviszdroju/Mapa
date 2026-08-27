@@ -256,6 +256,68 @@ public final class SzzOfflineRepository {
         return cachedRowsJson("cachedAttachments", dao.cachedAttachmentCount(), dao.cachedAttachmentRawJson(cappedLimit(limit)));
     }
 
+    public String countsJsonString() {
+        try {
+            JSONObject result = countsJson();
+            result.put("ok", true);
+            return result.toString();
+        } catch (Exception error) {
+            return errorJson(error);
+        }
+    }
+
+    public String outboxJson(int limit) {
+        JSONObject result = new JSONObject();
+        try {
+            List<OfflineEntities.SyncOutboxEntity> rows = dao.outboxRows(cappedLimit(limit));
+            JSONArray items = new JSONArray();
+            for (OfflineEntities.SyncOutboxEntity row : rows) {
+                items.put(outboxRowJson(row));
+            }
+            result.put("ok", true);
+            result.put("count", items.length());
+            result.put("pendingOutbox", dao.pendingOutboxCount());
+            result.put("items", items);
+        } catch (Exception error) {
+            try {
+                result.put("ok", false);
+                result.put("error", compact(error));
+            } catch (Exception ignored) {}
+        }
+        return result.toString();
+    }
+
+    public String outboxOperationJson(String operationId) {
+        JSONObject result = new JSONObject();
+        try {
+            OfflineEntities.SyncOutboxEntity row = dao.outboxOperation(operationId == null ? "" : operationId.trim());
+            result.put("ok", true);
+            result.put("found", row != null);
+            if (row != null) result.put("item", outboxRowJson(row));
+        } catch (Exception error) {
+            try {
+                result.put("ok", false);
+                result.put("error", compact(error));
+            } catch (Exception ignored) {}
+        }
+        return result.toString();
+    }
+
+    private static JSONObject outboxRowJson(OfflineEntities.SyncOutboxEntity row) throws JSONException {
+        JSONObject item = new JSONObject();
+        item.put("operationId", row.operationId);
+        item.put("entityTable", row.entityTable);
+        item.put("entityLocalId", row.entityLocalId);
+        item.put("operation", row.operation);
+        item.put("attemptCount", row.attemptCount);
+        item.put("nextRetryAt", row.nextRetryAt);
+        item.put("createdAt", row.createdAt);
+        item.put("updatedAt", row.updatedAt);
+        item.put("status", row.status);
+        item.put("lastError", row.lastError);
+        return item;
+    }
+
     private String cachedRowsJson(String countKey, int totalCount, List<String> rows) {
         JSONObject result = new JSONObject();
         try {
@@ -555,6 +617,15 @@ public final class SzzOfflineRepository {
         if (error == null) return "";
         String message = error.getMessage();
         return message == null || message.trim().isEmpty() ? error.getClass().getSimpleName() : message.trim();
+    }
+
+    private static String errorJson(Exception error) {
+        JSONObject result = new JSONObject();
+        try {
+            result.put("ok", false);
+            result.put("error", compact(error));
+        } catch (Exception ignored) {}
+        return result.toString();
     }
 
     private static String isoNow() {

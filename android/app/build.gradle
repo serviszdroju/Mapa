@@ -18,17 +18,22 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 11
-        versionName "1.1.9-room-media"
+        versionCode 12
+        versionName "1.1.10-native-sync"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=apk-room-media-v550\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=apk-native-sync-v551\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
+        buildConfigField "String", "FIREBASE_WEB_API_KEY", "\"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88\""
+        buildConfigField "String", "FIREBASE_PROJECT_ID", "\"astip---servis\""
+        buildConfigField "String", "CLOUDINARY_CLOUD_NAME", "\"dnxjc6ixi\""
+        buildConfigField "String", "CLOUDINARY_UPLOAD_PRESET", "\"astip_mapy\""
+        buildConfigField "String", "CLOUDINARY_FOLDER", "\"astip-servis\""
     }
 
     buildFeatures {

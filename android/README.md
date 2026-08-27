@@ -39,10 +39,10 @@ chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni
 
 Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
-- verze: `1.1.9-room-media` (`versionCode 11`);
+- verze: `1.1.10-native-sync` (`versionCode 12`);
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `apk-room-media-v550`;
-- SHA-256 souboru APK: `1ace49da228e43d15f55d977ab528aa920035e6131328378ea8184b6580221cb`;
+- build weboveho shellu: `apk-native-sync-v551`;
+- SHA-256 souboru APK: `7b4bbd430403e05cf0bcb3ad36879728db09aac251159a56e9d47dbd713ec80a`;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
   `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
@@ -52,8 +52,17 @@ Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 - uklada snapshoty fotografii a priloh do Room tabulek `photos` a `attachments` a umi je
   vratit webu pres `cachedPhotosJson()` / `cachedAttachmentsJson()`;
 - uklada offline vytvorene fotografie a prilohy jako trvale polozky ve `sync_outbox`;
+- WorkManager odesila offline fotografie a prilohy nativne po navratu internetu: pouzije
+  ulozeny Android Google ID token, vymeni ho za Firebase token, nahraje fotku na Cloudinary
+  a zapise metadata do `sitesUnified/{site}/photos` nebo `attachments`;
+- po castecne uspesnem Cloudinary uploadu aktualizuje `sync_outbox`, aby se fotka pri dalsim
+  pokusu nenahrala duplicitne;
+- webova sync vrstva pri dalsim otevreni pozna nativne synchronizovane fotky a odstrani je
+  z webove offline fronty bez duplicitniho uploadu;
 - umi tise obnovit Android Google prihlaseni pres `SzzAndroidAuth.restoreGoogleSignIn()`,
   kdyz Firebase session ve WebView dobehne nebo se dočasne ztrati;
+- pri startu a navratu aplikace zkusi obnovit ulozene Android prihlaseni tise, bez rusive chyby
+  na uvodni obrazovce;
 - uklada rozpracovany protokol do Room pres `SzzAndroidOffline` a vynuti flush pri
   `onPause()`/`onStop()`;
 - lokalni kamerove snimky uklada do interni slozky aplikace `szz-media/photos` misto cache.

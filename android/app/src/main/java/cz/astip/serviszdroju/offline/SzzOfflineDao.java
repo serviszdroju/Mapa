@@ -84,12 +84,27 @@ public interface SzzOfflineDao {
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE status != 'SYNCED'")
     int pendingOutboxCount();
 
-    @Query("SELECT * FROM sync_outbox WHERE status != 'SYNCED' AND next_retry_at <= :now ORDER BY created_at ASC LIMIT :limit")
+    @Query("SELECT * FROM sync_outbox WHERE status = 'PENDING' AND next_retry_at <= :now ORDER BY created_at ASC LIMIT :limit")
     List<OfflineEntities.SyncOutboxEntity> pendingOutbox(long now, int limit);
+
+    @Query("SELECT * FROM sync_outbox WHERE status != 'SYNCED' ORDER BY created_at ASC LIMIT :limit")
+    List<OfflineEntities.SyncOutboxEntity> outboxRows(int limit);
+
+    @Query("SELECT * FROM sync_outbox WHERE operation_id = :operationId LIMIT 1")
+    OfflineEntities.SyncOutboxEntity outboxOperation(String operationId);
 
     @Query("UPDATE sync_outbox SET status = :status, attempt_count = :attemptCount, next_retry_at = :nextRetryAt, updated_at = :updatedAt, last_error = :lastError WHERE operation_id = :operationId")
     void updateOutboxState(String operationId, String status, int attemptCount, long nextRetryAt, String updatedAt, String lastError);
 
+    @Query("UPDATE sync_outbox SET payload_json = :payloadJson, updated_at = :updatedAt WHERE operation_id = :operationId")
+    void updateOutboxPayload(String operationId, String payloadJson, String updatedAt);
+
     @Query("UPDATE sync_outbox SET status = 'SYNCED', next_retry_at = 0, updated_at = :updatedAt, last_error = NULL WHERE operation_id = :operationId")
     void markOutboxSynced(String operationId, String updatedAt);
+
+    @Query("UPDATE photos SET upload_state = :state, cloudinary_url = :cloudinaryUrl, raw_json = :rawJson, updated_at = :updatedAt, last_sync_error = :lastError WHERE local_id = :localId")
+    void updatePhotoSyncState(String localId, String state, String cloudinaryUrl, String rawJson, String updatedAt, String lastError);
+
+    @Query("UPDATE attachments SET upload_state = :state, remote_url = :remoteUrl, raw_json = :rawJson, updated_at = :updatedAt, last_sync_error = :lastError WHERE local_id = :localId")
+    void updateAttachmentSyncState(String localId, String state, String remoteUrl, String rawJson, String updatedAt, String lastError);
 }

@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-room-media-v551";
+const APP_BUILD_VERSION="2026-08-27-apk-native-sync-v551";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1249,6 +1249,10 @@ if(firebaseReady){
       markExplicitSignOut();
       forgetKnownSignedIn();
       clearSignedUser();
+      try{
+        const bridge=window.SzzAndroidAuth;
+        if(bridge && typeof bridge.signOut==="function") bridge.signOut();
+      }catch(e){}
       const compatClient=getCompatAuthClient();
       await Promise.allSettled([
         compatClient && compatClient.signOut ? compatClient.signOut() : Promise.resolve(),
@@ -1521,6 +1525,10 @@ if(firebaseReady){
       setStartupStatus("Přihlášení je povoleno jen pro @astip.cz. Přihlášený účet: " + (email || "bez e-mailu"));
       markExplicitSignOut();
       forgetKnownSignedIn();
+      try{
+        const bridge=window.SzzAndroidAuth;
+        if(bridge && typeof bridge.signOut==="function") bridge.signOut();
+      }catch(e){}
       const compatClient=getCompatAuthClient();
       await Promise.allSettled([
         compatClient && compatClient.signOut ? compatClient.signOut() : Promise.resolve(),
@@ -7526,6 +7534,28 @@ function androidOfflineReadJson(method,limit=5000){
   }
 }
 
+function readAndroidOfflineCounts(){
+  const bridge=androidOfflineBridge();
+  if(!bridge || typeof bridge.countsJson!=="function") return null;
+  try{
+    const parsed=JSON.parse(String(bridge.countsJson() || "{}"));
+    return parsed?.ok ? parsed : null;
+  }catch(e){
+    return null;
+  }
+}
+
+function androidOutboxOperation(operationId){
+  const bridge=androidOfflineBridge();
+  if(!bridge || typeof bridge.outboxOperationJson!=="function") return null;
+  try{
+    const parsed=JSON.parse(String(bridge.outboxOperationJson(String(operationId || "")) || "{}"));
+    return parsed?.ok && parsed?.found ? parsed.item || null : null;
+  }catch(e){
+    return null;
+  }
+}
+
 function androidOfflineSiteLocalId(site=selectedSite){
   const keys=siteRecordKeys(site);
   return keys[0] || selectedSiteDocId(site) || detailKey(site) || safe(site?.id) || "unknown-site";
@@ -7593,12 +7623,15 @@ function saveLocalPhotoToAndroid(site,photoPayload){
 function saveLocalAttachmentToAndroid(site,attachmentPayload){
   if(!attachmentPayload) return false;
   const localId=safe(attachmentPayload._id || attachmentPayload.id) || makeLocalRecordId("attachment");
+  const siteLocalId=androidOfflineSiteLocalId(site);
+  const roomLocalId=`${siteLocalId}:${localId}`;
   const payload={...attachmentPayload,_id:localId};
   return androidOfflineCall("saveLocalAttachment",{
-    operationId:`attachment:${localId}`,
-    localId,
+    operationId:`attachment:${roomLocalId}`,
+    localId:roomLocalId,
+    attachmentId:localId,
     sourceLocalId:androidOfflineSourceLocalId(site),
-    siteLocalId:androidOfflineSiteLocalId(site),
+    siteLocalId,
     payloadJson:JSON.stringify(payload)
   });
 }
@@ -10453,6 +10486,13 @@ async function syncOfflinePhotos(options={}){
         if(!site || !selectedSiteDocId(site)){
           throw new Error("K fotce nejde najít Firebase bod.");
         }
+        const androidOperation=androidOutboxOperation(`photo:${id}`);
+        if(String(androidOperation?.status || "").toUpperCase()==="SYNCED"){
+          await removeOfflinePhotoItem(id,site,item);
+          markAndroidOutboxSynced(`photo:${id}`);
+          synced++;
+          continue;
+        }
         const folderName=photoFolderName(item) || photoFolderNameForDate(item.createdAt || new Date());
         const uploadFile=await offlinePhotoFileFromItem({...item,_id:id});
         const cloudinaryResult=await uploadPhotoToCloudinary(id,uploadFile,site,folderName);
@@ -10767,26 +10807,33 @@ async function collectSzzOfflineCounts(){
     return cloneSzzOfflineCounts(szzOfflineCountsCache);
   }
   const ready=readSzzOfflineReadyState();
-  const [sites,protocols,photos,drafts,storage,estimate]=await Promise.all([
+  const [sites,protocols,photos,drafts,storage,estimate,androidCounts]=await Promise.all([
     readPendingOfflineSitesCount(),
     readPendingOfflineProtocolCount(),
     readPendingOfflinePhotoCount(),
     readProtocolDraftCount(),
     requestSzzPersistentStorage({request:false}),
-    szzStorageEstimate()
+    szzStorageEstimate(),
+    Promise.resolve(readAndroidOfflineCounts())
   ]);
+  const androidPending=Math.max(0,Number(androidCounts?.pendingOutbox) || 0);
+  const androidPhotos=Math.max(0,Number(androidCounts?.pendingPhotos) || 0);
+  const androidAttachments=Math.max(0,Number(androidCounts?.pendingAttachments) || 0);
+  const nativeVisiblePending=Math.max(androidPending,androidPhotos+androidAttachments);
   const counts={
     sites,
     protocols,
-    photos,
+    photos:Math.max(photos,androidPhotos),
+    attachments:androidAttachments,
     drafts,
-    cachedRows:readCachedFirebaseSiteCount(),
+    cachedRows:Math.max(readCachedFirebaseSiteCount(),Number(androidCounts?.cachedSites) || 0),
     persistentStorage:!!(storage.persisted || ready.persistentStorage),
     storageSupported:!!(storage.supported || ready.persistentStorageSupported),
     storageUsage:estimate ? estimate.usage : (Number(ready.storageUsage) || 0),
     storageQuota:estimate ? estimate.quota : (Number(ready.storageQuota) || 0),
     preparedAt:ready.preparedAt || "",
-    pending:sites+protocols+photos
+    androidPending,
+    pending:Math.max(sites+protocols+photos,nativeVisiblePending)
   };
   szzOfflineCountsCache=counts;
   szzOfflineCountsCacheAt=Date.now();
