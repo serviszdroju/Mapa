@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-26-apk-auth-stable-v547";
+const APP_BUILD_VERSION="2026-08-27-apk-room-outbox-v548";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -7347,10 +7347,53 @@ function saveProtocolLocally(payload,site=selectedSite,reason=""){
   appendSiteLocalArray("protocolHistory",offlinePayload,site,120);
   invalidateOfflineProtocolCountCache();
   saveOfflineProtocolQueueItem(offlinePayload,site).catch(()=>{});
+  saveLocalProtocolToAndroid(site,offlinePayload);
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("protocol");
   return offlinePayload;
 }
+
+function saveLocalProtocolToAndroid(site,offlinePayload){
+  if(!offlinePayload) return false;
+  const siteLocalId=androidOfflineSiteLocalId(site);
+  const localId=safe(offlinePayload._id) || makeLocalRecordId("protocol");
+  return androidOfflineCall("saveLocalProtocol",{
+    operationId:`protocol:${localId}`,
+    localId,
+    sourceLocalId:androidOfflineSourceLocalId(site),
+    firebaseId:safe(offlinePayload.firebaseDocId || offlinePayload.siteDocId || ""),
+    controlDate:safe(offlinePayload.date || offlinePayload.controlDate || ""),
+    savedAt:safe(offlinePayload.savedAt || offlinePayload.offlineSavedAt || "") || new Date().toISOString(),
+    technicianEmail:safe(offlinePayload.technicianEmail || currentUser?.email || lastKnownUserEmail() || ""),
+    siteLocalId,
+    payloadJson:JSON.stringify(offlinePayload)
+  });
+}
+
+function markAndroidOutboxSynced(operationId){
+  const bridge=androidOfflineBridge();
+  if(!bridge || typeof bridge.markOutboxSynced!=="function") return false;
+  try{
+    bridge.markOutboxSynced(operationId);
+    return true;
+  }catch(e){
+    console.warn("Android outbox potvrzení selhalo",e);
+    return false;
+  }
+}
+
+window.addEventListener("szz-android-offline-result",event=>{
+  const detail=event?.detail || {};
+  if(!detail.ok) return;
+  if(detail.action==="draft" || detail.action==="protocol"){
+    const st=protocolStatusNode();
+    if(st && !/uložen|upravuješ|synchroniz/i.test(st.textContent || "")){
+      const when=new Date().toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      setProtocolStatusText(`Uloženo v tabletu ${when}.`);
+    }
+  }
+  if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(250);
+});
 
 let protocolDraftTimer=null;
 let protocolDraftRestoreInProgress=false;
@@ -7389,9 +7432,14 @@ const {
 
 function clearProtocolDraft(site=selectedSite){
   const key=protocolDraftKey(site);
+  const siteLocalId=androidOfflineSiteLocalId(site);
   try{localStorage.removeItem(key);}catch(e){}
   clearLocalStorageObjectEntriesCache(key);
   deleteProtocolDraftFromIndexedDb(site);
+  const bridge=androidOfflineBridge();
+  if(bridge && typeof bridge.deleteProtocolDraft==="function"){
+    try{ bridge.deleteProtocolDraft(`protocol-draft:${siteLocalId}`); }catch(e){}
+  }
   clearProtocolDraftCountCache();
   if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
 }
@@ -7404,6 +7452,47 @@ function readProtocolDraft(site=selectedSite){
   }catch(e){
     return null;
   }
+}
+
+function androidOfflineBridge(){
+  try{
+    return window.SzzAndroidOffline || null;
+  }catch(e){
+    return null;
+  }
+}
+
+function androidOfflineCall(method,payload){
+  const bridge=androidOfflineBridge();
+  if(!bridge || typeof bridge[method]!=="function") return false;
+  try{
+    bridge[method](JSON.stringify(payload || {}));
+    return true;
+  }catch(e){
+    console.warn("Android offline bridge selhal",method,e);
+    return false;
+  }
+}
+
+function androidOfflineSiteLocalId(site=selectedSite){
+  const keys=siteRecordKeys(site);
+  return keys[0] || selectedSiteDocId(site) || detailKey(site) || safe(site?.id) || "unknown-site";
+}
+
+function androidOfflineSourceLocalId(site=selectedSite){
+  return siteSourceIdentity(site) || siteSourceLabel(site) || androidOfflineSiteLocalId(site);
+}
+
+function saveProtocolDraftToAndroid(site,draft){
+  if(!draft || !draft.payload) return false;
+  const siteLocalId=androidOfflineSiteLocalId(site);
+  return androidOfflineCall("saveProtocolDraft",{
+    draftId:`protocol-draft:${siteLocalId}`,
+    siteLocalId,
+    sourceLocalId:androidOfflineSourceLocalId(site),
+    savedAt:draft.savedAt || new Date().toISOString(),
+    payloadJson:JSON.stringify(draft)
+  });
 }
 
 function saveProtocolDraftNow(){
@@ -7420,6 +7509,7 @@ function saveProtocolDraftNow(){
     const key=protocolDraftKey(selectedSite);
     localStorage.setItem(key,JSON.stringify(draft));
     clearLocalStorageObjectEntriesCache(key);
+    saveProtocolDraftToAndroid(selectedSite,draft);
     saveProtocolDraftToIndexedDb(selectedSite,draft).then(saved=>{
       if(!saved) return;
       try{
@@ -7441,6 +7531,8 @@ function saveProtocolDraftNow(){
     console.warn("Koncept protokolu se nepodařilo uložit",e);
   }
 }
+window.saveProtocolDraftNow=saveProtocolDraftNow;
+window.flushSzzAndroidOffline=saveProtocolDraftNow;
 
 function scheduleProtocolDraftSave(){
   if(protocolDraftRestoreInProgress || protocolEditState) return;
@@ -7643,6 +7735,7 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
       await updateSiteControlDateFromProtocol(payload,site,{clearManualStatus:item.clearManualStatusAfterSave !== false});
       removeSiteLocalItem("protocolHistory",id,site);
       await removeOfflineProtocolQueueItem(id);
+      markAndroidOutboxSynced(`protocol:${id}`);
       appendSiteLocalArray("protocolHistory",payload,site,120);
       synced++;
     }

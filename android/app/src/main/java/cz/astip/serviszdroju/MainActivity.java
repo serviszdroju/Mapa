@@ -52,6 +52,8 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 
+import cz.astip.serviszdroju.offline.SzzOfflineRepository;
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -87,6 +89,7 @@ public class MainActivity extends Activity {
     private GeolocationPermissions.Callback pendingGeolocationCallback;
     private CancellationSignal googleSignInCancellation;
     private boolean googleSignInBusy;
+    private SzzOfflineRepository offlineRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,6 +103,7 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         );
+        offlineRepository = SzzOfflineRepository.get(this);
         configureWebView();
         if (savedInstanceState == null) {
             webView.loadUrl(BuildConfig.LAUNCH_URL);
@@ -112,6 +116,28 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         if (webView != null) webView.saveState(outState);
         super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onPause() {
+        flushWebDraftToNative();
+        if (webView != null) webView.onPause();
+        CookieManager.getInstance().flush();
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        flushWebDraftToNative();
+        CookieManager.getInstance().flush();
+        super.onStop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) webView.onResume();
+        if (offlineRepository != null) offlineRepository.enqueueSyncWork();
     }
 
     @Override
@@ -163,6 +189,7 @@ public class MainActivity extends Activity {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
         webView.addJavascriptInterface(new AndroidAuthBridge(), "SzzAndroidAuth");
+        webView.addJavascriptInterface(new AndroidOfflineBridge(), "SzzAndroidOffline");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             ServiceWorkerController.getInstance().getServiceWorkerWebSettings()
                 .setCacheMode(isOnline() ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK);
@@ -380,6 +407,10 @@ public class MainActivity extends Activity {
         evaluateWebScript(
             "(function(){"
                 + "window.__szzAndroidShell=true;"
+                + "window.__szzAndroidRoom=true;"
+                + "window.flushSzzAndroidOffline=function(){"
+                + "try{if(typeof window.saveProtocolDraftNow==='function')window.saveProtocolDraftNow();}catch(e){console.warn('Android flush draft selhal',e);}"
+                + "};"
                 + "window.__szzAndroidOfflineWarmup=function(){"
                 + "if(window.__szzAndroidOfflineBusy)return;"
                 + "window.__szzAndroidOfflineBusy=true;"
@@ -394,6 +425,15 @@ public class MainActivity extends Activity {
         );
     }
 
+    private void flushWebDraftToNative() {
+        evaluateWebScript(
+            "(function(){try{"
+                + "if(typeof window.flushSzzAndroidOffline==='function')window.flushSzzAndroidOffline();"
+                + "else if(typeof window.saveProtocolDraftNow==='function')window.saveProtocolDraftNow();"
+                + "}catch(e){console.warn('Android flush draft error',e);}})();"
+        );
+    }
+
     private final class AndroidAuthBridge {
         @JavascriptInterface
         public boolean isGoogleSignInConfigured() {
@@ -405,6 +445,78 @@ public class MainActivity extends Activity {
         public void startGoogleSignIn() {
             runOnUiThread(() -> startNativeGoogleSignIn());
         }
+    }
+
+    private final class AndroidOfflineBridge {
+        @JavascriptInterface
+        public void saveProtocolDraft(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.saveProtocolDraft(payloadJson, androidOfflineCallback("draft"));
+        }
+
+        @JavascriptInterface
+        public void deleteProtocolDraft(String draftId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.deleteProtocolDraft(draftId, androidOfflineCallback("draft-delete"));
+        }
+
+        @JavascriptInterface
+        public void saveLocalProtocol(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.saveLocalProtocol(payloadJson, androidOfflineCallback("protocol"));
+        }
+
+        @JavascriptInterface
+        public void enqueueOutbox(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.enqueueOutbox(payloadJson, androidOfflineCallback("outbox"));
+        }
+
+        @JavascriptInterface
+        public void markOutboxSynced(String operationId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.markOutboxSynced(operationId, androidOfflineCallback("outbox-synced"));
+        }
+
+        @JavascriptInterface
+        public void requestSync() {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository != null) repository.enqueueSyncWork();
+        }
+    }
+
+    private SzzOfflineRepository.Callback androidOfflineCallback(String action) {
+        return new SzzOfflineRepository.Callback() {
+            @Override
+            public void onSuccess(JSONObject result) {
+                dispatchAndroidOfflineEvent(action, result, null);
+            }
+
+            @Override
+            public void onError(Exception error) {
+                dispatchAndroidOfflineEvent(action, null, compactErrorText(error));
+            }
+        };
+    }
+
+    private void dispatchAndroidOfflineEvent(String action, JSONObject result, String error) {
+        JSONObject detail = new JSONObject();
+        try {
+            detail.put("action", action == null ? "" : action);
+            detail.put("ok", error == null || error.trim().isEmpty());
+            if (result != null) detail.put("result", result);
+            if (error != null && !error.trim().isEmpty()) detail.put("error", error.trim());
+        } catch (Exception ignored) {}
+        evaluateWebScript(
+            "window.dispatchEvent(new CustomEvent('szz-android-offline-result',{detail:"
+                + detail.toString()
+                + "}));"
+        );
     }
 
     private void startNativeGoogleSignIn() {
@@ -552,7 +664,7 @@ public class MainActivity extends Activity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST);
             return null;
         }
-        File dir = new File(getCacheDir(), "web-uploads");
+        File dir = new File(getFilesDir(), "szz-media/photos");
         if (!dir.exists()) dir.mkdirs();
         File file = new File(dir, "photo-" + System.currentTimeMillis() + ".jpg");
         Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);

@@ -6,8 +6,13 @@ public final class OfflineTables {
     public static final String SITES = "sites";
     public static final String SOURCES = "sources";
     public static final String PROTOCOLS = "protocols";
+    public static final String PROTOCOL_DRAFTS = "protocol_drafts";
     public static final String PHOTOS = "photos";
-    public static final String SYNC_QUEUE = "sync_queue";
+    public static final String ATTACHMENTS = "attachments";
+    public static final String MY_SITES = "my_sites";
+    public static final String SYNC_OUTBOX = "sync_outbox";
+    public static final String SYNC_CURSOR = "sync_cursor";
+    public static final String CONFLICTS = "conflicts";
 
     public static final class Common {
         public static final String LOCAL_ID = "local_id";

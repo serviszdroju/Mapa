@@ -36,3 +36,16 @@ Soubor pro webove tlacitko se publikuje jako:
 
 Pokud aplikace ukaze chybu Google prihlaseni s kodem `10`, neni problem ve webu: v Google Cloud/Firebase
 chybi Android OAuth klient pro balicek `cz.astip.serviszdroju` a podpis aktualni APK.
+
+Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
+
+- verze: `1.1.7-room-outbox` (`versionCode 9`);
+- SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
+- build weboveho shellu: `apk-room-outbox-v548`;
+- obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
+- obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,
+  `protocol_drafts`, `photos`, `attachments`, `my_sites`, `sync_outbox`, `sync_cursor`
+  a `conflicts`;
+- uklada rozpracovany protokol do Room pres `SzzAndroidOffline` a vynuti flush pri
+  `onPause()`/`onStop()`;
+- lokalni kamerove snimky uklada do interni slozky aplikace `szz-media/photos` misto cache.

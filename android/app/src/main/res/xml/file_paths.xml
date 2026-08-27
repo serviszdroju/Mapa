@@ -3,4 +3,7 @@
     <cache-path
         name="web_uploads"
         path="web-uploads/" />
+    <files-path
+        name="szz_media"
+        path="szz-media/" />
 </paths>
