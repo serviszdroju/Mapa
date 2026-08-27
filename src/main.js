@@ -493,7 +493,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-27-apk-native-edit-sync-v555";
+const APP_BUILD_VERSION="2026-08-27-apk-native-auth-resume-v556";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -526,6 +526,24 @@ function showAppShellFast(message=""){
       setTextIfChanged(progress,message || "Obnovuji přihlášení...");
     }
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+    return;
+  }
+  if(!hasUser && !explicitSignOutPending() && knownSignedIn()){
+    if(typeof window.__szzSetAuthState==="function"){
+      window.__szzSetAuthState("checking",{
+        intro:"Kontroluji uložené přihlášení...",
+        message:message || "Obnovuji přihlášení..."
+      });
+    }else{
+      const startup=document.getElementById("startupScreen");
+      const appEl=document.getElementById("mainApp");
+      const startupButton=document.getElementById("startupLoginBtn");
+      const status=document.getElementById("startupStatus");
+      setDisplayIfChanged(startup,"flex");
+      setDisplayIfChanged(appEl,"none");
+      setDisplayIfChanged(startupButton,"none");
+      setTextIfChanged(status,message || "Obnovuji přihlášení...");
+    }
     return;
   }
   if(!hasUser){
@@ -1306,7 +1324,7 @@ if(firebaseReady){
     return !!(window.__mapAppUnlocked || visibleApp || resumed || loadedRows || window.__firebaseUnifiedRowsLoaded);
   }
   function shouldKeepAppOpenOnAuthNull(){
-    const runtimeAuthorized=lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<30*60*1000;
+    const runtimeAuthorized=lastAuthorizedUserAt && appIsOpenOrHasRows();
     const androidAuthorized=isAndroidShellRuntime() && lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<ANDROID_AUTH_RESUME_KEEP_OPEN_MS && androidHasStoredAuth();
     const offlineKnownSession=knownSignedIn() && navigator.onLine===false;
     return !explicitSignOutPending() && (runtimeAuthorized || androidAuthorized || offlineKnownSession || authPending());
@@ -1572,6 +1590,7 @@ if(firebaseReady){
       return;
     }
     lastAuthorizedUserAt=Date.now();
+    window.__szzLastAuthorizedUserAt=lastAuthorizedUserAt;
     rememberKnownSignedIn(user);
     setStartupAuthChecking(false);
     const topLogoutBtn=document.getElementById("topLogoutBtn");
@@ -1715,7 +1734,7 @@ if(firebaseReady){
     if(authPending()){
       await finishRedirectLoginIfPending();
     }else{
-      const restored=await googleRedirectResultUser() || await tryRestoreAuthCandidate(2500);
+      const restored=currentAuthCandidate() || await tryRestoreAuthCandidate(1200) || await googleRedirectResultUser() || await tryRestoreAuthCandidate(2500);
       if(restored) await handleAuthorizedUser(restored);
       else if(androidHasStoredAuth()){
         await tryAndroidSilentAuth("startup");

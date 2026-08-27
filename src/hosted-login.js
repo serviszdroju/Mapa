@@ -5,7 +5,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="apk-native-edit-sync-v555";
+const EMAIL_LOGIN_BUILD_VERSION="apk-native-auth-resume-v556";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -225,16 +225,21 @@ function showAuthState(mode,options={}){
   authUiState.mode=normalized;
   authUiState.message=options.message || authUiState.message || "";
 
-  const loggedIn=normalized==="logged-in";
-  try{
-    document.documentElement.classList.toggle("auth-resume",loggedIn);
-  }catch(e){}
   const startup=document.getElementById("startupScreen");
   const app=document.getElementById("mainApp");
   const startupLogin=document.getElementById("startupLoginBtn");
   const intro=document.getElementById("startupIntro");
   const loginRow=document.getElementById("mainLoginRow");
   const topLogout=document.getElementById("topLogoutBtn");
+  let explicitlySignedOut=false;
+  try{explicitlySignedOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+  const runtimeAuthorized=Number(window.__szzLastAuthorizedUserAt || 0)>0;
+  const appVisible=!!(app && app.style.display && app.style.display!=="none");
+  const keepOpenForRuntimeAuth=normalized==="logged-out" && runtimeAuthorized && appVisible && !explicitlySignedOut;
+  const loggedIn=normalized==="logged-in" || keepOpenForRuntimeAuth;
+  try{
+    document.documentElement.classList.toggle("auth-resume",loggedIn);
+  }catch(e){}
 
   display(startup,loggedIn ? "none" : "flex");
   display(app,loggedIn ? "grid" : "none");
@@ -250,8 +255,8 @@ function showAuthState(mode,options={}){
       normalized==="logging-in" ? "Připravuji přihlášení..." :
         "Přihlaste se Google účtem @astip.cz.");
   text(intro,introText);
-  status(options.message || "");
-  setTopAuthButtonMode(loggedIn ? "logout" : "login");
+  status(keepOpenForRuntimeAuth ? (options.message || "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená.") : (options.message || ""));
+  setTopAuthButtonMode(knownUser() ? "logout" : "login");
   if(typeof window.updateAdminAppControls==="function") window.updateAdminAppControls();
 }
 
