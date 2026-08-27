@@ -35,7 +35,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="no-refresh-login-popup-v558";
+  const EMAIL_LOGIN_BUILD_VERSION="auth-startup-timeout-v559";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -521,9 +521,45 @@ try{
   window.startFirebaseGoogleLogin=startGoogleLogin;
   window.bindLoginButtons=bindLoginButtons;
   window.setTopAuthButtonMode=setTopAuthButtonMode;
+
+  function releaseStuckStartupChecking(){
+    const state=typeof window.__szzGetAuthState==="function" ? window.__szzGetAuthState() : null;
+    if(state && state.mode==="logging-in") return;
+    if(window.__loginRequested) return;
+    const startup=node("startupScreen");
+    const app=node("mainApp");
+    if(!startup || (app && app.style.display && app.style.display!=="none")) return;
+    const intro=node("startupIntro");
+    const introText=String(intro && intro.textContent || "");
+    if(/Připravuji|Otevírám/i.test(introText)) return;
+    const user=window.currentUser || window.__authReadyUser || (window.auth && window.auth.currentUser) || null;
+    if(user && typeof window.__szzShowAuthenticatedApp==="function"){
+      window.__szzShowAuthenticatedApp("");
+      return;
+    }
+    startup.classList.remove("auth-checking");
+    const login=node("startupLoginBtn");
+    if(login){
+      login.style.display="";
+      login.disabled=false;
+      login.removeAttribute("aria-disabled");
+    }
+    if(intro) intro.textContent="Přihlášení se zatím neověřilo.";
+    status("Klikni na Přihlásit přes Google. Přihlašovací okno se otevře jen po kliknutí.");
+    bindLoginButtons();
+  }
+
+  function scheduleStartupAuthWatchdog(){
+    setTimeout(releaseStuckStartupChecking,9000);
+  }
+
+  window.__szzReleaseStuckStartupChecking=releaseStuckStartupChecking;
   bindLoginButtons();
   window.addEventListener("DOMContentLoaded",bindLoginButtons);
+  window.addEventListener("DOMContentLoaded",scheduleStartupAuthWatchdog);
   window.addEventListener("load",bindLoginButtons);
+  window.addEventListener("load",scheduleStartupAuthWatchdog);
+  scheduleStartupAuthWatchdog();
 
   window.addEventListener("load",function(){
     if(isLocalFileApp()){
@@ -538,7 +574,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-8QEAi2cR.js"></script>
+  <script type="module" crossorigin src="./assets/index-BfXOjanm.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-Bme3tZvi.css">
 </head>
 <body>
@@ -980,7 +1016,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=no-refresh-login-popup-v558"></script>
+<script async src="./late.js?v=auth-startup-timeout-v559"></script>
 
 
 
