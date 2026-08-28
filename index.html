@@ -17,17 +17,6 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./szz-app-icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./szz-app-icon-192.png">
-<style id="startupSafeStyle">
-  .startup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:#0f172a;z-index:5000}
-  html.auth-resume #startupScreen{display:none!important}
-  html.auth-resume #mainApp{display:grid!important}
-  .startup-card{width:min(420px,92vw);max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;padding:24px;text-align:center;background:#fff;border-radius:20px}
-  .startup-card .logo-img{display:block;width:min(260px,72vw);max-width:100%;max-height:30dvh;height:auto;margin:0 auto 16px;object-fit:contain}
-  .startup-card h1{font-size:24px;line-height:1.2;margin:0 0 8px;color:#0f172a}
-  .startup-card p{margin:8px 0;color:#475569}
-  .startup-card button{min-height:44px;padding:10px 14px}
-  .startup.auth-loading #startupLoginBtn,.startup.auth-checking #startupLoginBtn{display:none}
-</style>
 <script>
 try{
   const explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";
@@ -46,7 +35,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="protocol-status-photo-sync-v562";
+  const EMAIL_LOGIN_BUILD_VERSION="auth-session-resume-v561";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -603,7 +592,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-BLTszJPb.js"></script>
+  <script type="module" crossorigin src="./assets/index-DT4O7FK3.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-Ce9kMvQ_.css">
 </head>
 <body>
@@ -620,7 +609,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-status-photo-sync-v562" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=auth-session-resume-v561" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
@@ -1045,7 +1034,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=protocol-status-photo-sync-v562"></script>
+<script async src="./late.js?v=auth-session-resume-v561"></script>
 
 
 
