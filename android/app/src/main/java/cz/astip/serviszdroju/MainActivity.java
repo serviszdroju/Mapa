@@ -334,7 +334,13 @@ public class MainActivity extends Activity {
 
     private WebResourceResponse localApkAssetResponse(Uri uri) {
         if (uri == null || !isSzzWebUrl(uri) || isSzzApkDownloadUrl(uri)) return null;
+        WebResourceResponse bundledResponse = openBundledAssetFirst(uri);
+        if (bundledResponse != null) return bundledResponse;
         if (isOnline() && !forceLocalAssetFallback) return null;
+        return isDocumentRequest(uri) ? openAssetResponse(SZZ_ASSET_ROOT + "/index.html") : null;
+    }
+
+    private WebResourceResponse openBundledAssetFirst(Uri uri) {
         String assetPath = localAssetPathFor(uri);
         if (assetPath == null) return null;
         WebResourceResponse response = openAssetResponse(assetPath);
