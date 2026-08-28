@@ -496,7 +496,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-28-auth-session-resume-v561";
+const APP_BUILD_VERSION="2026-08-28-protocol-status-photo-sync-v562";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1994,7 +1994,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v561-runtime",
+  runtimeCacheName:"astip-szz-v562-runtime",
   mediaFetchConcurrency:4
 });
 
@@ -8256,7 +8256,7 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
         ...payload,
         updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
       },{merge:true});
-      await updateSiteControlDateFromProtocol(payload,site,{clearManualStatus:item.clearManualStatusAfterSave !== false});
+      await updateSiteControlDateFromProtocol(payload,site,{clearOrderedRepairStatus:item.clearOrderedRepairStatusAfterSave !== false});
       removeSiteLocalItem("protocolHistory",id,site);
       await removeOfflineProtocolQueueItem(id);
       markAndroidOutboxSynced(`protocol:${id}`);
@@ -8711,6 +8711,20 @@ function clearManualStatusRaw(raw={}){
   return raw;
 }
 
+function clearOrderedRepairStatusRaw(raw={}){
+  const patch=mapStatusRawPatchFromStatePatch({ordered:false,repairOrdered:false},raw);
+  Object.assign(raw,patch);
+  clearRawStatusTextWhere(raw,raw,value=>
+    rawStatusTextLooksOrdered(value) ||
+    rawStatusTextLooksRepairOrdered(value)
+  );
+  clearRawStatusColorWhere(raw,raw,value=>
+    rawStatusColorLooksOrdered(value) ||
+    rawStatusColorLooksRepairOrdered(value)
+  );
+  return raw;
+}
+
 function manualStatusSiteMatches(row,site,selectedKey,docId){
   if(!row || !site) return false;
   const rowDocId=selectedSiteDocId(row);
@@ -8743,6 +8757,28 @@ function clearManualStatusEditCache(site=selectedSite){
   });
 }
 
+function clearOrderedRepairStatusEditCache(site=selectedSite){
+  if(!site) return;
+  const keys=[
+    detailKey(site),
+    site.id,
+    selectedSiteDocId(site),
+    site.firebaseDocId,
+    site.raw && site.raw["Firebase_doc_id"]
+  ].map(safe).filter(Boolean);
+  [...new Set(keys)].forEach(key=>{
+    const existing=editCache[key] || {};
+    editCache[key]={
+      ...existing,
+      ordered:false,
+      repairOrdered:false,
+      rawEdits:clearOrderedRepairStatusRaw({...(existing.rawEdits || {})}),
+      updatedBy:currentUser?.email || existing.updatedBy || "",
+      updatedAt:new Date().toISOString()
+    };
+  });
+}
+
 function clearManualStatusLocalState(site=selectedSite){
   if(!site) return;
   const selectedKey=detailKey(site) || site.id;
@@ -8758,6 +8794,41 @@ function clearManualStatusLocalState(site=selectedSite){
       ordered:false,
       repairOrdered:false,
       stopped:false,
+      firebaseDocId:target.firebaseDocId || raw["Firebase_doc_id"] || "",
+      firebaseData:{...(target.firebaseData || {}),raw}
+    };
+  };
+  const lookupKey=safe(docId || selectedKey);
+  const indexedRow=(lookupKey && findRowByAnyId(lookupKey)) || site;
+  const index=rowIndexForRow(indexedRow);
+  if(indexedRow && index>=0){
+    const nextRows=rows.slice();
+    const updated=applyClear(indexedRow);
+    nextRows[index]=updated;
+    rows=nextRows;
+    window.rows=rows;
+    selectedSite=updated;
+    return;
+  }
+  rows=rows.map(row=>manualStatusSiteMatches(row,site,selectedKey,docId) ? applyClear(row) : row);
+  window.rows=rows;
+  selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyClear(site);
+}
+
+function clearOrderedRepairStatusLocalState(site=selectedSite){
+  if(!site) return;
+  const selectedKey=detailKey(site) || site.id;
+  const docId=selectedSiteDocId(site);
+  clearOrderedRepairStatusEditCache(site);
+  const applyClear=(target)=>{
+    const raw=clearOrderedRepairStatusRaw({...(target.raw || {})});
+    const refreshed=normalize([raw])[0];
+    return {
+      ...target,
+      ...refreshed,
+      raw,
+      ordered:false,
+      repairOrdered:false,
       firebaseDocId:target.firebaseDocId || raw["Firebase_doc_id"] || "",
       firebaseData:{...(target.firebaseData || {}),raw}
     };
@@ -8830,6 +8901,7 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
   const raw=latest ? applyLatestProtocolDateToRaw(baseRaw,{protocolHistory:[protocol]}) : baseRaw;
   applyProtocolFieldsToRaw(raw,protocol);
   if(options.clearManualStatus) clearManualStatusRaw(raw);
+  else if(options.clearOrderedRepairStatus) clearOrderedRepairStatusRaw(raw);
   raw["Firebase_doc_id"]=docId;
   if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
   try{
@@ -8857,6 +8929,7 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
       });
     }
     if(options.clearManualStatus) clearManualStatusLocalState(site);
+    else if(options.clearOrderedRepairStatus) clearOrderedRepairStatusLocalState(site);
     return true;
   }catch(e){
     console.warn("Uložení poslední kontroly z protokolu selhalo",e);
@@ -9820,6 +9893,47 @@ async function updateOfflineProtocolQueueHandoff(id,checked){
   }
 }
 
+async function patchEmbeddedProtocolHandoffRemote(siteDocIds=[],id="",patch={}){
+  if(!firebaseReady || !db || !fb.fsMod || !siteDocIds.length || !id) return false;
+  const {doc,getDoc,setDoc,serverTimestamp}=fb.fsMod;
+  let changed=false;
+  await Promise.all(siteDocIds.map(async docId=>{
+    try{
+      const ref=doc(db,"sitesUnified",docId);
+      const snap=await getDoc(ref);
+      if(!snap.exists()) return;
+      const data=snap.data() || {};
+      const updatePayload={
+        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString(),
+        updatedBy:currentUser?.email || ""
+      };
+      let docChanged=false;
+      ["protocolHistory","protocolRefs"].forEach(key=>{
+        const items=Array.isArray(data[key]) ? data[key] : [];
+        if(!items.length) return;
+        let listChanged=false;
+        const next=items.map(entry=>{
+          const entryId=safe(entry && (entry._id || entry.id));
+          if(entryId!==id) return entry;
+          listChanged=true;
+          return {...entry,...patch};
+        });
+        if(listChanged){
+          updatePayload[key]=next;
+          docChanged=true;
+        }
+      });
+      if(docChanged){
+        await setDoc(ref,updatePayload,{merge:true});
+        changed=true;
+      }
+    }catch(e){
+      console.warn("Předání protokolu ve vložené historii bodu se nepodařilo patchnout",docId,e);
+    }
+  }));
+  return changed;
+}
+
 async function saveProtocolHandoffRemote(item={},checked=false){
   const id=safe(item._id || item.id);
   if(!id || !firebaseReady || !db || !fb.fsMod || !currentUser || navigator.onLine===false) return false;
@@ -9841,6 +9955,7 @@ async function saveProtocolHandoffRemote(item={},checked=false){
     }));
   }
   await Promise.all(writes);
+  await patchEmbeddedProtocolHandoffRemote(siteDocIds,id,patch);
   return true;
 }
 
@@ -10867,6 +10982,14 @@ function sitePhotosStatusNode(){
 function setSitePhotosStatusText(text){
   setTextIfChanged(sitePhotosStatusNode(),text);
 }
+function setSitePhotosUploadBusy(busy=false,text=""){
+  const button=sitePhotosNode("uploadSitePhotosBtn");
+  if(!button) return;
+  if(!button.dataset.idleText) button.dataset.idleText=button.textContent || "Uložit fotografie";
+  button.disabled=!!busy;
+  button.setAttribute("aria-disabled",busy ? "true" : "false");
+  button.textContent=busy ? (text || "Ukládám...") : button.dataset.idleText;
+}
 
 let offlinePhotoSyncRunning=false;
 
@@ -11865,6 +11988,7 @@ async function uploadSitePhotos(){
   if(!selectedSite){setSitePhotosStatusText("Není vybraný bod.");return;}
   if(!files.length){setSitePhotosStatusText("Nejdřív vyber fotografie.");return;}
 
+  setSitePhotosUploadBusy(true,"Připravuji...");
   try{
     const signedUser=(firebaseReady && db) ? await waitForFirebaseUser(1200) : null;
     const userEmail=signedUser?.email || currentUser?.email || lastKnownUserEmail() || "";
@@ -11890,6 +12014,7 @@ async function uploadSitePhotos(){
     });
 
     const saveOfflinePhoto=async (photoId,file,reason,index)=>{
+      setSitePhotosUploadBusy(true,`Ukládám ${index+1}/${files.length}...`);
       setSitePhotosStatusText(`Ukládám fotografii ${index+1}/${files.length} lokálně...`);
       const createdAt=new Date().toISOString();
       const offlineData=await prepareOfflinePhotoData(file);
@@ -11926,11 +12051,13 @@ async function uploadSitePhotos(){
         continue;
       }
 
+      setSitePhotosUploadBusy(true,`Zmenšuji ${i+1}/${files.length}...`);
       setSitePhotosStatusText(`Zmenšuji fotografii ${i+1}/${files.length}...`);
       let uploadFile;
       let cloudinaryResult;
       try{
         uploadFile=await prepareCloudinaryUploadFile(file);
+        setSitePhotosUploadBusy(true,`Nahrávám ${i+1}/${files.length}...`);
         setSitePhotosStatusText(`Nahrávám fotografii ${i+1}/${files.length} na Cloudinary...`);
         cloudinaryResult=await uploadPhotoToCloudinary(photoId,uploadFile,selectedSite,uploadFolderName);
       }catch(uploadError){
@@ -11958,6 +12085,7 @@ async function uploadSitePhotos(){
         size:uploadFile.size || file.size,
         originalSize:file.size
       };
+      setSitePhotosUploadBusy(true,`Ukládám ${i+1}/${files.length}...`);
       const childOk=await saveSiteChildItem("photos",photoId,photoPayload,selectedSite);
       const embeddedOk=childOk ? true : await appendEmbeddedSiteItem("photos",photoPayload,selectedSite);
       appendSiteLocalArray("photos",photoPayload,selectedSite,0);
@@ -11990,6 +12118,8 @@ async function uploadSitePhotos(){
     try{ refreshDetailTabLoad("gallery",selectedSite); }catch(e){}
   }catch(e){
     setSitePhotosStatusText("Chyba uložení fotografií: "+e.message);
+  }finally{
+    setSitePhotosUploadBusy(false);
   }
 }
 
@@ -12660,6 +12790,7 @@ protocolFormEl.addEventListener("submit",async e=>{
   payload.createdBy=protocolEditState?.item?.createdBy || payload.createdBy || payload.technicianEmail || currentUser?.email || lastKnownUserEmail() || "";
   payload.updatedBy=currentUser?.email || lastKnownUserEmail() || "";
   payload.clearManualStatusAfterSave=false;
+  payload.clearOrderedRepairStatusAfterSave=true;
   const saveFingerprint=protocolSaveFingerprint(payload,selectedSite,editingId);
   const now=Date.now();
   if(protocolSaveInFlight){
@@ -12679,6 +12810,7 @@ protocolFormEl.addEventListener("submit",async e=>{
     const offlinePayload=saveProtocolLocally(payload,selectedSite,reason);
     clearProtocolDraft(selectedSite);
     applyProtocolFieldsToSite(offlinePayload,selectedSite);
+    clearOrderedRepairStatusLocalState(selectedSite);
     refreshSelectedDetailDataView();
     render();
     setProtocolStatusText("Protokol uložen lokálně v tomto prohlížeči. Internet/Firebase teď není dostupný.");
@@ -12734,7 +12866,7 @@ protocolFormEl.addEventListener("submit",async e=>{
       console.warn("Samostatný protokol se neuložil, používám kopii pod bodem",e);
       if(!embeddedOk) throw e;
     }
-    await updateSiteControlDateFromProtocol(payload,selectedSite,{clearManualStatus:false});
+    await updateSiteControlDateFromProtocol(payload,selectedSite,{clearOrderedRepairStatus:true});
     clearProtocolDraft(selectedSite);
     refreshSelectedDetailDataView();
     setProtocolStatusText(editing ? "Protokol upraven." : "Protokol uložen.");

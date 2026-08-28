@@ -1484,6 +1484,61 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     r.firebaseData=d;
     return applyRowEdit(r);
   }
+  function legacySiteRawFromDoc(docId,d={}){
+    const existingRaw=d.raw && typeof d.raw==="object" ? {...d.raw} : {};
+    if(Object.keys(existingRaw).length){
+      existingRaw["Firebase_doc_id"]=existingRaw["Firebase_doc_id"] || docId;
+      existingRaw["Zdroj_dat"]=existingRaw["Zdroj_dat"] || "Firebase legacy sites";
+      return existingRaw;
+    }
+    const nextCheck=val(d.nextCheck || d["Příští_kontrola"] || d.nextControlDate);
+    const lastCheck=val(d.lastCheck || d["Poslední_kontrola"] || d.lastControlDate);
+    const days=nextCheck && typeof window.daysBetweenToday==="function" ? window.daysBetweenToday(nextCheck) : "";
+    const raw={
+      "Název":d.name || d.title || d.nazev || "",
+      "Adresa / umístění":d.address || d.adresa || d.place || "",
+      "Adresa_GPS":d.gpsAddress || d.address || d.adresa || d.place || "",
+      "Kraj":d.region || d.kraj || "",
+      "Popis_zdroje":d.source || d.zdroj || d.deviceType || "",
+      "Zdroj":d.serial || d.sourceSerial || "",
+      "Kontakt_mapy":d.contact || d.kontakt || "",
+      "Poznámky_mapy":d.notes || d.poznamky || "",
+      "Další informace":d.extra || "",
+      "Vlastní data":d.allData || "",
+      "Příští_kontrola":nextCheck,
+      "Poslední_kontrola":lastCheck,
+      "Dní_do_kontroly":days,
+      "Kontrola objednaná":d.ordered ? "ANO" : "NE",
+      "Objednaná oprava":d.repairOrdered ? "ANO" : "NE",
+      "Hlídáme termín sami":d.noOrder ? "ANO" : "NE",
+      "GPS_lat":d.gpsLat || d.lat || d.latitude || "",
+      "GPS_lon":d.gpsLon || d.lon || d.lng || d.longitude || "",
+      "Zdroj_dat":"Firebase legacy sites",
+      "Firebase_doc_id":docId
+    };
+    if(d.repairOrdered) raw["Stav_kontroly"]="Objednaná oprava";
+    else if(d.ordered) raw["Stav_kontroly"]="Kontrola objednaná";
+    return raw;
+  }
+  function rowsFromLegacySitesSnapshot(snap){
+    const firebaseRows=[];
+    if(!snap || typeof snap.forEach!=="function") return firebaseRows;
+    snap.forEach(doc=>{
+      try{
+        const data=doc.data() || {};
+        const raw=legacySiteRawFromDoc(doc.id,data);
+        firebaseRows.push(rowFromDoc(doc.id,{
+          ...data,
+          raw,
+          legacyCollection:"sites",
+          migratedFromLegacySites:true
+        }));
+      }catch(e){
+        console.warn("Starší Firebase bod se nepodařilo převést",doc && doc.id,e);
+      }
+    });
+    return firebaseRows;
+  }
   function rowsFromSnapshot(snap){
     const firebaseRows=[];
     if(!snap || typeof snap.forEach!=="function") return firebaseRows;
@@ -2054,6 +2109,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       const snap=await collectionRef.get();
       markFirebaseSitesNetworkLoad();
       const firebaseRows=rowsFromSnapshot(snap);
+      try{
+        const legacySnap=await database.collection("sites").get();
+        const legacyRows=rowsFromLegacySitesSnapshot(legacySnap);
+        if(legacyRows.length) firebaseRows.push(...legacyRows);
+      }catch(legacyError){
+        console.warn("Starší Firebase kolekci sites se nepodařilo načíst",legacyError);
+      }
       return applyFirebaseRows(firebaseRows, openDocId);
     }catch(e){
       const message=String(e && (e.message || e.code) || e);
@@ -2613,7 +2675,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-28-auth-session-resume-v561";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-28-protocol-status-photo-sync-v562";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
