@@ -41,10 +41,10 @@ Aktualni debug APK publikovana pod tlacitkem `Stáhnout aplikaci`:
 
 - verze: `1.1.16-live-shell-auth` (`versionCode 18`);
 - primarni stazeni: `downloads/szz-servis-zdroju-android.apk`;
-- verzovana kopie: `downloads/szz-servis-zdroju-android-v560.apk`;
+- verzovana kopie: `downloads/szz-servis-zdroju-android-v561-auth-session-resume.apk`;
 - SHA-1 podpisu: `86:A1:C4:BB:1D:FE:A6:65:36:67:C0:CA:A3:AF:52:6E:0C:7A:E4:A3`;
-- build weboveho shellu: `android-live-shell-v560`;
-- SHA-256 souboru APK: `c509c72b3e0ee89a82b7c1257ca274c84b0f92904a5485b887e8c9f914ea53b9`;
+- build weboveho shellu: `auth-session-resume-v561`;
+- SHA-256 souboru APK: `eb5f814fb9f75beeceb77dac5820929373d418ff4393905b55233f8d23c98252`;
 - online spousteni bere aktualni GitHub Pages shell, zabalene HTML/CSS/JS slouzi jako offline nebo chybovy fallback;
 - obsahuje zabalene HTML/CSS/JS, Leaflet, loga a sablony dokladu;
 - obsahuje Room databazi `szz-offline.db` s tabulkami `sites`, `sources`, `protocols`,

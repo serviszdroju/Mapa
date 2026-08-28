@@ -10,6 +10,9 @@ export const firebaseConfig = {
 
 export const GOOGLE_WEB_CLIENT_ID="304123957651-8nnf5s40h56r63uiqddooioiu7fqh8pk.apps.googleusercontent.com";
 export const GOOGLE_IDENTITY_SCRIPT_URL="https://accounts.google.com/gsi/client";
+export const AUTH_LOADING="loading";
+export const AUTH_LOGGED_IN="logged-in";
+export const AUTH_LOGGED_OUT="logged-out";
 
 export const CLOUDINARY_PHOTOS = {
   cloudName:"dnxjc6ixi",
@@ -249,13 +252,17 @@ export function setStartupAuthChecking(checking){
   const startup=document.getElementById("startupScreen");
   const btn=document.getElementById("startupLoginBtn");
   const intro=document.getElementById("startupIntro");
-  if(startup) startup.classList.toggle("auth-checking",!!checking);
-  setDisplayIfChangedLocal(btn,"");
-  if(btn){
-    btn.disabled=false;
-    btn.removeAttribute("aria-disabled");
+  if(startup){
+    startup.classList.toggle("auth-checking",!!checking);
+    startup.classList.toggle("auth-loading",!!checking);
   }
-  setTextIfChangedLocal(intro,checking ? "Kontroluji přihlášení..." : "Přihlaste se pro otevření servisní mapy a úprav.");
+  setDisplayIfChangedLocal(btn,checking ? "none" : "");
+  if(btn){
+    btn.disabled=!!checking;
+    if(checking) btn.setAttribute("aria-disabled","true");
+    else btn.removeAttribute("aria-disabled");
+  }
+  setTextIfChangedLocal(intro,checking ? "Načítám aplikaci" : "Přihlaste se pro otevření servisní mapy a úprav.");
 }
 
 function emailSet(values=[]){

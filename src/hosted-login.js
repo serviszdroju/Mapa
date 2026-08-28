@@ -1,15 +1,18 @@
 import {
+  AUTH_LOADING,
+  AUTH_LOGGED_IN,
+  AUTH_LOGGED_OUT,
   GOOGLE_WEB_CLIENT_ID,
   firebaseConfig,
   loadGoogleIdentityServices
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="android-live-shell-v560";
+const EMAIL_LOGIN_BUILD_VERSION="auth-session-resume-v561";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
-  mode:"checking",
+  mode:AUTH_LOADING,
   message:""
 };
 let pendingGoogleLoginRequested=false;
@@ -111,6 +114,16 @@ function shouldKeepMapOpenOnLoginError(error){
   let explicitSignOut=false;
   try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
   return !explicitSignOut && isAndroidTransientAuthError(error) && (appVisibleForAuthResume() || knownUser());
+}
+
+function isHardLoginRejection(error){
+  const code=String(error && error.code || "").trim();
+  const message=String(error && error.message || "").trim();
+  return /auth\/user-disabled|auth\/invalid-user-token|auth\/user-token-expired|refresh token.*(invalid|revoked|expired)|token.*(revoked|disabled)|account.*disabled/i.test(`${code} ${message}`);
+}
+
+function clearAuthResumeAfterLoginError(error){
+  cleanAuthResumeState(isHardLoginRejection(error));
 }
 
 function clearAuthStatusNotice(){
@@ -286,7 +299,7 @@ function openHostedApp(){
 }
 
 function showAuthState(mode,options={}){
-  const normalized=["logged-out","checking","logging-in","logged-in"].includes(mode) ? mode : "logged-out";
+  const normalized=[AUTH_LOGGED_OUT,AUTH_LOADING,"checking","logging-in",AUTH_LOGGED_IN].includes(mode) ? mode : AUTH_LOGGED_OUT;
   authUiState.mode=normalized;
   authUiState.message=options.message || authUiState.message || "";
 
@@ -300,8 +313,9 @@ function showAuthState(mode,options={}){
   try{explicitlySignedOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
   const runtimeAuthorized=Number(window.__szzLastAuthorizedUserAt || 0)>0;
   const appVisible=!!(app && app.style.display && app.style.display!=="none");
-  const keepOpenForRuntimeAuth=normalized==="logged-out" && runtimeAuthorized && appVisible && !explicitlySignedOut;
-  const loggedIn=normalized==="logged-in" || keepOpenForRuntimeAuth;
+  const keepOpenForRuntimeAuth=normalized===AUTH_LOGGED_OUT && runtimeAuthorized && appVisible && !explicitlySignedOut;
+  const loggedIn=normalized===AUTH_LOGGED_IN || keepOpenForRuntimeAuth;
+  const loading=normalized===AUTH_LOADING || normalized==="checking" || normalized==="logging-in";
   try{
     document.documentElement.classList.toggle("auth-resume",loggedIn);
   }catch(e){}
@@ -311,13 +325,15 @@ function showAuthState(mode,options={}){
   display(loginRow,"none");
   display(topLogout,loggedIn ? "block" : "none");
 
-  if(startup) startup.classList.toggle("auth-checking",normalized==="checking" || normalized==="logging-in");
-  display(startupLogin,loggedIn ? "none" : "");
-  disabled(startupLogin,normalized==="logging-in");
+  if(startup){
+    startup.classList.toggle("auth-checking",loading);
+    startup.classList.toggle("auth-loading",loading);
+  }
+  display(startupLogin,loggedIn || loading ? "none" : "");
+  disabled(startupLogin,loading);
 
   const introText=options.intro ||
-    (normalized==="checking" ? "Kontroluji přihlášení..." :
-      normalized==="logging-in" ? "Připravuji přihlášení..." :
+    (loading ? "Načítám aplikaci" :
         "Přihlaste se Google účtem @astip.cz.");
   text(intro,introText);
   status(keepOpenForRuntimeAuth ? (options.message || "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená.") : (options.message || ""));
@@ -345,10 +361,10 @@ function runReadyGoogleLogin(options={}){
     Promise.resolve(window.__startFirebaseRedirectLogin({explicit:true})).catch(err=>{
       if(shouldKeepMapOpenOnLoginError(err)){
         clearAuthStatusNotice();
-        showAuthState("logged-in",{message:""});
+        showAuthState(AUTH_LOGGED_IN,{message:""});
         return;
       }
-      showAuthState("logged-out",{
+      showAuthState(AUTH_LOGGED_OUT,{
         message:"Přihlášení se nepodařilo spustit: " + ((err && (err.code || err.message)) || err || "")
       });
     });
@@ -378,7 +394,7 @@ function queueGoogleLoginUntilReady(options={}){
     }
     pendingGoogleLoginRequested=false;
     pendingGoogleLoginTimer=null;
-    showAuthState("logged-out",{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
+    showAuthState(AUTH_LOGGED_OUT,{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
   };
   if(pendingGoogleLoginTimer) clearTimeout(pendingGoogleLoginTimer);
   pendingGoogleLoginTimer=setTimeout(tick,150);
@@ -402,7 +418,7 @@ function startCompatGoogleLoginFallback(options={}){
   if(!(options.explicit===true || hasRecentGoogleLoginInteraction())) return false;
   try{
     if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
-      showAuthState("logged-out",{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
+      showAuthState(AUTH_LOGGED_OUT,{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
       return;
     }
     if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig);
@@ -422,21 +438,21 @@ function startCompatGoogleLoginFallback(options={}){
       if(shouldKeepMapOpenOnLoginError(err)){
         cleanAuthResumeState(false);
         clearAuthStatusNotice();
-        showAuthState("logged-in",{message:""});
+        showAuthState(AUTH_LOGGED_IN,{message:""});
         return;
       }
-      cleanAuthResumeState(true);
-      showAuthState("logged-out",{message:"Přihlášení selhalo: " + authErrorText(err)});
+      clearAuthResumeAfterLoginError(err);
+      showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení selhalo: " + authErrorText(err)});
     });
   }catch(err){
     if(shouldKeepMapOpenOnLoginError(err)){
       cleanAuthResumeState(false);
       clearAuthStatusNotice();
-      showAuthState("logged-in",{message:""});
+      showAuthState(AUTH_LOGGED_IN,{message:""});
       return;
     }
-    cleanAuthResumeState(true);
-    showAuthState("logged-out",{message:"Přihlášení selhalo: " + authErrorText(err)});
+    clearAuthResumeAfterLoginError(err);
+    showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení selhalo: " + authErrorText(err)});
   }
 }
 
@@ -475,8 +491,8 @@ function bindLoginButtons(){
 }
 
 window.__szzSetAuthState=showAuthState;
-window.__szzShowStartupChecking=(message="Kontroluji přihlášení...")=>showAuthState("checking",{message,intro:"Kontroluji přihlášení..."});
-window.__szzShowAuthenticatedApp=(message="")=>showAuthState("logged-in",{message});
+window.__szzShowStartupChecking=(message="Načítám aplikaci")=>showAuthState(AUTH_LOADING,{message,intro:"Načítám aplikaci"});
+window.__szzShowAuthenticatedApp=(message="")=>showAuthState(AUTH_LOGGED_IN,{message});
 window.__szzGetAuthState=()=>({...authUiState});
 window.__startCompatGoogleLoginFallback=startCompatGoogleLoginFallback;
 window.__szzRunPendingLogin=()=>runReadyGoogleLogin({explicit:hasRecentGoogleLoginInteraction()});
@@ -487,7 +503,7 @@ window.startGoogleLogin=startGoogleLogin;
 window.startFirebaseGoogleLogin=startGoogleLogin;
 window.bindLoginButtons=bindLoginButtons;
 window.setTopAuthButtonMode=setTopAuthButtonMode;
-window.showStartupLogin=(message="")=>showAuthState("logged-out",{message:message || "",intro:"Přihlaste se Google účtem @astip.cz."});
+window.showStartupLogin=(message="")=>showAuthState(AUTH_LOGGED_OUT,{message:message || "",intro:"Přihlaste se Google účtem @astip.cz."});
 
 bindLoginButtons();
 window.addEventListener("DOMContentLoaded",bindLoginButtons);
