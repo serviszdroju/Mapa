@@ -865,6 +865,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     }
     if(el){el.className="notice err";el.textContent=msg;}
   }
+  function hideFirebaseInfoNotice(){
+    const box=document.getElementById("firebaseBox");
+    if(!box) return;
+    if(/\berr\b/.test(box.className || "")) return;
+    box.style.display="none";
+    box.textContent="";
+  }
   let compatFirebaseNamespaceCache=null;
   let compatFirebaseAppCache=null;
   function ensureCompatFirebase(){
@@ -2116,6 +2123,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       }catch(legacyError){
         console.warn("Starší Firebase kolekci sites se nepodařilo načíst",legacyError);
       }
+      hideFirebaseInfoNotice();
       return applyFirebaseRows(firebaseRows, openDocId);
     }catch(e){
       const message=String(e && (e.message || e.code) || e);
