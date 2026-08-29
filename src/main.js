@@ -463,6 +463,9 @@ import {
 import {
   createDetailDataRowHelpers
 } from "./detail-data-row-utils.js";
+import {
+  createProtocolDomHelpers
+} from "./protocol-dom-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -499,7 +502,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-detail-data-row-module-v571";
+const APP_BUILD_VERSION="2026-08-29-protocol-dom-module-v572";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10513,14 +10516,17 @@ if(serviceForm){
 }
 
 
-function checkbox(id){return formFieldNode(id)?.checked || false;}
-function val(id){return formFieldNode(id)?.value || "";}
-function protocolStatusNode(){
-  return formFieldNode("protocolStatus");
-}
-function setProtocolStatusText(text){
-  setTextIfChanged(protocolStatusNode(),text);
-}
+const {
+  checkbox,
+  protocolStatusNode,
+  setProtocolStatusText,
+  updateProtocolSummary,
+  val
+}=createProtocolDomHelpers({
+  formFieldNode,
+  safeValue:safe,
+  setTextIfChanged
+});
 
 let protoClientSignatureDirty=false;
 function protocolSignatureCanvas(){
@@ -10743,26 +10749,6 @@ function protocolSourceLocationFromSite(site){
     "Umístění zdroje","Umístění_zdroje","Umístění","Umisteni",
     "Adresa_GPS","Adresa / umístění"
   ]);
-}
-
-const protocolSummaryNodeCache={};
-function protocolSummaryNode(id){
-  const cached=protocolSummaryNodeCache[id];
-  if(cached && cached.isConnected) return cached;
-  const el=document.getElementById(id);
-  if(el) protocolSummaryNodeCache[id]=el;
-  return el;
-}
-
-function updateProtocolSummary(){
-  const set=(id,value)=>{
-    setTextIfChanged(protocolSummaryNode(id),safe(value) || "-");
-  };
-  set("protoSummaryAddress", val("protoPlace"));
-  set("protoSummaryDevice", val("protoDeviceType"));
-  set("protoSummarySerial", val("protoSerial"));
-  set("protoSummaryLocation", val("protoPbzLocation"));
-  set("protoSummaryPeriod", val("protoPeriod"));
 }
 
 let protocolPrefillSiteId="";
