@@ -366,6 +366,9 @@ import {
   createSitePhotoRenderKeyHelpers
 } from "./site-photo-render-key-utils.js";
 import {
+  createSitePhotoViewerRenderHelpers
+} from "./site-photo-viewer-render-utils.js";
+import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -556,7 +559,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-site-photo-render-key-module-v590";
+const APP_BUILD_VERSION="2026-08-30-site-photo-viewer-render-module-v591";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10911,6 +10914,19 @@ const {
   siteRecordKeys
 });
 
+const {
+  createSitePhotoEmptyNode,
+  createSitePhotoViewer
+}=createSitePhotoViewerRenderHelpers({
+  canDeleteSitePhoto,
+  photoDisplayUrl,
+  photoFullUrl,
+  photoRenderMeta,
+  photoThumbUrl,
+  safe,
+  sitePhotoFolderGroups
+});
+
 function bindSitePhotoListClicks(list){
   if(!list || list.__szzPhotoClickBound) return;
   list.__szzPhotoClickBound=true;
@@ -10958,137 +10974,14 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     const emptySignature=`empty:${detailLazyKey(selectedSite) || sitePlaceGroupKey(selectedSite) || safe(selectedSite && selectedSite.id)}`;
     if(sitePhotoRenderSignature===emptySignature && list.childElementCount) return;
     sitePhotoRenderSignature=emptySignature;
-    const empty=document.createElement("div");
-    empty.className="site-photos-empty";
-    empty.textContent="Zatím nejsou uložené žádné fotografie.";
-    list.replaceChildren(empty);
+    list.replaceChildren(createSitePhotoEmptyNode());
     return;
   }
   sitePhotoIndex=Math.max(0,Math.min(sitePhotoIndex,sitePhotoItems.length-1));
   const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite);
   if(sitePhotoRenderSignature===renderSignature && list.childElementCount) return;
   sitePhotoRenderSignature=renderSignature;
-  const item=sitePhotoItems[sitePhotoIndex];
-  const mainUrl=photoDisplayUrl(item);
-  const fullUrl=photoFullUrl(item);
-  const thumbCount=sitePhotoItems.length;
-  const photoMeta=photoRenderMeta(item,sitePhotoIndex);
-  const currentFolder=photoMeta.currentFolder;
-  const photoInfoRows=photoMeta.photoInfoRows;
-  const downloadName=photoMeta.downloadName;
-  const deleteAllowed=canDeleteSitePhoto(item);
-  const viewer=document.createElement("div");
-  viewer.className="site-photo-viewer";
-
-  const stage=document.createElement("div");
-  stage.className="site-photo-stage";
-  const frame=document.createElement("div");
-  frame.className="site-photo-frame";
-  const mainLink=document.createElement("a");
-  mainLink.className="site-photo-main";
-  mainLink.href=fullUrl || mainUrl;
-  mainLink.target="_blank";
-  const mainImg=document.createElement("img");
-  mainImg.src=mainUrl;
-  mainImg.alt=`Fotografie bodu ${sitePhotoIndex+1}`;
-  mainImg.decoding="async";
-  mainLink.appendChild(mainImg);
-  const prev=document.createElement("button");
-  prev.className="secondary site-photo-arrow site-photo-arrow-prev";
-  prev.type="button";
-  prev.id="sitePhotoPrevBtn";
-  prev.disabled=thumbCount<=1;
-  prev.setAttribute("aria-label","Předchozí fotografie");
-  prev.textContent="‹";
-  const next=document.createElement("button");
-  next.className="secondary site-photo-arrow site-photo-arrow-next";
-  next.type="button";
-  next.id="sitePhotoNextBtn";
-  next.disabled=thumbCount<=1;
-  next.setAttribute("aria-label","Další fotografie");
-  next.textContent="›";
-  const counter=document.createElement("span");
-  counter.className="site-photo-counter";
-  counter.textContent=`${sitePhotoIndex+1} / ${thumbCount}`;
-  frame.append(mainLink,prev,next,counter);
-  stage.appendChild(frame);
-  viewer.appendChild(stage);
-
-  const thumbs=document.createElement("div");
-  thumbs.className="site-photo-thumbs";
-  const folderGroups=sitePhotoFolderGroups(sitePhotoItems);
-  const activeFolder=currentFolder || (folderGroups[0] && folderGroups[0].folder) || "";
-  const thumbsFragment=document.createDocumentFragment();
-  for(const group of folderGroups){
-    const groupEl=document.createElement("div");
-    groupEl.className=`site-photo-folder-group ${group.folder===activeFolder ? "active" : ""}`.trim();
-    const folderName=safe(group.folder) || "Bez názvu složky";
-    const label=document.createElement("button");
-    label.className="site-photo-folder-label";
-    label.type="button";
-    label.dataset.photoIdx=String((group.photos[0] && group.photos[0].idx) || 0);
-    label.setAttribute("aria-label",`Zobrazit složku ${folderName}`);
-    label.textContent=folderName;
-    const row=document.createElement("div");
-    row.className="site-photo-folder-thumbs";
-    for(const {photo,idx} of group.photos){
-      const button=document.createElement("button");
-      button.className=`site-photo-thumb ${idx===sitePhotoIndex ? "active" : ""}`.trim();
-      button.type="button";
-      button.dataset.photoIdx=String(idx);
-      button.setAttribute("aria-label",`Zobrazit fotografii ${idx+1}`);
-      const thumbImg=document.createElement("img");
-      thumbImg.src=photoThumbUrl(photo);
-      thumbImg.alt=`Náhled ${idx+1}`;
-      thumbImg.loading="lazy";
-      thumbImg.decoding="async";
-      button.appendChild(thumbImg);
-      row.appendChild(button);
-    }
-    groupEl.append(label,row);
-    thumbsFragment.appendChild(groupEl);
-  }
-  thumbs.appendChild(thumbsFragment);
-  viewer.appendChild(thumbs);
-
-  const actions=document.createElement("div");
-  actions.className="site-photo-actions";
-  const download=document.createElement("a");
-  download.href=fullUrl || mainUrl;
-  download.target="_blank";
-  download.download=downloadName;
-  download.textContent="Stáhnout fotku";
-  const del=document.createElement("button");
-  del.className="danger";
-  del.type="button";
-  del.id="deleteSitePhotoBtn";
-  del.disabled=!deleteAllowed;
-  del.textContent="Smazat fotku";
-  actions.append(download,del);
-  viewer.appendChild(actions);
-
-  const infoStrip=document.createElement("div");
-  infoStrip.className="site-photo-info-strip";
-  for(const [label,value] of photoInfoRows){
-    const pill=document.createElement("div");
-    pill.className="site-photo-info-pill";
-    const labelEl=document.createElement("span");
-    labelEl.textContent=safe(label);
-    const valueEl=document.createElement("b");
-    valueEl.textContent=safe(value);
-    pill.append(labelEl,valueEl);
-    infoStrip.appendChild(pill);
-  }
-  viewer.appendChild(infoStrip);
-
-  if(photoMeta.meta){
-    const metaEl=document.createElement("div");
-    metaEl.className="site-photo-meta";
-    metaEl.textContent=photoMeta.meta;
-    viewer.appendChild(metaEl);
-  }
-
-  list.replaceChildren(viewer);
+  list.replaceChildren(createSitePhotoViewer(sitePhotoItems,sitePhotoIndex));
 }
 
 async function loadSitePhotos(site=selectedSite){
