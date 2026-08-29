@@ -468,6 +468,9 @@ import {
   createDetailHistoryCacheHelpers
 } from "./detail-history-cache-utils.js";
 import {
+  createSiteAttachmentInputHelpers
+} from "./site-attachment-input-utils.js";
+import {
   createSitePhotoInputHelpers
 } from "./site-photo-input-utils.js";
 import {
@@ -518,7 +521,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-site-photo-input-module-v578";
+const APP_BUILD_VERSION="2026-08-29-site-attachment-input-module-v579";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4757,6 +4760,19 @@ function editCurrentHistoryProtocol(){
   updateProtocolSaveButtonText();
   setProtocolStatusText("Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.");
 }
+
+const {
+  renderSiteAttachmentPreview,
+  resetSiteAttachmentInput,
+  selectedSiteAttachmentFiles,
+  setSiteAttachmentsStatusText,
+  siteAttachmentsNode,
+  siteAttachmentsStatusNode
+}=createSiteAttachmentInputHelpers({
+  bytesLabel,
+  formFieldNode,
+  setTextIfChanged
+});
 
 const {
   renderSitePhotoPreview,
@@ -11532,39 +11548,6 @@ window.uploadSitePhotos=uploadSitePhotos;
 const ATTACHMENT_INLINE_MAX_BYTES=650*1024;
 let siteAttachmentItems=[];
 let siteAttachmentRenderSignature="";
-function siteAttachmentsNode(id){
-  return formFieldNode(id);
-}
-function siteAttachmentsStatusNode(){
-  return siteAttachmentsNode("siteAttachmentsStatus");
-}
-function setSiteAttachmentsStatusText(text){
-  setTextIfChanged(siteAttachmentsStatusNode(),text);
-}
-function selectedSiteAttachmentFiles(){
-  return Array.from(siteAttachmentsNode("siteAttachmentsInput")?.files || []);
-}
-function resetSiteAttachmentInput(){
-  const input=siteAttachmentsNode("siteAttachmentsInput");
-  if(input) input.value="";
-  renderSiteAttachmentPreview();
-}
-function renderSiteAttachmentPreview(){
-  const box=siteAttachmentsNode("siteAttachmentsPreview");
-  if(!box) return;
-  const files=selectedSiteAttachmentFiles();
-  if(!files.length){
-    box.replaceChildren();
-    return;
-  }
-  const fragment=document.createDocumentFragment();
-  files.forEach(file=>{
-    const row=document.createElement("div");
-    row.textContent=`${file.name || "Příloha"}${bytesLabel(file.size) ? ` · ${bytesLabel(file.size)}` : ""}`;
-    fragment.appendChild(row);
-  });
-  box.replaceChildren(fragment);
-}
 function readAttachmentFileData(file){
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
