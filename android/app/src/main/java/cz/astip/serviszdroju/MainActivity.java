@@ -70,6 +70,8 @@ public class MainActivity extends Activity {
     private static final String SZZ_WEB_PATH = "/Mapa";
     private static final String SZZ_ASSET_ROOT = "Mapa";
     private static final String SZZ_PUBLIC_APK_URL = "https://serviszdroju.github.io/Mapa/downloads/szz-servis-zdroju-android.apk";
+    private static final String PREFS_NAME = "szz_android_app";
+    private static final String PREF_WEB_CACHE_BUILD = "web_cache_build";
     private static final int FILE_CHOOSER_REQUEST = 2301;
     private static final int LOCATION_REQUEST = 2302;
     private static final int CAMERA_REQUEST = 2303;
@@ -92,6 +94,7 @@ public class MainActivity extends Activity {
     private boolean googleSignInBusy;
     private SzzOfflineRepository offlineRepository;
     private boolean forceLocalAssetFallback;
+    private boolean pendingWebCacheReset;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,6 +109,10 @@ public class MainActivity extends Activity {
             )
         );
         offlineRepository = SzzOfflineRepository.get(this);
+        pendingWebCacheReset = shouldResetWebCacheForBuild();
+        if (pendingWebCacheReset) {
+            webView.clearCache(true);
+        }
         configureWebView();
         if (savedInstanceState == null) {
             webView.loadUrl(BuildConfig.LAUNCH_URL);
@@ -223,6 +230,10 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 CookieManager.getInstance().flush();
+                if (pendingWebCacheReset && isSzzWebUrl(Uri.parse(url))) {
+                    purgeServiceWorkerCachesThenReload(view);
+                    return;
+                }
                 injectAndroidBootstrap();
                 restoreAndroidAuthIfStored(900);
             }
@@ -289,6 +300,37 @@ public class MainActivity extends Activity {
                 else request.deny();
             }
         });
+    }
+
+    private boolean shouldResetWebCacheForBuild() {
+        String buildKey = BuildConfig.VERSION_NAME;
+        try {
+            buildKey = buildKey + "-" + getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+        } catch (Exception ignored) {}
+        String previous = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(PREF_WEB_CACHE_BUILD, "");
+        if (buildKey.equals(previous)) return false;
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .edit()
+            .putString(PREF_WEB_CACHE_BUILD, buildKey)
+            .apply();
+        return true;
+    }
+
+    private void purgeServiceWorkerCachesThenReload(WebView view) {
+        pendingWebCacheReset = false;
+        String reloadUrl = BuildConfig.LAUNCH_URL +
+            (BuildConfig.LAUNCH_URL.contains("?") ? "&" : "?") +
+            "androidCacheReset=" +
+            Uri.encode(BuildConfig.VERSION_NAME);
+        String script =
+            "(function(){"
+                + "var done=function(){setTimeout(function(){location.replace(" + JSONObject.quote(reloadUrl) + ");},80);};"
+                + "Promise.allSettled(["
+                + "('serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function(items){return Promise.all(items.map(function(reg){return reg.unregister();}));}) : Promise.resolve()),"
+                + "('caches' in window ? caches.keys().then(function(keys){return Promise.all(keys.filter(function(key){return key.indexOf('astip-szz-')===0;}).map(function(key){return caches.delete(key);}));}) : Promise.resolve())"
+                + "]).then(done).catch(done);"
+                + "})();";
+        view.evaluateJavascript(script, null);
     }
 
     private boolean handleUrl(Uri uri) {
