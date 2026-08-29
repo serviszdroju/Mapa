@@ -388,6 +388,9 @@ import {
   createPhotoFolderHelpers
 } from "./photo-folder-utils.js";
 import {
+  createPhotoUploadRuntimeHelpers
+} from "./photo-upload-runtime-utils.js";
+import {
   attachmentDisplayUrl,
   attachmentFileName,
   attachmentRenderSignature
@@ -565,7 +568,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-site-photo-delete-module-v593";
+const APP_BUILD_VERSION="2026-08-30-photo-upload-runtime-module-v594";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10479,33 +10482,16 @@ function canDeleteSitePhoto(item){
   return canDeleteSitePhotoForUser(item,currentUserEmail(),isAppAdmin());
 }
 
-let photoUploadModulePromise=null;
-function photoUploadModule(){
-  if(!photoUploadModulePromise) photoUploadModulePromise=import("./photo-upload.js");
-  return photoUploadModulePromise;
-}
-
-async function prepareCloudinaryUploadFile(file){
-  const mod=await photoUploadModule();
-  return mod.prepareCloudinaryUploadFile(file);
-}
-
-async function prepareOfflinePhotoData(file){
-  const mod=await photoUploadModule();
-  return mod.prepareOfflinePhotoData(file);
-}
-
-async function uploadPhotoToCloudinary(photoId,file,site=selectedSite,folderName=""){
-  const mod=await photoUploadModule();
-  return mod.uploadPhotoToCloudinary({photoId,file,site,folderName,config:CLOUDINARY_PHOTOS});
-}
-
-async function deleteCloudinaryUpload(item){
-  const token=safe((item && item.cloudinaryDeleteToken) || sitePhotoDeleteTokens.get(safe(item && item._id)));
-  if(!token || !CLOUDINARY_PHOTOS.cloudName) return;
-  const mod=await photoUploadModule();
-  await mod.deleteCloudinaryUpload({token,config:CLOUDINARY_PHOTOS});
-}
+const {
+  deleteCloudinaryUpload,
+  prepareCloudinaryUploadFile,
+  prepareOfflinePhotoData,
+  uploadPhotoToCloudinary
+}=createPhotoUploadRuntimeHelpers({
+  cloudinaryPhotos:CLOUDINARY_PHOTOS,
+  getDefaultSite:()=>selectedSite,
+  getDeleteToken:item=>safe((item && item.cloudinaryDeleteToken) || sitePhotoDeleteTokens.get(safe(item && item._id)))
+});
 
 let sitePhotoItems=[];
 let sitePhotoIndex=0;
