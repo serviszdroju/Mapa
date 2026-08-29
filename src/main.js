@@ -466,6 +466,9 @@ import {
 import {
   createProtocolDomHelpers
 } from "./protocol-dom-utils.js";
+import {
+  createRecordAccessFallbackHelpers
+} from "./record-access-fallback-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -502,7 +505,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-protocol-dom-module-v572";
+const APP_BUILD_VERSION="2026-08-29-record-access-module-v573";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -686,140 +689,46 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
 }
 window.loadOfflineRowsFromLocalCacheWhenAvailable=loadOfflineRowsFromLocalCacheWhenAvailable;
 
-function safeSyncCurrentUserFromCompat(){
-  try{
-    const compatClient=getCompatAuthClient();
-    const user=compatClient && compatClient.currentUser ? compatClient.currentUser : null;
-    if(user){
-      currentUser=user;
-      window.currentUser=user;
-      window.__authReadyUser=user;
-    }
-    return user;
-  }catch(e){
-    return null;
-  }
-}
-
-function safeReadSiteLocalArrayMeta(kind,site){
-  try{
-    if(typeof readSiteLocalArrayMeta==="function") return readSiteLocalArrayMeta(kind,site);
-  }catch(e){
-    if(!(e instanceof ReferenceError)) console.warn("Lokální metadata se nepodařilo načíst",e);
-  }
-  return {count:0,latest:0,signature:""};
-}
-
-function safeUpdateAdminAppControls(){
-  try{
-    if(typeof window.updateAdminAppControls==="function"){
-      window.updateAdminAppControls();
-      return;
-    }
-  }catch(e){}
-  try{
-    if(typeof updateAdminAppControls==="function") updateAdminAppControls();
-  }catch(e){
-    if(!(e instanceof ReferenceError)) console.warn("Ovládací prvky přihlášení se nepodařilo obnovit",e);
-  }
-}
-
-function safeWaitForFirebaseUser(timeoutMs=8000){
-  const helper=authAccessWaitForFirebaseUser;
-  try{
-    if(typeof helper==="function") return helper(timeoutMs);
-  }catch(e){
-    if(!(e instanceof ReferenceError)) console.warn("Čekání na Firebase uživatele se nepodařilo připravit",e);
-  }
-  return Promise.resolve(safeSyncCurrentUserFromCompat() || window.__authReadyUser || window.currentUser || (auth && auth.currentUser) || null);
-}
-
-function waitForFirebaseUser(timeoutMs=8000){
-  return safeWaitForFirebaseUser(timeoutMs);
-}
-
-function fallbackRecordKeys(site=selectedSite){
-  if(!site) return [];
-  return uniqueNonEmptyStrings([
-    site.id,
-    site.siteId,
-    site.siteKey,
-    site.firebaseDocId,
-    site.siteDocId,
-    site._id,
-    site._detailKey,
-    site._rowKey
-  ]);
-}
-
-function rowLookupKeys(row){
-  const helper=rowLookupKeysImpl;
-  if(typeof helper==="function") return helper(row);
-  return fallbackRecordKeys(row);
-}
-
-function selectedSiteDocId(site=selectedSite){
-  const helper=selectedSiteDocIdImpl;
-  if(typeof helper==="function") return helper(site);
-  return fallbackRecordKeys(site)[0] || "";
-}
-
-function siteRecordKeys(site=selectedSite){
-  const helper=siteRecordKeysImpl;
-  if(typeof helper==="function") return helper(site);
-  return fallbackRecordKeys(site);
-}
-
-function siteRecordIdentity(site=selectedSite){
-  const helper=siteRecordIdentityImpl;
-  if(typeof helper==="function") return helper(site);
-  return siteRecordKeys(site).join("|");
-}
-
-function siteRecordKeySet(site=selectedSite){
-  const helper=siteRecordKeySetImpl;
-  if(typeof helper==="function") return helper(site);
-  return new Set(siteRecordKeys(site));
-}
-
-function fallbackRecordTextKeys(record=selectedSite){
-  if(!record) return [];
-  return uniqueNonEmptyStrings([
-    record.siteName,
-    record.name,
-    record.Nazev,
-    record["Název"],
-    record.address,
-    record.Adresa,
-    record.place,
-    record.pbzLocation
-  ].map(value=>searchNorm(value)));
-}
-
-function siteRecordTextKeys(site=selectedSite){
-  const helper=siteRecordTextKeysImpl;
-  if(typeof helper==="function") return helper(site);
-  return fallbackRecordTextKeys(site);
-}
-
-function siteRecordNormTextKeys(site=selectedSite){
-  const helper=siteRecordNormTextKeysImpl;
-  if(typeof helper==="function") return helper(site);
-  return siteRecordTextKeys(site);
-}
-
-function recordMatchTextKeys(record){
-  const helper=recordMatchTextKeysImpl;
-  if(typeof helper==="function") return helper(record);
-  return fallbackRecordTextKeys(record);
-}
-
-function mergeSiteLocalArray(...args){
-  const helper=mergeSiteLocalArrayImpl;
-  if(typeof helper==="function") return helper(...args);
-  const items=args[1];
-  return Array.isArray(items) ? items.slice() : [];
-}
+const {
+  fallbackRecordKeys,
+  mergeSiteLocalArray,
+  recordMatchTextKeys,
+  rowLookupKeys,
+  safeReadSiteLocalArrayMeta,
+  safeSyncCurrentUserFromCompat,
+  safeUpdateAdminAppControls,
+  safeWaitForFirebaseUser,
+  selectedSiteDocId,
+  siteRecordIdentity,
+  siteRecordKeys,
+  siteRecordKeySet,
+  siteRecordNormTextKeys,
+  siteRecordTextKeys,
+  waitForFirebaseUser
+}=createRecordAccessFallbackHelpers({
+  getAuth:()=>auth,
+  getAuthAccessWaitForFirebaseUser:()=>authAccessWaitForFirebaseUser,
+  getCompatAuthClient,
+  getMergeSiteLocalArrayImpl:()=>mergeSiteLocalArrayImpl,
+  getRecordMatchTextKeysImpl:()=>recordMatchTextKeysImpl,
+  getRowLookupKeysImpl:()=>rowLookupKeysImpl,
+  getSelectedSite:()=>selectedSite,
+  getSelectedSiteDocIdImpl:()=>selectedSiteDocIdImpl,
+  getSiteRecordIdentityImpl:()=>siteRecordIdentityImpl,
+  getSiteRecordKeysImpl:()=>siteRecordKeysImpl,
+  getSiteRecordKeySetImpl:()=>siteRecordKeySetImpl,
+  getSiteRecordNormTextKeysImpl:()=>siteRecordNormTextKeysImpl,
+  getSiteRecordTextKeysImpl:()=>siteRecordTextKeysImpl,
+  getSiteLocalArrayMetaReader:()=>readSiteLocalArrayMeta,
+  getUpdateAdminAppControls:()=>updateAdminAppControls,
+  searchNorm,
+  setCurrentUser:user=>{
+    currentUser=user;
+    window.currentUser=user;
+    window.__authReadyUser=user;
+  },
+  uniqueNonEmptyStrings
+});
 
 function invalidateMapAfterPaint(){
   runAfterPaint(()=>{ if(window.map) window.map.invalidateSize(true); });
