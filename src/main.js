@@ -363,6 +363,9 @@ import {
   createOfflineSyncTriggerHelpers
 } from "./offline-sync-trigger-utils.js";
 import {
+  createSitePhotoRenderKeyHelpers
+} from "./site-photo-render-key-utils.js";
+import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -553,7 +556,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-sync-trigger-module-v589";
+const APP_BUILD_VERSION="2026-08-30-site-photo-render-key-module-v590";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10892,41 +10895,21 @@ bindOfflineConnectivityListeners({
   triggerSzzSync
 });
 
-function sitePhotoKeys(site=selectedSite){
-  return siteRecordKeys(site);
-}
-
-function sitePhotoRenderKey(items=sitePhotoItems,index=sitePhotoIndex,site=selectedSite){
-  const siteKey=detailLazyKey(site) || sitePlaceGroupKey(site) || safe(site && site.id);
-  const userEmail=currentUserEmail();
-  const isAdminUser=isAppAdmin();
-  const photos=(items || []).map((photo,idx)=>[
-    safe(photo && (photo._id || photo.id || idx)),
-    photoDisplayUrl(photo),
-    photoFullUrl(photo),
-    photoThumbUrl(photo),
-    safe(photo && photo.storageMode),
-    safe(photo && photo._syncStatus),
-    safe(photo && photo._offline),
-    safe(photo && (photo.createdAt || photo.uploadedAt || photo.date)),
-    safe(photo && photo.updatedAt),
-    safe(photo && photo.takenAt),
-    safe(photo && (photo.photoFolder || photo.folderName || photo.folder || photo.cloudinaryFolderDate || photo.cloudinaryFolder)),
-    safe(photo && (photo.uploadedBy || photo.createdBy || photo.ownerEmail)),
-    safe(photo && (photo.size || "")),
-    safe(photo && (photo.originalSize || "")),
-    safe(photo && (photo.fileName || photo.originalFileName)),
-    canDeleteSitePhotoForUser(photo,userEmail,isAdminUser) ? "delete" : "readonly"
-  ].join("~")).join("||");
-  return [
-    siteKey,
-    index,
-    (items || []).length,
-    userEmail,
-    isAdminUser ? "admin" : "user",
-    photos
-  ].join("|||");
-}
+const {
+  sitePhotoKeys,
+  sitePhotoRenderKey
+}=createSitePhotoRenderKeyHelpers({
+  canDeleteSitePhotoForUser,
+  currentUserEmail,
+  detailLazyKey,
+  isAppAdmin,
+  photoDisplayUrl,
+  photoFullUrl,
+  photoThumbUrl,
+  safe,
+  sitePlaceGroupKey,
+  siteRecordKeys
+});
 
 function bindSitePhotoListClicks(list){
   if(!list || list.__szzPhotoClickBound) return;
