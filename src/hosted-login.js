@@ -336,7 +336,7 @@ function showAuthState(mode,options={}){
     (loading ? "Načítám aplikaci" :
         "Přihlaste se Google účtem @astip.cz.");
   text(intro,introText);
-  status(keepOpenForRuntimeAuth ? (options.message || "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená.") : (options.message || ""));
+  status(keepOpenForRuntimeAuth ? "" : (options.message || ""));
   setTopAuthButtonMode(knownUser() ? "logout" : "login");
   if(typeof window.updateAdminAppControls==="function") window.updateAdminAppControls();
 }

@@ -12,21 +12,21 @@ android {
     def googleWebClientId = providers
         .environmentVariable("SZZ_FIREBASE_GOOGLE_WEB_CLIENT_ID")
         .orElse(providers.gradleProperty("szzFirebaseGoogleWebClientId"))
-        .getOrElse("")
+        .getOrElse("304123957651-8nnf5s40h56r63uiqddooioiu7fqh8pk.apps.googleusercontent.com")
 
     defaultConfig {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 20
-        versionName "1.1.18-startup-safe"
+        versionCode 21
+        versionName "1.1.19-android-native-auth"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=startup-safe-v563\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=android-native-auth-v564\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
         buildConfigField "String", "FIREBASE_WEB_API_KEY", "\"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88\""

@@ -496,7 +496,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-28-startup-safe-v563";
+const APP_BUILD_VERSION="2026-08-29-android-native-auth-v564";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1547,7 +1547,6 @@ if(firebaseReady){
     if(!sinceMs) return 0;
     backgroundDeltaSyncPromise=(async()=>{
       await szzYieldToBrowser(900);
-      setProgressStatus("Přihlášení potvrzeno. Kontroluji změny na pozadí...");
       const changedRows=await syncSzzOfflineMapRowDeltas(sinceMs,{background:true});
       const nowMs=Date.now();
       writeSzzOfflineReadyState({
@@ -1676,7 +1675,7 @@ if(firebaseReady){
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("logout");
     setDisplayIfChanged(topLogoutBtn,"block");
     showApp();
-    setProgressStatus("Přihlášení potvrzeno. Lokální data zůstávají otevřená, synchronizuji na pozadí...");
+    setProgressStatus("");
     await loadFirebaseRowsAfterAuth("login");
     if(typeof window.syncOfflineChanges==="function"){
       runWhenIdle(()=>window.syncOfflineChanges({reason:"login",silent:true}),1800);
