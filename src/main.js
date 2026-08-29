@@ -369,6 +369,9 @@ import {
   createSitePhotoClickHelpers
 } from "./site-photo-click-utils.js";
 import {
+  createSitePhotoDeleteHelpers
+} from "./site-photo-delete-utils.js";
+import {
   createSitePhotoViewerRenderHelpers
 } from "./site-photo-viewer-render-utils.js";
 import {
@@ -562,7 +565,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-site-photo-click-module-v592";
+const APP_BUILD_VERSION="2026-08-30-site-photo-delete-module-v593";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10930,6 +10933,25 @@ const {
   sitePhotoFolderGroups
 });
 
+const { deleteCurrentSitePhoto }=createSitePhotoDeleteHelpers({
+  canDeleteSitePhoto,
+  deleteCloudinaryUpload,
+  deleteSiteChildItem,
+  getSelectedSite:()=>selectedSite,
+  getSitePhotoIndex:()=>sitePhotoIndex,
+  getSitePhotoItems:()=>sitePhotoItems,
+  removeEmbeddedSiteItem,
+  removeOfflinePhotoItem,
+  removeSiteLocalItem,
+  renderSitePhotos:(items,preserveIndex)=>renderSitePhotos(items,preserveIndex),
+  safe,
+  setSitePhotoIndex:index=>{ sitePhotoIndex=index; },
+  setSitePhotoItems:items=>{ sitePhotoItems=items; },
+  setSitePhotosStatusText,
+  showSaveConfirmation,
+  sitePhotoDeleteTokens
+});
+
 const { bindSitePhotoListClicks }=createSitePhotoClickHelpers({
   deleteCurrentSitePhoto,
   getSitePhotoIndex:()=>sitePhotoIndex,
@@ -11042,36 +11064,6 @@ async function loadSitePhotos(site=selectedSite){
     }else{
       if(stillSameSite()) setSitePhotosStatusText("Chyba načtení fotografií: "+e.message);
     }
-  }
-}
-
-async function deleteCurrentSitePhoto(){
-  const item=sitePhotoItems[sitePhotoIndex];
-  if(!item || !safe(item._id)){
-    setSitePhotosStatusText("Není vybraná fotografie ke smazání.");
-    return;
-  }
-  if(!canDeleteSitePhoto(item)){
-    setSitePhotosStatusText("Tuhle fotografii může smazat správce nebo ten, kdo ji nahrál.");
-    return;
-  }
-  if(!confirm("Opravdu smazat tuto fotografii?")) return;
-  try{
-    setSitePhotosStatusText("Mažu fotografii...");
-    const id=safe(item._id);
-    await deleteSiteChildItem("photos",id,selectedSite);
-    await removeEmbeddedSiteItem("photos",id,selectedSite);
-    removeSiteLocalItem("photos",id,selectedSite);
-    await removeOfflinePhotoItem(id,selectedSite);
-    await deleteCloudinaryUpload(item);
-    sitePhotoDeleteTokens.delete(id);
-    sitePhotoItems=sitePhotoItems.filter(photo=>safe(photo && photo._id)!==id);
-    if(sitePhotoIndex>=sitePhotoItems.length) sitePhotoIndex=Math.max(0,sitePhotoItems.length-1);
-    renderSitePhotos(sitePhotoItems,true);
-    setSitePhotosStatusText("Fotografie smazána z bodu.");
-    showSaveConfirmation("Fotografie smazána z bodu.");
-  }catch(e){
-    setSitePhotosStatusText("Chyba mazání fotografie: "+e.message);
   }
 }
 
