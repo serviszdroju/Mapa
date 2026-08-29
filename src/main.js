@@ -280,6 +280,10 @@ import {
   createOfflineDetailMetaHelpers
 } from "./offline-detail-meta-utils.js";
 import {
+  SZZ_SYNC_STATE_KEY,
+  createOfflineSyncStateHelpers
+} from "./offline-sync-state-utils.js";
+import {
   createOfflineRowFingerprintHelpers
 } from "./offline-row-fingerprint-utils.js";
 import {
@@ -527,7 +531,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-site-attachment-data-module-v581";
+const APP_BUILD_VERSION="2026-08-29-offline-sync-state-module-v582";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10639,7 +10643,6 @@ async function syncOfflineChanges(options={}){
 }
 window.syncOfflineChanges=syncOfflineChanges;
 
-const SZZ_SYNC_STATE_KEY="astipSzzSyncState:v1";
 const SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY="astipMap:offlineSites:v1";
 let szzOfflineStatusTimer=0;
 let szzOfflineStatusRun=0;
@@ -10682,45 +10685,16 @@ window.addEventListener("storage",event=>{
   }
 });
 
-function readSzzSyncState(){
-  return readSzzLocalStateObject(SZZ_SYNC_STATE_KEY);
-}
-
-function writeSzzSyncState(update={}){
-  try{
-    const next={...readSzzSyncState(),...update,updatedAt:new Date().toISOString()};
-    return writeSzzLocalStateObject(SZZ_SYNC_STATE_KEY,next);
-  }catch(e){
-    return {...update};
-  }
-}
-
-function noteSzzSyncState(status,details={}){
-  const nowIso=new Date().toISOString();
-  if(status==="syncing"){
-    return writeSzzSyncState({
-      status:"syncing",
-      lastReason:details.reason || "",
-      syncStartedAt:nowIso,
-      lastError:""
-    });
-  }
-  if(status==="error"){
-    return writeSzzSyncState({
-      status:"error",
-      lastReason:details.reason || "",
-      lastError:safe(details.lastError || "Synchronizace selhala."),
-      lastFailedAt:nowIso
-    });
-  }
-  return writeSzzSyncState({
-    status:"ok",
-    lastReason:details.reason || "",
-    lastCount:Number(details.lastCount) || 0,
-    lastSyncedAt:nowIso,
-    lastError:""
-  });
-}
+const {
+  noteSzzSyncState,
+  readSzzSyncState,
+  szzSyncTimeLabel,
+  writeSzzSyncState
+}=createOfflineSyncStateHelpers({
+  readSzzLocalStateObject,
+  safeValue:safe,
+  writeSzzLocalStateObject
+});
 window.noteSzzSyncState=noteSzzSyncState;
 
 async function readPendingOfflineSitesCount(){
@@ -10872,18 +10846,6 @@ async function collectSzzOfflineCounts(){
   szzOfflineCountsCache=counts;
   szzOfflineCountsCacheAt=Date.now();
   return cloneSzzOfflineCounts(counts);
-}
-
-function szzSyncTimeLabel(value){
-  const raw=safe(value);
-  if(!raw) return "zatím neproběhla";
-  const date=new Date(raw);
-  if(Number.isNaN(date.getTime())) return raw;
-  const diff=Math.max(0,Date.now()-date.getTime());
-  if(diff<45000) return "před chvílí";
-  if(diff<3600000) return `před ${Math.max(1,Math.round(diff/60000))} min`;
-  if(diff<86400000) return `před ${Math.max(1,Math.round(diff/3600000))} h`;
-  return date.toLocaleString("cs-CZ",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 
 const szzOfflineStatusNodeCache={};
