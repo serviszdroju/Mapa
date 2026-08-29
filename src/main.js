@@ -286,6 +286,9 @@ import {
   createOfflineStatusRenderHelpers
 } from "./offline-status-render-utils.js";
 import {
+  createOfflineStatusUpdateHelpers
+} from "./offline-status-update-utils.js";
+import {
   SZZ_SYNC_STATE_KEY,
   createOfflineSyncStateHelpers
 } from "./offline-sync-state-utils.js";
@@ -537,7 +540,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-status-render-module-v584";
+const APP_BUILD_VERSION="2026-08-30-offline-status-update-module-v585";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10650,8 +10653,6 @@ async function syncOfflineChanges(options={}){
 window.syncOfflineChanges=syncOfflineChanges;
 
 const SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY="astipMap:offlineSites:v1";
-let szzOfflineStatusTimer=0;
-let szzOfflineStatusRun=0;
 const SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS=1800;
 let szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
 const OFFLINE_SITE_COUNT_CACHE_MS=1800;
@@ -10857,21 +10858,15 @@ const {
   szzSyncTimeLabel
 });
 
-async function updateSzzOfflineAppStatus(options={}){
-  if(options && options.force) invalidateSzzOfflineCountsCache();
-  const runId=++szzOfflineStatusRun;
-  const counts=await collectSzzOfflineCounts();
-  if(runId!==szzOfflineStatusRun) return counts;
-  window.__szzOfflineCounts=counts;
-  renderSzzOfflineAppStatus(counts);
-  return counts;
-}
+const {
+  scheduleSzzOfflineAppStatus,
+  updateSzzOfflineAppStatus
+}=createOfflineStatusUpdateHelpers({
+  collectSzzOfflineCounts,
+  invalidateSzzOfflineCountsCache,
+  renderSzzOfflineAppStatus
+});
 window.updateSzzOfflineAppStatus=updateSzzOfflineAppStatus;
-
-function scheduleSzzOfflineAppStatus(delay=120){
-  clearTimeout(szzOfflineStatusTimer);
-  szzOfflineStatusTimer=setTimeout(()=>updateSzzOfflineAppStatus().catch(e=>console.warn("Offline stav se nepodařilo obnovit",e)),delay);
-}
 window.scheduleSzzOfflineAppStatus=scheduleSzzOfflineAppStatus;
 
 let lastAutomaticSzzSyncTriggerAt=0;
