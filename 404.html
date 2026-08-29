@@ -42,7 +42,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="android-cache-reset-v565";
+  const EMAIL_LOGIN_BUILD_VERSION="fast-offline-start-v566";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -207,6 +207,24 @@ try{
     const app=node("mainApp");
     const google=node("startupLoginBtn");
     const intro=node("startupIntro");
+    let explicitSignOut=false;
+    try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+    const keepOfflineCacheOpen=!explicitSignOut && navigator.onLine===false && knownUser() && appVisibleForAuthResume();
+    if(keepOfflineCacheOpen){
+      if(startup){
+        startup.classList.remove("auth-checking");
+        startup.classList.remove("auth-loading");
+        startup.style.display="none";
+      }
+      if(app) app.style.display="grid";
+      if(google){
+        google.style.display="none";
+        google.disabled=true;
+        google.setAttribute("aria-disabled","true");
+      }
+      status("");
+      return;
+    }
     if(startup){
       startup.classList.remove("auth-checking");
       startup.classList.remove("auth-loading");
@@ -273,6 +291,10 @@ try{
 
   function runReadyGoogleLogin(options={}){
     const explicit=options.explicit===true || hasRecentGoogleLoginInteraction();
+    if(navigator.onLine===false){
+      if(explicit && !knownUser()) showLogin("Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu.");
+      return false;
+    }
     if(!explicit && !pendingGoogleLoginRequested) return false;
     if(!explicit){
       clearPendingGoogleLogin();
@@ -300,6 +322,10 @@ try{
   function queueGoogleLoginUntilReady(options={}){
     const explicit=options.explicit===true || hasRecentGoogleLoginInteraction();
     if(!explicit) return false;
+    if(navigator.onLine===false){
+      if(!knownUser()) showLogin("Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu.");
+      return false;
+    }
     pendingGoogleLoginRequested=true;
     status("Připravuji přihlášení...");
     if(runReadyGoogleLogin({explicit:true})) return true;
@@ -452,6 +478,10 @@ try{
       return;
     }
     if(!explicit) return false;
+    if(navigator.onLine===false){
+      if(!knownUser()) showLogin("Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu.");
+      return false;
+    }
     window.__loginRequested=true;
     status("Připravuji přihlášení...");
     if(runReadyGoogleLogin({explicit:true})) return true;
@@ -599,7 +629,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-COgyDTwT.js"></script>
+  <script type="module" crossorigin src="./assets/index-CodF_vCK.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-Ce9kMvQ_.css">
 </head>
 <body>
@@ -616,7 +646,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=android-cache-reset-v565" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=fast-offline-start-v566" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
@@ -1041,7 +1071,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=android-cache-reset-v565"></script>
+<script async src="./late.js?v=fast-offline-start-v566"></script>
 
 
 
