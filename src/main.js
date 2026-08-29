@@ -468,6 +468,9 @@ import {
   createDetailHistoryCacheHelpers
 } from "./detail-history-cache-utils.js";
 import {
+  createSitePhotoInputHelpers
+} from "./site-photo-input-utils.js";
+import {
   createProtocolDomHelpers
 } from "./protocol-dom-utils.js";
 import {
@@ -515,7 +518,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-protocol-site-fields-module-v577";
+const APP_BUILD_VERSION="2026-08-29-site-photo-input-module-v578";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4754,6 +4757,19 @@ function editCurrentHistoryProtocol(){
   updateProtocolSaveButtonText();
   setProtocolStatusText("Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.");
 }
+
+const {
+  renderSitePhotoPreview,
+  resetSitePhotoInput,
+  selectedSitePhotoFiles,
+  setSitePhotosStatusText,
+  sitePhotosListNode,
+  sitePhotosNode,
+  sitePhotosStatusNode
+}=createSitePhotoInputHelpers({
+  formFieldNode,
+  setTextIfChanged
+});
 
 const {
   activeDetailTabName,
@@ -10437,23 +10453,10 @@ async function deleteCloudinaryUpload(item){
   await mod.deleteCloudinaryUpload({token,config:CLOUDINARY_PHOTOS});
 }
 
-let sitePhotoPreviewUrls=[];
 let sitePhotoItems=[];
 let sitePhotoIndex=0;
 let sitePhotoRenderSignature="";
 let sitePhotoDeleteTokens=new Map();
-function sitePhotosNode(id){
-  return formFieldNode(id);
-}
-function sitePhotosListNode(){
-  return sitePhotosNode("sitePhotosList");
-}
-function sitePhotosStatusNode(){
-  return sitePhotosNode("sitePhotosStatus");
-}
-function setSitePhotosStatusText(text){
-  setTextIfChanged(sitePhotosStatusNode(),text);
-}
 
 let offlinePhotoSyncRunning=false;
 
@@ -11055,63 +11058,6 @@ if("serviceWorker" in navigator){
       triggerSzzSync(event.data.reason || "background-sync",true).catch(()=>{});
     }
   });
-}
-
-function resetSitePhotoInput(){
-  const input=sitePhotosNode("sitePhotosInput");
-  const camera=sitePhotosNode("siteCameraInput");
-  if(input) input.value="";
-  if(camera) camera.value="";
-  renderSitePhotoPreview();
-}
-
-function selectedSitePhotoFiles(){
-  const gallery=sitePhotosNode("sitePhotosInput");
-  const camera=sitePhotosNode("siteCameraInput");
-  return [
-    ...Array.from(gallery?.files || []),
-    ...Array.from(camera?.files || [])
-  ];
-}
-
-function renderSitePhotoPreview(){
-  const box=sitePhotosNode("sitePhotoPreview");
-  if(!box) return;
-  sitePhotoPreviewUrls.forEach(url=>URL.revokeObjectURL(url));
-  sitePhotoPreviewUrls=[];
-  const files=selectedSitePhotoFiles();
-  if(!files.length){
-    box.replaceChildren();
-    return;
-  }
-  const head=document.createElement("div");
-  head.className="photo-preview-head";
-  const title=document.createElement("span");
-  title.textContent="Vybrané fotografie";
-  const count=document.createElement("span");
-  count.textContent=`${files.length} ks`;
-  head.append(title,count);
-
-  const grid=document.createElement("div");
-  grid.className="photo-preview-grid";
-  const fragment=document.createDocumentFragment();
-  files.forEach((file,idx)=>{
-    const url=URL.createObjectURL(file);
-    sitePhotoPreviewUrls.push(url);
-    const item=document.createElement("div");
-    item.className="photo-preview-item";
-    const img=document.createElement("img");
-    img.src=url;
-    img.alt=`Nová fotografie ${idx+1}`;
-    img.decoding="async";
-    const index=document.createElement("span");
-    index.className="photo-preview-index";
-    index.textContent=String(idx+1);
-    item.append(img,index);
-    fragment.appendChild(item);
-  });
-  grid.appendChild(fragment);
-  box.replaceChildren(head,grid);
 }
 
 function sitePhotoKeys(site=selectedSite){
