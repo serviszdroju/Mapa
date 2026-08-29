@@ -515,6 +515,9 @@ import {
   createSiteAttachmentInputHelpers
 } from "./site-attachment-input-utils.js";
 import {
+  createSiteAttachmentLoadHelpers
+} from "./site-attachment-load-utils.js";
+import {
   createSiteAttachmentRenderHelpers
 } from "./site-attachment-render-utils.js";
 import {
@@ -568,7 +571,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-photo-upload-runtime-module-v594";
+const APP_BUILD_VERSION="2026-08-30-site-attachment-load-module-v595";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11193,64 +11196,26 @@ window.uploadSitePhotos=uploadSitePhotos;
 
 const ATTACHMENT_INLINE_MAX_BYTES=650*1024;
 let siteAttachmentItems=[];
-async function loadSiteAttachments(site=selectedSite){
-  const st=siteAttachmentsStatusNode();
-  if(!st) return;
-  const requestedKey=detailLazyKey(site);
-  const stillSameSite=()=>!requestedKey || requestedKey===detailLazyKey(selectedSite);
-  const items=[];
-  const dedupe=new Set();
-  const addAttachment=item=>{
-    const url=attachmentDisplayUrl(item);
-    if(!item || !url) return;
-    const id=safe(item._id || item.id || url);
-    if(dedupe.has(id)) return;
-    dedupe.add(id);
-    items.push(item);
-  };
-  const renderLoaded=(message="")=>{
-    if(!stillSameSite()) return;
-    items.sort((a,b)=>historyTimeValue(b)-historyTimeValue(a));
-    siteAttachmentItems=items.slice();
-    renderSiteAttachments(siteAttachmentItems);
-    setSiteAttachmentsStatusText(message || (items.length ? `Načteno příloh: ${items.length}.` : ""));
-    saveAttachmentsSnapshotToAndroid(site,items);
-  };
-  const siblings=attachmentSiblingRows(site);
-  if(site){
-    const androidAttachments=readAndroidCachedRecords("cachedAttachmentsJson",site,5000);
-    androidAttachments.forEach((item,idx)=>addAttachment({...item,_id:item._id || `android_attachment_${idx}`,_androidRoom:true}));
-  }
-  siblings.forEach(sibling=>{
-    readSiteLocalArray("attachments",sibling).forEach(addAttachment);
-    const embedded=Array.isArray(sibling?.firebaseData?.attachments) ? sibling.firebaseData.attachments : [];
-    embedded.forEach(addAttachment);
-  });
-  if(!firebaseReady || !db || !site){
-    renderLoaded(items.length ? `Načteno lokálních příloh: ${items.length}.` : "");
-    return;
-  }
-  setSiteAttachmentsStatusText("Načítám přílohy...");
-  const signedUser=await waitForFirebaseUser();
-  if(!stillSameSite()) return;
-  if(!signedUser){
-    renderLoaded(items.length ? `Načteno lokálních příloh: ${items.length}.` : "Čekám na přihlášení, přílohy se načtou po přihlášení.");
-    return;
-  }
-  try{
-    await Promise.all(siblings.map(async sibling=>{
-      if(!stillSameSite()) return;
-      await refreshSiteDataFromFirebase(sibling);
-      const embedded=Array.isArray(sibling?.firebaseData?.attachments) ? sibling.firebaseData.attachments : [];
-      embedded.forEach(addAttachment);
-      const childItems=await loadSiteChildItems("attachments",sibling);
-      childItems.forEach(addAttachment);
-    }));
-    renderLoaded();
-  }catch(e){
-    renderLoaded(items.length ? `Načteno lokálních příloh: ${items.length}. Online přílohy se nepodařilo načíst.` : `Chyba načtení příloh: ${e.message}`);
-  }
-}
+const { loadSiteAttachments }=createSiteAttachmentLoadHelpers({
+  attachmentDisplayUrl,
+  attachmentSiblingRows,
+  detailLazyKey,
+  getDb:()=>db,
+  getFirebaseReady:()=>firebaseReady,
+  getSelectedSite:()=>selectedSite,
+  historyTimeValue,
+  loadSiteChildItems,
+  readAndroidCachedRecords,
+  readSiteLocalArray,
+  refreshSiteDataFromFirebase,
+  renderSiteAttachments,
+  safe,
+  saveAttachmentsSnapshotToAndroid,
+  setSiteAttachmentItems:items=>{ siteAttachmentItems=items; },
+  setSiteAttachmentsStatusText,
+  siteAttachmentsStatusNode,
+  waitForFirebaseUser
+});
 async function uploadSiteAttachments(){
   const files=selectedSiteAttachmentFiles();
   if(!selectedSite){ setSiteAttachmentsStatusText("Není vybraný bod."); return; }
