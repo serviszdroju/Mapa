@@ -111,3 +111,93 @@ export function cachedPostAppShellUrlsToServiceWorker(registration,urls){
   appShellPostCache={signature,savedAt:now,count:null,promise};
   return promise;
 }
+
+export function createOfflineAppShellControlHelpers({
+  appBuildVersion,
+  cachedPostAppShellUrlsToServiceWorker,
+  currentAppShellUrls,
+  isCzechOfflineMapReady,
+  readOfflineReadyState,
+  setClassNameIfChanged,
+  setDisabledIfChanged,
+  setDisplayIfChanged,
+  setTextIfChanged,
+  writeOfflineReadyState
+}){
+  function setOfflineMapStatus(message="",state="info"){
+    const el=document.getElementById("offlineMapStatus");
+    if(!el) return;
+    setDisplayIfChanged(el,message ? "block" : "none");
+    setClassNameIfChanged(el,`notice offline-map-status ${state==="error" ? "err" : state==="ok" ? "ok" : ""}`.trim());
+    setTextIfChanged(el,message);
+  }
+
+  function setOfflineMapButtonState(busy=false,text="Uložit zobrazenou mapu"){
+    const button=document.getElementById("cacheMapTilesBtn");
+    if(!button) return;
+    if(isCzechOfflineMapReady()){
+      setDisplayIfChanged(button,"none");
+      setDisabledIfChanged(button,false);
+      setTextIfChanged(button,"Mapa je uložená");
+      return;
+    }
+    setDisplayIfChanged(button,"");
+    setDisabledIfChanged(button,busy);
+    setTextIfChanged(button,text);
+  }
+
+  async function cachedAppShellCountIfCurrent(signature){
+    try{
+      const ready=readOfflineReadyState();
+      const count=Number(ready && ready.shellCount);
+      if(
+        ready.appBuildVersion!==appBuildVersion ||
+        ready.appShellSignature!==signature ||
+        !Number.isFinite(count) ||
+        count<=0 ||
+        !("caches" in window)
+      ){
+        return 0;
+      }
+      const cachedShell=
+        await caches.match(new URL("./index.html",document.baseURI).href) ||
+        await caches.match(new URL("./sw.js",document.baseURI).href) ||
+        await caches.match("./");
+      return cachedShell ? count : 0;
+    }catch(e){
+      return 0;
+    }
+  }
+
+  async function cacheAppShellForOffline(options={}){
+    if(!("serviceWorker" in navigator)) return 0;
+    try{
+      const registration=window.registerSzzServiceWorker
+        ? await window.registerSzzServiceWorker()
+        : await navigator.serviceWorker.register("./sw.js");
+      await navigator.serviceWorker.ready;
+      const urls=currentAppShellUrls();
+      const signature=urls.join("\n");
+      const reusable=options.force===true ? 0 : await cachedAppShellCountIfCurrent(signature);
+      if(reusable) return reusable;
+      const count=await cachedPostAppShellUrlsToServiceWorker(registration,urls);
+      writeOfflineReadyState({
+        appBuildVersion,
+        appShellSignature:signature,
+        shellCachedAt:new Date().toISOString(),
+        shellCount:count
+      });
+      return count;
+    }catch(e){
+      console.warn("Service worker pro offline aplikaci se nepodařilo připravit",e);
+      return 0;
+    }
+  }
+
+  return {
+    cacheAppShellForOffline,
+    cachedAppShellCountIfCurrent,
+    setOfflineMapButtonState,
+    setOfflineMapStatus
+  };
+}

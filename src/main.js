@@ -111,6 +111,7 @@ import {
 } from "./site-labels.js";
 import {
   cachedPostAppShellUrlsToServiceWorker,
+  createOfflineAppShellControlHelpers,
   currentAppShellUrls
 } from "./app-shell-cache.js";
 import {
@@ -505,7 +506,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-record-access-module-v573";
+const APP_BUILD_VERSION="2026-08-29-offline-shell-module-v574";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -756,6 +757,23 @@ function initMapShell(){
 
 showAppShellFast("Připravuji mapu. Servisní data se načtou po přihlášení.");
 initMapShell();
+const {
+  cacheAppShellForOffline,
+  cachedAppShellCountIfCurrent,
+  setOfflineMapButtonState,
+  setOfflineMapStatus
+}=createOfflineAppShellControlHelpers({
+  appBuildVersion:APP_BUILD_VERSION,
+  cachedPostAppShellUrlsToServiceWorker,
+  currentAppShellUrls,
+  isCzechOfflineMapReady:()=>czechOfflineMapReady(),
+  readOfflineReadyState:()=>readSzzOfflineReadyState(),
+  setClassNameIfChanged,
+  setDisabledIfChanged,
+  setDisplayIfChanged,
+  setTextIfChanged,
+  writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
+});
 window.cacheAppShellForOffline=cacheAppShellForOffline;
 
 async function ensureMailFunctions(){
@@ -1860,76 +1878,6 @@ if(firebaseReady){
     const message=safe(e && (e.code || e.message) || e);
     setTextIfChanged(document.getElementById("startupStatus"),"Chyba kontroly přihlášení: " + (message || "Google účet se nepodařilo načíst. Zkus přihlášení znovu."));
   });
-}
-
-function setOfflineMapStatus(message="",state="info"){
-  const el=document.getElementById("offlineMapStatus");
-  if(!el) return;
-  setDisplayIfChanged(el,message ? "block" : "none");
-  setClassNameIfChanged(el,`notice offline-map-status ${state==="error" ? "err" : state==="ok" ? "ok" : ""}`.trim());
-  setTextIfChanged(el,message);
-}
-
-function setOfflineMapButtonState(busy=false,text="Uložit zobrazenou mapu"){
-  const button=document.getElementById("cacheMapTilesBtn");
-  if(!button) return;
-  if(czechOfflineMapReady()){
-    setDisplayIfChanged(button,"none");
-    setDisabledIfChanged(button,false);
-    setTextIfChanged(button,"Mapa je uložená");
-    return;
-  }
-  setDisplayIfChanged(button,"");
-  setDisabledIfChanged(button,busy);
-  setTextIfChanged(button,text);
-}
-
-async function cachedAppShellCountIfCurrent(signature){
-  try{
-    const ready=readSzzOfflineReadyState();
-    const count=Number(ready && ready.shellCount);
-    if(
-      ready.appBuildVersion!==APP_BUILD_VERSION ||
-      ready.appShellSignature!==signature ||
-      !Number.isFinite(count) ||
-      count<=0 ||
-      !("caches" in window)
-    ){
-      return 0;
-    }
-    const cachedShell=
-      await caches.match(new URL("./index.html",document.baseURI).href) ||
-      await caches.match(new URL("./sw.js",document.baseURI).href) ||
-      await caches.match("./");
-    return cachedShell ? count : 0;
-  }catch(e){
-    return 0;
-  }
-}
-
-async function cacheAppShellForOffline(options={}){
-  if(!("serviceWorker" in navigator)) return 0;
-  try{
-    const registration=window.registerSzzServiceWorker
-      ? await window.registerSzzServiceWorker()
-      : await navigator.serviceWorker.register("./sw.js");
-    await navigator.serviceWorker.ready;
-    const urls=currentAppShellUrls();
-    const signature=urls.join("\n");
-    const reusable=options.force===true ? 0 : await cachedAppShellCountIfCurrent(signature);
-    if(reusable) return reusable;
-    const count=await cachedPostAppShellUrlsToServiceWorker(registration,urls);
-    writeSzzOfflineReadyState({
-      appBuildVersion:APP_BUILD_VERSION,
-      appShellSignature:signature,
-      shellCachedAt:new Date().toISOString(),
-      shellCount:count
-    });
-    return count;
-  }catch(e){
-    console.warn("Service worker pro offline aplikaci se nepodařilo připravit",e);
-    return 0;
-  }
 }
 
 window.requestSzzPersistentStorage=requestSzzPersistentStorage;
