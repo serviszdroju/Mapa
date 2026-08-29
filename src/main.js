@@ -468,6 +468,9 @@ import {
   createDetailHistoryCacheHelpers
 } from "./detail-history-cache-utils.js";
 import {
+  createSiteAttachmentDataHelpers
+} from "./site-attachment-data-utils.js";
+import {
   createSiteAttachmentInputHelpers
 } from "./site-attachment-input-utils.js";
 import {
@@ -524,7 +527,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-site-attachment-render-module-v580";
+const APP_BUILD_VERSION="2026-08-29-site-attachment-data-module-v581";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4763,6 +4766,14 @@ function editCurrentHistoryProtocol(){
   updateProtocolSaveButtonText();
   setProtocolStatusText("Upravuješ uložený protokol. Po uložení se přepíše stejný záznam.");
 }
+
+const {
+  attachmentSiblingRows,
+  readAttachmentFileData
+}=createSiteAttachmentDataHelpers({
+  getSelectedSite:()=>selectedSite,
+  siteSiblingRows
+});
 
 const {
   renderSiteAttachmentPreview,
@@ -11562,18 +11573,6 @@ window.uploadSitePhotos=uploadSitePhotos;
 
 const ATTACHMENT_INLINE_MAX_BYTES=650*1024;
 let siteAttachmentItems=[];
-function readAttachmentFileData(file){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve(String(reader.result || ""));
-    reader.onerror=()=>reject(reader.error || new Error("Přílohu se nepodařilo načíst."));
-    reader.readAsDataURL(file);
-  });
-}
-function attachmentSiblingRows(site=selectedSite){
-  const siblings=siteSiblingRows(site).filter(Boolean);
-  return siblings.length ? siblings : (site ? [site] : []);
-}
 async function loadSiteAttachments(site=selectedSite){
   const st=siteAttachmentsStatusNode();
   if(!st) return;
