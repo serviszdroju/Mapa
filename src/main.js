@@ -366,6 +366,9 @@ import {
   createSitePhotoRenderKeyHelpers
 } from "./site-photo-render-key-utils.js";
 import {
+  createSitePhotoClickHelpers
+} from "./site-photo-click-utils.js";
+import {
   createSitePhotoViewerRenderHelpers
 } from "./site-photo-viewer-render-utils.js";
 import {
@@ -559,7 +562,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-site-photo-viewer-render-module-v591";
+const APP_BUILD_VERSION="2026-08-30-site-photo-click-module-v592";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10927,40 +10930,13 @@ const {
   sitePhotoFolderGroups
 });
 
-function bindSitePhotoListClicks(list){
-  if(!list || list.__szzPhotoClickBound) return;
-  list.__szzPhotoClickBound=true;
-  list.addEventListener("click",event=>{
-    const button=event.target.closest && event.target.closest("button");
-    if(button && list.contains(button)){
-      if(button.id==="sitePhotoPrevBtn"){
-        if(sitePhotoItems.length>1){
-          sitePhotoIndex=(sitePhotoIndex-1+sitePhotoItems.length)%sitePhotoItems.length;
-          renderSitePhotos(sitePhotoItems,true);
-        }
-        return;
-      }
-      if(button.id==="sitePhotoNextBtn"){
-        if(sitePhotoItems.length>1){
-          sitePhotoIndex=(sitePhotoIndex+1)%sitePhotoItems.length;
-          renderSitePhotos(sitePhotoItems,true);
-        }
-        return;
-      }
-      if(button.id==="deleteSitePhotoBtn"){
-        deleteCurrentSitePhoto();
-        return;
-      }
-    }
-    const btn=event.target.closest && event.target.closest("[data-photo-idx]");
-    if(!btn || !list.contains(btn)) return;
-    const nextIndex=Number(btn.getAttribute("data-photo-idx")) || 0;
-    if(sitePhotoIndex!==nextIndex){
-      sitePhotoIndex=nextIndex;
-      renderSitePhotos(sitePhotoItems,true);
-    }
-  });
-}
+const { bindSitePhotoListClicks }=createSitePhotoClickHelpers({
+  deleteCurrentSitePhoto,
+  getSitePhotoIndex:()=>sitePhotoIndex,
+  getSitePhotoItems:()=>sitePhotoItems,
+  renderSitePhotos:(items,preserveIndex)=>renderSitePhotos(items,preserveIndex),
+  setSitePhotoIndex:index=>{ sitePhotoIndex=index; }
+});
 
 function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const list=sitePhotosListNode();
