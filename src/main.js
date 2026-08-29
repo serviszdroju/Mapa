@@ -350,6 +350,9 @@ import {
   createOfflineAppPrepareHelpers
 } from "./offline-app-prepare-utils.js";
 import {
+  createOfflineAppControlsHelpers
+} from "./offline-app-controls-utils.js";
+import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -540,7 +543,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-status-update-module-v585";
+const APP_BUILD_VERSION="2026-08-30-offline-app-controls-module-v586";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10921,45 +10924,15 @@ async function registerSzzBackgroundSync(reason="change"){
 }
 window.registerSzzBackgroundSync=registerSzzBackgroundSync;
 
-function bindSzzOfflineAppControls(){
-  const syncBtn=document.getElementById("syncNowBtn");
-  const refreshBtn=document.getElementById("refreshOfflineStateBtn");
-  const prepareBtn=document.getElementById("prepareOfflineAppBtn");
-  const forceFullBtn=document.getElementById("forceFullDataSyncBtn");
-  if(prepareBtn && !prepareBtn.__szzPrepareBound){
-    prepareBtn.__szzPrepareBound=true;
-    prepareBtn.addEventListener("click",()=>prepareSzzOfflineAppData({reason:"manual"}).catch(e=>{
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Offline příprava se nepodařila.");
-      console.warn("Offline příprava selhala",e);
-    }));
-  }
-  if(syncBtn && !syncBtn.__szzSyncBound){
-    syncBtn.__szzSyncBound=true;
-    syncBtn.addEventListener("click",()=>triggerSzzSync("manual",false).catch(e=>{
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Synchronizace se nepodařila.");
-      console.warn("Ruční synchronizace selhala",e);
-    }));
-  }
-  if(refreshBtn && !refreshBtn.__szzRefreshBound){
-    refreshBtn.__szzRefreshBound=true;
-    refreshBtn.addEventListener("click",()=>updateSzzOfflineAppStatus());
-  }
-  if(forceFullBtn && !forceFullBtn.__szzFullSyncBound){
-    forceFullBtn.__szzFullSyncBound=true;
-    forceFullBtn.addEventListener("click",()=>prepareSzzOfflineAppData({
-      reason:"manual-full",
-      forceFull:true,
-      skipOfflineMap:true
-    }).catch(e=>{
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Úplné stažení dat se nepodařilo.");
-      console.warn("Ruční úplné stažení dat selhalo",e);
-    }));
-  }
-  if(!bindSzzOfflineAppControls.__initialStatusScheduled){
-    bindSzzOfflineAppControls.__initialStatusScheduled=true;
-    scheduleSzzOfflineAppStatus(1200);
-  }
-}
+const {
+  bindSzzOfflineAppControls
+}=createOfflineAppControlsHelpers({
+  prepareSzzOfflineAppData,
+  scheduleSzzOfflineAppStatus,
+  showSaveConfirmation,
+  triggerSzzSync,
+  updateSzzOfflineAppStatus
+});
 document.addEventListener("DOMContentLoaded",bindSzzOfflineAppControls);
 bindSzzOfflineAppControls();
 
