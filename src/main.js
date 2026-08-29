@@ -353,6 +353,10 @@ import {
   createOfflineAppControlsHelpers
 } from "./offline-app-controls-utils.js";
 import {
+  bindLegacyOfflineSyncListeners,
+  bindOfflineConnectivityListeners
+} from "./offline-connectivity-listeners-utils.js";
+import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -543,7 +547,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-app-controls-module-v586";
+const APP_BUILD_VERSION="2026-08-30-offline-connectivity-listeners-module-v587";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9368,21 +9372,12 @@ function runOfflineSync(reason="manual",silent=false){
   return Promise.resolve(0);
 }
 
-window.addEventListener("online",()=>{
-  runOfflineSync("online").then(count=>{
-    if(count && selectedSite){
-      if(typeof window.refreshLoadedDetailTabs==="function") window.refreshLoadedDetailTabs(selectedSite);
-    }
-  });
+bindLegacyOfflineSyncListeners({
+  getSelectedSite:()=>selectedSite,
+  refreshLoadedDetailTabs:window.refreshLoadedDetailTabs,
+  runOfflineSync,
+  showSaveConfirmation
 });
-
-window.addEventListener("offline",()=>{
-  if(typeof showSaveConfirmation==="function") showSaveConfirmation("Offline režim. Změny se uloží lokálně.");
-});
-document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible") runOfflineSync("visible",true);
-});
-window.addEventListener("focus",()=>runOfflineSync("focus",true));
 
 
 
@@ -10936,32 +10931,12 @@ const {
 document.addEventListener("DOMContentLoaded",bindSzzOfflineAppControls);
 bindSzzOfflineAppControls();
 
-window.addEventListener("online",()=>{
-  scheduleSzzOfflineAppStatus(20);
-  registerSzzBackgroundSync("online");
-  runWhenIdle(()=>triggerSzzSync("online",true).catch(()=>{}),1200);
+bindOfflineConnectivityListeners({
+  registerSzzBackgroundSync,
+  runWhenIdle,
+  scheduleSzzOfflineAppStatus,
+  triggerSzzSync
 });
-window.addEventListener("offline",()=>scheduleSzzOfflineAppStatus(20));
-document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible"){
-    scheduleSzzOfflineAppStatus(80);
-    runWhenIdle(()=>triggerSzzSync("visible",true).catch(()=>{}),1200);
-  }
-});
-window.addEventListener("focus",()=>{
-  scheduleSzzOfflineAppStatus(80);
-  runWhenIdle(()=>triggerSzzSync("focus",true).catch(()=>{}),1200);
-});
-window.addEventListener("storage",event=>{
-  if(event.key && /^astip(Map|Szz)/.test(event.key)) scheduleSzzOfflineAppStatus(80);
-});
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.addEventListener("message",event=>{
-    if(event.data && event.data.type==="SZZ_SYNC_REQUEST"){
-      triggerSzzSync(event.data.reason || "background-sync",true).catch(()=>{});
-    }
-  });
-}
 
 function sitePhotoKeys(site=selectedSite){
   return siteRecordKeys(site);
