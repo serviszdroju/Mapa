@@ -521,6 +521,9 @@ import {
   createSiteAttachmentRenderHelpers
 } from "./site-attachment-render-utils.js";
 import {
+  createSiteAttachmentUploadHelpers
+} from "./site-attachment-upload-utils.js";
+import {
   createSitePhotoInputHelpers
 } from "./site-photo-input-utils.js";
 import {
@@ -571,7 +574,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-site-attachment-load-module-v595";
+const APP_BUILD_VERSION="2026-08-30-site-attachment-upload-module-v596";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -11216,67 +11219,35 @@ const { loadSiteAttachments }=createSiteAttachmentLoadHelpers({
   siteAttachmentsStatusNode,
   waitForFirebaseUser
 });
-async function uploadSiteAttachments(){
-  const files=selectedSiteAttachmentFiles();
-  if(!selectedSite){ setSiteAttachmentsStatusText("Není vybraný bod."); return; }
-  if(!files.length){ setSiteAttachmentsStatusText("Nejdřív vyber přílohy."); return; }
-  const oversized=files.find(file=>Number(file.size || 0)>ATTACHMENT_INLINE_MAX_BYTES);
-  if(oversized){
-    setSiteAttachmentsStatusText(`Příloha ${oversized.name || ""} je moc velká. V této verzi je limit ${bytesLabel(ATTACHMENT_INLINE_MAX_BYTES)} na soubor.`);
-    return;
-  }
-  const signedUser=(firebaseReady && db) ? await waitForFirebaseUser(1200) : null;
-  const userEmail=signedUser?.email || currentUser?.email || lastKnownUserEmail() || "";
-  const onlineSaveAvailable=!!(firebaseReady && db && signedUser && navigator.onLine !== false);
-  const siblings=attachmentSiblingRows(selectedSite);
-  let savedCount=0;
-  for(let i=0;i<files.length;i++){
-    const file=files[i];
-    const attachmentId=(window.crypto && window.crypto.randomUUID)
-      ? window.crypto.randomUUID()
-      : `attachment_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    setSiteAttachmentsStatusText(`Ukládám přílohu ${i+1}/${files.length}...`);
-    const createdAt=new Date().toISOString();
-    const dataUrl=await readAttachmentFileData(file);
-    const basePayload={
-      _id:attachmentId,
-      fileName:file.name || `priloha-${i+1}`,
-      originalFileName:file.name || "",
-      type:file.type || "application/octet-stream",
-      size:file.size || dataUrl.length,
-      url:dataUrl,
-      downloadUrl:dataUrl,
-      dataUrl,
-      storageMode:onlineSaveAvailable ? "firebaseInline" : "localInline",
-      uploadedBy:userEmail || "nepřihlášený uživatel",
-      createdAt,
-      uploadedAt:createdAt,
-      _offline:!onlineSaveAvailable,
-      _syncStatus:onlineSaveAvailable ? "online" : "local",
-      localOnly:!onlineSaveAvailable,
-      syncQueuedAt:onlineSaveAvailable ? "" : createdAt,
-      sharedPlaceKey:sitePlaceGroupKey(selectedSite),
-      sharedPlaceName:sitePlaceLabel(selectedSite) || selectedSite.adresa || ""
-    };
-    for(const sibling of siblings){
-      const payload={...basePayload,...siteRecordIdentity(sibling)};
-      if(onlineSaveAvailable){
-        const childOk=await saveSiteChildItem("attachments",attachmentId,payload,sibling);
-        if(!childOk) await appendEmbeddedSiteItem("attachments",payload,sibling);
-      }
-      appendSiteLocalArray("attachments",payload,sibling,180);
-      if(onlineSaveAvailable) saveAttachmentsSnapshotToAndroid(sibling,[payload]);
-      else saveLocalAttachmentToAndroid(sibling,payload);
-    }
-    addLocalAttachmentToCurrentView(basePayload);
-    savedCount++;
-  }
-  resetSiteAttachmentInput();
-  renderSiteAttachments(siteAttachmentItems);
-  setSiteAttachmentsStatusText(onlineSaveAvailable ? `Uloženo příloh: ${savedCount}.` : `Přílohy uloženy lokálně: ${savedCount}.`);
-  showSaveConfirmation(onlineSaveAvailable ? "Přílohy uloženy." : "Přílohy uloženy lokálně.");
-  try{ refreshDetailTabLoad("attachments",selectedSite); }catch(e){}
-}
+
+const { uploadSiteAttachments }=createSiteAttachmentUploadHelpers({
+  addLocalAttachmentToCurrentView,
+  appendEmbeddedSiteItem,
+  appendSiteLocalArray,
+  attachmentInlineMaxBytes:ATTACHMENT_INLINE_MAX_BYTES,
+  attachmentSiblingRows,
+  bytesLabel,
+  getCurrentUserEmail:()=>currentUser?.email || lastKnownUserEmail() || "",
+  getDb:()=>db,
+  getFirebaseReady:()=>firebaseReady,
+  getSelectedSite:()=>selectedSite,
+  getSiteAttachmentItems:()=>siteAttachmentItems,
+  readAttachmentFileData,
+  refreshDetailTabLoad,
+  renderSiteAttachments,
+  resetSiteAttachmentInput,
+  safe,
+  saveAttachmentsSnapshotToAndroid,
+  saveLocalAttachmentToAndroid,
+  saveSiteChildItem,
+  selectedSiteAttachmentFiles,
+  setSiteAttachmentsStatusText,
+  showSaveConfirmation,
+  sitePlaceGroupKey,
+  sitePlaceLabel,
+  siteRecordIdentity,
+  waitForFirebaseUser
+});
 function addLocalAttachmentToCurrentView(item){
   const id=safe(item && item._id);
   siteAttachmentItems=[item,...siteAttachmentItems.filter(existing=>safe(existing && existing._id)!==id)];
