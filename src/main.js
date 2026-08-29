@@ -357,6 +357,9 @@ import {
   bindOfflineConnectivityListeners
 } from "./offline-connectivity-listeners-utils.js";
 import {
+  createLegacyOfflineSyncRunner
+} from "./offline-sync-runner-utils.js";
+import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -547,7 +550,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-connectivity-listeners-module-v587";
+const APP_BUILD_VERSION="2026-08-30-offline-sync-runner-module-v588";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -9349,28 +9352,11 @@ async function loadHistory(siteId){
 
 window.loadHistory=loadHistory;
 
-let offlineSyncInFlight=null;
-let lastAutomaticOfflineSyncAt=0;
-const AUTOMATIC_OFFLINE_SYNC_MIN_MS=60000;
-function runOfflineSync(reason="manual",silent=false){
-  if(navigator.onLine===false) return Promise.resolve(0);
-  if(offlineSyncInFlight) return offlineSyncInFlight;
-  const isAutomatic=reason!=="manual" && silent;
-  if(isAutomatic){
-    const now=Date.now();
-    if(now-lastAutomaticOfflineSyncAt<AUTOMATIC_OFFLINE_SYNC_MIN_MS) return Promise.resolve(0);
-    lastAutomaticOfflineSyncAt=now;
-  }
-  if(typeof syncOfflineChanges==="function"){
-    offlineSyncInFlight=syncOfflineChanges({reason,silent}).finally(()=>{offlineSyncInFlight=null;});
-    return offlineSyncInFlight;
-  }
-  if(selectedSite && typeof syncOfflineProtocolsForSite==="function"){
-    offlineSyncInFlight=syncOfflineProtocolsForSite(selectedSite).finally(()=>{offlineSyncInFlight=null;});
-    return offlineSyncInFlight;
-  }
-  return Promise.resolve(0);
-}
+const { runOfflineSync }=createLegacyOfflineSyncRunner({
+  getSelectedSite:()=>selectedSite,
+  syncOfflineChanges,
+  syncOfflineProtocolsForSite
+});
 
 bindLegacyOfflineSyncListeners({
   getSelectedSite:()=>selectedSite,
