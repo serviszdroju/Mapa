@@ -496,7 +496,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-fast-offline-start-v566";
+const APP_BUILD_VERSION="2026-08-29-fast-offline-start-v567";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1312,7 +1312,7 @@ if(firebaseReady){
   }
   function hasRecentGoogleLoginInteraction(){
     const at=Number(window.__szzGoogleLoginInteractionAt || 0);
-    return activeGoogleLoginGesture() || (Number.isFinite(at) && at>0 && Date.now()-at<GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS);
+    return Number.isFinite(at) && at>0 && Date.now()-at<GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS;
   }
   function isExplicitGoogleLoginRequest(options){
     return !!(options && options.explicit===true) || hasRecentGoogleLoginInteraction();
@@ -1885,8 +1885,6 @@ if(firebaseReady){
   if(typeof window.loginPopup!=="function") window.loginPopup=startGoogleLoginFromUi;
   window.__startCompatGoogleLoginFallback=startGoogleLoginFromUi;
   if(typeof window.bindLoginButtons==="function") window.bindLoginButtons();
-  if(typeof window.__szzRunPendingLogin==="function") window.__szzRunPendingLogin();
-
   scheduleStartupAuthFallback();
   try{
     if(knownSignedIn() && !explicitSignOutPending()) showAppShellFast("");
@@ -2049,7 +2047,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v566-runtime",
+  runtimeCacheName:"astip-szz-v567-runtime",
   mediaFetchConcurrency:4
 });
 

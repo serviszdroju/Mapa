@@ -8,7 +8,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="fast-offline-start-v566";
+const EMAIL_LOGIN_BUILD_VERSION="fast-offline-start-v567";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -67,7 +67,7 @@ function rememberGoogleLoginInteraction(event){
 function hasRecentGoogleLoginInteraction(){
   const globalAt=Number(window.__szzGoogleLoginInteractionAt || 0);
   const at=Math.max(lastGoogleLoginInteractionAt,Number.isFinite(globalAt) ? globalAt : 0);
-  return activeUserGesture() || (at>0 && Date.now()-at<GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS);
+  return at>0 && Date.now()-at<GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS;
 }
 
 function clearPendingGoogleLogin(){
