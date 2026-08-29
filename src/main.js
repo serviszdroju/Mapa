@@ -286,6 +286,9 @@ import {
   createOfflineCountInvalidationHelpers
 } from "./offline-count-invalidation-utils.js";
 import {
+  createOfflineCountsCollectorHelpers
+} from "./offline-counts-collector-utils.js";
+import {
   createOfflineStatusRenderHelpers
 } from "./offline-status-render-utils.js";
 import {
@@ -577,7 +580,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-count-invalidation-module-v597";
+const APP_BUILD_VERSION="2026-08-30-offline-counts-collector-module-v598";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10800,40 +10803,19 @@ async function readPendingOfflinePhotoCount(){
   return remember(count);
 }
 
-async function collectSzzOfflineCounts(){
-  const cached=readSzzOfflineCountsCache();
-  if(cached) return cached;
-  const ready=readSzzOfflineReadyState();
-  const [sites,protocols,photos,drafts,storage,estimate,androidCounts]=await Promise.all([
-    readPendingOfflineSitesCount(),
-    readPendingOfflineProtocolCount(),
-    readPendingOfflinePhotoCount(),
-    readProtocolDraftCount(),
-    requestSzzPersistentStorage({request:false}),
-    szzStorageEstimate(),
-    Promise.resolve(readAndroidOfflineCounts())
-  ]);
-  const androidPending=Math.max(0,Number(androidCounts?.pendingOutbox) || 0);
-  const androidPhotos=Math.max(0,Number(androidCounts?.pendingPhotos) || 0);
-  const androidAttachments=Math.max(0,Number(androidCounts?.pendingAttachments) || 0);
-  const nativeVisiblePending=Math.max(androidPending,androidPhotos+androidAttachments);
-  const counts={
-    sites,
-    protocols,
-    photos:Math.max(photos,androidPhotos),
-    attachments:androidAttachments,
-    drafts,
-    cachedRows:Math.max(readCachedFirebaseSiteCount(),Number(androidCounts?.cachedSites) || 0),
-    persistentStorage:!!(storage.persisted || ready.persistentStorage),
-    storageSupported:!!(storage.supported || ready.persistentStorageSupported),
-    storageUsage:estimate ? estimate.usage : (Number(ready.storageUsage) || 0),
-    storageQuota:estimate ? estimate.quota : (Number(ready.storageQuota) || 0),
-    preparedAt:ready.preparedAt || "",
-    androidPending,
-    pending:Math.max(sites+protocols+photos,nativeVisiblePending)
-  };
-  return writeSzzOfflineCountsCache(counts);
-}
+const { collectSzzOfflineCounts }=createOfflineCountsCollectorHelpers({
+  readAndroidOfflineCounts,
+  readCachedFirebaseSiteCount,
+  readPendingOfflinePhotoCount,
+  readPendingOfflineProtocolCount,
+  readPendingOfflineSitesCount,
+  readProtocolDraftCount,
+  readSzzOfflineCountsCache,
+  readSzzOfflineReadyState,
+  requestSzzPersistentStorage,
+  szzStorageEstimate,
+  writeSzzOfflineCountsCache
+});
 
 const {
   renderSzzOfflineAppStatus,
