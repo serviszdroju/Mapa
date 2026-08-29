@@ -496,7 +496,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-fast-offline-start-v567";
+const APP_BUILD_VERSION="2026-08-29-fast-offline-start-v570";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1622,6 +1622,7 @@ if(firebaseReady){
     });
     return backgroundDeltaSyncPromise;
   }
+  window.syncFirebaseRowsDeltaAfterAuth=syncFirebaseRowsDeltaAfterAuth;
   async function loadFirebaseRowsAfterAuthInner(reason="auth"){
     if(!firebaseUnifiedPrimary) return true;
     const token=++postLoginLoadToken;
@@ -1804,6 +1805,11 @@ if(firebaseReady){
       return;
     }
     const knownSession=knownSignedIn() && !explicitSignOutPending();
+    if(knownSession && navigator.onLine===false){
+      keepAppOpenDuringAuthRestore("");
+      loadOfflineRowsFromLocalCacheWhenAvailable("",4500);
+      return;
+    }
     if(shouldKeepAppOpenOnAuthNull() && appIsOpenOrHasRows()){
       keepAppOpenDuringAuthRestore(navigator.onLine===false
         ? "Offline režim. Používám lokálně uložené body, protokoly a fotky."
@@ -1816,8 +1822,9 @@ if(firebaseReady){
     }
     const restoringKnownSession=knownSession && Date.now()-authBootStartedAt<AUTH_RESTORE_GRACE_MS;
     if(restoringKnownSession){
-      setStartupAuthChecking(true);
-      setProgressStatus("Obnovuji přihlášení...");
+      const keepVisibleCacheQuiet=appIsOpenOrHasRows();
+      setStartupAuthChecking(!keepVisibleCacheQuiet);
+      setProgressStatus(keepVisibleCacheQuiet ? "" : "Obnovuji přihlášení...");
       setTimeout(()=>{
         const restored=auth.currentUser || window.__authReadyUser || window.currentUser || safeSyncCurrentUserFromCompat();
         if(restored){
@@ -2047,7 +2054,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v567-runtime",
+  runtimeCacheName:"astip-szz-v570-runtime",
   mediaFetchConcurrency:4
 });
 
@@ -12918,7 +12925,7 @@ async function refreshFirebaseUnifiedPrimary(){
       ready.rowsSyncedAtMs &&
       !firebaseRowsWereLoadedFromNetwork()
     ){
-      runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth("startup").catch(e=>{
+      runWhenIdle(()=>window.syncFirebaseRowsDeltaAfterAuth?.("startup")?.catch(e=>{
         console.warn("Startovní rozdílová kontrola bodů selhala",e);
       }),1800);
       return true;

@@ -962,6 +962,15 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(modern) return modern;
     return compatDatabase();
   }
+  async function waitForFirebaseDatabase(timeoutMs=6500){
+    const started=Date.now();
+    let database=db();
+    while(!database && Date.now()-started<timeoutMs){
+      await new Promise(resolve=>setTimeout(resolve,150));
+      database=db();
+    }
+    return database;
+  }
   let compatAuthCache={compat:null,value:null};
   function compatAuth(){
     const compat=ensureCompatFirebase();
@@ -1982,7 +1991,10 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       firebaseSitesLoading=true;
       firebaseSitesLoadingPromise=new Promise(resolve=>{firebaseSitesLoadingResolve=resolve;});
     }
-    const database=db(); if(!database){
+    let database=db(); if(!database && navigator.onLine!==false && !opts.offlineCacheOnly){
+      database=await waitForFirebaseDatabase(opts.auto ? 6500 : 9000);
+    }
+    if(!database){
       const cachedRows=await showMapRowsCache(openDocId,{
         offlineBoot:navigator.onLine===false,
         offlineCacheOnly:!!opts.offlineCacheOnly,
@@ -1999,7 +2011,12 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         }
         return cachedRows;
       }
-      sideStatus("Firebase není dostupný.",true);
+      sideStatus(navigator.onLine===false
+        ? "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená."
+        : "Firebase se ještě nepřipravil. Zkusím načtení znovu na pozadí.",true);
+      if(navigator.onLine!==false && !opts.offlineCacheOnly && typeof setTimeout==="function"){
+        setTimeout(()=>loadFirebaseSites(openDocId,{...opts,retryFirebaseReady:true}).catch(e=>console.warn("Opakované načtení Firebase po inicializaci selhalo",e)),1800);
+      }
       if(lockLoad){
         firebaseSitesLoading=false;
         if(firebaseSitesLoadingResolve) firebaseSitesLoadingResolve();
@@ -2613,7 +2630,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-29-fast-offline-start-v567";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-29-fast-offline-start-v570";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
