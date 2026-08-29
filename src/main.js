@@ -280,6 +280,9 @@ import {
   createOfflineDetailMetaHelpers
 } from "./offline-detail-meta-utils.js";
 import {
+  createOfflineCountsCacheHelpers
+} from "./offline-counts-cache-utils.js";
+import {
   SZZ_SYNC_STATE_KEY,
   createOfflineSyncStateHelpers
 } from "./offline-sync-state-utils.js";
@@ -531,7 +534,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-offline-sync-state-module-v582";
+const APP_BUILD_VERSION="2026-08-29-offline-counts-cache-module-v583";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10646,9 +10649,6 @@ window.syncOfflineChanges=syncOfflineChanges;
 const SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY="astipMap:offlineSites:v1";
 let szzOfflineStatusTimer=0;
 let szzOfflineStatusRun=0;
-const SZZ_OFFLINE_COUNTS_CACHE_MS=1200;
-let szzOfflineCountsCache=null;
-let szzOfflineCountsCacheAt=0;
 const SZZ_LEGACY_OFFLINE_SITE_COUNT_CACHE_MS=1800;
 let szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
 const OFFLINE_SITE_COUNT_CACHE_MS=1800;
@@ -10656,14 +10656,12 @@ let offlineSiteCountCache={count:null,savedAt:0,storageLength:-1};
 const OFFLINE_PHOTO_COUNT_CACHE_MS=1800;
 let offlinePhotoCountCache={count:null,savedAt:0,storageLength:-1};
 
-function cloneSzzOfflineCounts(counts){
-  return counts ? {...counts} : counts;
-}
-
-function invalidateSzzOfflineCountsCache(){
-  szzOfflineCountsCache=null;
-  szzOfflineCountsCacheAt=0;
-}
+const {
+  cloneSzzOfflineCounts,
+  invalidateSzzOfflineCountsCache,
+  readSzzOfflineCountsCache,
+  writeSzzOfflineCountsCache
+}=createOfflineCountsCacheHelpers({cacheMs:1200});
 window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
 function invalidateOfflineSiteCountCache(){
   offlineSiteCountCache={count:null,savedAt:0,storageLength:-1};
@@ -10810,10 +10808,8 @@ async function readPendingOfflinePhotoCount(){
 }
 
 async function collectSzzOfflineCounts(){
-  const now=Date.now();
-  if(szzOfflineCountsCache && now-szzOfflineCountsCacheAt<SZZ_OFFLINE_COUNTS_CACHE_MS){
-    return cloneSzzOfflineCounts(szzOfflineCountsCache);
-  }
+  const cached=readSzzOfflineCountsCache();
+  if(cached) return cached;
   const ready=readSzzOfflineReadyState();
   const [sites,protocols,photos,drafts,storage,estimate,androidCounts]=await Promise.all([
     readPendingOfflineSitesCount(),
@@ -10843,9 +10839,7 @@ async function collectSzzOfflineCounts(){
     androidPending,
     pending:Math.max(sites+protocols+photos,nativeVisiblePending)
   };
-  szzOfflineCountsCache=counts;
-  szzOfflineCountsCacheAt=Date.now();
-  return cloneSzzOfflineCounts(counts);
+  return writeSzzOfflineCountsCache(counts);
 }
 
 const szzOfflineStatusNodeCache={};
