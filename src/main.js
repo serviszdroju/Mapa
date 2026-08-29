@@ -283,6 +283,9 @@ import {
   createOfflineCountsCacheHelpers
 } from "./offline-counts-cache-utils.js";
 import {
+  createOfflineCountInvalidationHelpers
+} from "./offline-count-invalidation-utils.js";
+import {
   createOfflineStatusRenderHelpers
 } from "./offline-status-render-utils.js";
 import {
@@ -574,7 +577,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-site-attachment-upload-module-v596";
+const APP_BUILD_VERSION="2026-08-30-offline-count-invalidation-module-v597";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10658,25 +10661,20 @@ const {
   writeSzzOfflineCountsCache
 }=createOfflineCountsCacheHelpers({cacheMs:1200});
 window.invalidateSzzOfflineCountsCache=invalidateSzzOfflineCountsCache;
-function invalidateOfflineSiteCountCache(){
-  offlineSiteCountCache={count:null,savedAt:0,storageLength:-1};
-  szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0};
-  clearOfflineSiteQueueReadCache();
-  invalidateSzzOfflineCountsCache();
-}
-function invalidateOfflinePhotoCountCache(){
-  offlinePhotoCountCache={count:null,savedAt:0,storageLength:-1};
-  clearOfflinePhotoAllReadCache();
-  invalidateSzzOfflineCountsCache();
-}
-window.addEventListener("storage",event=>{
-  if(!event.key || event.key===SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY){
-    invalidateOfflineSiteCountCache();
-  }
-  if(!event.key || event.key.startsWith("astipMap:offlinePhotos:")){
-    invalidateOfflinePhotoCountCache();
-  }
+const {
+  bindOfflineCountStorageInvalidation,
+  invalidateOfflinePhotoCountCache,
+  invalidateOfflineSiteCountCache
+}=createOfflineCountInvalidationHelpers({
+  clearOfflinePhotoAllReadCache,
+  clearOfflineSiteQueueReadCache,
+  invalidateSzzOfflineCountsCache,
+  legacyOfflineSiteQueueKey:SZZ_LEGACY_OFFLINE_SITE_QUEUE_KEY,
+  resetLegacyOfflineSiteCountCache:()=>{ szzLegacyOfflineSiteCountCache={raw:null,count:0,savedAt:0}; },
+  resetOfflinePhotoCountCache:()=>{ offlinePhotoCountCache={count:null,savedAt:0,storageLength:-1}; },
+  resetOfflineSiteCountCache:()=>{ offlineSiteCountCache={count:null,savedAt:0,storageLength:-1}; }
 });
+bindOfflineCountStorageInvalidation();
 
 const {
   noteSzzSyncState,
