@@ -465,6 +465,9 @@ import {
   createDetailDataRowHelpers
 } from "./detail-data-row-utils.js";
 import {
+  createDetailHistoryCacheHelpers
+} from "./detail-history-cache-utils.js";
+import {
   createProtocolDomHelpers
 } from "./protocol-dom-utils.js";
 import {
@@ -506,7 +509,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-offline-shell-module-v574";
+const APP_BUILD_VERSION="2026-08-29-detail-history-cache-module-v575";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4563,141 +4566,40 @@ function detailHistoryNode(){
   return formFieldNode("history");
 }
 let protocolEditState=null;
-const DETAIL_HISTORY_CACHE_MS=45000;
-const DETAIL_HISTORY_MUTATION_KINDS=new Set(["protocolHistory","serviceHistory","protocols","serviceRecords"]);
-const detailHistoryCache=new Map();
-const LAST_PROTOCOL_CACHE_MS=45000;
-const lastProtocolCache=new Map();
-const MAIN_PROTOCOL_HISTORY_CACHE_MS=45000;
-let mainProtocolHistoryCache={key:"",savedAt:0,items:null};
 let mainProtocolHistoryRenderSignature="";
 let mainProtocolHistoryCurrentItems=[];
 let mainProtocolHistoryDateFilter="";
 const allLocalProtocolHistoryReadCache=new Map();
 
-function detailHistoryCacheKey(site=selectedSite){
-  if(!site) return "";
-  const keys=[detailLazyKey(site), selectedSiteDocId(site), ...siteRecordKeys(site), currentUserEmail()]
-    .map(x=>String(x || "").trim())
-    .filter((x,idx,arr)=>x && arr.indexOf(x)===idx);
-  return keys.join("|");
-}
-
-function cloneDetailHistoryItem(item){
-  return item && typeof item==="object" ? {...item} : item;
-}
-
-function cloneDetailHistoryItems(items=[]){
-  const source=Array.isArray(items) ? items : [];
-  const out=[];
-  for(const item of source){
-    out.push(cloneDetailHistoryItem(item));
-  }
-  return out;
-}
-
-function readLastProtocolCache(site=selectedSite){
-  const key=detailHistoryCacheKey(site);
-  if(!key) return undefined;
-  const cached=lastProtocolCache.get(key);
-  if(!cached) return undefined;
-  if(Date.now()-cached.savedAt>LAST_PROTOCOL_CACHE_MS){
-    lastProtocolCache.delete(key);
-    return undefined;
-  }
-  return cloneDetailHistoryItem(cached.item) || null;
-}
-
-function writeLastProtocolCache(site=selectedSite,item=null){
-  const key=detailHistoryCacheKey(site);
-  if(!key) return;
-  lastProtocolCache.set(key,{
-    savedAt:Date.now(),
-    item:cloneDetailHistoryItem(item) || null
-  });
-}
-
-function clearLastProtocolCache(site=selectedSite){
-  if(!site){
-    lastProtocolCache.clear();
-    return;
-  }
-  const key=detailHistoryCacheKey(site);
-  if(key) lastProtocolCache.delete(key);
-  else lastProtocolCache.clear();
-}
-
-function readDetailHistoryCache(site=selectedSite){
-  const key=detailHistoryCacheKey(site);
-  if(!key) return null;
-  const cached=detailHistoryCache.get(key);
-  if(!cached) return null;
-  if(Date.now()-cached.savedAt>DETAIL_HISTORY_CACHE_MS){
-    detailHistoryCache.delete(key);
-    return null;
-  }
-  return cloneDetailHistoryItems(cached.items);
-}
-
-function writeDetailHistoryCache(site=selectedSite,items=[]){
-  const key=detailHistoryCacheKey(site);
-  if(!key) return;
-  detailHistoryCache.set(key,{
-    savedAt:Date.now(),
-    items:cloneDetailHistoryItems(items)
-  });
-}
-
-function clearDetailHistoryCache(site=selectedSite){
-  detailHistoryRenderSignature="";
-  if(!site){
-    detailHistoryCache.clear();
-    lastProtocolCache.clear();
-    return;
-  }
-  const key=detailHistoryCacheKey(site);
-  if(key) detailHistoryCache.delete(key);
-  else detailHistoryCache.clear();
-  clearLastProtocolCache(site);
-}
+const {
+  clearDetailHistoryCache,
+  clearDetailHistoryCacheForKind,
+  clearLastProtocolCache,
+  clearMainProtocolHistoryCache,
+  cloneDetailHistoryItem,
+  cloneDetailHistoryItems,
+  detailHistoryCacheKey,
+  mainProtocolHistoryCacheKey,
+  patchMainProtocolHistoryCacheItems,
+  readDetailHistoryCache,
+  readLastProtocolCache,
+  readMainProtocolHistoryCache,
+  writeDetailHistoryCache,
+  writeLastProtocolCache,
+  writeMainProtocolHistoryCache
+}=createDetailHistoryCacheHelpers({
+  clearAllLocalProtocolHistoryReadCache:()=>allLocalProtocolHistoryReadCache.clear(),
+  clearLocalDetailReadCacheForKind:(kind,site)=>clearLocalDetailReadCacheForKind(kind,site),
+  currentUserEmail,
+  detailLazyKey,
+  getSelectedSite:()=>selectedSite,
+  resetDetailHistoryRenderSignature:()=>{ detailHistoryRenderSignature=""; },
+  resetMainProtocolHistoryRenderSignature:()=>{ mainProtocolHistoryRenderSignature=""; },
+  selectedSiteDocId,
+  siteRecordKeys
+});
 window.clearDetailHistoryCache=clearDetailHistoryCache;
-
-function mainProtocolHistoryCacheKey(){
-  return currentUserEmail() || "anonymous";
-}
-
-function readMainProtocolHistoryCache(){
-  const key=mainProtocolHistoryCacheKey();
-  if(!mainProtocolHistoryCache.items || mainProtocolHistoryCache.key!==key) return null;
-  if(Date.now()-mainProtocolHistoryCache.savedAt>MAIN_PROTOCOL_HISTORY_CACHE_MS){
-    mainProtocolHistoryCache={key:"",savedAt:0,items:null};
-    return null;
-  }
-  return cloneDetailHistoryItems(mainProtocolHistoryCache.items);
-}
-
-function writeMainProtocolHistoryCache(items=[]){
-  mainProtocolHistoryCache={
-    key:mainProtocolHistoryCacheKey(),
-    savedAt:Date.now(),
-    items:cloneDetailHistoryItems(items)
-  };
-}
-
-function clearMainProtocolHistoryCache(){
-  mainProtocolHistoryCache={key:"",savedAt:0,items:null};
-  mainProtocolHistoryRenderSignature="";
-  allLocalProtocolHistoryReadCache.clear();
-}
 window.clearMainProtocolHistoryCache=clearMainProtocolHistoryCache;
-
-function clearDetailHistoryCacheForKind(kind,site=selectedSite){
-  const cleanKind=String(kind || "");
-  clearLocalDetailReadCacheForKind(cleanKind,site);
-  if(DETAIL_HISTORY_MUTATION_KINDS.has(cleanKind)) clearDetailHistoryCache(site);
-  if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearLastProtocolCache(site);
-  if(cleanKind==="protocolHistory" || cleanKind==="protocols") clearMainProtocolHistoryCache();
-}
 
 function normalizeSealValue(value){
   const n=dataNormFixed(value);
@@ -9661,10 +9563,7 @@ function updateMainProtocolHistoryProcessedState(id,checked){
   const cleanId=safe(id);
   const patch=mainProtocolProcessedLocalPatch(checked);
   mainProtocolHistoryCurrentItems=patchProtocolProcessedItems(mainProtocolHistoryCurrentItems,cleanId,patch,true);
-  if(Array.isArray(mainProtocolHistoryCache.items)){
-    mainProtocolHistoryCache.items=patchProtocolProcessedItems(mainProtocolHistoryCache.items,cleanId,patch,true);
-    mainProtocolHistoryCache.savedAt=Date.now();
-  }
+  patchMainProtocolHistoryCacheItems(items=>patchProtocolProcessedItems(items,cleanId,patch,true));
 }
 
 async function setMainProtocolHistoryProcessed(item={},checked=false){
@@ -9753,10 +9652,7 @@ function updateDetailHistoryProtocolHandoffState(id,checked){
   const patch=protocolHandoffLocalPatch(checked);
   detailHistoryItems=patchProtocolProcessedItems(detailHistoryItems,cleanId,patch,true);
   mainProtocolHistoryCurrentItems=patchProtocolProcessedItems(mainProtocolHistoryCurrentItems,cleanId,patch,true);
-  if(Array.isArray(mainProtocolHistoryCache.items)){
-    mainProtocolHistoryCache.items=patchProtocolProcessedItems(mainProtocolHistoryCache.items,cleanId,patch,true);
-    mainProtocolHistoryCache.savedAt=Date.now();
-  }
+  patchMainProtocolHistoryCacheItems(items=>patchProtocolProcessedItems(items,cleanId,patch,true));
   if(selectedSite?.firebaseData){
     if(Array.isArray(selectedSite.firebaseData.protocolHistory)){
       selectedSite.firebaseData.protocolHistory=patchProtocolProcessedItems(selectedSite.firebaseData.protocolHistory,cleanId,patch,true);
