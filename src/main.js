@@ -474,6 +474,9 @@ import {
   createProtocolSignatureHelpers
 } from "./protocol-signature-utils.js";
 import {
+  createProtocolSiteFieldHelpers
+} from "./protocol-site-field-utils.js";
+import {
   createRecordAccessFallbackHelpers
 } from "./record-access-fallback-utils.js";
 
@@ -512,7 +515,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-protocol-signature-module-v576";
+const APP_BUILD_VERSION="2026-08-29-protocol-site-fields-module-v577";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10285,120 +10288,25 @@ const {
 bindProtocolSignatureToggle();
 
 
-function splitPossibleSources(text){
-  const s=safe(text);
-  if(!s) return [];
-  return s
-    .split(/\s*(?:\+|\||;|\n|\r| \/ |, (?=(?:UPS|zdroj|FZ|PBZ|typ|[A-Z0-9]{3,})))\s*/i)
-    .map(x=>x.trim())
-    .filter(Boolean);
-}
-
-function sourceOptionsFromSite(site){
-  const raw=site?.raw || {};
-  const candidates=[
-    protocolDeviceTypeFromSite(site),
-    get(raw,"Popis_zdroje"),
-    get(raw,"Kontrolované zařízení"),
-    get(raw,"Jaký zdroj"),
-    get(raw,"Typ zařízení"),
-    get(raw,"Typ"),
-    get(raw,"Serviska")
-  ].filter(Boolean);
-
-  let out=[];
-  candidates.forEach(c=>{
-    const parts=splitPossibleSources(c);
-    if(parts.length) out.push(...parts);
-    else out.push(String(c).trim());
-  });
-
-  // unique, remove empty
-  const seen=new Set();
-  return out.filter(x=>{
-    const k=x.toLowerCase();
-    if(!k || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-}
-
-function populateProtocolDeviceSelect(){
-  const oldWrap=formFieldNode("protocolDeviceSelectWrap");
-  if(oldWrap) oldWrap.style.display="none";
-  const inputWrap=formFieldNode("protoDeviceInputWrap");
-  const selectWrap=formFieldNode("protoDeviceSelectWrap2");
-  const input=formFieldNode("protoDeviceType");
-  if(inputWrap) inputWrap.classList.remove("hidden");
-  if(selectWrap) selectWrap.classList.add("hidden");
-  if(!selectedSite || !input) return;
-  input.value=protocolDeviceTypeFromSite(selectedSite) || "";
-  updateProtocolSummary();
-}
-
-function resetProtocolTechnicalFieldsForNewDevice(){
-  [
-    "protoDeviceType","protoSerial","protoSeal","protoSeal2",
-    "protoBatteryCount","protoCapacity","protoSetCount","protoAuxBatteryAh",
-    "protoInputVac","protoOutput1Vac","protoOutput2Vac","protoBackup1Vac","protoBackup2Vac",
-    "protoMainBatVdc","protoResetDiag","protoAuxBatVdc","protoUnbalance1","protoUnbalance2"
-  ].forEach(id=>{
-    const el=formFieldNode(id);
-    if(el) el.value="";
-  });
-
-  updateProtocolSummary();
-}
-
-function pickRawValue(raw, names){
-  for(const n of names){
-    const v=safe(get(raw,n));
-    if(v) return v;
-  }
-  return "";
-}
-
-function setIfEmpty(id,value){
-  const el=formFieldNode(id);
-  if(!el) return;
-  if(!safe(el.value) && safe(value)) el.value=value;
-}
-
-function setCheckbox(id,value){
-  const el=formFieldNode(id);
-  if(!el) return;
-  el.checked = value === true || String(value).toLowerCase()==="true" || String(value).toLowerCase()==="ano";
-}
-
-function protocolDeviceTypeFromSite(site){
-  const raw=site?.raw || {};
-  const explicit=pickRawValue(raw,[
-    "Popis_zdroje","Jaký zdroj","Kontrolované zařízení","Kontrolované zařízení – typ",
-    "Kontrolovane zarizeni","Typ zařízení","Typ zarizeni","Typ","Serviska"
-  ]);
-  if(explicit) return explicit;
-
-  const source=safe(site?.zdroj);
-  const serial=protocolSerialFromSite(site);
-  if(source && dataNormFixed(source)!==dataNormFixed(serial)) return source;
-  return "";
-}
-
-function protocolSerialFromSite(site){
-  const raw=site?.raw || {};
-  return pickRawValue(raw,[
-    "Výrobní č.","Výrobní číslo","Výrobní_číslo","Vyrobni cislo",
-    "Sériové číslo","Seriové číslo","Serial","SN","Zdroj"
-  ]);
-}
-
-function protocolSourceLocationFromSite(site){
-  const raw=site?.raw || {};
-  return pickRawValue(raw,[
-    "Umístění zdroje","Umístění_zdroje","Umístění","Umisteni",
-    "Adresa_GPS","Adresa / umístění"
-  ]);
-}
+const {
+  pickRawValue,
+  populateProtocolDeviceSelect,
+  protocolDeviceTypeFromSite,
+  protocolSerialFromSite,
+  protocolSourceLocationFromSite,
+  resetProtocolTechnicalFieldsForNewDevice,
+  setCheckbox,
+  setIfEmpty,
+  sourceOptionsFromSite,
+  splitPossibleSources
+}=createProtocolSiteFieldHelpers({
+  dataNormFixed,
+  formFieldNode,
+  getRawValue:get,
+  getSelectedSite:()=>selectedSite,
+  safeValue:safe,
+  updateProtocolSummary
+});
 
 let protocolPrefillSiteId="";
 
