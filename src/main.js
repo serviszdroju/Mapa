@@ -496,7 +496,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-android-cache-reset-v565";
+const APP_BUILD_VERSION="2026-08-29-fast-offline-start-v566";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -517,6 +517,21 @@ function withTimeout(promise,timeoutMs,message){
   return Promise.race([promise,timeout]).finally(()=>{ if(timer) clearTimeout(timer); });
 }
 function showStartupLoading(message="Načítám aplikaci"){
+  const hasCachedRows=!!((Array.isArray(rows) && rows.length) || (Array.isArray(window.rows) && window.rows.length));
+  if(navigator.onLine===false && knownSignedIn() && !explicitSignOutPending() && hasCachedRows){
+    window.__mapAppUnlocked=true;
+    const startup=document.getElementById("startupScreen");
+    const appEl=document.getElementById("mainApp");
+    const loginRow=document.getElementById("mainLoginRow");
+    const topLogout=document.getElementById("topLogoutBtn");
+    setDisplayIfChanged(startup,"none");
+    setDisplayIfChanged(appEl,"grid");
+    setDisplayIfChanged(loginRow,"none");
+    setDisplayIfChanged(topLogout,"block");
+    if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+    setTextIfChanged(document.getElementById("progress"),"Offline režim. Body jsou načtené z lokální cache.");
+    return;
+  }
   try{ setStartupAuthChecking(true); }catch(e){}
   if(typeof window.__szzSetAuthState==="function"){
     window.__szzSetAuthState(AUTH_LOADING,{intro:"Načítám aplikaci",message});
@@ -539,13 +554,14 @@ function showStartupLoading(message="Načítám aplikaci"){
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
   const hasUser=!!(window.currentUser || window.__authReadyUser);
-  const canResumeKnownSession=!hasUser && !explicitSignOutPending() && knownSignedIn() && navigator.onLine===false;
+  const canResumeKnownSession=!hasUser && !explicitSignOutPending() && knownSignedIn();
   if(canResumeKnownSession){
     window.__szzFastShellShown=true;
     window.__mapAppUnlocked=true;
+    window.__szzAuthResumeStartedAt=Date.now();
     try{document.documentElement.classList.add("auth-resume");}catch(e){}
     if(typeof window.__szzSetAuthState==="function"){
-      window.__szzSetAuthState(AUTH_LOGGED_IN,{message:message || "Obnovuji přihlášení..."});
+      window.__szzSetAuthState(AUTH_LOGGED_IN,{message:""});
     }else{
       const startup=document.getElementById("startupScreen");
       const appEl=document.getElementById("mainApp");
@@ -554,9 +570,13 @@ function showAppShellFast(message=""){
       setDisplayIfChanged(startup,"none");
       setDisplayIfChanged(appEl,"grid");
       setDisplayIfChanged(topLogout,"block");
-      setTextIfChanged(progress,message || "Obnovuji přihlášení...");
+      setTextIfChanged(progress,"");
     }
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+    if(!window.__szzKnownSessionBootCacheRequested){
+      window.__szzKnownSessionBootCacheRequested=true;
+      setTimeout(()=>loadOfflineRowsFromLocalCacheWhenAvailable("",4500),0);
+    }
     return;
   }
   if(!hasUser && !explicitSignOutPending() && knownSignedIn()){
@@ -601,8 +621,8 @@ function showAppShellFast(message=""){
     setDisplayIfChanged(appEl,"grid");
     setDisplayIfChanged(loginRow,"none");
     setDisplayIfChanged(topLogout,"block");
-    if(message) setTextIfChanged(progress,message);
-  }
+  if(message) setTextIfChanged(progress,message);
+}
 }
 
 function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
@@ -614,10 +634,32 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
     const directLoader=window.showFirebaseMapRowsCache;
     const unifiedLoader=window.loadFirebaseSitesUnified;
     const done=loadedRows=>{
-      const count=Array.isArray(loadedRows) ? loadedRows.length : 0;
-      setTextIfChanged(progress,count
-        ? `Offline režim. Načteno ${count} bodů z telefonu.`
-        : (message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená."));
+      const count=(Array.isArray(loadedRows) && loadedRows.length)
+        ? loadedRows.length
+        : ((Array.isArray(rows) && rows.length) || (Array.isArray(window.rows) && window.rows.length) || 0);
+      if(message || navigator.onLine===false){
+        setTextIfChanged(progress,count
+          ? `Offline režim. Načteno ${count} bodů z telefonu.`
+          : (message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená."));
+      }else if(count){
+        setTextIfChanged(progress,"");
+      }
+      if(count && navigator.onLine===false && knownSignedIn() && !explicitSignOutPending()){
+        window.__szzAuthResumeStartedAt=window.__szzAuthResumeStartedAt || Date.now();
+        if(typeof showApp==="function") showApp({allowWithoutUser:true});
+        else if(typeof window.__szzSetAuthState==="function") window.__szzSetAuthState(AUTH_LOGGED_IN,{message:""});
+        const startup=document.getElementById("startupScreen");
+        const appEl=document.getElementById("mainApp");
+        const loginRow=document.getElementById("mainLoginRow");
+        const topLogout=document.getElementById("topLogoutBtn");
+        setDisplayIfChanged(startup,"none");
+        setDisplayIfChanged(appEl,"grid");
+        setDisplayIfChanged(loginRow,"none");
+        setDisplayIfChanged(topLogout,"block");
+        if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+        window.__mapAppUnlocked=true;
+        setTextIfChanged(progress,"Offline režim. Body jsou načtené z lokální cache.");
+      }
     };
     if(typeof directLoader==="function"){
       Promise.resolve(directLoader(null,{offlineBoot:true})).then(done).catch(e=>console.warn("Offline cache bodů se nepodařila načíst",e));
@@ -1348,6 +1390,10 @@ if(firebaseReady){
   function startGoogleLoginFromUi(eventOrOptions){
     const fromEvent=rememberGoogleLoginInteraction(eventOrOptions);
     const explicit=fromEvent || !!(eventOrOptions && eventOrOptions.explicit===true) || hasRecentGoogleLoginInteraction();
+    if(navigator.onLine===false){
+      setStartupStatus("Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu.");
+      return false;
+    }
     return startFirebaseRedirectLogin({explicit});
   }
   async function signOutFirebase(){
@@ -1490,11 +1536,12 @@ if(firebaseReady){
     if(explicitSignOutPending()) return false;
     setStartupAuthChecking(false);
     try{document.documentElement.classList.add("auth-resume");}catch(e){}
+    window.__szzAuthResumeStartedAt=window.__szzAuthResumeStartedAt || Date.now();
     showApp({allowWithoutUser:true});
     const topLogoutBtn=document.getElementById("topLogoutBtn");
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     setDisplayIfChanged(topLogoutBtn,"block");
-    setProgressStatus(message || "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat.");
+    setProgressStatus(message === undefined ? "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat." : message);
     runWhenIdle(()=>{
       try{
         if(typeof window.loadFirebaseSitesUnified==="function"){
@@ -1700,6 +1747,10 @@ if(firebaseReady){
     }
   }
   function showSignedOutLogin(message){
+    if(navigator.onLine===false && knownSignedIn() && !explicitSignOutPending() && appIsOpenOrHasRows()){
+      keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
+      return;
+    }
     clearStartupAuthFallback();
     clearSignedUser();
     setStartupAuthChecking(false);
@@ -1813,6 +1864,10 @@ if(firebaseReady){
       const appVisible=!!(appEl && appEl.style.display && appEl.style.display!=="none");
       const startupStillChecking=!!(startup && (startup.classList.contains("auth-checking") || /Načítám|Kontroluji|Obnovuji/i.test(String(intro && intro.textContent || ""))));
       if(!startupStillChecking || appVisible) return;
+      if(navigator.onLine===false && knownSignedIn() && appIsOpenOrHasRows()){
+        keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
+        return;
+      }
       clearAuthPending();
       setStartupAuthChecking(false);
       if(typeof window.__szzReleaseStuckStartupChecking==="function"){
@@ -1834,7 +1889,8 @@ if(firebaseReady){
 
   scheduleStartupAuthFallback();
   try{
-    showStartupLoading("Načítám aplikaci");
+    if(knownSignedIn() && !explicitSignOutPending()) showAppShellFast("");
+    else showStartupLoading("Načítám aplikaci");
     await primeCompatAuthPersistence();
     if(authPending()){
       await finishRedirectLoginIfPending();
@@ -1993,7 +2049,7 @@ const {
   photoDisplayUrl:item=>photoDisplayUrl(item),
   photoFullUrl:item=>photoFullUrl(item),
   photoThumbUrl:item=>photoThumbUrl(item),
-  runtimeCacheName:"astip-szz-v565-runtime",
+  runtimeCacheName:"astip-szz-v566-runtime",
   mediaFetchConcurrency:4
 });
 
@@ -9590,6 +9646,24 @@ function showApp(options={}){
   runAfterTwoPaints(()=>{ if(window.mobileFixMap) window.mobileFixMap(); if(window.map) window.map.invalidateSize(true); });
 }
 function showLogin(){
+  const hasCachedRows=!!((Array.isArray(rows) && rows.length) || (Array.isArray(window.rows) && window.rows.length));
+  if(navigator.onLine===false && knownSignedIn() && !explicitSignOutPending() && hasCachedRows){
+    if(window.setStartupAuthChecking) window.setStartupAuthChecking(false);
+    if(window.updateAdminAppControls) window.updateAdminAppControls();
+    window.__mapAppUnlocked=true;
+    try{document.documentElement.classList.add("auth-resume");}catch(e){}
+    const startup=document.getElementById("startupScreen");
+    const app=document.getElementById("mainApp");
+    const loginRow=document.getElementById("mainLoginRow");
+    const topLogout=document.getElementById("topLogoutBtn");
+    setDisplayIfChanged(startup,"none");
+    setDisplayIfChanged(app,"grid");
+    setDisplayIfChanged(loginRow,"none");
+    setDisplayIfChanged(topLogout,"block");
+    if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+    setProgressStatus("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
+    return;
+  }
   if(window.setStartupAuthChecking) window.setStartupAuthChecking(false);
   if(window.updateAdminAppControls) window.updateAdminAppControls();
   window.__mapAppUnlocked=false;

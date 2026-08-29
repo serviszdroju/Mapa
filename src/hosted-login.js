@@ -8,7 +8,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="android-cache-reset-v565";
+const EMAIL_LOGIN_BUILD_VERSION="fast-offline-start-v566";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -19,6 +19,8 @@ let pendingGoogleLoginRequested=false;
 let pendingGoogleLoginTimer=null;
 let lastGoogleLoginInteractionAt=0;
 const GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS=15000;
+const AUTH_RESUME_VISIBILITY_MS=15000;
+let authResumeReleaseTimer=null;
 
 function isLocalFileApp(){
   return window.location.protocol==="file:";
@@ -301,7 +303,7 @@ function openHostedApp(){
 function showAuthState(mode,options={}){
   const normalized=[AUTH_LOGGED_OUT,AUTH_LOADING,"checking","logging-in",AUTH_LOGGED_IN].includes(mode) ? mode : AUTH_LOGGED_OUT;
   authUiState.mode=normalized;
-  authUiState.message=options.message || authUiState.message || "";
+  authUiState.message=Object.prototype.hasOwnProperty.call(options,"message") ? (options.message || "") : (authUiState.message || "");
 
   const startup=document.getElementById("startupScreen");
   const app=document.getElementById("mainApp");
@@ -313,9 +315,26 @@ function showAuthState(mode,options={}){
   try{explicitlySignedOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
   const runtimeAuthorized=Number(window.__szzLastAuthorizedUserAt || 0)>0;
   const appVisible=!!(app && app.style.display && app.style.display!=="none");
+  const resumeStartedAt=Number(window.__szzAuthResumeStartedAt || 0);
+  const resumeAge=resumeStartedAt>0 ? Date.now()-resumeStartedAt : Infinity;
+  const offline=navigator.onLine===false;
   const keepOpenForRuntimeAuth=normalized===AUTH_LOGGED_OUT && runtimeAuthorized && appVisible && !explicitlySignedOut;
-  const loggedIn=normalized===AUTH_LOGGED_IN || keepOpenForRuntimeAuth;
+  const keepOpenForKnownResume=normalized===AUTH_LOGGED_OUT && knownUser() && appVisible && !explicitlySignedOut && (offline || resumeAge<AUTH_RESUME_VISIBILITY_MS);
+  const loggedIn=normalized===AUTH_LOGGED_IN || keepOpenForRuntimeAuth || keepOpenForKnownResume;
   const loading=normalized===AUTH_LOADING || normalized==="checking" || normalized==="logging-in";
+  if(authResumeReleaseTimer){
+    clearTimeout(authResumeReleaseTimer);
+    authResumeReleaseTimer=null;
+  }
+  if(keepOpenForKnownResume && !offline){
+    authResumeReleaseTimer=setTimeout(()=>{
+      authResumeReleaseTimer=null;
+      const hasUser=!!(window.currentUser || window.__authReadyUser);
+      let signedOut=false;
+      try{signedOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+      if(!hasUser && !signedOut) showAuthState(AUTH_LOGGED_OUT,{message:""});
+    },Math.max(250,AUTH_RESUME_VISIBILITY_MS-resumeAge+50));
+  }
   try{
     document.documentElement.classList.toggle("auth-resume",loggedIn);
   }catch(e){}
@@ -336,7 +355,7 @@ function showAuthState(mode,options={}){
     (loading ? "Načítám aplikaci" :
         "Přihlaste se Google účtem @astip.cz.");
   text(intro,introText);
-  status(keepOpenForRuntimeAuth ? "" : (options.message || ""));
+  status(keepOpenForRuntimeAuth || keepOpenForKnownResume ? "" : (options.message || ""));
   setTopAuthButtonMode(knownUser() ? "logout" : "login");
   if(typeof window.updateAdminAppControls==="function") window.updateAdminAppControls();
 }
@@ -351,6 +370,10 @@ function startLogin(event){
 
 function runReadyGoogleLogin(options={}){
   const explicit=options.explicit===true || hasRecentGoogleLoginInteraction();
+  if(navigator.onLine===false){
+    if(explicit && !knownUser()) showAuthState(AUTH_LOGGED_OUT,{message:"Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu."});
+    return false;
+  }
   if(!explicit && !pendingGoogleLoginRequested) return false;
   if(!explicit){
     clearPendingGoogleLogin();
@@ -381,6 +404,10 @@ function runReadyGoogleLogin(options={}){
 function queueGoogleLoginUntilReady(options={}){
   const explicit=options.explicit===true || hasRecentGoogleLoginInteraction();
   if(!explicit) return false;
+  if(navigator.onLine===false){
+    if(!knownUser()) showAuthState(AUTH_LOGGED_OUT,{message:"Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu."});
+    return false;
+  }
   pendingGoogleLoginRequested=true;
   showAuthState("logging-in",{message:"Připravuji přihlášení..."});
   if(runReadyGoogleLogin({explicit:true})) return true;
@@ -408,6 +435,10 @@ function startGoogleLogin(event){
     return;
   }
   if(!explicit) return false;
+  if(navigator.onLine===false){
+    if(!knownUser()) showAuthState(AUTH_LOGGED_OUT,{message:"Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu."});
+    return false;
+  }
   window.__loginRequested=true;
   showAuthState("logging-in",{message:"Připravuji přihlášení..."});
   if(runReadyGoogleLogin({explicit:true})) return true;
