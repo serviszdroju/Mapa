@@ -360,6 +360,9 @@ import {
   createLegacyOfflineSyncRunner
 } from "./offline-sync-runner-utils.js";
 import {
+  createOfflineSyncTriggerHelpers
+} from "./offline-sync-trigger-utils.js";
+import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -550,7 +553,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-offline-sync-runner-module-v588";
+const APP_BUILD_VERSION="2026-08-30-offline-sync-trigger-module-v589";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -10853,56 +10856,21 @@ const {
 window.updateSzzOfflineAppStatus=updateSzzOfflineAppStatus;
 window.scheduleSzzOfflineAppStatus=scheduleSzzOfflineAppStatus;
 
-let lastAutomaticSzzSyncTriggerAt=0;
-const AUTOMATIC_SZZ_SYNC_TRIGGER_MIN_MS=60000;
-async function triggerSzzSync(reason="manual",silent=false){
-  const isAutomatic=reason!=="manual" && silent;
-  if(isAutomatic){
-    const now=Date.now();
-    if(now-lastAutomaticSzzSyncTriggerAt<AUTOMATIC_SZZ_SYNC_TRIGGER_MIN_MS) return 0;
-    lastAutomaticSzzSyncTriggerAt=now;
-  }
-  if(!silent && window.openAppToolsPanel) window.openAppToolsPanel();
-  if(navigator.onLine===false){
-    if(!silent && window.showSaveConfirmation) window.showSaveConfirmation("Jsi offline. Změny zůstanou uložené v telefonu.");
-    scheduleSzzOfflineAppStatus(20);
-    return 0;
-  }
-  noteSzzSyncState("syncing",{reason});
-  scheduleSzzOfflineAppStatus(20);
-  try{
-    const synced=typeof syncOfflineChanges==="function"
-      ? await syncOfflineChanges({reason,force:!silent,silent})
-      : 0;
-    noteSzzSyncState("ok",{reason,lastCount:synced});
-    const counts=await updateSzzOfflineAppStatus({force:true});
-    if(!silent && !synced && !counts.pending && window.showSaveConfirmation){
-      window.showSaveConfirmation("Vše je synchronizované.");
-    }
-    return synced;
-  }catch(e){
-    noteSzzSyncState("error",{reason,lastError:e && (e.message || e.code) || String(e)});
-    scheduleSzzOfflineAppStatus(20);
-    throw e;
-  }
-}
+const {
+  registerSzzBackgroundSync,
+  triggerSzzSync
+}=createOfflineSyncTriggerHelpers({
+  noteSzzSyncState,
+  openAppToolsPanel:()=>{ if(window.openAppToolsPanel) window.openAppToolsPanel(); },
+  registerServiceWorker:()=>window.registerSzzServiceWorker
+    ? window.registerSzzServiceWorker()
+    : navigator.serviceWorker.ready,
+  scheduleSzzOfflineAppStatus,
+  showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); },
+  syncOfflineChanges,
+  updateSzzOfflineAppStatus
+});
 window.triggerSzzSync=triggerSzzSync;
-
-async function registerSzzBackgroundSync(reason="change"){
-  if(!("serviceWorker" in navigator) || navigator.onLine===false) return false;
-  try{
-    const registration=window.registerSzzServiceWorker
-      ? await window.registerSzzServiceWorker()
-      : await navigator.serviceWorker.ready;
-    if(registration && "sync" in registration){
-      await registration.sync.register("astip-szz-offline-sync");
-      return true;
-    }
-  }catch(e){
-    console.warn("Background sync se nepodařilo naplánovat",reason,e);
-  }
-  return false;
-}
 window.registerSzzBackgroundSync=registerSzzBackgroundSync;
 
 const {
