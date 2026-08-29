@@ -460,6 +460,9 @@ import {
 import {
   createDetailLazyLoadHelpers
 } from "./detail-lazy-load-utils.js";
+import {
+  createDetailDataRowHelpers
+} from "./detail-data-row-utils.js";
 
 const CSV_FILE="";
 const PUBLIC_CSV_DATA_ENABLED=false;
@@ -496,7 +499,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-29-fast-offline-start-v570";
+const APP_BUILD_VERSION="2026-08-29-detail-data-row-module-v571";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4240,49 +4243,12 @@ const {
 });
 
 
-function addNewDataRowToTable(){
-  const keyEl = document.getElementById("newDataKey");
-  const valEl = document.getElementById("newDataValue");
-  const table = detailTableNode();
-  if(!keyEl || !valEl || !table) return;
-
-  const key = keyEl.value.trim();
-  const val = valEl.value.trim();
-
-  if(!key){
-    alert("Vyplň název nového údaje.");
-    keyEl.focus();
-    return;
-  }
-  if(!val){
-    alert("Vyplň hodnotu nového údaje.");
-    valEl.focus();
-    return;
-  }
-
-  const row = document.createElement("tr");
-  row.className = isNoteUser(key) ? "notes-red-row" : "";
-  const keyCell=document.createElement("td");
-  keyCell.textContent=key;
-  const valueCell=document.createElement("td");
-  const input=document.createElement("input");
-  input.dataset.key=key;
-  input.value=val;
-  valueCell.appendChild(input);
-  row.append(keyCell,valueCell);
-
-  if(isNoteUser(key)){
-    table.appendChild(row);
-  }else{
-    const firstNote = table.querySelector(".notes-red-row");
-    if(firstNote) table.insertBefore(row, firstNote);
-    else table.appendChild(row);
-  }
-
-  keyEl.value = "";
-  valEl.value = "";
-  keyEl.focus();
-}
+const {
+  addNewDataRowToTable
+}=createDetailDataRowHelpers({
+  detailTableNode,
+  isNoteUser
+});
 
 async function saveAllDataEdits(){
   const st=document.getElementById("editStatus");
