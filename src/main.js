@@ -427,6 +427,9 @@ import {
   createDetailDataRefreshHelpers
 } from "./detail-data-refresh-utils.js";
 import {
+  createDetailHistoryActionsHelpers
+} from "./detail-history-actions-utils.js";
+import {
   createProtocolHandoffHelpers
 } from "./protocol-handoff-utils.js";
 import {
@@ -589,7 +592,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-detail-data-refresh-module-v601";
+const APP_BUILD_VERSION="2026-08-30-detail-history-actions-module-v602";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -8618,75 +8621,23 @@ const {
   showSaveConfirmation
 });
 
-function bindDetailHistoryActions(history){
-  if(!history || history.__szzHistoryActionClickBound) return;
-  history.__szzHistoryActionClickBound=true;
-  history.addEventListener("click",async event=>{
-    const button=event.target.closest && event.target.closest("button");
-    if(!button || !history.contains(button)) return;
-    const id=button.id || "";
-    if(id==="historyPrevBtn"){
-      detailHistoryIndex--;
-      renderHistory();
-      return;
-    }
-    if(id==="historyNextBtn"){
-      detailHistoryIndex++;
-      renderHistory();
-      return;
-    }
-    if(id==="deleteHistoryProtocolBtn"){
-      await deleteCurrentHistoryProtocol();
-      return;
-    }
-    if(id==="editHistoryProtocolBtn"){
-      editCurrentHistoryProtocol();
-      return;
-    }
-    if(id==="exportHistoryProtocolBtn"){
-      exportProtocolToWord(detailHistoryItems[detailHistoryIndex]);
-      return;
-    }
-    if(id==="mailHistoryProtocolBtn"){
-      const recipient=promptProtocolMailRecipient(detailHistoryItems[detailHistoryIndex]);
-      if(!recipient) return;
-      button.disabled=true;
-      try{
-        await sendProtocolByMail(detailHistoryItems[detailHistoryIndex],recipient);
-      }catch(e){
-        const message=protocolMailErrorText(e);
-        setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
-        showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
-      }finally{
-        button.disabled=false;
-      }
-    }
-    if(id==="technicianSignatureBtn"){
-      await openTechnicianSignatureDialog();
-      return;
-    }
-  });
-  history.addEventListener("change",async event=>{
-    const input=event.target && event.target.closest ? event.target.closest("#historyHandoffProtocolCheck") : null;
-    if(!input || !history.contains(input)) return;
-    const item=detailHistoryItems[detailHistoryIndex];
-    const label=input.closest(".history-handoff-processing");
-    if(label) label.classList.toggle("is-checked",input.checked);
-    input.disabled=true;
-    try{
-      await setDetailHistoryProtocolHandoff(item,input.checked);
-      showSaveConfirmation(input.checked ? "Protokol předán ke zpracování." : "Předání protokolu zrušeno.");
-      renderHistory();
-    }catch(e){
-      input.checked=!input.checked;
-      if(label) label.classList.toggle("is-checked",input.checked);
-      setProtocolStatusText(`Chyba uložení předání: ${e.message}`);
-      showSaveConfirmation("Předání se nepodařilo uložit.");
-    }finally{
-      input.disabled=false;
-    }
-  });
-}
+const { bindDetailHistoryActions }=createDetailHistoryActionsHelpers({
+  deleteCurrentHistoryProtocol,
+  editCurrentHistoryProtocol,
+  exportProtocolToWord,
+  getCurrentHistoryItem:()=>detailHistoryItems[detailHistoryIndex],
+  getHistoryIndex:()=>detailHistoryIndex,
+  openTechnicianSignatureDialog,
+  promptProtocolMailRecipient,
+  protocolMailErrorText,
+  protocolMailToastText,
+  renderHistory:()=>renderHistory(),
+  sendProtocolByMail,
+  setDetailHistoryProtocolHandoff,
+  setHistoryIndex:value=>{ detailHistoryIndex=value; },
+  setProtocolStatusText:message=>setProtocolStatusText(message),
+  showSaveConfirmation
+});
 
 function renderHistory(){
   const history=detailHistoryNode();
