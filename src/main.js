@@ -478,6 +478,9 @@ import {
   createProtocolWorkflowHelpers
 } from "./protocol-workflow-utils.js";
 import {
+  createOfficialProtocolFileNameHelpers
+} from "./official-protocol-file-name-utils.js";
+import {
   createOfficialProtocolWordDocumentHelpers
 } from "./official-protocol-word-document-utils.js";
 import {
@@ -637,7 +640,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-official-word-document-module-v622";
+const APP_BUILD_VERSION="2026-08-30-official-file-name-module-v623";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6284,89 +6287,20 @@ function fillOfficialRtfTemplate(template,protocol={},officialData={},mode="ok")
   return output;
 }
 
-function protocolWordFileNameJoin(parts,fallback="protokol"){
-  const name=parts
-    .map(part=>safe(part))
-    .filter(Boolean)
-    .map(part=>protocolWordFileNamePart(part))
-    .filter(Boolean)
-    .join("-")
-    .replace(/-+/g,"-")
-    .replace(/^-+|-+$/g,"");
-  return name.slice(0,140) || fallback;
-}
-
-function officialProtocolFileDatePart(protocol={}){
-  const raw=safe(protocol.date || protocol.checkDate || protocol.createdAt || protocol.savedAt || "");
-  const d=parseDateValue(raw);
-  if(d){
-    const pad=n=>String(n).padStart(2,"0");
-    return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}`;
-  }
-  const today=new Date();
-  const pad=n=>String(n).padStart(2,"0");
-  return `${pad(today.getDate())}-${pad(today.getMonth()+1)}-${today.getFullYear()}`;
-}
-
-function officialSourceFileLabel(protocol={},site=selectedSite){
-  if(!siteHasMultipleSources(site)) return "";
-  const text=safe(
-    protocol.deviceType ||
-    protocol.selectedDevice ||
-    protocol.siteSource ||
-    siteSourceLabel(site) ||
-    sourceTypeTextFromRaw(site?.raw || {})
-  );
-  if(!text) return "";
-  const power=text.match(/\b\d+(?:[,.]\d+)?\s*(?:kva|va|kw|w)\b/i);
-  if(power) return power[0].replace(/\s+/g,"").replace(",",".");
-  const larger=text.match(/\b\d{3,}\b/);
-  if(larger) return larger[0];
-  const any=text.match(/\b\d+(?:[,.]\d+)?\b/);
-  return any ? any[0].replace(",",".") : "";
-}
-
-function officialProtocolAddressFileName(protocol={},site=selectedSite,mode="ok"){
-  const raw=site?.raw || {};
-  const address=officialOneLine(
-    protocol.siteAddress ||
-    protocol.siteName ||
-    protocol.place ||
-    site?.adresa ||
-    pickRawValue(raw,["Adresa / umístění","Adresa_GPS","Umístění"]) ||
-    "",
-    140
-  );
-  if(!address) return "";
-  const parts=address.split(",").map(part=>part.trim()).filter(Boolean);
-  let city="";
-  let street="";
-  if(parts.length>=2){
-    const first=parts[0];
-    const second=parts.slice(1).join(", ");
-    const firstHasNumber=/\d/.test(first);
-    const secondHasNumber=/\d/.test(second);
-    if(firstHasNumber && !secondHasNumber){
-      street=first;
-      city=second;
-    }else if(!firstHasNumber && secondHasNumber){
-      city=first;
-      street=second;
-    }else{
-      street=first;
-      city=second;
-    }
-  }else{
-    street=address;
-  }
-  return protocolWordFileNameJoin([
-    street,
-    city,
-    officialProtocolFileDatePart(protocol),
-    officialSourceFileLabel(protocol,site),
-    mode==="stop" ? "STOP STAV" : ""
-  ],"doklad");
-}
+const {
+  officialProtocolAddressFileName,
+  officialProtocolFileDatePart
+}=createOfficialProtocolFileNameHelpers({
+  getSelectedSite:()=>selectedSite,
+  officialOneLine,
+  parseDateValue,
+  pickRawValue,
+  protocolWordFileNamePart,
+  safe,
+  siteHasMultipleSources,
+  siteSourceLabel,
+  sourceTypeTextFromRaw
+});
 
 async function preparedOfficialProtocolExport(protocol={},officialData={},mode="ok"){
   const filled={
