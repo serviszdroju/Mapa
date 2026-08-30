@@ -610,7 +610,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-word-blob-module-v608";
+const APP_BUILD_VERSION="2026-08-30-login-popup-startup-v609";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1267,15 +1267,15 @@ if(firebaseReady){
       return signInWithAndroidGoogleIdToken();
     }
     try{
-      return await signInWithFirebaseGooglePopup();
-    }catch(popupError){
-      const code=safe(popupError && popupError.code);
-      const message=safe(popupError && popupError.message);
+      return await signInWithGoogleIdentityServices();
+    }catch(identityError){
+      const code=safe(identityError && identityError.code);
+      const message=safe(identityError && identityError.message);
       if(/popup-closed-by-user|cancelled-popup-request|access_denied|cancel/i.test(`${code} ${message}`)){
-        throw popupError;
+        throw identityError;
       }
-      console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",popupError);
-      return signInWithGoogleIdentityServices();
+      console.warn("Google token přihlášení selhalo, zkouším Firebase popup",identityError);
+      return signInWithFirebaseGooglePopup();
     }
   }
   async function googleRedirectResultUser(){
@@ -1372,6 +1372,17 @@ if(firebaseReady){
         setStartupStatus(message);
       }
       return;
+    }
+    if(authLoginInProgress){
+      setStartupAuthChecking(true);
+      setStartupStatus("Google přihlášení už běží. Dokonči otevřené přihlašovací okno.");
+      if(typeof window.__szzSetAuthState==="function"){
+        window.__szzSetAuthState("logging-in",{
+          intro:"Dokonči Google přihlášení v otevřeném okně.",
+          message:"Google přihlášení už běží."
+        });
+      }
+      return true;
     }
     clearExplicitSignOut();
     clearAuthPending();

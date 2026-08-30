@@ -8,7 +8,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="protocol-word-blob-module-v608";
+const EMAIL_LOGIN_BUILD_VERSION="login-popup-startup-v609";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -18,6 +18,7 @@ const authUiState={
 let pendingGoogleLoginRequested=false;
 let pendingGoogleLoginTimer=null;
 let lastGoogleLoginInteractionAt=0;
+let compatGoogleLoginInProgress=false;
 const GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS=15000;
 const AUTH_RESUME_VISIBILITY_MS=15000;
 let authResumeReleaseTimer=null;
@@ -240,11 +241,11 @@ async function signInWithGoogleNoRedirectCompat(auth){
   const bridge=androidAuthBridge();
   if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
   try{
-    return await signInWithFirebasePopupCompat(auth);
+    return await signInWithGoogleIdentityCompat(auth);
   }catch(error){
     if(popupShouldNotFallback(error)) throw error;
-    console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",error);
-    return signInWithGoogleIdentityCompat(auth);
+    console.warn("Google token přihlášení selhalo, zkouším Firebase popup",error);
+    return signInWithFirebasePopupCompat(auth);
   }
 }
 
@@ -447,6 +448,13 @@ function startGoogleLogin(event){
 
 function startCompatGoogleLoginFallback(options={}){
   if(!(options.explicit===true || hasRecentGoogleLoginInteraction())) return false;
+  if(compatGoogleLoginInProgress){
+    showAuthState("logging-in",{
+      intro:"Dokonči Google přihlášení v otevřeném okně.",
+      message:"Google přihlášení už běží."
+    });
+    return true;
+  }
   try{
     if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
       showAuthState(AUTH_LOGGED_OUT,{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
@@ -458,6 +466,7 @@ function startCompatGoogleLoginFallback(options={}){
     const auth=firebase.auth();
     try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
     status("Otevírám Google přihlášení...");
+    compatGoogleLoginInProgress=true;
     signInWithGoogleNoRedirectCompat(auth).then(result=>{
       if(result && result.user){
         try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
@@ -474,8 +483,11 @@ function startCompatGoogleLoginFallback(options={}){
       }
       clearAuthResumeAfterLoginError(err);
       showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení selhalo: " + authErrorText(err)});
+    }).finally(()=>{
+      compatGoogleLoginInProgress=false;
     });
   }catch(err){
+    compatGoogleLoginInProgress=false;
     if(shouldKeepMapOpenOnLoginError(err)){
       cleanAuthResumeState(false);
       clearAuthStatusNotice();

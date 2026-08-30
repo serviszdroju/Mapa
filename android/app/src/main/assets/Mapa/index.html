@@ -42,7 +42,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="fast-offline-start-v570";
+  const EMAIL_LOGIN_BUILD_VERSION="login-popup-startup-v609";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -58,6 +58,7 @@ try{
   let pendingGoogleLoginRequested=false;
   let pendingGoogleLoginTimer=null;
   let lastGoogleLoginInteractionAt=0;
+  let compatGoogleLoginInProgress=false;
   const GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS=15000;
   window.__firebaseConfig=window.__firebaseConfig || INLINE_FIREBASE_CONFIG;
   function textValue(value){return String(value==null?"":value).trim();}
@@ -411,11 +412,11 @@ try{
     const bridge=androidAuthBridge();
     if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
     try{
-      return await signInWithFirebasePopupCompat(auth);
+      return await signInWithGoogleIdentityCompat(auth);
     }catch(error){
       if(popupShouldNotFallback(error)) throw error;
-      console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",error);
-      return signInWithGoogleIdentityCompat(auth);
+      console.warn("Google token přihlášení selhalo, zkouším Firebase popup",error);
+      return signInWithFirebasePopupCompat(auth);
     }
   }
 
@@ -490,6 +491,13 @@ try{
 
   window.__startCompatGoogleLoginFallback=function(options={}){
     if(!(options.explicit===true || hasRecentGoogleLoginInteraction())) return false;
+    if(compatGoogleLoginInProgress){
+      showAuthState("logging-in",{
+        intro:"Dokonči Google přihlášení v otevřeném okně.",
+        message:"Google přihlášení už běží."
+      });
+      return true;
+    }
     try{
       if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
         showLogin("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
@@ -502,6 +510,7 @@ try{
       const auth=firebase.auth();
       try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
       status("Otevírám Google přihlášení...");
+      compatGoogleLoginInProgress=true;
       signInWithGoogleNoRedirectCompat(auth).then(result=>{
         if(result && result.user){
           try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
@@ -517,8 +526,11 @@ try{
         }
         clearAuthResumeAfterLoginError(err);
         showLogin("Přihlášení selhalo: " + authErrorText(err));
+      }).finally(()=>{
+        compatGoogleLoginInProgress=false;
       });
     }catch(err){
+      compatGoogleLoginInProgress=false;
       if(shouldKeepMapOpenOnLoginError(err)){
         try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
         clearAuthStatusNotice();
@@ -629,7 +641,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-8tsJeNtQ.js"></script>
+  <script type="module" crossorigin src="./assets/index-BFM812N1.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-Ce9kMvQ_.css">
 </head>
 <body>
@@ -646,7 +658,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=fast-offline-start-v570" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=login-popup-startup-v609" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
@@ -1071,7 +1083,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=fast-offline-start-v570"></script>
+<script async src="./late.js?v=login-popup-startup-v609"></script>
 
 
 
