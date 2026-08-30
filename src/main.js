@@ -433,6 +433,9 @@ import {
   isProtocolHistoryItem
 } from "./protocol-export-utils.js";
 import {
+  createProtocolFileExportHelpers
+} from "./protocol-file-export-utils.js";
+import {
   createProtocolCheckTextHelpers
 } from "./protocol-check-text-utils.js";
 import {
@@ -652,7 +655,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-official-protocol-text-module-v627";
+const APP_BUILD_VERSION="2026-08-30-protocol-file-export-module-v628";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5873,45 +5876,6 @@ const {
 });
 window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
 
-async function preparedProtocolFilled(protocol,options={}){
-  if(!protocol) return null;
-  const allowCurrentTechnicianFallback=options.allowCurrentTechnicianFallback!==false;
-  return enrichProtocolWithTechnicianSignature(normalizeProtocolTechnicianFields({
-    ...protocol,
-    createdBy:protocol.createdBy || protocol.technicianEmail || ""
-  },{allowCurrentFallback:allowCurrentTechnicianFallback}));
-}
-
-async function preparedProtocolExport(protocol,options={}){
-  if(!protocol) return null;
-  const filled=await preparedProtocolFilled(protocol,options);
-  const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
-  const fileName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
-  return {
-    filled,
-    fileName,
-    blob:await buildProtocolWordBlob(filled)
-  };
-}
-
-async function exportProtocolToWord(protocol){
-  if(!protocol){
-    showSaveConfirmation("Není vybraný protokol k exportu.");
-    return;
-  }
-  try{
-    setProtocolStatusText("Připravuji Word export...");
-    const prepared=await preparedProtocolExport(protocol);
-    downloadBlobFile(prepared.fileName,prepared.blob);
-    setProtocolStatusText("Protokol exportován do Wordu.");
-    showSaveConfirmation("Protokol exportován do Wordu.");
-  }catch(e){
-    console.warn("Export protokolu do Wordu selhal",e);
-    setProtocolStatusText("Export do Wordu se nepodařil.");
-    showSaveConfirmation("Export do Wordu se nepodařil.");
-  }
-}
-
 const {
   buildPdfFromJpegPages
 }=createPdfByteWriterHelpers({
@@ -5919,63 +5883,38 @@ const {
   safe
 });
 
-async function buildProtocolPdfBlob(protocol={},options={}){
-  const pages=await renderProtocolPdfPageCanvases(protocol,options);
-  return new Blob([buildPdfFromJpegPages(pages)],{type:"application/pdf"});
-}
-
-async function preparedProtocolPdfExport(protocol,options={}){
-  if(!protocol) return null;
-  const filled=await preparedProtocolFilled(protocol,{
-    allowCurrentTechnicianFallback:options.allowCurrentTechnicianFallback!==false
-  });
-  if(options.requireTechnicianSignature && !protocolTechnicianSignatureImageBytes(filled)){
-    const tech=protocolTechnicianDisplayName(filled) || "technik z protokolu";
-    throw new Error(`Technik ${tech} nemá uložený podpis. Nejdřív ulož podpis technika, aby bylo možné poslat PDF zákazníkovi.`);
-  }
-  const baseName=filled.deviceType || filled.selectedDevice || filled.siteSource || filled.siteName || selectedSite?.adresa || "protokol";
-  const wordName=`protokol-${protocolExportDatePart(filled)}-${protocolWordFileNamePart(baseName)}.docx`;
-  const fileName=protocolPdfFileNameFromWord(wordName);
-  return {
-    filled,
-    fileName,
-    blob:await buildProtocolPdfBlob(filled,{omitChecklist:!!options.omitChecklist})
-  };
-}
-
-async function sendProtocolByMail(protocol,recipientEmail=""){
-  if(!protocol){
-    showSaveConfirmation("Není vybraný protokol k poslání.");
-    return;
-  }
-  const toEmail=safe(recipientEmail).toLowerCase();
-  if(!validProtocolMailRecipient(toEmail)){
-    throw new Error("Zadej platný e-mail příjemce.");
-  }
-  const mailReady=await ensureMailFunctions();
-  if(!firebaseReady || !mailReady || !fb.fnMod || !mailFunctions){
-    throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
-  }
-  setProtocolStatusText("Připravuji PDF protokol pro e-mail...");
-  const prepared=await preparedProtocolPdfExport(protocol,{
-    allowCurrentTechnicianFallback:false,
-    omitChecklist:true,
-    requireTechnicianSignature:true
-  });
-  setProtocolStatusText(`Odesílám PDF protokol na ${toEmail}...`);
-  const sendMail=fb.fnMod.httpsCallable(mailFunctions,"sendProtocolMail");
-  await sendMail({
-    recipientEmail:toEmail,
-    toEmail,
-    subject:protocolMailSubject(prepared.filled),
-    body:protocolMailBody(prepared.filled,prepared.fileName),
-    fileName:prepared.fileName,
-    contentType:"application/pdf",
-    fileBase64:await blobToBase64(prepared.blob)
-  });
-  setProtocolStatusText(`Protokol byl odeslán na ${toEmail}.`);
-  showSaveConfirmation(`Protokol odeslán na ${toEmail}.`);
-}
+const {
+  buildProtocolPdfBlob,
+  exportProtocolToWord,
+  preparedProtocolExport,
+  preparedProtocolFilled,
+  preparedProtocolPdfExport,
+  sendProtocolByMail
+}=createProtocolFileExportHelpers({
+  blobToBase64,
+  buildPdfFromJpegPages,
+  buildProtocolWordBlob,
+  downloadBlobFile,
+  enrichProtocolWithTechnicianSignature,
+  ensureMailFunctions,
+  getFbFnMod:()=>fb.fnMod,
+  getFirebaseReady:()=>firebaseReady,
+  getMailFunctions:()=>mailFunctions,
+  getSelectedSite:()=>selectedSite,
+  normalizeProtocolTechnicianFields,
+  protocolExportDatePart,
+  protocolMailBody,
+  protocolMailSubject,
+  protocolPdfFileNameFromWord,
+  protocolTechnicianDisplayName,
+  protocolTechnicianSignatureImageBytes,
+  protocolWordFileNamePart,
+  renderProtocolPdfPageCanvases,
+  safe,
+  setProtocolStatusText,
+  showSaveConfirmation,
+  validProtocolMailRecipient
+});
 
 const {
   siteLocalCacheKey,
