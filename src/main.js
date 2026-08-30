@@ -433,6 +433,9 @@ import {
   isProtocolHistoryItem
 } from "./protocol-export-utils.js";
 import {
+  createProtocolCheckTextHelpers
+} from "./protocol-check-text-utils.js";
+import {
   createProtocolMailHelpers
 } from "./protocol-mail-utils.js";
 import {
@@ -622,7 +625,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-technician-identity-module-v617";
+const APP_BUILD_VERSION="2026-08-30-protocol-check-text-module-v618";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5338,77 +5341,17 @@ function wordSignatureGrid(protocol={}){
   ],[4815,4815]) + wordParagraph("(čitelně + podpis)",{size:16,after:35});
 }
 
-function wordCheck(value){
-  return value ? "☒" : "☐";
-}
-
-function protocolCheckedText(items){
-  return items.map(item=>`${wordCheck(!!item.checked)} ${item.label}`).join("   ");
-}
-
-function protocolBackedDevicesText(protocol={}){
-  const d=protocol.backedDevices || {};
-  return protocolCheckedText([
-    {checked:d.lift,label:"Výtah"},
-    {checked:d.vent,label:"vent. výt. šachty"},
-    {checked:d.machineLight,label:"osvětlení strojovny"},
-    {checked:d.chuc,label:"CHÚC"},
-    {checked:d.damper,label:"klapka"},
-    {checked:d.skylight,label:"světlík"},
-    {checked:d.gate,label:"vrata"},
-    {checked:d.ats,label:"ATS"},
-    {checked:d.rpo,label:"RPO"},
-    {checked:d.no,label:"NO"},
-    {checked:d.sprinkler,label:"sprinkler"},
-    {checked:d.csTs,label:"CS/TS"},
-    {checked:safe(d.other),label:`jiné: ${safe(d.other)}`}
-  ]);
-}
-
-function protocolAccessText(protocol={}){
-  const d=protocol.access || {};
-  return protocolCheckedText([
-    {checked:d.blue,label:"modrá"},
-    {checked:d.b,label:"B"},
-    {checked:d.c,label:"C"},
-    {checked:d.garage,label:"garáže"},
-    {checked:d.carLift,label:"auto výtah"},
-    {checked:d.barrier,label:"závora"},
-    {checked:d.parkingHouse,label:"park. dům"},
-    {checked:d.permit,label:"povolení"},
-    {checked:d.training,label:"školení"},
-    {checked:d.shoes,label:"boty"},
-    {checked:d.vest,label:"vesta"},
-    {checked:d.helmet,label:"helma"},
-    {checked:safe(d.other),label:`jiné: ${safe(d.other)}`}
-  ]);
-}
-
-function protocolAvailabilityText(protocol={}){
-  const d=protocol.availability || {};
-  return [
-    `WC ${wordCheck(d.wcOk)} Ok / ${wordCheck(d.wcNok)} Nok`,
-    `Osvětlení ${wordCheck(d.lightOk)} Ok / ${wordCheck(d.lightNok)} Nok`,
-    protocolCheckedText([
-      {checked:d.ladder,label:"žebřík"},
-      {checked:d.stairs,label:"schody"},
-      {checked:d.lowCeiling,label:"snížený strop"},
-      {checked:d.extremeTemp,label:"extrémní teploty"},
-      {checked:safe(d.other),label:`jiné: ${safe(d.other)}`}
-    ])
-  ].join("   ");
-}
-
-function protocolPeriodText(protocol={}){
-  const period=simpleNorm(protocol.period);
-  return `${wordCheck(period.includes("6"))} 6 měsíců / ${wordCheck(period.includes("12"))} 12 měsíců`;
-}
-
-function protocolConditionsText(protocol={}){
-  const n=simpleNorm(protocol.conditions || protocol.result);
-  const base=`${wordCheck(n==="ano" || n==="ok")} ano / ${wordCheck(n==="ne" || n==="nok")} ne`;
-  return safe(protocol.conditionsReason) ? `${base}\nOdůvodnění: ${protocol.conditionsReason}` : base;
-}
+const {
+  protocolAccessText,
+  protocolAvailabilityText,
+  protocolBackedDevicesText,
+  protocolConditionsText,
+  protocolPeriodText,
+  wordCheck
+}=createProtocolCheckTextHelpers({
+  safe,
+  simpleNorm
+});
 
 function protocolMeasurementTableSpec(protocol={}){
   const w=[1070,1070,1070,1070,1070,1070,1070,1070,1070];
