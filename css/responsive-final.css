@@ -690,8 +690,8 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   }
   .drawer-head{
     align-items:center !important;
-    gap:8px !important;
-    padding:calc(8px + env(safe-area-inset-top)) 10px 8px !important;
+    gap:7px !important;
+    padding:calc(7px + env(safe-area-inset-top)) 10px 7px !important;
   }
   .drawer-head > div{
     min-width:0;
@@ -701,8 +701,8 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     -webkit-line-clamp:2;
     -webkit-box-orient:vertical;
     overflow:hidden;
-    font-size:17px !important;
-    line-height:1.14 !important;
+    font-size:16px !important;
+    line-height:1.12 !important;
     margin:0 0 2px !important;
   }
   .drawer-head .small{
@@ -714,10 +714,10 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   }
   .drawer .x{
     position:relative;
-    width:40px !important;
-    min-width:40px !important;
-    max-width:40px !important;
-    min-height:40px !important;
+    width:38px !important;
+    min-width:38px !important;
+    max-width:38px !important;
+    min-height:38px !important;
     padding:0 !important;
     border-radius:9px !important;
     font-size:0 !important;
@@ -733,8 +733,8 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     font-weight:500;
   }
   #sourceChooser.source-chooser{
-    margin:6px 8px 4px !important;
-    padding:6px !important;
+    margin:5px 8px 3px !important;
+    padding:5px !important;
     border-radius:9px !important;
     box-shadow:none !important;
   }
@@ -755,13 +755,13 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     -webkit-overflow-scrolling:touch;
   }
   .source-chooser-button{
-    flex:0 0 min(43vw,168px);
+    flex:0 0 min(41vw,156px);
     width:auto !important;
     min-width:112px !important;
-    min-height:36px !important;
-    padding:5px 7px !important;
+    min-height:34px !important;
+    padding:4px 7px !important;
     border-radius:7px !important;
-    font-size:11px !important;
+    font-size:10.5px !important;
     line-height:1.1 !important;
     scroll-snap-align:start !important;
   }
@@ -774,20 +774,47 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     text-overflow:ellipsis;
   }
   .detail-tabs{
-    margin:5px 8px 6px !important;
+    margin:4px 8px 5px !important;
     padding:3px !important;
     gap:3px !important;
   }
   .detail-tab{
-    min-height:30px !important;
+    min-height:29px !important;
     padding:4px 1px !important;
     font-size:9.5px !important;
     line-height:1 !important;
   }
   .drawer > .card{
-    margin:6px 8px !important;
+    margin:5px 8px !important;
     padding:8px !important;
     border-radius:8px !important;
+  }
+  .drawer > .card h3{
+    font-size:16px !important;
+    line-height:1.12 !important;
+    margin:0 0 7px !important;
+  }
+  .control-dates-strong{
+    gap:5px !important;
+    margin-bottom:6px !important;
+  }
+  .control-date-box{
+    border-radius:10px !important;
+    padding:8px 9px !important;
+  }
+  .control-date-box::before{
+    width:18px !important;
+    height:18px !important;
+    border-radius:7px !important;
+  }
+  .control-date-box span{
+    font-size:10.5px !important;
+    line-height:1.1 !important;
+    margin-bottom:1px !important;
+  }
+  .control-date-box b{
+    font-size:17px !important;
+    line-height:1.05 !important;
   }
 }
 
