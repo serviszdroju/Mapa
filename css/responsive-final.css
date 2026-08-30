@@ -599,7 +599,7 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
 /* iPhone detail polish: direct marker taps land in the drawer, so keep the first view dense. */
 @media(max-width:920px){
   .app{
-    grid-template-rows:minmax(220px,36dvh) minmax(0,1fr) !important;
+    grid-template-rows:minmax(320px,56dvh) minmax(0,1fr) !important;
   }
   .drawer{
     background:#f8fafc !important;
@@ -820,7 +820,7 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
 
 @media(max-width:560px){
   .app{
-    grid-template-rows:minmax(210px,34dvh) minmax(0,1fr) !important;
+    grid-template-rows:minmax(320px,56dvh) minmax(0,1fr) !important;
   }
   .sidebar-primary-actions{
     gap:5px;
