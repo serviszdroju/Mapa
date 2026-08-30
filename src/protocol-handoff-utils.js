@@ -98,6 +98,51 @@ export function createProtocolHandoffHelpers({
     return null;
   }
 
+  function protocolProcessedForHandoff(protocol={}){
+    if(protocol.processed === true) return true;
+    const processed=simpleNorm(protocol.processed);
+    return processed==="ano" || processed==="true" || processed==="1" || !!protocol.processedAt;
+  }
+
+  function protocolLooksRedForHandoff(protocol={}){
+    const values=[
+      protocol.workflow,
+      protocol.workflowState,
+      protocol.mainProtocolWorkflowState,
+      protocol.protocolWorkflowState,
+      protocol.sourceState,
+      protocol.protocolSourceState,
+      protocol.sourceStatus,
+      protocol.finalSourceState,
+      protocol.result,
+      protocol.conditions,
+      protocol.status,
+      protocol.state,
+      protocol.conditionsReason,
+      protocol.issues
+    ];
+    for(const value of values){
+      const normalized=simpleNorm(value);
+      if(!normalized) continue;
+      if(
+        normalized==="handoff" ||
+        normalized==="stop" ||
+        normalized==="red" ||
+        normalized==="cervena" ||
+        normalized==="cerveny" ||
+        normalized.includes("cerven") ||
+        normalized.includes("stop") ||
+        normalized.includes("mimo provoz") ||
+        normalized.includes("neprovozuschop") ||
+        normalized.includes("nevyhov") ||
+        normalized.includes("zavada")
+      ){
+        return true;
+      }
+    }
+    return false;
+  }
+
   function protocolHandoffForProcessing(protocol={}){
     const override=protocolHandoffOverrideValue(protocol);
     if(override!==null) return override;
@@ -105,6 +150,8 @@ export function createProtocolHandoffHelpers({
       const parsed=protocolHandoffFieldValue(value);
       if(parsed!==null) return parsed;
     }
+    if(protocolProcessedForHandoff(protocol)) return true;
+    if(protocolLooksRedForHandoff(protocol)) return true;
     return false;
   }
 
@@ -139,6 +186,8 @@ export function createProtocolHandoffHelpers({
     protocolHandoffLocalPatch,
     protocolHandoffOverrideValue,
     protocolHandoffRemotePatch,
+    protocolLooksRedForHandoff,
+    protocolProcessedForHandoff,
     readProtocolHandoffOverrides,
     rememberProtocolHandoffOverride,
     writeProtocolHandoffOverrides

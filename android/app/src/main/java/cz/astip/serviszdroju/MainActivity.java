@@ -464,6 +464,7 @@ public class MainActivity extends Activity {
             "(function(){"
                 + "window.__szzAndroidShell=true;"
                 + "window.__szzAndroidRoom=true;"
+                + "try{document.documentElement.classList.add('szz-android-shell');}catch(e){}"
                 + "window.flushSzzAndroidOffline=function(){"
                 + "try{if(typeof window.saveProtocolDraftNow==='function')window.saveProtocolDraftNow();}catch(e){console.warn('Android flush draft selhal',e);}"
                 + "};"
