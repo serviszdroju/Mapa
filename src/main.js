@@ -405,6 +405,9 @@ import {
   createPhotoDateHelpers
 } from "./photo-date-utils.js";
 import {
+  createBrowserFileHelpers
+} from "./browser-file-utils.js";
+import {
   protocolSourceStateLabel,
   protocolSourceStateValue,
   protocolSourceTestMethodLabel
@@ -601,7 +604,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-technician-signature-module-v605";
+const APP_BUILD_VERSION="2026-08-30-browser-file-module-v606";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6604,18 +6607,13 @@ async function buildProtocolWordBlob(protocol={}){
   return buildDocxBlob(buildProtocolWordEntries(protocol));
 }
 
-function downloadBlobFile(filename,blob){
-  const url=URL.createObjectURL(blob);
-  const link=document.createElement("a");
-  link.href=url;
-  link.download=filename;
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(()=>{
-    URL.revokeObjectURL(url);
-    link.remove();
-  },0);
-}
+const {
+  blobToBase64,
+  downloadBlobFile,
+  drawImageContained,
+  loadDataUrlImage,
+  protocolPdfFileNameFromWord
+}=createBrowserFileHelpers({ safe });
 
 const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
 const {
@@ -6678,44 +6676,6 @@ async function exportProtocolToWord(protocol){
     setProtocolStatusText("Export do Wordu se nepodařil.");
     showSaveConfirmation("Export do Wordu se nepodařil.");
   }
-}
-
-function blobToBase64(blob){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onload=()=>{
-      const result=String(reader.result || "");
-      resolve(result.includes(",") ? result.split(",").pop() : result);
-    };
-    reader.onerror=()=>reject(reader.error || new Error("Soubor nejde připravit k odeslání."));
-    reader.readAsDataURL(blob);
-  });
-}
-
-function protocolPdfFileNameFromWord(fileName=""){
-  const clean=safe(fileName);
-  return clean.toLowerCase().endsWith(".docx")
-    ? `${clean.slice(0,-5)}.pdf`
-    : (clean.toLowerCase().endsWith(".pdf") ? clean : "protokol.pdf");
-}
-
-function loadDataUrlImage(dataUrl=""){
-  return new Promise((resolve,reject)=>{
-    const src=safe(dataUrl);
-    if(!src) return resolve(null);
-    const img=new Image();
-    img.onload=()=>resolve(img);
-    img.onerror=()=>reject(new Error("Obrázek podpisu se nepodařilo načíst."));
-    img.src=src;
-  });
-}
-
-function drawImageContained(ctx,img,x,y,w,h){
-  if(!ctx || !img || !img.width || !img.height) return;
-  const scale=Math.min(w/img.width,h/img.height);
-  const iw=img.width*scale;
-  const ih=img.height*scale;
-  ctx.drawImage(img,x+(w-iw)/2,y+(h-ih)/2,iw,ih);
 }
 
 function wrapCanvasText(ctx,text,maxWidth){
