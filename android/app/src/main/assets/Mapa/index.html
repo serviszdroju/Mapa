@@ -26,6 +26,10 @@
 </style>
 <script>
 try{
+  const szzParams=new URLSearchParams(window.location.search || "");
+  if(szzParams.get("app")==="android" || szzParams.get("source")==="apk"){
+    document.documentElement.classList.add("szz-android-shell");
+  }
   const explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";
   const offlineKnownSession=localStorage.getItem("astipFirebaseKnownSignedIn")==="1" && navigator.onLine===false && !explicitSignOut;
   sessionStorage.removeItem("astipFirebaseRedirectPending");
@@ -42,7 +46,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="protocol-processing-state-module-v636";
+  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v640";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -143,6 +147,26 @@ try{
     }
   }
 
+  function isIosStandaloneWebApp(){
+    try{
+      const ua=navigator.userAgent || "";
+      const ios=/iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+      const standalone=window.navigator.standalone===true || window.matchMedia("(display-mode: standalone)").matches;
+      return !!(ios && standalone);
+    }catch(e){
+      return false;
+    }
+  }
+
+  function isIosWebAuthEnvironment(){
+    try{
+      const ua=navigator.userAgent || "";
+      return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+    }catch(e){
+      return false;
+    }
+  }
+
   function rememberGoogleLoginInteraction(event){
     if(event && typeof event.preventDefault==="function"){
       event.preventDefault();
@@ -196,6 +220,9 @@ try{
     }
     if(/idpiframe_initialization_failed|google identity/i.test(`${code} ${message}`)){
       return "Google přihlášení se v prohlížeči nepodařilo připravit. Zkontroluj blokování cookies/pop-up oken a zkus stránku znovu načíst.";
+    }
+    if(/origin_mismatch/i.test(`${code} ${message}`)){
+      return "Google OAuth klient nemá povolený původ tohoto webu. V Google Cloud Console přidej mezi Authorized JavaScript origins https://serviszdroju.github.io.";
     }
     if(code==="auth/unauthorized-domain"){
       return `Doména ${location.hostname || "serviszdroju.github.io"} není povolená ve Firebase Authentication > Settings > Authorized domains.`;
@@ -411,6 +438,9 @@ try{
   async function signInWithGoogleNoRedirectCompat(auth){
     const bridge=androidAuthBridge();
     if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
+    if(isIosWebAuthEnvironment()){
+      return signInWithGoogleIdentityCompat(auth);
+    }
     try{
       return await signInWithFirebasePopupCompat(auth);
     }catch(error){
@@ -532,6 +562,13 @@ try{
           return;
         }
         if(isPopupClosedAuthError(err)){
+          if(isIosStandaloneWebApp()){
+            compatGoogleLoginInProgress=false;
+            try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
+            try{document.documentElement.classList.remove("auth-resume");}catch(e){}
+            showLogin("iPhone neotevřel Google přihlašovací okno. Zkus tlačítko znovu; když se okno neukáže, otevři web v Safari.");
+            return;
+          }
           keepLoginWaiting=true;
           showAuthState("logging-in",{
             intro:"Dokonči Google přihlášení v otevřeném okně.",
@@ -661,8 +698,8 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-CMn3tsot.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BLn7KlWE.css">
+  <script type="module" crossorigin src="./assets/index-HUKgTPJL.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DGRBtF1B.css">
 </head>
 <body>
 
@@ -678,12 +715,14 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-processing-state-module-v636" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v640" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
-<div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
+<div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./assets/szz-logo-sidebar-DvZyH9BD.png" data-szz-logo-copy alt="Logo SZZ"></div>
+<div class="sidebar-primary-actions">
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
 <button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
 <button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
+</div>
 
 <div id="firebaseBox" class="notice err" style="display:none">Firebase se nepodařilo načíst.</div>
 <div class="row" id="mainLoginRow" style="display:none"><button class="primary" id="loginBtn">Přihlásit technika</button><button class="secondary" id="logoutBtn">Odhlásit</button></div>
@@ -1103,7 +1142,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=protocol-processing-state-module-v636"></script>
+<script async src="./late.js?v=protocol-handoff-mobile-v640"></script>
 
 
 

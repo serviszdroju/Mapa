@@ -42,7 +42,28 @@ let szzInstallBusy=false;
 const SZZ_INSTALL_PROMPT_WAIT_MS=15000;
 const SZZ_INSTALL_SW_CONTROL_WAIT_MS=7000;
 const SZZ_INSTALL_SW_UPDATE_WAIT_MS=6000;
-const SZZ_ANDROID_APK_URL="./downloads/szz-servis-zdroju-android.apk?v=mobile-map-priority-v639";
+const SZZ_ANDROID_APK_URL="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v640";
+const SZZ_SIDEBAR_LOGO_URL="./szz-logo-sidebar.png";
+
+function isSzzAndroidShellRuntime(){
+  try{
+    const params=new URLSearchParams(window.location.search || "");
+    return !!(
+      window.__szzAndroidShell ||
+      window.SzzAndroidAuth ||
+      params.get("app")==="android" ||
+      params.get("source")==="apk"
+    );
+  }catch(e){
+    return !!(window.__szzAndroidShell || window.SzzAndroidAuth);
+  }
+}
+
+function markSzzAndroidShellRuntime(){
+  try{
+    document.documentElement.classList.toggle("szz-android-shell",isSzzAndroidShellRuntime());
+  }catch(e){}
+}
 
 function isSzzStandaloneApp(){
   try{
@@ -127,8 +148,16 @@ function startSzzApkFallbackDownload(){
 }
 
 function updateSzzInstallButtons(){
+  markSzzAndroidShellRuntime();
   const button=document.getElementById("appDownloadLink");
   if(!button) return;
+  if(isSzzAndroidShellRuntime()){
+    button.hidden=true;
+    setAttributeIfChanged(button,"aria-hidden","true");
+    return;
+  }
+  button.hidden=false;
+  button.removeAttribute("aria-hidden");
   if(button.dataset.directDownload==="apk"){
     setHrefAttributeIfChanged(button,SZZ_ANDROID_APK_URL);
     button.setAttribute("download","szz-servis-zdroju-android.apk");
@@ -339,7 +368,13 @@ async function startSzzPwaInstall(event){
 }
 
 function bindSzzPwaInstallButton(){
+  markSzzAndroidShellRuntime();
   const button=document.getElementById("appDownloadLink");
+  if(button && isSzzAndroidShellRuntime()){
+    button.hidden=true;
+    setAttributeIfChanged(button,"aria-hidden","true");
+    return;
+  }
   if(button && button.dataset.directDownload==="apk"){
     setHrefAttributeIfChanged(button,SZZ_ANDROID_APK_URL);
     button.setAttribute("download","szz-servis-zdroju-android.apk");
@@ -389,7 +424,7 @@ function installSzzLogoAssets(){
       logo.dataset.logoFileApplied="1";
     }
     document.querySelectorAll("[data-szz-logo-copy]").forEach(img=>{
-      setSourceAttributeIfChanged(img,SZZ_LOGO_URL);
+      setSourceAttributeIfChanged(img,SZZ_SIDEBAR_LOGO_URL);
     });
     let icon=document.querySelector('link[rel="icon"]');
     if(!icon){

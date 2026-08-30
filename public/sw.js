@@ -1,4 +1,4 @@
-const CACHE_VERSION = "astip-szz-v639";
+const CACHE_VERSION = "astip-szz-v640";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -20,6 +20,7 @@ const PRECACHE_URLS = [
   "./szz-app-icon-maskable-512.png",
   "./szz-logo.png",
   "./szz-logo-display.png",
+  "./szz-logo-sidebar.png",
   "./podpis-tipek.png",
   "./podpis-tipek.jpg",
   "./vendor/leaflet/leaflet.css",
@@ -161,7 +162,7 @@ function isClientShellUrl(url) {
     const scope = new URL(self.registration.scope);
     if (url.origin === self.location.origin && url.pathname.startsWith(scope.pathname)) {
       return url.pathname.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname) ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display|-sidebar)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname) ||
         url.pathname === scope.pathname ||
         url.pathname === `${scope.pathname}index.html`;
     }
@@ -321,7 +322,7 @@ function isStaticAssetRequest(request) {
     if (url.origin === self.location.origin) {
       return request.destination !== "document" && (
         url.pathname.includes("/assets/") ||
-        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname)
+        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display|-sidebar)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname)
       );
     }
     return false;

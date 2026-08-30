@@ -4,6 +4,7 @@ const APP_SHELL_URLS=[
   "./manifest.webmanifest",
   "./sw.js",
   "./szz-logo-display.png",
+  "./szz-logo-sidebar.png",
   "./szz-app-icon-192.png",
   "./szz-app-icon-512.png",
   "./szz-app-icon-maskable-192.png",
@@ -57,7 +58,7 @@ function isSzzAppShellResourceUrl(url){
     const path=absolute.pathname;
     if(absolute.origin===location.origin){
       return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(path);
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display|-sidebar)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(path);
     }
     return false;
   }catch(e){

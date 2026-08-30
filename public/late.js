@@ -2655,7 +2655,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-30-mobile-map-priority-v639";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-30-protocol-handoff-mobile-v640";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
@@ -2705,6 +2705,7 @@ const SZZ_INSTALL_SHELL_URLS=[
   "./manifest.webmanifest",
   "./sw.js",
   "./szz-logo-display.png",
+  "./szz-logo-sidebar.png",
   "./szz-app-icon-192.png",
   "./szz-app-icon-512.png",
   "./szz-app-icon-maskable-192.png",
@@ -2758,7 +2759,7 @@ function szzInstallIsShellResourceUrl(url){
     const path=absolute.pathname;
     if(absolute.origin===location.origin){
       return path.includes("/assets/") ||
-        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(path);
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display|-sidebar)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(path);
     }
     return false;
   }catch(e){
