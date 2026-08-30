@@ -648,6 +648,7 @@ let rows=[], csvRows=[], originalCsvRows=[], extraSites=[], selectedSite=null, a
 let firebaseUnifiedPrimary = firebaseReady;
 let map=null, layer=null;
 let appRenderLoop=null;
+const allLocalProtocolHistoryReadCache=new Map();
 window.__firebaseConfig = firebaseConfig;
 window.firebaseReady = firebaseReady;
 window.__firebaseConfigured = firebaseConfigured;
@@ -664,7 +665,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v631";
+const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v632";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4990,7 +4991,6 @@ let protocolEditState=null;
 let mainProtocolHistoryRenderSignature="";
 let mainProtocolHistoryCurrentItems=[];
 let mainProtocolHistoryDateFilter="";
-const allLocalProtocolHistoryReadCache=new Map();
 
 const {
   clearDetailHistoryCache,
