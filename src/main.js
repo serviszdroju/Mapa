@@ -665,7 +665,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v632";
+const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v633";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5386,6 +5386,38 @@ const {
   wordXmlEscape
 });
 
+const {
+  checkbox,
+  protocolStatusNode,
+  setProtocolStatusText,
+  updateProtocolSummary,
+  val
+}=createProtocolDomHelpers({
+  formFieldNode,
+  safeValue:safe,
+  setTextIfChanged
+});
+
+const {
+  pickRawValue,
+  populateProtocolDeviceSelect,
+  protocolDeviceTypeFromSite,
+  protocolSerialFromSite,
+  protocolSourceLocationFromSite,
+  resetProtocolTechnicalFieldsForNewDevice,
+  setCheckbox,
+  setIfEmpty,
+  sourceOptionsFromSite,
+  splitPossibleSources
+}=createProtocolSiteFieldHelpers({
+  dataNormFixed,
+  formFieldNode,
+  getRawValue:get,
+  getSelectedSite:()=>selectedSite,
+  safeValue:safe,
+  updateProtocolSummary
+});
+
 const OFFICIAL_CONTROL_SUBJECT_TEXT="Servis záložních zdrojů s.r.o.\nBožetěchova 3003/133\n612 00 Brno\nIČO: 09391126, DIČ: CZ09391126\nC 118823/KSBR Krajský soud v Brně";
 const OFFICIAL_DEFAULT_MANUFACTURER_TEXT="Servis záložních zdrojů s.r.o.\nBožetěchova 3003/133\n612 00 Brno\nIČO: 09391126, DIČ: CZ09391126\nC 118823/KSBR Krajský soud v Brně";
 const OFFICIAL_MANUFACTURERS={
@@ -8017,18 +8049,6 @@ if(serviceForm){
 
 
 const {
-  checkbox,
-  protocolStatusNode,
-  setProtocolStatusText,
-  updateProtocolSummary,
-  val
-}=createProtocolDomHelpers({
-  formFieldNode,
-  safeValue:safe,
-  setTextIfChanged
-});
-
-const {
   bindProtocolSignatureToggle,
   clearProtocolClientSignature,
   drawSavedProtocolSignature,
@@ -8045,26 +8065,6 @@ const {
 });
 bindProtocolSignatureToggle();
 
-
-const {
-  pickRawValue,
-  populateProtocolDeviceSelect,
-  protocolDeviceTypeFromSite,
-  protocolSerialFromSite,
-  protocolSourceLocationFromSite,
-  resetProtocolTechnicalFieldsForNewDevice,
-  setCheckbox,
-  setIfEmpty,
-  sourceOptionsFromSite,
-  splitPossibleSources
-}=createProtocolSiteFieldHelpers({
-  dataNormFixed,
-  formFieldNode,
-  getRawValue:get,
-  getSelectedSite:()=>selectedSite,
-  safeValue:safe,
-  updateProtocolSummary
-});
 
 let protocolPrefillSiteId="";
 
