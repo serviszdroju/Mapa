@@ -610,7 +610,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-login-popup-wait-v611";
+const APP_BUILD_VERSION="2026-08-30-login-popup-wait-v612";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2195,7 +2195,7 @@ const {
   offlineRowFingerprint:szzOfflineRowFingerprint,
   readOfflineSiteMeta:readSzzOfflineSiteMeta,
   readOfflineStandaloneHistoryCollection,
-  refreshSiteDataFromFirebase,
+  refreshSiteDataFromFirebase:(site)=>refreshSiteDataFromFirebase(site),
   writeOfflineSiteMeta:writeSzzOfflineSiteMeta
 });
 
@@ -3222,9 +3222,9 @@ Object.assign(window,{
   startLegacyNewManualGpsPick,
   startOnlyNewManualGpsPick,
   startFbUnifiedManualGpsPick,
-  refreshSiteDataFromFirebase,
-  applyLatestProtocolDateToRaw,
-  applyLatestProtocolToSite,
+  refreshSiteDataFromFirebase:(site)=>refreshSiteDataFromFirebase(site),
+  applyLatestProtocolDateToRaw:(raw,options)=>applyLatestProtocolDateToRaw(raw,options),
+  applyLatestProtocolToSite:(protocol,site)=>applyLatestProtocolToSite(protocol,site),
   updateSiteControlDateFromProtocol,
   waitForFirebaseUser,
   isAppAdmin,
@@ -4730,7 +4730,7 @@ const {
   clearAllLocalProtocolHistoryReadCache:()=>allLocalProtocolHistoryReadCache.clear(),
   clearLocalDetailReadCacheForKind:(kind,site)=>clearLocalDetailReadCacheForKind(kind,site),
   currentUserEmail,
-  detailLazyKey,
+  detailLazyKey:(site)=>detailLazyKey(site),
   getSelectedSite:()=>selectedSite,
   resetDetailHistoryRenderSignature:()=>{ detailHistoryRenderSignature=""; },
   resetMainProtocolHistoryRenderSignature:()=>{ mainProtocolHistoryRenderSignature=""; },
@@ -4938,7 +4938,7 @@ const {
   drawerNode,
   getSelectedSite:()=>selectedSite,
   loadHistory,
-  loadSiteAttachments,
+  loadSiteAttachments:(site)=>loadSiteAttachments(site),
   loadSitePhotos,
   resetDetailHistory:()=>{
     detailHistoryItems=[];
