@@ -154,6 +154,15 @@ try{
     }
   }
 
+  function isIosWebAuthEnvironment(){
+    try{
+      const ua=navigator.userAgent || "";
+      return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+    }catch(e){
+      return false;
+    }
+  }
+
   function rememberGoogleLoginInteraction(event){
     if(event && typeof event.preventDefault==="function"){
       event.preventDefault();
@@ -425,6 +434,9 @@ try{
   async function signInWithGoogleNoRedirectCompat(auth){
     const bridge=androidAuthBridge();
     if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
+    if(isIosWebAuthEnvironment()){
+      return signInWithGoogleIdentityCompat(auth);
+    }
     try{
       return await signInWithFirebasePopupCompat(auth);
     }catch(error){
@@ -682,7 +694,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-bGWXq9xA.js"></script>
+  <script type="module" crossorigin src="./assets/index-CMo3VoXt.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-BCimcgDS.css">
 </head>
 <body>
