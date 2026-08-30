@@ -1116,6 +1116,9 @@ if(firebaseReady){
     if(/idpiframe_initialization_failed|google identity/i.test(`${code} ${message}`)){
       return "Google přihlášení se v prohlížeči nepodařilo připravit. Zkontroluj blokování cookies/pop-up oken a zkus stránku znovu načíst.";
     }
+    if(/origin_mismatch/i.test(`${code} ${message}`)){
+      return "Google OAuth klient nemá povolený původ tohoto webu. V Google Cloud Console přidej mezi Authorized JavaScript origins https://serviszdroju.github.io.";
+    }
     if(code==="auth/popup-blocked"){
       return "Prohlížeč zablokoval přihlašovací okno. Povol popup okno pro tento web nebo zkus tlačítko znovu.";
     }
@@ -1348,9 +1351,6 @@ if(firebaseReady){
   async function signInWithGoogleNoRedirect(options={}){
     if(androidAuthBridge()){
       return signInWithAndroidGoogleIdToken();
-    }
-    if(options.immediate && isIosStandaloneWebApp() && googleIdentityReadyNow()){
-      return signInWithGoogleIdentityServices({immediate:true});
     }
     try{
       return await signInWithFirebaseGooglePopup(options);

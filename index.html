@@ -208,6 +208,9 @@ try{
     if(/idpiframe_initialization_failed|google identity/i.test(`${code} ${message}`)){
       return "Google přihlášení se v prohlížeči nepodařilo připravit. Zkontroluj blokování cookies/pop-up oken a zkus stránku znovu načíst.";
     }
+    if(/origin_mismatch/i.test(`${code} ${message}`)){
+      return "Google OAuth klient nemá povolený původ tohoto webu. V Google Cloud Console přidej mezi Authorized JavaScript origins https://serviszdroju.github.io.";
+    }
     if(code==="auth/unauthorized-domain"){
       return `Doména ${location.hostname || "serviszdroju.github.io"} není povolená ve Firebase Authentication > Settings > Authorized domains.`;
     }
