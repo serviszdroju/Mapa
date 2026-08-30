@@ -598,9 +598,95 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
 
 /* iPhone detail polish: direct marker taps land in the drawer, so keep the first view dense. */
 @media(max-width:920px){
+  .app{
+    grid-template-rows:minmax(220px,36dvh) minmax(0,1fr) !important;
+  }
   .drawer{
     background:#f8fafc !important;
     overscroll-behavior:contain;
+  }
+  aside{
+    padding:8px 10px calc(12px + env(safe-area-inset-bottom)) !important;
+  }
+  .sidebar-brand{
+    margin:2px 0 6px !important;
+  }
+  .sidebar-logo-img{
+    width:min(154px,44vw) !important;
+    max-height:58px !important;
+  }
+  .sidebar-primary-actions{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:6px;
+    margin:6px 0 8px;
+  }
+  #addSiteBtn{
+    grid-column:1 / -1;
+    margin:0 !important;
+    min-height:40px !important;
+    padding:8px 10px !important;
+    font-size:13px !important;
+  }
+  #topLogoutBtn,
+  #mainProtocolHistoryBtn{
+    margin:0 !important;
+    min-height:38px !important;
+    padding:7px 8px !important;
+    border-radius:8px !important;
+    gap:7px !important;
+    font-size:12px !important;
+    line-height:1.05 !important;
+  }
+  #topLogoutBtn::before,
+  #mainProtocolHistoryBtn::before,
+  #addSiteBtn::before{
+    width:14px !important;
+    height:14px !important;
+    flex-basis:14px !important;
+  }
+  aside label{
+    margin:5px 0 3px !important;
+    font-size:10px !important;
+  }
+  #search,
+  aside input,
+  aside select{
+    min-height:38px !important;
+    padding-top:7px !important;
+    padding-bottom:7px !important;
+    border-radius:8px !important;
+  }
+  .stats{
+    gap:6px !important;
+    margin:7px 0 !important;
+  }
+  .stat{
+    padding:7px !important;
+    border-radius:8px !important;
+  }
+  .stat b{
+    font-size:17px !important;
+    line-height:1.1 !important;
+  }
+  .legend{
+    gap:4px 7px !important;
+    margin:7px 0 !important;
+    font-size:12px !important;
+  }
+  .item{
+    min-height:0 !important;
+    margin-bottom:6px !important;
+    padding:8px !important;
+    border-radius:8px !important;
+  }
+  .item-title{
+    font-size:12px !important;
+    line-height:1.2 !important;
+  }
+  .item-meta{
+    font-size:11px !important;
+    line-height:1.22 !important;
   }
   .drawer-head{
     align-items:center !important;
@@ -706,6 +792,21 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
 }
 
 @media(max-width:560px){
+  .app{
+    grid-template-rows:minmax(210px,34dvh) minmax(0,1fr) !important;
+  }
+  .sidebar-primary-actions{
+    gap:5px;
+  }
+  #topLogoutBtn,
+  #mainProtocolHistoryBtn{
+    font-size:11px !important;
+    padding-left:7px !important;
+    padding-right:7px !important;
+  }
+  #search::placeholder{
+    font-size:14px;
+  }
   #detailTable tr{
     margin:4px 0 !important;
     padding:7px 8px !important;
@@ -718,5 +819,26 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
   #detailTable td:nth-child(2){
     font-size:13px !important;
     line-height:1.25 !important;
+  }
+  .data-edit-actions{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    gap:6px !important;
+  }
+  .data-edit-actions button{
+    min-height:38px !important;
+    padding:6px 7px !important;
+    font-size:11px !important;
+    line-height:1.1 !important;
+  }
+  #deleteDataSiteBtn{
+    grid-column:1 / -1;
+  }
+}
+
+@supports (-webkit-touch-callout:none){
+  @media(max-width:920px){
+    .app-tools{
+      display:none !important;
+    }
   }
 }
