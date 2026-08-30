@@ -427,6 +427,9 @@ import {
   createProtocolMailHelpers
 } from "./protocol-mail-utils.js";
 import {
+  createProtocolWordBlobHelpers
+} from "./protocol-word-blob-utils.js";
+import {
   createTechnicianSignatureHelpers
 } from "./technician-signature-utils.js";
 import {
@@ -607,7 +610,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-pdf-byte-writer-module-v607";
+const APP_BUILD_VERSION="2026-08-30-protocol-word-blob-module-v608";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6599,16 +6602,11 @@ const {
   safe
 });
 
-let protocolWordZipModulePromise=null;
-function loadProtocolWordZipModule(){
-  if(!protocolWordZipModulePromise) protocolWordZipModulePromise=import("./zip-docx.js");
-  return protocolWordZipModulePromise;
-}
-
-async function buildProtocolWordBlob(protocol={}){
-  const {buildDocxBlob}=await loadProtocolWordZipModule();
-  return buildDocxBlob(buildProtocolWordEntries(protocol));
-}
+const {
+  buildProtocolWordBlob
+}=createProtocolWordBlobHelpers({
+  buildProtocolWordEntries
+});
 
 const {
   blobToBase64,
