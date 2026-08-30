@@ -439,6 +439,9 @@ import {
   createProtocolMailHelpers
 } from "./protocol-mail-utils.js";
 import {
+  protocolMeasurementTableSpec
+} from "./protocol-measurement-table-utils.js";
+import {
   createProtocolWordBlobHelpers
 } from "./protocol-word-blob-utils.js";
 import {
@@ -625,7 +628,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-check-text-module-v618";
+const APP_BUILD_VERSION="2026-08-30-protocol-measurement-table-module-v619";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5352,61 +5355,6 @@ const {
   safe,
   simpleNorm
 });
-
-function protocolMeasurementTableSpec(protocol={}){
-  const w=[1070,1070,1070,1070,1070,1070,1070,1070,1070];
-  const label={bold:true,size:17,fill:"F2F2F2",align:"center"};
-  const value={size:18,align:"center",height:330};
-  return {
-    widths:w,
-    rows:[
-      [
-        {...label,text:"Počet baterií: (ks)"},
-        {...label,text:"Kapacita (Ah)"},
-        {...label,text:"Počet sad (ks)",colSpan:2},
-        {...label,text:"Pom. Bat (Ah)",colSpan:2},
-        {...label,text:"Teplota okolí (°C)",colSpan:2},
-        {...label,text:"Plomba"}
-      ],
-      [
-        {...value,text:protocol.batteryCount},
-        {...value,text:protocol.capacityAh},
-        {...value,text:protocol.setCount,colSpan:2},
-        {...value,text:protocol.auxBatteryAh,colSpan:2},
-        {...value,text:protocol.temperature,colSpan:2},
-        {...value,text:protocol.seal2}
-      ],
-      [
-        {...label,text:"Vstup (Vac)"},
-        {...label,text:"Výstup 1 (Vac)",colSpan:2},
-        {...label,text:"Výstup 2 (Vac)",colSpan:2},
-        {...label,text:"Výstup zál. 1 (Vac)",colSpan:2},
-        {...label,text:"Výstup zál. 2 (Vac)",colSpan:2}
-      ],
-      [
-        {...value,text:protocol.inputVac},
-        {...value,text:protocol.output1Vac,colSpan:2},
-        {...value,text:protocol.output2Vac,colSpan:2},
-        {...value,text:protocol.backup1Vac,colSpan:2},
-        {...value,text:protocol.backup2Vac,colSpan:2}
-      ],
-      [
-        {...label,text:"Hl. bat. 1 (Vdc)"},
-        {...label,text:"Reset Diagnostiky",colSpan:2},
-        {...label,text:"Pom. bat. (Vdc)",colSpan:2},
-        {...label,text:"Rozvážení 1 (Vdc)",colSpan:2},
-        {...label,text:"Rozvážení 2 (Vdc)",colSpan:2}
-      ],
-      [
-        {...value,text:protocol.mainBatVdc},
-        {...value,text:protocol.resetDiagnostics,colSpan:2},
-        {...value,text:protocol.auxBatVdc,colSpan:2},
-        {...value,text:protocol.unbalance1,colSpan:2},
-        {...value,text:protocol.unbalance2,colSpan:2}
-      ]
-    ]
-  };
-}
 
 function protocolMeasurementTable(protocol={}){
   const spec=protocolMeasurementTableSpec(protocol);
