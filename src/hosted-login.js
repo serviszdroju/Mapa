@@ -66,6 +66,15 @@ function isIosStandaloneWebApp(){
   }
 }
 
+function isIosWebAuthEnvironment(){
+  try{
+    const ua=navigator.userAgent || "";
+    return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  }catch(e){
+    return false;
+  }
+}
+
 function rememberGoogleLoginInteraction(event){
   if(event && typeof event.preventDefault==="function"){
     event.preventDefault();
@@ -254,6 +263,9 @@ function signInWithGoogleIdentityCompat(auth){
 async function signInWithGoogleNoRedirectCompat(auth){
   const bridge=androidAuthBridge();
   if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
+  if(isIosWebAuthEnvironment()){
+    return signInWithGoogleIdentityCompat(auth);
+  }
   try{
     return await signInWithFirebasePopupCompat(auth);
   }catch(error){

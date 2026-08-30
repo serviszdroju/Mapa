@@ -1352,6 +1352,9 @@ if(firebaseReady){
     if(androidAuthBridge()){
       return signInWithAndroidGoogleIdToken();
     }
+    if(isIosWebAuthEnvironment()){
+      return signInWithGoogleIdentityServices(options);
+    }
     try{
       return await signInWithFirebaseGooglePopup(options);
     }catch(popupError){
@@ -1436,6 +1439,14 @@ if(firebaseReady){
       const ios=/iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
       const standalone=window.navigator.standalone===true || window.matchMedia("(display-mode: standalone)").matches;
       return !!(ios && standalone);
+    }catch(e){
+      return false;
+    }
+  }
+  function isIosWebAuthEnvironment(){
+    try{
+      const ua=navigator.userAgent || "";
+      return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
     }catch(e){
       return false;
     }
