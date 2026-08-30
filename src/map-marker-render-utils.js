@@ -44,14 +44,12 @@ export function createMapMarkerRenderHelpers({
       try{
         if(event && leaflet && leaflet.DomEvent) leaflet.DomEvent.stop(event);
       }catch(_e){}
-      if(rowsInGroup.length<=1){
-        const row=rowsInGroup[0] || groupPrimaryRow(group);
-        const key=row ? detailKey(row) : "";
-        if(key){
-          openDetailById(key);
-          try{ if(map && typeof map.closePopup==="function") map.closePopup(); }catch(_e){}
-          return;
-        }
+      const row=groupPrimaryRow(group) || rowsInGroup[0];
+      const key=row ? detailKey(row) : "";
+      if(key){
+        openDetailById(key);
+        try{ if(map && typeof map.closePopup==="function") map.closePopup(); }catch(_e){}
+        return;
       }
       try{
         if(marker.getPopup && marker.getPopup()) marker.unbindPopup();
