@@ -484,6 +484,9 @@ import {
   createOfficialRtfAssetHelpers
 } from "./official-rtf-asset-utils.js";
 import {
+  createOfficialRtfExportHelpers
+} from "./official-rtf-export-utils.js";
+import {
   createOfficialRtfTemplateHelpers
 } from "./official-rtf-template-utils.js";
 import {
@@ -646,7 +649,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-official-rtf-template-module-v625";
+const APP_BUILD_VERSION="2026-08-30-official-rtf-export-module-v626";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5820,47 +5823,6 @@ const OFFICIAL_RTF_TEMPLATE_URL="official-template.rtf";
 const OFFICIAL_STOP_RTF_TEMPLATE_URL="official-stop-template.rtf";
 const OFFICIAL_TIPEK_SIGNATURE_URL="./podpis-tipek.png";
 const OFFICIAL_WATERMARK_LOGO_URL="./szz-logo-display.png";
-const officialRtfTemplateCache={};
-let officialTipekSignatureBytesCache=null;
-let officialWatermarkLogoBytesCache=null;
-
-async function loadOfficialRtfTemplate(mode="ok"){
-  const key=mode==="stop" ? "stop" : "ok";
-  if(officialRtfTemplateCache[key]) return officialRtfTemplateCache[key];
-  const url=key==="stop" ? OFFICIAL_STOP_RTF_TEMPLATE_URL : OFFICIAL_RTF_TEMPLATE_URL;
-  const response=await fetch(url,{cache:"no-store"});
-  if(!response.ok) throw new Error(`Šablonu ${url} se nepodařilo načíst (${response.status}).`);
-  const template=await response.text();
-  if(!template.includes("__SZZ_OPERATOR_1__")) throw new Error("Šablona dokladu nemá připravená vyplňovací pole.");
-  officialRtfTemplateCache[key]=template;
-  return template;
-}
-
-async function loadOfficialTipekSignatureBytes(){
-  if(officialTipekSignatureBytesCache) return officialTipekSignatureBytesCache;
-  try{
-    const response=await fetch(OFFICIAL_TIPEK_SIGNATURE_URL,{cache:"force-cache"});
-    if(!response.ok) throw new Error(`Podpis se nepodařilo načíst (${response.status}).`);
-    officialTipekSignatureBytesCache=new Uint8Array(await response.arrayBuffer());
-    return officialTipekSignatureBytesCache;
-  }catch(e){
-    console.warn("Podpis Ing. Tipek se nepodařilo načíst",e);
-    return null;
-  }
-}
-
-async function loadOfficialWatermarkLogoBytes(){
-  if(officialWatermarkLogoBytesCache) return officialWatermarkLogoBytesCache;
-  try{
-    const response=await fetch(OFFICIAL_WATERMARK_LOGO_URL,{cache:"force-cache"});
-    if(!response.ok) throw new Error(`Logo se nepodařilo načíst (${response.status}).`);
-    officialWatermarkLogoBytesCache=new Uint8Array(await response.arrayBuffer());
-    return officialWatermarkLogoBytesCache;
-  }catch(e){
-    console.warn("Logo pro vodoznak dokladu se nepodařilo načíst",e);
-    return null;
-  }
-}
 
 function officialOneLine(value,maxLength=0){
   const text=protocolExportValue(value).replace(/\u00a0/g," ").replace(/\s+/g," ").trim();
@@ -6019,26 +5981,19 @@ const {
   sourceTypeTextFromRaw
 });
 
-async function preparedOfficialProtocolExport(protocol={},officialData={},mode="ok"){
-  const filled={
-    ...protocol,
-    createdBy:protocol.createdBy || protocol.technicianEmail || currentUser?.email || ""
-  };
-  const exportOfficialData={
-    ...officialData,
-    tipekSignatureBytes:officialData.tipekSignatureBytes || await loadOfficialTipekSignatureBytes(),
-    watermarkLogoBytes:officialData.watermarkLogoBytes || await loadOfficialWatermarkLogoBytes()
-  };
-  const prefix=mode==="stop" ? "doklad-stop-stav" : "doklad-provozuschopnosti";
-  const fileBase=officialProtocolAddressFileName(filled,selectedSite,mode) || `${prefix}-${officialProtocolFileDatePart(filled)}`;
-  const fileName=`${fileBase}.rtf`;
-  const template=await loadOfficialRtfTemplate(mode);
-  return {
-    filled,
-    fileName,
-    blob:new Blob([fillOfficialRtfTemplate(template,filled,exportOfficialData,mode)],{type:"application/rtf;charset=utf-8"})
-  };
-}
+const {
+  preparedOfficialProtocolExport
+}=createOfficialRtfExportHelpers({
+  OFFICIAL_RTF_TEMPLATE_URL,
+  OFFICIAL_STOP_RTF_TEMPLATE_URL,
+  OFFICIAL_TIPEK_SIGNATURE_URL,
+  OFFICIAL_WATERMARK_LOGO_URL,
+  fillOfficialRtfTemplate,
+  getCurrentUser:()=>currentUser,
+  getSelectedSite:()=>selectedSite,
+  officialProtocolAddressFileName,
+  officialProtocolFileDatePart
+});
 
 async function exportOfficialProtocol(mode="ok"){
   const status=officialProtocolStatusNode();
