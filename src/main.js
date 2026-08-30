@@ -414,6 +414,9 @@ import {
   createProtocolPdfRenderHelpers
 } from "./protocol-pdf-render-utils.js";
 import {
+  createProtocolSignatureImageHelpers
+} from "./protocol-signature-image-utils.js";
+import {
   protocolSourceStateLabel,
   protocolSourceStateValue,
   protocolSourceTestMethodLabel
@@ -616,7 +619,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-word-xml-module-v615";
+const APP_BUILD_VERSION="2026-08-30-protocol-signature-image-module-v616";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5263,26 +5266,11 @@ function protocolDisplayDate(value){
   return d ? formatDateCz(d) : protocolExportValue(value);
 }
 
-function base64ToBytes(base64){
-  const binary=atob(base64 || "");
-  const bytes=new Uint8Array(binary.length);
-  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-  return bytes;
-}
-
-function imageBytesFromPngDataUrl(dataUrl=""){
-  const match=dataUrl.match(/^data:image\/png;base64,(.+)$/);
-  if(!match) return null;
-  try{return base64ToBytes(match[1]);}catch(e){return null;}
-}
-
-function protocolSignatureImageBytes(protocol={}){
-  return imageBytesFromPngDataUrl(safe(protocol.clientSignatureDataUrl || protocol.clientSignature || ""));
-}
-
-function protocolTechnicianSignatureImageBytes(protocol={}){
-  return imageBytesFromPngDataUrl(safe(protocol.techSignatureDataUrl || protocol.technicianSignatureDataUrl || ""));
-}
+const {
+  base64ToBytes,
+  protocolSignatureImageBytes,
+  protocolTechnicianSignatureImageBytes
+}=createProtocolSignatureImageHelpers({ safe });
 
 function technicianKnownKeyFromValue(value=""){
   const text=safe(value);
