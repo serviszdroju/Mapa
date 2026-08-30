@@ -665,7 +665,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v633";
+const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v634";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5418,6 +5418,35 @@ const {
   updateProtocolSummary
 });
 
+const {
+  applyLatestProtocolDateToRaw,
+  applyLatestProtocolToSite,
+  applyProtocolFieldsToRaw,
+  applyProtocolFieldsToSite,
+  latestProtocolDateFromSiteData,
+  protocolDateIso,
+  protocolTimeValue
+}=createProtocolSiteApplyHelpers({
+  addMonths,
+  applyStopStatusRawPatch,
+  dateInputValueFromAny,
+  detailKey,
+  detectControlPeriod,
+  getSelectedSite:()=>selectedSite,
+  historyObjectSummary,
+  historyTimeValue,
+  isoDateFromAny,
+  normalize,
+  parseDateValue,
+  periodMonths,
+  protocolDisplayDate,
+  protocolSavedTimeValue,
+  protocolSourceStateValue,
+  safe,
+  setSelectedSite:site=>{ selectedSite=site; }
+});
+window.applyLatestProtocolDateToRaw=applyLatestProtocolDateToRaw;
+
 const OFFICIAL_CONTROL_SUBJECT_TEXT="Servis záložních zdrojů s.r.o.\nBožetěchova 3003/133\n612 00 Brno\nIČO: 09391126, DIČ: CZ09391126\nC 118823/KSBR Krajský soud v Brně";
 const OFFICIAL_DEFAULT_MANUFACTURER_TEXT="Servis záložních zdrojů s.r.o.\nBožetěchova 3003/133\n612 00 Brno\nIČO: 09391126, DIČ: CZ09391126\nC 118823/KSBR Krajský soud v Brně";
 const OFFICIAL_MANUFACTURERS={
@@ -6694,35 +6723,6 @@ async function appendEmbeddedSiteItem(field,item,site=selectedSite){
     return false;
   }
 }
-
-const {
-  applyLatestProtocolDateToRaw,
-  applyLatestProtocolToSite,
-  applyProtocolFieldsToRaw,
-  applyProtocolFieldsToSite,
-  latestProtocolDateFromSiteData,
-  protocolDateIso,
-  protocolTimeValue
-}=createProtocolSiteApplyHelpers({
-  addMonths,
-  applyStopStatusRawPatch,
-  dateInputValueFromAny,
-  detailKey,
-  detectControlPeriod,
-  getSelectedSite:()=>selectedSite,
-  historyObjectSummary,
-  historyTimeValue,
-  isoDateFromAny,
-  normalize,
-  parseDateValue,
-  periodMonths,
-  protocolDisplayDate,
-  protocolSavedTimeValue,
-  protocolSourceStateValue,
-  safe,
-  setSelectedSite:site=>{ selectedSite=site; }
-});
-window.applyLatestProtocolDateToRaw=applyLatestProtocolDateToRaw;
 
 function clearManualStatusRaw(raw={}){
   const patch=mapStatusRawPatchFromStatePatch({ordered:false,repairOrdered:false,stopped:false},raw);
