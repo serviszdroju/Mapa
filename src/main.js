@@ -421,6 +421,9 @@ import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
 import {
+  createHistoryMatchHelpers
+} from "./history-match-utils.js";
+import {
   createDetailHistoryDeleteHelpers
 } from "./detail-history-delete-utils.js";
 import {
@@ -592,7 +595,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-detail-history-actions-module-v602";
+const APP_BUILD_VERSION="2026-08-30-history-match-module-v603";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -8816,51 +8819,17 @@ function renderHistory(){
   updateOfficialProtocolSourceInfo();
 }
 
-function matchingHistoryItemsForSite(items=[],site=selectedSite){
-  const matched=[];
-  const source=Array.isArray(items) ? items : [];
-  for(const item of source){
-    if(recordMatchesSite(item,site)) matched.push(item);
-  }
-  return matched;
-}
-
-function hasMatchingHistoryItemForSite(items=[],site=selectedSite){
-  const source=Array.isArray(items) ? items : [];
-  for(const item of source){
-    if(recordMatchesSite(item,site)) return true;
-  }
-  return false;
-}
-
-function sortedMatchingHistoryItemsForSite(items=[],site=selectedSite){
-  const matched=matchingHistoryItemsForSite(items,site);
-  matched.sort((a,b)=>protocolTimeValue(b)-protocolTimeValue(a));
-  return matched;
-}
-
-function firstProtocolHistoryItem(items=[]){
-  const source=Array.isArray(items) ? items : [];
-  for(const item of source){
-    if(item && item._type==="Protokol") return item;
-  }
-  return null;
-}
-
-function latestMatchingHistoryItemForSite(items=[],site=selectedSite){
-  const source=Array.isArray(items) ? items : [];
-  let latest=null;
-  let latestTime=0;
-  for(const item of source){
-    if(!recordMatchesSite(item,site)) continue;
-    const time=protocolTimeValue(item);
-    if(!latest || time>latestTime){
-      latest=item;
-      latestTime=time;
-    }
-  }
-  return latest;
-}
+const {
+  firstProtocolHistoryItem,
+  hasMatchingHistoryItemForSite,
+  latestMatchingHistoryItemForSite,
+  matchingHistoryItemsForSite,
+  sortedMatchingHistoryItemsForSite
+}=createHistoryMatchHelpers({
+  getSelectedSite:()=>selectedSite,
+  protocolTimeValue,
+  recordMatchesSite
+});
 
 async function loadHistory(siteId){
   const history=detailHistoryNode();
