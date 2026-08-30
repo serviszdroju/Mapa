@@ -8,7 +8,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="login-popup-startup-v609";
+const EMAIL_LOGIN_BUILD_VERSION="login-popup-wait-v610";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -241,12 +241,18 @@ async function signInWithGoogleNoRedirectCompat(auth){
   const bridge=androidAuthBridge();
   if(bridge) return signInWithAndroidGoogleCompat(auth,bridge);
   try{
-    return await signInWithGoogleIdentityCompat(auth);
+    return await signInWithFirebasePopupCompat(auth);
   }catch(error){
     if(popupShouldNotFallback(error)) throw error;
-    console.warn("Google token přihlášení selhalo, zkouším Firebase popup",error);
-    return signInWithFirebasePopupCompat(auth);
+    console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",error);
+    return signInWithGoogleIdentityCompat(auth);
   }
+}
+
+function isPopupClosedAuthError(error){
+  const code=String(error && error.code || "").trim();
+  const message=String(error && error.message || "").trim();
+  return /popup-closed-by-user|popup_closed/i.test(`${code} ${message}`);
 }
 
 function androidAuthBridge(){
@@ -467,6 +473,7 @@ function startCompatGoogleLoginFallback(options={}){
     try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
     status("Otevírám Google přihlášení...");
     compatGoogleLoginInProgress=true;
+    let keepLoginWaiting=false;
     signInWithGoogleNoRedirectCompat(auth).then(result=>{
       if(result && result.user){
         try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
@@ -481,10 +488,25 @@ function startCompatGoogleLoginFallback(options={}){
         showAuthState(AUTH_LOGGED_IN,{message:""});
         return;
       }
+      if(isPopupClosedAuthError(err)){
+        keepLoginWaiting=true;
+        showAuthState("logging-in",{
+          intro:"Dokonči Google přihlášení v otevřeném okně.",
+          message:"Čekám na dokončení Google přihlášení."
+        });
+        setTimeout(()=>{
+          if(knownUser()) return;
+          compatGoogleLoginInProgress=false;
+          showAuthState(AUTH_LOGGED_OUT,{
+            message:"Google přihlášení se nedokončilo. Zkus tlačítko znovu a vyber účet @astip.cz."
+          });
+        },90000);
+        return;
+      }
       clearAuthResumeAfterLoginError(err);
       showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení selhalo: " + authErrorText(err)});
     }).finally(()=>{
-      compatGoogleLoginInProgress=false;
+      if(!keepLoginWaiting && !knownUser()) compatGoogleLoginInProgress=false;
     });
   }catch(err){
     compatGoogleLoginInProgress=false;

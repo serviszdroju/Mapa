@@ -610,7 +610,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-login-popup-startup-v609";
+const APP_BUILD_VERSION="2026-08-30-login-popup-wait-v610";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1267,16 +1267,21 @@ if(firebaseReady){
       return signInWithAndroidGoogleIdToken();
     }
     try{
-      return await signInWithGoogleIdentityServices();
-    }catch(identityError){
-      const code=safe(identityError && identityError.code);
-      const message=safe(identityError && identityError.message);
+      return await signInWithFirebaseGooglePopup();
+    }catch(popupError){
+      const code=safe(popupError && popupError.code);
+      const message=safe(popupError && popupError.message);
       if(/popup-closed-by-user|cancelled-popup-request|access_denied|cancel/i.test(`${code} ${message}`)){
-        throw identityError;
+        throw popupError;
       }
-      console.warn("Google token přihlášení selhalo, zkouším Firebase popup",identityError);
-      return signInWithFirebaseGooglePopup();
+      console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",popupError);
+      return signInWithGoogleIdentityServices();
     }
+  }
+  function isPopupClosedAuthError(e){
+    const code=safe(e && e.code);
+    const message=safe(e && e.message);
+    return /popup-closed-by-user|popup_closed/i.test(`${code} ${message}`);
   }
   async function googleRedirectResultUser(){
     await primeCompatAuthPersistence();
@@ -1420,6 +1425,28 @@ if(firebaseReady){
         }
       }
     }catch(e){
+      if(isPopupClosedAuthError(e)){
+        console.warn("Firebase popup hlásí zavření předčasně, čekám na dokončení Google okna",e);
+        setStartupAuthChecking(true);
+        setStartupStatus("Dokonči Google přihlášení v otevřeném okně.");
+        if(typeof window.__szzSetAuthState==="function"){
+          window.__szzSetAuthState("logging-in",{
+            intro:"Dokonči Google přihlášení v otevřeném okně.",
+            message:"Čekám na dokončení Google přihlášení."
+          });
+        }
+        const restored=await waitForAuthCandidate(90000);
+        if(restored){
+          await handleAuthorizedUser(restored);
+          return;
+        }
+        clearAuthPending();
+        if(!knownSignedIn()) try{document.documentElement.classList.remove("auth-resume");}catch(err){}
+        setStartupAuthChecking(false);
+        showLogin();
+        setStartupStatus("Google přihlášení se nedokončilo. Zkus tlačítko znovu a vyber účet @astip.cz.");
+        return;
+      }
       clearAuthPending();
       if(isAndroidTransientAuthError(e) && appIsOpenOrHasRows() && !explicitSignOutPending()){
         console.warn("Android přihlášení se obnoví na pozadí, mapa zůstává otevřená",e);
