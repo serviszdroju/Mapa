@@ -143,6 +143,17 @@ try{
     }
   }
 
+  function isIosStandaloneWebApp(){
+    try{
+      const ua=navigator.userAgent || "";
+      const ios=/iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+      const standalone=window.navigator.standalone===true || window.matchMedia("(display-mode: standalone)").matches;
+      return !!(ios && standalone);
+    }catch(e){
+      return false;
+    }
+  }
+
   function rememberGoogleLoginInteraction(event){
     if(event && typeof event.preventDefault==="function"){
       event.preventDefault();
@@ -532,6 +543,13 @@ try{
           return;
         }
         if(isPopupClosedAuthError(err)){
+          if(isIosStandaloneWebApp()){
+            compatGoogleLoginInProgress=false;
+            try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
+            try{document.documentElement.classList.remove("auth-resume");}catch(e){}
+            showLogin("iPhone neotevřel Google přihlašovací okno. Zkus tlačítko znovu; když se okno neukáže, otevři web v Safari.");
+            return;
+          }
           keepLoginWaiting=true;
           showAuthState("logging-in",{
             intro:"Dokonči Google přihlášení v otevřeném okně.",

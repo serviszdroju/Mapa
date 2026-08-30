@@ -1253,9 +1253,16 @@ if(firebaseReady){
       },timeoutMs);
     });
   }
-  async function signInWithGoogleIdentityServices(){
-    await primeCompatAuthPersistence();
-    const google=await loadGoogleIdentityServices();
+  function googleIdentityReadyNow(){
+    return !!(
+      window.google &&
+      window.google.accounts &&
+      window.google.accounts.oauth2 &&
+      typeof window.google.accounts.oauth2.initTokenClient==="function"
+    );
+  }
+  function signInWithGoogleIdentityServicesReady(){
+    const google=window.google;
     const oauth2=google && google.accounts && google.accounts.oauth2;
     if(!oauth2 || typeof oauth2.initTokenClient!=="function"){
       throw new Error("Google Identity Services nejsou dostupné.");
@@ -1295,6 +1302,17 @@ if(firebaseReady){
       },90000);
     });
   }
+  async function signInWithGoogleIdentityServices(options={}){
+    if(options.immediate && googleIdentityReadyNow()){
+      return signInWithGoogleIdentityServicesReady();
+    }
+    await primeCompatAuthPersistence();
+    const google=await loadGoogleIdentityServices();
+    if(!google || !googleIdentityReadyNow()){
+      throw new Error("Google Identity Services nejsou dostupné.");
+    }
+    return signInWithGoogleIdentityServicesReady();
+  }
   function modularGoogleProvider(){
     if(!authMod || !authMod.GoogleAuthProvider) return null;
     const provider=new authMod.GoogleAuthProvider();
@@ -1303,26 +1321,39 @@ if(firebaseReady){
     provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
     return provider;
   }
-  async function signInWithFirebaseGooglePopup(){
+  function signInWithModularGooglePopup(){
+    const provider=modularGoogleProvider();
+    if(auth && provider && authMod && typeof authMod.signInWithPopup==="function"){
+      const resolver=redirectResolver();
+      return resolver ? authMod.signInWithPopup(auth,provider,resolver) : authMod.signInWithPopup(auth,provider);
+    }
+    throw new Error("Firebase modular popup přihlášení není dostupné.");
+  }
+  async function signInWithFirebaseGooglePopup(options={}){
+    if(options.immediate){
+      try{
+        return signInWithModularGooglePopup();
+      }catch(e){
+        console.warn("Okamžité modulární popup přihlášení není dostupné, zkouším compat",e);
+      }
+    }
     await primeCompatAuthPersistence({load:true});
     const compatClient=getCompatAuthClient();
     const compatProvider=compatGoogleProvider();
     if(compatClient && compatProvider && typeof compatClient.signInWithPopup==="function"){
       return compatClient.signInWithPopup(compatProvider);
     }
-    const provider=modularGoogleProvider();
-    if(auth && provider && authMod && typeof authMod.signInWithPopup==="function"){
-      const resolver=redirectResolver();
-      return resolver ? authMod.signInWithPopup(auth,provider,resolver) : authMod.signInWithPopup(auth,provider);
-    }
-    throw new Error("Firebase popup přihlášení není dostupné.");
+    return signInWithModularGooglePopup();
   }
-  async function signInWithGoogleNoRedirect(){
+  async function signInWithGoogleNoRedirect(options={}){
     if(androidAuthBridge()){
       return signInWithAndroidGoogleIdToken();
     }
+    if(options.immediate && isIosStandaloneWebApp() && googleIdentityReadyNow()){
+      return signInWithGoogleIdentityServices({immediate:true});
+    }
     try{
-      return await signInWithFirebaseGooglePopup();
+      return await signInWithFirebaseGooglePopup(options);
     }catch(popupError){
       const code=safe(popupError && popupError.code);
       const message=safe(popupError && popupError.message);
@@ -1330,7 +1361,7 @@ if(firebaseReady){
         throw popupError;
       }
       console.warn("Firebase popup přihlášení selhalo, zkouším Google token bez redirectu",popupError);
-      return signInWithGoogleIdentityServices();
+      return signInWithGoogleIdentityServices(options);
     }
   }
   function isPopupClosedAuthError(e){
@@ -1399,6 +1430,16 @@ if(firebaseReady){
       return false;
     }
   }
+  function isIosStandaloneWebApp(){
+    try{
+      const ua=navigator.userAgent || "";
+      const ios=/iPad|iPhone|iPod/i.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+      const standalone=window.navigator.standalone===true || window.matchMedia("(display-mode: standalone)").matches;
+      return !!(ios && standalone);
+    }catch(e){
+      return false;
+    }
+  }
   function rememberGoogleLoginInteraction(event){
     if(event && typeof event.preventDefault==="function"){
       event.preventDefault();
@@ -1444,11 +1485,14 @@ if(firebaseReady){
       }
       return true;
     }
+    const immediatePopup=activeGoogleLoginGesture();
     clearExplicitSignOut();
     clearAuthPending();
     authLoginInProgress=true;
     try{
-      await primeCompatAuthPersistence();
+      const persistenceReady=primeCompatAuthPersistence();
+      if(!immediatePopup) await persistenceReady;
+      else persistenceReady.catch(e=>console.warn("Firebase compat persistence se připraví po otevření popupu",e));
       try{document.documentElement.classList.remove("auth-resume");}catch(e){}
       window.__loginRequested=true;
       setStartupAuthChecking(true);
@@ -1464,7 +1508,7 @@ if(firebaseReady){
       if(activeEmail && !isAllowedLoginEmail(activeEmail)){
         setStartupStatus("Otevírám Google přihlášení, vyber účet @astip.cz...");
       }
-      const loginResult=await signInWithGoogleNoRedirect();
+      const loginResult=await signInWithGoogleNoRedirect({immediate:immediatePopup});
       const loginUser=loginResult && loginResult.user ? loginResult.user : await waitForAuthCandidate(5000);
       if(loginUser){
         await handleAuthorizedUser(loginUser);
@@ -1481,6 +1525,14 @@ if(firebaseReady){
       }
     }catch(e){
       if(isPopupClosedAuthError(e)){
+        if(isIosStandaloneWebApp()){
+          clearAuthPending();
+          if(!knownSignedIn()) try{document.documentElement.classList.remove("auth-resume");}catch(err){}
+          setStartupAuthChecking(false);
+          showLogin();
+          setStartupStatus("iPhone neotevřel Google přihlašovací okno. Zkus tlačítko znovu; když se okno neukáže, otevři web v Safari.");
+          return;
+        }
         console.warn("Firebase popup hlásí zavření předčasně, čekám na dokončení Google okna",e);
         setStartupAuthChecking(true);
         setStartupStatus("Dokonči Google přihlášení v otevřeném okně.");
