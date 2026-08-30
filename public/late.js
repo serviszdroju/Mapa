@@ -162,9 +162,11 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       newKeyFieldAdd("GPS lon","GPS_lon",{id:"onlyNewGpsLon",placeholder:"16.123456"}),
       newKeyFieldAdd("Popis zdroje","Popis_zdroje",{full:true}),
       newKeyFieldAdd("Výrobní číslo","Zdroj",{full:true}),
+      newKeyFieldAdd("Číslo nabídky","Číslo nabídky",{full:true}),
       newKeyFieldAdd("Kontakt","Kontakt"),
       newKeyFieldAdd("Kraj","Kraj"),
       newKeyFieldAdd("Rok výroby","Rok výroby"),
+      newKeyFieldAdd("Datum předání zdroje","Datum předání zdroje",{inputType:"date"}),
       newKeyFieldAdd("Serviska","Serviska",{type:"select",options:[
         {value:"",label:""},
         {value:"ano",label:"ano"},
@@ -354,12 +356,18 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         el.addEventListener("change",()=>syncOnlyNewRegionFromText({force:true}));
       }
     });
+    if(typeof window.szzBindOfferLookupControls==="function"){
+      window.szzBindOfferLookupControls(drawer);
+    }
     window.szzAfterPaint(()=>document.getElementById("onlyNewName")?.focus());
   }
 
   async function saveAddSite(){
     const st=document.getElementById("onlyNewStatus");
     const raw=collectAddRaw();
+    if(typeof window.szzEnsureRawOfferNumberFromSerial==="function"){
+      await window.szzEnsureRawOfferNumberFromSerial(raw);
+    }
 
     if(!raw["Název"] && !raw["Adresa / umístění"]){
       if(st) st.textContent="Vyplň alespoň Název nebo Adresa / umístění.";
@@ -631,11 +639,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     {label:"Kraj", key:"Kraj", type:"region"},
     {label:"Popis zdroje", key:"Popis_zdroje", full:true},
     {label:"Výrobní číslo", key:"Zdroj"},
+    {label:"Datum předání zdroje", key:"Datum předání zdroje"},
     {label:"Kontakt", key:"Kontakt"},
     {label:"Perioda kontrol", key:"Perioda kontrol", type:"period"},
     {label:"Hlídáme sami termín", key:"Hlídáme sami termín", type:"yesno"},
     {label:"Smlouva", key:"Smlouva ano/ne", type:"yesno"},
     {label:"Záruka", key:"Záruka", type:"select", options:SZZ_WARRANTY_SELECT_OPTIONS},
+    {label:"Číslo nabídky", key:"Číslo nabídky"},
     {label:"Důležité poznámky", key:"Důležitá poznámka", type:"textarea", full:true, important:true}
   ];
   const FB_HIDDEN_KEYS = ["GPS_lat", "GPS_lon"];
@@ -745,6 +755,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     "serial":"Zdroj",
     "sn":"Zdroj",
     "zdroj":"Zdroj",
+    "datum predani zdroje":"Datum předání zdroje",
+    "datum predani":"Datum předání zdroje",
+    "predani zdroje":"Datum předání zdroje",
+    "cislo nabidky":"Číslo nabídky",
+    "nabidka":"Číslo nabídky",
+    "offer number":"Číslo nabídky",
+    "offer":"Číslo nabídky",
     "kontakt":"Kontakt",
     "kontakt mapy":"Kontakt",
     "hlavni kontakt":"Kontakt",
@@ -2333,6 +2350,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       sourceNewKeyField("Kontakt","Kontakt",{value:data.contact}),
       sourceNewKeyField("Popis zdroje","Popis_zdroje",{full:true,id:"addSourceType",placeholder:"např. PS 20 000/3f - 45 min."}),
       sourceNewKeyField("Výrobní číslo","Zdroj",{full:true,id:"addSourceSerial",placeholder:"výrobní číslo zdroje"}),
+      sourceNewKeyField("Číslo nabídky","Číslo nabídky",{full:true}),
+      sourceNewKeyField("Datum předání zdroje","Datum předání zdroje",{inputType:"date"}),
       sourceNewKeyField("Poslední kontrola","Poslední_kontrola",{inputType:"date",value:data.lastCheck}),
       sourceNewKeyField("Příští kontrola","Příští_kontrola",{inputType:"date",value:data.nextCheck}),
       sourceNewKeyField("Perioda kontrol","Perioda kontrol",{type:"select",value:period,options:[
@@ -2478,6 +2497,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     document.getElementById("closeOnlyNew").onclick = ()=>returnToSourceDetail(site);
     document.getElementById("cancelOnlyNew").onclick = ()=>returnToSourceDetail(site);
     document.getElementById("saveAddSourceOnly").onclick = ()=>saveAddSourceFromDetail(site);
+    if(typeof window.szzBindOfferLookupControls==="function"){
+      window.szzBindOfferLookupControls(drawer);
+    }
     window.szzAfterPaint(()=>{
       const first = document.getElementById("addSourceType") || document.getElementById("addSourceSerial");
       if(first) first.focus();
@@ -2555,6 +2577,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     raw["GPS_lon"] = lon;
     raw["Kraj"] = region || raw["Kraj"] || "";
     raw["Zdroj_dat"] = "Firebase další zdroj";
+    if(typeof window.szzEnsureRawOfferNumberFromSerial==="function"){
+      await window.szzEnsureRawOfferNumberFromSerial(raw);
+    }
 
     const sourceType = cleanSource(raw["Popis_zdroje"]);
     const serial = cleanSource(raw["Zdroj"] || raw["Výrobní číslo"]);
@@ -2630,7 +2655,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-30-login-popup-wait-v612";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-30-offer-warranty-v613";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

@@ -1,5 +1,6 @@
 const REQUIRED_NEW_SITE_FIELDS=[
   "Název","Adresa_GPS","Kraj","Popis_zdroje","Zdroj",
+  "Datum předání zdroje","Číslo nabídky",
   "Perioda kontrol","Hlídáme kontroly sami","Důležitá poznámka",
   "Serviska","Smlouva ano/ne","Záruka","Rok výroby"
 ];
@@ -35,6 +36,8 @@ export function createNewSiteFieldHelpers({
     const n=newSiteFieldNorm(k);
     if(n==="adresa gps") return "Adresa GPS";
     if(n==="zdroj") return "Výrobní číslo";
+    if(n==="cislo nabidky") return "Číslo nabídky";
+    if(n==="datum predani zdroje") return "Datum předání zdroje";
     return k;
   }
 

@@ -11,9 +11,11 @@ const NEW_SITE_FIELD_SPECS=[
   {label:"Adresa GPS",key:"Adresa_GPS",full:true},
   {label:"Popis_zdroje",forceLabel:"Popis zdroje",key:"Popis_zdroje",full:true},
   {label:"Výrobní číslo",key:"Zdroj",full:true},
+  {label:"Číslo nabídky",key:"Číslo nabídky",full:true},
   {label:"Kontakt",key:"Kontakt"},
   {label:"Kraj",key:"Kraj"},
   {label:"Rok výroby",key:"Rok výroby"},
+  {label:"Datum předání zdroje",key:"Datum předání zdroje",inputType:"date"},
   {label:"Serviska",key:"Serviska",type:"select",options:[["",""],["ano","ano"],["ne","ne"]]},
   {label:"Smlouva",key:"Smlouva ano/ne",type:"select",options:[["ne","ne"],["ano","ano"]],value:"ne"},
   {label:"Záruka",key:"Záruka",type:"select",options:WARRANTY_SELECT_OPTIONS},
@@ -27,6 +29,7 @@ export function createNewSiteFormFieldHelpers({
   geocodeAddressFast=()=>Promise.resolve(null),
   geocodeAddressGeneric=()=>Promise.resolve(null),
   inferRegionFromAddressText=()=>"",
+  bindNewSiteOfferLookupControls=()=>{},
   newSiteFieldNorm=value=>String(value || "").trim().toLowerCase(),
   safe=value=>String(value == null ? "" : value).trim(),
   setInputValueIfExists=()=>{},
@@ -49,7 +52,9 @@ export function createNewSiteFormFieldHelpers({
       if(spec.value!==undefined) select.value=spec.value;
       return select;
     }
-    return document.createElement("input");
+    const input=document.createElement("input");
+    if(spec.inputType) input.type=spec.inputType;
+    return input;
   }
 
   function createNewSiteField(spec,options={}){
@@ -208,6 +213,11 @@ export function createNewSiteFormFieldHelpers({
         el.addEventListener("input",()=>syncNewSiteRegionFromText());
         el.addEventListener("change",()=>syncNewSiteRegionFromText({force:true}));
       });
+    });
+    bindNewSiteOfferLookupControls({
+      newSiteFieldElementsByKey,
+      newSiteFieldValue,
+      setNewSiteFieldValue
     });
   }
 

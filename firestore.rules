@@ -45,5 +45,9 @@ service cloud.firestore {
       allow delete: if astipUser()
         && docId == ownEmail();
     }
+
+    match /sourceOfferLookup/{serialKey} {
+      allow read: if astipUser();
+    }
   }
 }

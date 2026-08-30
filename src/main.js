@@ -610,7 +610,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-login-popup-wait-v612";
+const APP_BUILD_VERSION="2026-08-30-offer-warranty-v613";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2499,6 +2499,7 @@ const {
   geocodeAddressFast,
   geocodeAddressGeneric,
   inferRegionFromAddressText,
+  bindNewSiteOfferLookupControls,
   newSiteFieldNorm,
   safe,
   setInputValueIfExists,
@@ -3968,6 +3969,7 @@ const USER_SITE_DATA_FIELDS = [
   {label:"Kraj", key:"Kraj", keys:["Kraj","Region","Kraj / oblast"], type:"region"},
   {label:"Popis zdroje", key:"Popis_zdroje", keys:["Popis_zdroje","Jaký zdroj"]},
   {label:"Výrobní číslo", key:"Zdroj", keys:["Výrobní číslo","Výrobní_číslo","Seriové číslo","Sériové číslo","Serial","SN","Zdroj"]},
+  {label:"Datum předání zdroje", key:"Datum předání zdroje", keys:["Datum předání zdroje","Datum_predani_zdroje","Datum předání","Předání zdroje"], type:"date"},
   {label:"Kontakt", key:"Kontakt", keys:["Kontakt","Kontakt_mapy","Hlavní kontakt"]},
   {label:"Umístění zdroje", key:"Umístění zdroje", keys:["Umístění zdroje","Umístění"]},
   {label:"Historie oprav", key:"Historie oprav", keys:["Historie oprav","Historie_oprav"], type:"textarea"},
@@ -3979,6 +3981,7 @@ const USER_SITE_DATA_FIELDS = [
   {label:"Smlouva", key:"Smlouva ano/ne", keys:["Smlouva ano/ne","Smlouva (ano/ne)","Smlouva ano ne","Smlouva ano","Smlouva"], type:"yesno"},
   {label:"Záruka", key:"Záruka", keys:["Záruka","Zaruka","Warranty"], type:"warranty"},
   {label:"Cena FZ", key:"Cena FZ", keys:["Cena FZ","Cena FZ v Kč"], hideInDetail:true, hideInEdit:true},
+  {label:"Číslo nabídky", key:"Číslo nabídky", keys:["Číslo nabídky","Cislo nabidky","Nabídka","Nabidka","Offer number","Offer"], hideWhenEmpty:true},
   {label:"Důležité poznámky", key:"Důležitá poznámka", keys:["Důležitá poznámka","DŮLEŽITÁ POZNÁMKA","Důležité poznámky"], type:"textarea", important:true}
 ];
 window.userSiteDataFields = USER_SITE_DATA_FIELDS.filter(f=>!f.hideInEdit).map(f=>({label:f.label,key:f.key,type:f.type||"text"}));
@@ -4001,6 +4004,204 @@ function userSiteSharedFieldValue(site,key){
   if(!spec) return "";
   return userSiteFieldValue(site,spec,rawForSiteFieldLookup(site));
 }
+
+const SOURCE_HANDOVER_DATE_KEYS=["Datum předání zdroje","Datum_predani_zdroje","Datum předání","Předání zdroje"];
+const OFFER_NUMBER_KEYS=["Číslo nabídky","Cislo nabidky","Nabídka","Nabidka","Offer number","Offer"];
+const SOURCE_OFFER_LOOKUP_COLLECTION="sourceOfferLookup";
+const offerLookupCache=new Map();
+const offerAutofillInProgress=new Set();
+
+function normalizeSerialForOfferLookup(value){
+  const clean=safe(value)
+    .replace(/\u00a0/g," ")
+    .replace(/[,.]0+$/,"")
+    .toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\s+/g,"")
+    .replace(/[^A-Z0-9_-]/g,"");
+  return clean;
+}
+
+function serialLookupKeysForValue(value){
+  const source=safe(value);
+  if(!source) return [];
+  const keys=new Set();
+  const add=part=>{
+    const key=normalizeSerialForOfferLookup(part);
+    if(key) keys.add(key);
+  };
+  add(source);
+  source.split(/[;\n\r,|/]+/).forEach(add);
+  const tokenMatches=source.match(/[A-Za-z0-9][A-Za-z0-9 ._-]{2,}/g) || [];
+  tokenMatches.forEach(add);
+  return [...keys].slice(0,12);
+}
+
+function siteHandoverDateValue(site,raw=rawForSiteFieldLookup(site)){
+  return firstSiteField(raw,SOURCE_HANDOVER_DATE_KEYS);
+}
+
+function siteOfferNumberValue(site,raw=rawForSiteFieldLookup(site)){
+  return firstSiteField(raw,OFFER_NUMBER_KEYS);
+}
+
+function warrantyYearsFromValue(value){
+  const norm=dataNormFixed(value);
+  if(!norm || norm.includes("zrus")) return 0;
+  if(norm.includes("5")) return 5;
+  if(norm.includes("2")) return 2;
+  return 0;
+}
+
+function siteWarrantyStatus(site,raw=rawForSiteFieldLookup(site)){
+  const warranty=firstSiteField(raw,["Záruka","Zaruka","Warranty"]);
+  const years=warrantyYearsFromValue(warranty);
+  if(!years) return {state:"",expiresAt:null};
+  const handover=parseDateValue(siteHandoverDateValue(site,raw));
+  if(!handover) return {state:"",expiresAt:null};
+  const expiresAt=addMonths(handover,years*12);
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  const expiryLimit=new Date(expiresAt.getTime());
+  expiryLimit.setHours(23,59,59,999);
+  return {
+    state:today.getTime()<=expiryLimit.getTime() ? "valid" : "expired",
+    expiresAt
+  };
+}
+
+function detailWarrantyRowClassName(spec,value,site,raw=rawForSiteFieldLookup(site)){
+  if(spec.key!=="Záruka" && spec.key!=="Datum předání zdroje") return "";
+  const status=siteWarrantyStatus(site,raw);
+  if(status.state==="valid") return "detail-warranty-valid";
+  if(status.state==="expired") return "detail-warranty-expired";
+  return "";
+}
+
+function canReadOfferLookupNow(){
+  return !!(firebaseReady && currentUser && db && fb.fsMod && typeof fb.fsMod.doc==="function" && typeof fb.fsMod.getDoc==="function" && navigator.onLine!==false);
+}
+
+async function lookupOfferNumberForSerial(serial){
+  if(!canReadOfferLookupNow()) return "";
+  const keys=serialLookupKeysForValue(serial);
+  const {doc,getDoc}=fb.fsMod;
+  for(const key of keys){
+    if(offerLookupCache.has(key)){
+      const cached=offerLookupCache.get(key);
+      if(cached) return cached;
+      continue;
+    }
+    try{
+      const snap=await getDoc(doc(db,SOURCE_OFFER_LOOKUP_COLLECTION,key));
+      const data=snap && snap.exists && snap.exists() ? snap.data() || {} : {};
+      const offer=safe(data.offerNumber || data["Číslo nabídky"] || data.cisloNabidky || data.nabidka || data.offer || "");
+      offerLookupCache.set(key,offer);
+      if(offer) return offer;
+    }catch(e){
+      console.warn("Číslo nabídky se nepodařilo načíst podle výrobního čísla",e);
+      offerLookupCache.set(key,"");
+    }
+  }
+  return "";
+}
+
+async function ensureRawOfferNumberFromSerial(raw={}){
+  if(!raw || typeof raw!=="object") return "";
+  const existing=siteOfferNumberValue({raw},raw);
+  if(existing){
+    raw["Číslo nabídky"]=existing;
+    return existing;
+  }
+  const serial=sourceSerialTextFromRaw(raw) || firstSiteField(raw,["Zdroj","Výrobní číslo","Výrobní_číslo","Serial","SN"]);
+  const offer=await lookupOfferNumberForSerial(serial);
+  if(offer) raw["Číslo nabídky"]=offer;
+  return offer;
+}
+
+async function autofillOfferInputForSerial(serial,offerInput,options={}){
+  if(!offerInput) return "";
+  const existing=safe(offerInput.value);
+  if(existing && offerInput.dataset.autoOfferFilled!=="1" && !options.force) return existing;
+  const offer=await lookupOfferNumberForSerial(serial);
+  if(offer && (options.force || !safe(offerInput.value) || offerInput.dataset.autoOfferFilled==="1")){
+    offerInput.value=offer;
+    offerInput.dataset.autoOfferFilled="1";
+    offerInput.dispatchEvent(new Event("change",{bubbles:true}));
+  }
+  return offer;
+}
+
+function bindOfferLookupControlsForElements(serialEls=[],offerEls=[]){
+  const serialInputs=Array.from(serialEls || []).filter(Boolean);
+  const offerInput=Array.from(offerEls || []).find(Boolean);
+  if(!serialInputs.length || !offerInput) return;
+  const run=()=>autofillOfferInputForSerial(serialInputs.map(el=>el.value).find(Boolean) || "",offerInput);
+  serialInputs.forEach(el=>{
+    if(el.__szzOfferLookupBound) return;
+    el.__szzOfferLookupBound=true;
+    let timer=null;
+    const schedule=()=>{
+      clearTimeout(timer);
+      timer=setTimeout(run,250);
+    };
+    el.addEventListener("input",schedule);
+    el.addEventListener("change",run);
+  });
+  run();
+}
+
+function bindNewSiteOfferLookupControls({newSiteFieldElementsByKey}= {}){
+  bindOfferLookupControlsForElements(
+    newSiteFieldElementsByKey ? newSiteFieldElementsByKey().get("Zdroj") : [],
+    newSiteFieldElementsByKey ? newSiteFieldElementsByKey().get("Číslo nabídky") : []
+  );
+}
+
+function bindDetailOfferLookupControls(){
+  const table=detailTableNode();
+  if(!table) return;
+  bindOfferLookupControlsForElements(
+    table.querySelectorAll('[data-key="Zdroj"]'),
+    table.querySelectorAll('[data-key="Číslo nabídky"]')
+  );
+}
+
+async function ensureOfferNumberForSelectedSite(site){
+  if(!site || !isFirebaseUnifiedRow(site)) return "";
+  const raw=rawForSiteFieldLookup(site);
+  if(siteOfferNumberValue(site,raw)) return "";
+  const serial=sourceSerialTextFromRaw(raw) || firstSiteField(raw,["Zdroj","Výrobní číslo","Výrobní_číslo","Serial","SN"]);
+  const serialKey=normalizeSerialForOfferLookup(serial);
+  const docId=selectedSiteDocId(site);
+  const lockKey=`${docId || detailKey(site) || site.id || ""}:${serialKey}`;
+  if(!serialKey || offerAutofillInProgress.has(lockKey)) return "";
+  offerAutofillInProgress.add(lockKey);
+  try{
+    const offer=await lookupOfferNumberForSerial(serial);
+    if(!offer || selectedSite!==site) return offer || "";
+    const patch={"Číslo nabídky":offer};
+    const nextRaw={...(site.raw || {}),...patch};
+    site.raw=nextRaw;
+    site.firebaseData={...(site.firebaseData || {}),raw:nextRaw};
+    if(docId) await saveUnifiedSiteRawPatchOrQueue(site,patch,{docId,reason:"Automatické doplnění čísla nabídky"});
+    const table=detailTableNode();
+    if(table && table.dataset.detailTableMode==="display") renderDetailTable(table,site);
+    return offer;
+  }finally{
+    offerAutofillInProgress.delete(lockKey);
+  }
+}
+
+window.szzBindOfferLookupControls=function(root=document){
+  const base=root && root.querySelectorAll ? root : document;
+  bindOfferLookupControlsForElements(
+    base.querySelectorAll('[data-new-key="Zdroj"], #detailTable [data-key="Zdroj"]'),
+    base.querySelectorAll('[data-new-key="Číslo nabídky"], #detailTable [data-key="Číslo nabídky"]')
+  );
+};
+window.szzEnsureRawOfferNumberFromSerial=ensureRawOfferNumberFromSerial;
+window.szzLookupOfferNumberForSerial=lookupOfferNumberForSerial;
 
 function siteContactForProtocol(site=selectedSite){
   const raw=rawForSiteFieldLookup(site);
@@ -4128,6 +4329,13 @@ function userSiteInput(spec, value, site=null){
   if(spec.type==="warranty"){
     return createUserSiteSelect(spec.key,WARRANTY_SELECT_OPTIONS,warrantyValueFixed(value));
   }
+  if(spec.type==="date"){
+    const input=document.createElement("input");
+    input.type="date";
+    input.dataset.key=spec.key;
+    input.value=dateInputValueFromAny(value);
+    return input;
+  }
   if(spec.type==="textarea"){
     const textarea=document.createElement("textarea");
     textarea.dataset.key=spec.key;
@@ -4194,6 +4402,8 @@ function renderEditableDataTable(table,r){
     const value=userSiteFieldValue(r,spec,raw);
     const row=document.createElement("tr");
     if(spec.important) row.className="notes-red-row";
+    const warrantyClass=detailWarrantyRowClassName(spec,value,r,raw);
+    if(warrantyClass) row.classList.add(warrantyClass);
     const label=document.createElement("td");
     label.textContent=spec.key==="Adresa_GPS" ? "GPS souřadnice" : spec.label;
     const valueCell=document.createElement("td");
@@ -4204,16 +4414,29 @@ function renderEditableDataTable(table,r){
   table.replaceChildren(fragment);
   table.dataset.detailTableMode="edit";
   delete table.dataset.detailSignature;
+  bindDetailOfferLookupControls();
 }
 
-function userSiteDisplayValue(spec, value){
-  return esc(userSiteDisplayText(spec,value));
+function userSiteDisplayValue(spec, value, site=null){
+  return esc(userSiteDisplayText(spec,value,site));
 }
 
-function userSiteDisplayText(spec, value){
+function userSiteDisplayText(spec, value, site=null){
   if(spec.type==="period") return value ? `${safe(value)} měsíců` : "";
   if(spec.type==="yesno") return yesNoFixed(value, "ne");
-  if(spec.type==="warranty") return warrantyValueFixed(value);
+  if(spec.type==="date"){
+    const d=parseDateValue(value);
+    return d ? formatDateCz(d) : safe(value);
+  }
+  if(spec.type==="warranty"){
+    const text=warrantyValueFixed(value);
+    const status=site ? siteWarrantyStatus(site) : {state:"",expiresAt:null};
+    if(text && status.expiresAt){
+      const label=status.state==="valid" ? "platná do" : "propadlá od";
+      return `${text} (${label} ${formatDateCz(status.expiresAt)})`;
+    }
+    return text;
+  }
   return safe(value);
 }
 
@@ -4264,6 +4487,7 @@ async function saveAllDataEdits(){
     if(spec.type==="yesno") value=yesNoFixed(value,"ne");
     if(spec.type==="period") value=value==="6" ? "6" : "12";
     if(spec.type==="warranty") value=warrantyValueFixed(value);
+    if(spec.type==="date") value=dateInputValueFromAny(value) || value;
     if(!value && spec.type!=="yesno" && spec.type!=="period" && !spec.important && spec.key!=="Poznámky") return;
     editedRaw[spec.key]=value;
     if(spec.key==="Poznámky"){
@@ -4274,6 +4498,7 @@ async function saveAllDataEdits(){
       (spec.keys || []).forEach(key=>{editedRaw[key]=value;});
     }
   });
+  await ensureRawOfferNumberFromSerial(editedRaw);
 
   const gpsLat=safe(document.querySelector('#detailTable [data-key="GPS_lat"]')?.value);
   const gpsLon=safe(document.querySelector('#detailTable [data-key="GPS_lon"]')?.value);
@@ -4591,6 +4816,7 @@ const {
   renderDetailTable
 }=createDetailTableDisplayHelpers({
   rawForSiteFieldLookup,
+  detailRowClassName:detailWarrantyRowClassName,
   userSiteDataFields:USER_SITE_DATA_FIELDS,
   userSiteDisplayText,
   userSiteFieldValue
@@ -4616,6 +4842,7 @@ window.openDetail=function(i){
     detailTableEl.classList.remove("data-edit-table");
     renderDetailTable(detailTableEl,r);
   }
+  ensureOfferNumberForSelectedSite(r);
   showControlDateDisplay(r);
   const addDataRowBox=document.getElementById("addDataRowBox"); if(addDataRowBox) addDataRowBox.style.display="none";
   const editDataToggleBtn=document.getElementById("editDataToggleBtn");
@@ -4663,6 +4890,7 @@ window.openDetail=function(i){
       if(inlineGpsBtn) inlineGpsBtn.onclick=dataAddressToGps;
       const inlineGpsPickBtn=document.getElementById("detailGpsPickMapInline");
       if(inlineGpsPickBtn) inlineGpsPickBtn.onclick=startDetailManualGpsPick;
+      bindDetailOfferLookupControls();
       showControlDateInputs(selectedSite);
       editDataToggleBtn.style.display="none";
       if(calcDataGpsBtn) calcDataGpsBtn.style.display="none";
@@ -9332,6 +9560,7 @@ document.getElementById("saveNewSiteBtn").onclick=async()=>{
   if(!currentUser){st.textContent="Nejdřív se přihlaš.";return;}
 
   const allRawData=collectNewSiteAllFields();
+  await ensureRawOfferNumberFromSerial(allRawData);
   const name=document.getElementById("newName").value.trim()
     || safe(allRawData["Název"] || allRawData["Adresa / umístění"] || allRawData["Adresa_GPS"]);
   const gpsAddress=document.getElementById("newGpsAddress").value.trim()

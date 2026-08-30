@@ -59,6 +59,24 @@
   color:inherit !important;
   font-weight:inherit;
 }
+.data-edit-table tr.detail-warranty-valid td{
+  background:#dcfce7 !important;
+  border-color:#86efac !important;
+}
+.data-edit-table tr.detail-warranty-expired td{
+  background:#fee2e2 !important;
+  border-color:#fecaca !important;
+}
+.data-edit-table tr.detail-warranty-valid input,
+.data-edit-table tr.detail-warranty-valid select{
+  border-color:#86efac !important;
+  background:#f0fdf4 !important;
+}
+.data-edit-table tr.detail-warranty-expired input,
+.data-edit-table tr.detail-warranty-expired select{
+  border-color:#fecaca !important;
+  background:#fef2f2 !important;
+}
 .fbUnifiedGrid .fbImportant{
   background:#fee2e2;
   border:1px solid #fecaca;

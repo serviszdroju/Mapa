@@ -566,6 +566,26 @@
   color:inherit;
   font-weight:inherit;
 }
+.history-detail-row.detail-warranty-valid{
+  background:#dcfce7;
+  border:1px solid #86efac;
+  border-radius:8px;
+  padding:6px 8px;
+}
+.history-detail-row.detail-warranty-valid span:last-child{
+  color:#166534;
+  font-weight:800;
+}
+.history-detail-row.detail-warranty-expired{
+  background:#fee2e2;
+  border:1px solid #fecaca;
+  border-radius:8px;
+  padding:6px 8px;
+}
+.history-detail-row.detail-warranty-expired span:last-child{
+  color:#991b1b;
+  font-weight:800;
+}
 .history-photos{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
