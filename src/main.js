@@ -665,7 +665,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v635";
+const APP_BUILD_VERSION="2026-08-30-protocol-processing-state-module-v636";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6909,6 +6909,35 @@ const { bindDetailHistoryActions }=createDetailHistoryActionsHelpers({
 });
 
 const {
+  clearProtocolHandoffOverridesCache,
+  protocolHandoffForProcessing,
+  protocolHandoffLocalPatch,
+  protocolHandoffRemotePatch,
+  rememberProtocolHandoffOverride
+}=createProtocolHandoffHelpers({
+  currentUserEmail,
+  getSelectedSite:()=>selectedSite,
+  selectedSiteDocId,
+  serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString(),
+  storageKey:SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY
+});
+
+const {
+  isMainProtocolProcessed,
+  mainProtocolControlDateIso,
+  mainProtocolHistoryItemOwnedByCurrentUser,
+  mainProtocolProcessedLocalPatch,
+  mainProtocolProcessedRemotePatch,
+  mainProtocolWorkflowLabel,
+  mainProtocolWorkflowState,
+  patchProtocolProcessedItems
+}=createProtocolWorkflowHelpers({
+  currentUserEmail,
+  protocolHandoffForProcessing,
+  serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString()
+});
+
+const {
   renderHistory
 }=createDetailHistoryViewHelpers({
   bindDetailHistoryActions,
@@ -7359,35 +7388,6 @@ function showSaveConfirmation(message="Uloženo."){
   setTimeout(()=>item.remove(),2700);
 }
 window.showSaveConfirmation=showSaveConfirmation;
-
-const {
-  clearProtocolHandoffOverridesCache,
-  protocolHandoffForProcessing,
-  protocolHandoffLocalPatch,
-  protocolHandoffRemotePatch,
-  rememberProtocolHandoffOverride
-}=createProtocolHandoffHelpers({
-  currentUserEmail,
-  getSelectedSite:()=>selectedSite,
-  selectedSiteDocId,
-  serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString(),
-  storageKey:SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY
-});
-
-const {
-  isMainProtocolProcessed,
-  mainProtocolControlDateIso,
-  mainProtocolHistoryItemOwnedByCurrentUser,
-  mainProtocolProcessedLocalPatch,
-  mainProtocolProcessedRemotePatch,
-  mainProtocolWorkflowLabel,
-  mainProtocolWorkflowState,
-  patchProtocolProcessedItems
-}=createProtocolWorkflowHelpers({
-  currentUserEmail,
-  protocolHandoffForProcessing,
-  serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString()
-});
 
 const {
   bindMainProtocolHistoryControlsDom,
