@@ -8,7 +8,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="detail-history-delete-module-v600";
+const EMAIL_LOGIN_BUILD_VERSION="detail-data-refresh-module-v601";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={

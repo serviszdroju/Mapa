@@ -424,6 +424,9 @@ import {
   createDetailHistoryDeleteHelpers
 } from "./detail-history-delete-utils.js";
 import {
+  createDetailDataRefreshHelpers
+} from "./detail-data-refresh-utils.js";
+import {
   createProtocolHandoffHelpers
 } from "./protocol-handoff-utils.js";
 import {
@@ -586,7 +589,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-detail-history-delete-module-v600";
+const APP_BUILD_VERSION="2026-08-30-detail-data-refresh-module-v601";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -8533,48 +8536,27 @@ function clearManualStatusLocalState(site=selectedSite){
   selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyClear(site);
 }
 
-function refreshSelectedDetailDataView(){
-  if(!selectedSite) return;
-  const table=detailTableNode();
-  if(table && !table.classList.contains("data-edit-table")){
-    renderDetailTable(table,selectedSite);
-  }
-  showControlDateDisplay(selectedSite);
-  const sub=detailSubNode();
-  if(sub) sub.textContent=siteSourceLabel(selectedSite) || "";
-  syncOpenProtocolContactFromDetail(selectedSite);
-  syncOpenProtocolDeviceTypeFromDetail(selectedSite);
-}
-
-async function refreshSiteDataFromFirebase(site=selectedSite){
-  const docId=selectedSiteDocId(site);
-  if(!docId || !firebaseReady || !db || !fb.fsMod) return null;
-  try{
-    const {doc,getDoc}=fb.fsMod;
-    const snap=await getDoc(doc(db,"sitesUnified",docId));
-    if(!snap.exists()) return null;
-    const data=snap.data() || {};
-    const mergedRaw=applyLatestProtocolDateToRaw({...(site?.raw||{}), ...(data.raw||{})}, data);
-    if(site){
-      site.firebaseData=data;
-      site.raw=mergedRaw;
-      const refreshed=normalize([mergedRaw])[0];
-      Object.assign(site, refreshed, {
-        id:site.id,
-        i:site.i,
-        firebaseDocId:docId,
-        firebaseData:data
-      });
-    }
-    if(selectedSite && detailKey(selectedSite)===detailKey(site)){
-      selectedSite=site;
-    }
-    return data;
-  }catch(e){
-    console.warn("Čerstvé načtení dat bodu selhalo",e);
-    return null;
-  }
-}
+const {
+  refreshSelectedDetailDataView,
+  refreshSiteDataFromFirebase
+}=createDetailDataRefreshHelpers({
+  applyLatestProtocolDateToRaw,
+  detailKey,
+  detailSubNode,
+  detailTableNode,
+  getDb:()=>db,
+  getFbFsMod:()=>fb.fsMod,
+  getFirebaseReady:()=>firebaseReady,
+  getSelectedSite:()=>selectedSite,
+  normalize,
+  renderDetailTable,
+  selectedSiteDocId,
+  setSelectedSite:site=>{ selectedSite=site; },
+  showControlDateDisplay,
+  siteSourceLabel,
+  syncOpenProtocolContactFromDetail,
+  syncOpenProtocolDeviceTypeFromDetail
+});
 
 async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,options={}){
   const docId=selectedSiteDocId(site);
