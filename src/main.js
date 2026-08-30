@@ -417,6 +417,9 @@ import {
   createProtocolSignatureImageHelpers
 } from "./protocol-signature-image-utils.js";
 import {
+  createProtocolTechnicianIdentityHelpers
+} from "./protocol-technician-identity-utils.js";
+import {
   protocolSourceStateLabel,
   protocolSourceStateValue,
   protocolSourceTestMethodLabel
@@ -619,7 +622,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-signature-image-module-v616";
+const APP_BUILD_VERSION="2026-08-30-protocol-technician-identity-module-v617";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5272,96 +5275,19 @@ const {
   protocolTechnicianSignatureImageBytes
 }=createProtocolSignatureImageHelpers({ safe });
 
-function technicianKnownKeyFromValue(value=""){
-  const text=safe(value);
-  if(!text) return "";
-  const lower=text.toLowerCase();
-  const norm=simpleNorm(text);
-  const compact=norm.replace(/\s+/g,"");
-  if(
-    lower.includes("tipek") ||
-    norm.includes("michal tipek") ||
-    compact.includes("michaltipek")
-  ) return "tipek";
-  if(
-    lower.includes("jan.soldan") ||
-    lower.includes("jansoldan") ||
-    norm.includes("jan soldan") ||
-    compact.includes("jansoldan")
-  ) return "soldan";
-  return "";
-}
-
-function technicianKnownDisplayName(key=""){
-  if(key==="tipek") return "Ing. Michal Tipek";
-  if(key==="soldan") return "Ing. Jan Soldan";
-  return "";
-}
-
-function normalizeTechnicianDisplayName(value=""){
-  const text=safe(value);
-  if(!text) return "";
-  const known=technicianKnownDisplayName(technicianKnownKeyFromValue(text));
-  if(known) return known;
-  if(/^ing\.?\s+/i.test(text)) return text.replace(/^ing\.?\s+/i,"Ing. ");
-  if(text.includes("@")){
-    const local=text.split("@")[0].replace(/[._-]+/g," ").trim();
-    return local ? local.replace(/\b\w/g,char=>char.toUpperCase()) : text;
-  }
-  return text;
-}
-
-function protocolTechnicianEmail(protocol={},options={}){
-  const candidates=[
-    protocol.technicianEmail,
-    protocol.techEmail,
-    protocol.createdBy
-  ];
-  if(options.allowUpdatedBy) candidates.push(protocol.updatedBy);
-  if(options.allowCurrentFallback) candidates.push(currentUser?.email,currentUserEmail(),lastKnownUserEmail());
-  for(const candidate of candidates){
-    const email=safe(candidate).toLowerCase();
-    if(email && email.includes("@")) return email;
-  }
-  return "";
-}
-
-function protocolTechnicianDisplayName(protocol={},options={}){
-  const primary=[
-    protocol.techSign,
-    protocol.technician,
-    protocol.technicianName,
-    protocol.technicianDisplayName
-  ].map(normalizeTechnicianDisplayName).find(Boolean);
-  if(primary) return primary;
-  const email=protocolTechnicianEmail(protocol,{allowCurrentFallback:false});
-  const emailName=normalizeTechnicianDisplayName(email || protocol.technicianEmail || protocol.techEmail || "");
-  if(emailName) return emailName;
-  if(options.allowCurrentFallback){
-    return normalizeTechnicianDisplayName(
-      currentUser?.displayName ||
-      currentUser?.email ||
-      currentUserEmail() ||
-      lastKnownUserEmail() ||
-      ""
-    );
-  }
-  return "";
-}
-
-function normalizeProtocolTechnicianFields(protocol={},options={}){
-  const email=protocolTechnicianEmail(protocol,{allowCurrentFallback:!!options.allowCurrentFallback});
-  const display=protocolTechnicianDisplayName({...protocol,technicianEmail:protocol.technicianEmail || email},{
-    allowCurrentFallback:!!options.allowCurrentFallback
-  });
-  return {
-    ...protocol,
-    technicianEmail:protocol.technicianEmail || email,
-    techEmail:protocol.techEmail || email,
-    technicianName:protocol.technicianName || display,
-    techSign:display || protocol.techSign || protocol.technician || ""
-  };
-}
+const {
+  normalizeProtocolTechnicianFields,
+  normalizeTechnicianDisplayName,
+  protocolTechnicianDisplayName,
+  protocolTechnicianEmail,
+  technicianKnownKeyFromValue
+}=createProtocolTechnicianIdentityHelpers({
+  currentUserEmail,
+  getCurrentUser:()=>currentUser,
+  lastKnownUserEmail,
+  safe,
+  simpleNorm
+});
 
 function wordSignatureImageRun(relId="rIdSignature",options={}){
   const cx=Number(options.cx) || 2600000;
