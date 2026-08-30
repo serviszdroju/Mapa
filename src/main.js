@@ -484,6 +484,9 @@ import {
   createOfficialProtocolFileNameHelpers
 } from "./official-protocol-file-name-utils.js";
 import {
+  createOfficialProtocolDataHelpers
+} from "./official-protocol-data-utils.js";
+import {
   createOfficialProtocolTextHelpers
 } from "./official-protocol-text-utils.js";
 import {
@@ -655,7 +658,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-file-export-module-v628";
+const APP_BUILD_VERSION="2026-08-30-official-protocol-data-module-v629";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5236,7 +5239,7 @@ const {
   siteAttachmentsStatusNode,
   sitePhotosListNode,
   sitePhotosStatusNode,
-  updateOfficialProtocolSourceInfo
+  updateOfficialProtocolSourceInfo:()=>updateOfficialProtocolSourceInfo()
 });
 window.ensureDetailTabLoad=ensureDetailTabLoad;
 window.refreshLoadedDetailTabs=refreshLoadedDetailTabs;
@@ -5377,14 +5380,6 @@ const {
   wordXmlEscape
 });
 
-function officialProtocolDataForSite(site=selectedSite){
-  const remote=(site?.firebaseData?.officialProtocolData && typeof site.firebaseData.officialProtocolData==="object") ? site.firebaseData.officialProtocolData : {};
-  const local=readSiteLocalObject("officialProtocolData",site);
-  const remoteTime=timeValueFromAny(remote.updatedAt || remote.savedAt || remote.createdAt || 0);
-  const localTime=timeValueFromAny(local.updatedAt || local.savedAt || local.createdAt || 0);
-  return localTime>remoteTime ? {...remote,...local} : {...local,...remote};
-}
-
 const OFFICIAL_CONTROL_SUBJECT_TEXT="Servis záložních zdrojů s.r.o.\nBožetěchova 3003/133\n612 00 Brno\nIČO: 09391126, DIČ: CZ09391126\nC 118823/KSBR Krajský soud v Brně";
 const OFFICIAL_DEFAULT_MANUFACTURER_TEXT="Servis záložních zdrojů s.r.o.\nBožetěchova 3003/133\n612 00 Brno\nIČO: 09391126, DIČ: CZ09391126\nC 118823/KSBR Krajský soud v Brně";
 const OFFICIAL_MANUFACTURERS={
@@ -5441,235 +5436,63 @@ const {
   wordTable
 });
 
-function officialManufacturerKeyFromText(value){
-  const normalized=simpleNorm(value);
-  if(normalized.includes("astip servis")) return "astip";
-  if(normalized.includes("tipo electric")) return "tipo";
-  if(normalized.includes("servis zaloznich zdroju")) return "szz";
-  return "szz";
-}
-
-function syncOfficialManufacturerHidden(){
-  const select=officialManufacturerSelectNode();
-  const key=select?.value || "szz";
-  setInputValue("officialManufacturerData",officialManufacturerTextByKey(key));
-  return key;
-}
-
-function officialProtocolInputData(){
-  const manufacturerKey=syncOfficialManufacturerHidden();
-  return {
-    operator:val("officialOperatorData"),
-    objectAddress:val("officialObjectData"),
-    manufacturerKey,
-    manufacturer:officialManufacturerTextByKey(manufacturerKey),
-    note:val("officialProtocolNote"),
-    updatedAt:new Date().toISOString(),
-    updatedBy:currentUser?.email || ""
-  };
-}
-
-function sharedOfficialProtocolData(data={}){
-  return {
-    operator:data.operator || "",
-    objectAddress:data.objectAddress || "",
-    manufacturerKey:data.manufacturerKey || "szz",
-    manufacturer:data.manufacturer || officialManufacturerTextByKey(data.manufacturerKey || "szz"),
-    updatedAt:data.updatedAt || new Date().toISOString(),
-    updatedBy:data.updatedBy || currentUser?.email || ""
-  };
-}
-
-async function propagateOfficialProtocolDataToSiblingSources(data={},site=selectedSite,signedUser=null){
-  if(!site) return 0;
-  const siblings=siteSiblingRows(site)
-    .filter(row=>row && !selectedSiteMatchForSave(row,detailKey(site) || site.id || "",selectedSiteDocId(site)));
-  if(!siblings.length) return 0;
-
-  const shared=sharedOfficialProtocolData(data);
-  const identityKeys=new Set();
-  const canSaveRemote=!!(firebaseReady && db && fb.fsMod && signedUser);
-  const remoteWrites=[];
-  let saved=0;
-
-  siblings.forEach(sibling=>{
-    const existing=officialProtocolDataForSite(sibling);
-    const siblingData={
-      ...existing,
-      ...shared,
-      note:existing.note || ""
-    };
-    writeSiteLocalObject("officialProtocolData",siblingData,sibling);
-    sibling.firebaseData={...(sibling.firebaseData || {}),officialProtocolData:siblingData};
-    rowIdentityKeys(sibling).forEach(key=>identityKeys.add(key));
-    saved++;
-
-    if(canSaveRemote){
-      const docId=selectedSiteDocId(sibling);
-      if(docId){
-        const {doc,setDoc,serverTimestamp}=fb.fsMod;
-        remoteWrites.push(setDoc(doc(db,"sitesUnified",docId),{
-          officialProtocolData:siblingData,
-          updatedAt:serverTimestamp ? serverTimestamp() : siblingData.updatedAt,
-          updatedBy:currentUser?.email || ""
-        },{merge:true}).catch(e=>{
-          console.warn("Sdílená data dokladu se nepodařila uložit pro další zdroj",sibling,e);
-        }));
-      }
-    }
-  });
-
-  if(remoteWrites.length) await Promise.all(remoteWrites);
-  if(identityKeys.size){
-    rows=rows.map(row=>{
-      if(!rowMatchesIdentity(row,identityKeys)) return row;
-      const existing=row.firebaseData?.officialProtocolData || {};
-      return {
-        ...row,
-        firebaseData:{
-          ...(row.firebaseData || {}),
-          officialProtocolData:{...existing,...shared,note:existing.note || ""}
-        }
-      };
-    });
+const {
+  fillOfficialProtocolInputs,
+  officialManufacturerKeyFromText,
+  officialProtocolDataForSite,
+  officialProtocolInputData,
+  propagateOfficialProtocolDataToSiblingSources,
+  protocolForOfficialDocument,
+  resetOfficialProtocolSection,
+  saveOfficialProtocolData,
+  selectedHistoryProtocol,
+  sharedOfficialProtocolData,
+  syncOfficialManufacturerHidden,
+  updateOfficialProtocolSourceInfo
+}=createOfficialProtocolDataHelpers({
+  detailKey,
+  getCurrentUser:()=>currentUser,
+  getDb:()=>db,
+  getDetailHistoryIndex:()=>detailHistoryIndex,
+  getDetailHistoryItems:()=>detailHistoryItems,
+  getFirebaseReady:()=>firebaseReady,
+  getFsMod:()=>fb.fsMod,
+  getLastProtocol:(site)=>getLastProtocol(site),
+  getRows:()=>rows,
+  getSelectedSite:()=>selectedSite,
+  historyDateLabel,
+  historySavedDateLabel,
+  isProtocolHistoryItem,
+  officialManufacturerSelectNode,
+  officialManufacturerTextByKey,
+  officialProtocolDataBoxNode,
+  officialProtocolSourceInfoNode,
+  officialProtocolStatusNode,
+  pickRawValue,
+  protocolTimeValue,
+  readSiteLocalArray,
+  readSiteLocalObject,
+  recordMatchesSite,
+  rowIdentityKeys,
+  rowMatchesIdentity,
+  safe,
+  selectedSiteDocId,
+  selectedSiteMatchForSave,
+  setDisplayIfChanged,
+  setInputValue,
+  setRows:nextRows=>{
+    rows=nextRows;
     window.rows=rows;
-  }
-  return saved;
-}
-
-function fillOfficialProtocolInputs(site=selectedSite){
-  const data=officialProtocolDataForSite(site);
-  const raw=site?.raw || {};
-  setInputValue("officialOperatorData",data.operator || pickRawValue(raw,["Provozovatel","Provozovatel zařízení"]) || "");
-  setInputValue("officialObjectData",data.objectAddress || "");
-  const manufacturerKey=data.manufacturerKey || officialManufacturerKeyFromText(data.manufacturer || "");
-  setInputValue("officialManufacturerSelect",manufacturerKey);
-  setInputValue("officialManufacturerData",officialManufacturerTextByKey(manufacturerKey));
-  setInputValue("officialProtocolNote",data.note || "");
-}
-
-function latestDisplayedProtocol(){
-  let latest=null;
-  let latestTime=-Infinity;
-  for(const item of detailHistoryItems || []){
-    if(!isProtocolHistoryItem(item)) continue;
-    const time=protocolTimeValue(item);
-    if(!latest || time>latestTime){
-      latest=item;
-      latestTime=time;
-    }
-  }
-  return latest;
-}
-
-function latestLocalProtocolForSite(site=selectedSite){
-  const localItems=readSiteLocalArray("protocolHistory",site);
-  let latest=null;
-  let latestTime=-Infinity;
-  for(let idx=0;idx<localItems.length;idx++){
-    const item=localItems[idx];
-    if(!item) continue;
-    const normalized={...item,_type:"Protokol",_collection:"localProtocols",_id:item._id || `local_protocol_${idx}`};
-    if(!recordMatchesSite(normalized,site)) continue;
-    const time=protocolTimeValue(normalized);
-    if(!latest || time>latestTime){
-      latest=normalized;
-      latestTime=time;
-    }
-  }
-  return latest;
-}
-
-function selectedHistoryProtocol(){
-  const current=detailHistoryItems[detailHistoryIndex];
-  return isProtocolHistoryItem(current) ? current : null;
-}
-
-function updateOfficialProtocolSourceInfo(){
-  const info=officialProtocolSourceInfoNode();
-  if(!info) return;
-  const selectedProtocol=selectedHistoryProtocol();
-  const protocol=selectedProtocol || latestDisplayedProtocol() || latestLocalProtocolForSite(selectedSite);
-  if(protocol){
-    const saved=historySavedDateLabel(protocol);
-    const checked=historyDateLabel(protocol);
-    setTextIfChanged(info,[
-      selectedProtocol ? "Použije se právě zobrazený protokol" : "Použije se poslední uložený protokol",
-      saved ? `uložený ${saved}` : "",
-      checked ? `(kontrola ${checked})` : ""
-    ].filter(Boolean).join(" ") + ".");
-  }else{
-    setTextIfChanged(info,"Použije se poslední uložený protokol. Pokud tu ještě není, nejdřív ulož protokol kontroly.");
-  }
-}
-
-function resetOfficialProtocolSection(site=selectedSite){
-  fillOfficialProtocolInputs(site);
-  const box=officialProtocolDataBoxNode();
-  const status=officialProtocolStatusNode();
-  setDisplayIfChanged(box,"none");
-  setTextIfChanged(status,"");
-  updateOfficialProtocolSourceInfo();
-}
-
-async function saveOfficialProtocolData(options={}){
-  const status=officialProtocolStatusNode();
-  if(!selectedSite){
-    setTextIfChanged(status,"Není vybrané místo.");
-    return null;
-  }
-  const data=officialProtocolInputData();
-  if(!safe(data.operator) || !safe(data.objectAddress)){
-    const box=officialProtocolDataBoxNode();
-    setDisplayIfChanged(box,"grid");
-    setTextIfChanged(status,"Nejdřív ručně vyplň bod a) Provozovatel PBZ a bod b) Adresa objektu. Bod b) se nepřebírá z protokolu ani z detailu.");
-    return null;
-  }
-  writeSiteLocalObject("officialProtocolData",data,selectedSite);
-  selectedSite.firebaseData={...(selectedSite.firebaseData || {}),officialProtocolData:data};
-  let savedToFirebase=false;
-  let signedUser=null;
-  const docId=selectedSiteDocId(selectedSite);
-  if(docId && firebaseReady && db && fb.fsMod){
-    signedUser=await waitForFirebaseUser(1200);
-    if(signedUser){
-      try{
-        const {doc,setDoc,serverTimestamp}=fb.fsMod;
-        await setDoc(doc(db,"sitesUnified",docId),{
-          officialProtocolData:data,
-          updatedAt:serverTimestamp ? serverTimestamp() : data.updatedAt,
-          updatedBy:currentUser?.email || ""
-        },{merge:true});
-        savedToFirebase=true;
-      }catch(e){
-        console.warn("Uložení dat provozovatele selhalo",e);
-        if(!options.silent) setTextIfChanged(status,`Data provozovatele jsou uložená jen lokálně: ${e.message}`);
-      }
-    }
-  }
-  const siblingCount=await propagateOfficialProtocolDataToSiblingSources(data,selectedSite,signedUser);
-  if(!options.silent){
-    const siblingText=siblingCount ? ` Data propsána i do dalších zdrojů na stejném místě: ${siblingCount}.` : "";
-    setTextIfChanged(status,(savedToFirebase ? "Data provozovatele uložena." : "Data provozovatele uložena lokálně.") + siblingText);
-    showSaveConfirmation(siblingCount ? "Data provozovatele uložena pro celé místo." : "Data provozovatele uložena.");
-  }
-  return data;
-}
-
-async function protocolForOfficialDocument(){
-  const visible=selectedHistoryProtocol() || latestDisplayedProtocol();
-  if(visible) return visible;
-  const local=latestLocalProtocolForSite(selectedSite);
-  if(local) return local;
-  if(!firebaseReady || !db) return null;
-  try{
-    const last=await getLastProtocol(selectedSite);
-    return last || null;
-  }catch(e){
-    console.warn("Poslední protokol pro doklad se nepodařilo načíst",e);
-    return null;
-  }
-}
+  },
+  setTextIfChanged,
+  showSaveConfirmation,
+  simpleNorm,
+  siteSiblingRows,
+  timeValueFromAny,
+  val,
+  waitForFirebaseUser,
+  writeSiteLocalObject
+});
 
 const {
   buildOfficialProtocolWordEntries
