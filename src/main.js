@@ -610,7 +610,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-login-popup-wait-v610";
+const APP_BUILD_VERSION="2026-08-30-login-popup-wait-v611";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2163,10 +2163,10 @@ const {
   createRecordIdDedupe,
   getDb:()=>db,
   getFsMod:()=>fb && fb.fsMod,
-  hasMatchingHistoryItemForSite,
+  hasMatchingHistoryItemForSite:(items,site)=>hasMatchingHistoryItemForSite(items,site),
   isFirebaseReady:()=>firebaseReady,
   isOnline:()=>navigator.onLine!==false,
-  matchingHistoryItemsForSite,
+  matchingHistoryItemsForSite:(items,site)=>matchingHistoryItemsForSite(items,site),
   readFirestoreArrayContainsAny,
   readFirestoreEqualsAny,
   runBoundedFirestoreTasks,
