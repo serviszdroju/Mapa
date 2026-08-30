@@ -421,6 +421,9 @@ import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
 import {
+  createDetailHistoryDeleteHelpers
+} from "./detail-history-delete-utils.js";
+import {
   createProtocolHandoffHelpers
 } from "./protocol-handoff-utils.js";
 import {
@@ -583,7 +586,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-site-apply-module-v599";
+const APP_BUILD_VERSION="2026-08-30-detail-history-delete-module-v600";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -8615,50 +8618,23 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
   }
 }
 
-function isHistoryAdmin(){
-  return isAppAdmin();
-}
+const isHistoryAdmin=()=>isAppAdmin();
 
-function prependHistoryNotice(message){
-  const history=detailHistoryNode();
-  if(!history) return;
-  const note=document.createElement("p");
-  note.className="small";
-  note.textContent=message;
-  history.prepend(note);
-}
-
-async function deleteCurrentHistoryProtocol(){
-  const item=detailHistoryItems[detailHistoryIndex];
-  if(!item || item._type!=="Protokol" || !item._id) return;
-  if(!isHistoryAdmin()){
-    prependHistoryNotice("Mazat protokoly může jen správce.");
-    return;
-  }
-  if(!confirm("Opravdu smazat tento uložený protokol z historie?")) return;
-  try{
-    const {doc,deleteDoc,setDoc,serverTimestamp}=fb.fsMod;
-    try{ await deleteDoc(doc(db,"protocols",item._id)); }catch(e){ console.warn("Samostatný protokol se nepodařilo smazat",e); }
-    const docId=selectedSiteDocId(selectedSite);
-    if(docId){
-      try{ await deleteDoc(doc(db,"sitesUnified",docId,"protocols",item._id)); }catch(e){ console.warn("Protokol pod bodem se nepodařilo smazat",e); }
-      const currentData=selectedSite?.firebaseData || {};
-      const protocolHistory=Array.isArray(currentData.protocolHistory) ? currentData.protocolHistory.filter(p=>String(p?._id || "")!==String(item._id)) : [];
-      const protocolRefs=Array.isArray(currentData.protocolRefs) ? currentData.protocolRefs.filter(p=>String(p?._id || "")!==String(item._id)) : [];
-      await setDoc(doc(db,"sitesUnified",docId),{
-        protocolHistory,
-        protocolRefs,
-        updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
-      },{merge:true});
-      selectedSite.firebaseData={...currentData,protocolHistory,protocolRefs};
-    }
-    removeSiteLocalItem("protocolHistory",item._id,selectedSite);
-    showSaveConfirmation("Protokol smazán.");
-    await loadHistory(selectedSite?.id || item.siteId);
-  }catch(e){
-    prependHistoryNotice(`Chyba mazání protokolu: ${e.message}`);
-  }
-}
+const {
+  deleteCurrentHistoryProtocol,
+  prependHistoryNotice
+}=createDetailHistoryDeleteHelpers({
+  detailHistoryNode,
+  getCurrentHistoryItem:()=>detailHistoryItems[detailHistoryIndex],
+  getDb:()=>db,
+  getFsMod:()=>fb.fsMod,
+  getSelectedSite:()=>selectedSite,
+  isHistoryAdmin,
+  loadHistory,
+  removeSiteLocalItem,
+  selectedSiteDocId,
+  showSaveConfirmation
+});
 
 function bindDetailHistoryActions(history){
   if(!history || history.__szzHistoryActionClickBound) return;
