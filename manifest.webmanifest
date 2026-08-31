@@ -3,7 +3,7 @@
   "name": "Servis zaloznich zdroju",
   "short_name": "SZZ mapa",
   "description": "Servisni mapa zaloznich zdroju ASTIP.",
-  "start_url": "/Mapa/?v=stop-handoff-no-legacy-auto-v657",
+  "start_url": "/Mapa/?v=ordered-button-yellow-v658",
   "scope": "/Mapa/",
   "lang": "cs-CZ",
   "categories": ["business", "productivity", "utilities"],
@@ -17,7 +17,7 @@
     {
       "name": "Otevrit mapu",
       "short_name": "Mapa",
-      "url": "/Mapa/?v=stop-handoff-no-legacy-auto-v657",
+      "url": "/Mapa/?v=ordered-button-yellow-v658",
       "icons": [
         {
           "src": "./szz-app-icon-192.png",
