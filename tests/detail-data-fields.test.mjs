@@ -39,3 +39,20 @@ test("hlidame sami termin se v detailu zobrazi jako ano i z legacy priznaku bez 
   const value=userSiteFieldValue({raw},watchSpec,raw);
   assert.equal(value,"ano");
 });
+
+test("detail hlidame sami termin respektuje stejny no-order priznak jako mapovy filtr",()=>{
+  const watchSpec={label:"Hlídáme sami termín",key:"Hlídáme sami termín",type:"yesno"};
+  const { userSiteFieldValue }=createSiteFieldLookupHelpers({
+    dataNormFixed,
+    userSiteDataFields:[watchSpec],
+    detectControlPeriod:()=>"",
+    getImportantNoteFixed:()=>"",
+    getWatchFixed:(raw,row)=>{
+      const explicit=canonicalWatchSelfValue(raw);
+      return explicit==="ano" || row.noOrder===true ? "ano" : "ne";
+    },
+  });
+  const raw={};
+  const value=userSiteFieldValue({raw,noOrder:true},watchSpec,raw);
+  assert.equal(value,"ano");
+});

@@ -72,7 +72,7 @@ export function createSiteFieldLookupHelpers({
     if(!spec) return "";
     if(spec.type==="period") return typeof detectControlPeriod==="function" ? detectControlPeriod(raw) : "";
     if(spec.key==="Hlídáme sami termín"){
-      const value=typeof getWatchFixed==="function" ? getWatchFixed(raw) : "";
+      const value=typeof getWatchFixed==="function" ? getWatchFixed(raw,r) : "";
       return yesNoFixed(value,"ne");
     }
     if(spec.important) return typeof getImportantNoteFixed==="function" ? getImportantNoteFixed(raw) : "";

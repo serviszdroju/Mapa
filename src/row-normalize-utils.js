@@ -30,6 +30,7 @@ export function createRowNormalizeHelpers({
         adresa,
         first(raw,["Adresa / umístění","Adresa_GPS","Umístění","Umístění zdroje","Původní adresa / umístění"])
       ].filter(Boolean).join(" "));
+      const explicitWatchSelf=explicitWatchSelfFromRaw(raw);
       const r={
         id:siteId(raw,i), i, raw, lat, lon,
         gpsAddress:first(raw,["Adresa_GPS","Adresa / umístění","Umístění"]),
@@ -44,7 +45,7 @@ export function createRowNormalizeHelpers({
         ordered:orderedFlagFromRaw(raw),
         repairOrdered:repairOrderFlagFromRaw(raw),
         stopped:stopFlagFromRaw(raw),
-        noOrder:explicitWatchSelfFromRaw(raw)===true
+        noOrder:explicitWatchSelf === null ? null : explicitWatchSelf === true
       };
       return applyEditToRow(r);
     });
