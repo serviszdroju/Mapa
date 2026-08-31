@@ -43,9 +43,6 @@ import {
   rememberKnownSignedIn,
   setStartupAuthChecking
 } from "./firebase-auth.js";
-import * as bundledFirebaseAppMod from "firebase/app";
-import * as bundledFirebaseAuthMod from "firebase/auth";
-import * as bundledFirebaseFirestoreMod from "firebase/firestore";
 import {
   WATCH_SELF_RAW_KEYS,
   applyWatchSelfAliases,
@@ -664,11 +661,18 @@ window.WATCH_SELF_RAW_KEYS=WATCH_SELF_RAW_KEYS;
 window.explicitWatchSelfFromRaw=explicitWatchSelfFromRaw;
 window.canonicalWatchSelfValue=canonicalWatchSelfValue;
 window.applyWatchSelfAliases=applyWatchSelfAliases;
+let bundledFirebaseModulesPromise=null;
+function loadBundledFirebaseModules(){
+  if(!bundledFirebaseModulesPromise){
+    bundledFirebaseModulesPromise=import("./firebase-bundled-sdk.js");
+  }
+  return bundledFirebaseModulesPromise;
+}
 function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v652";
+const APP_BUILD_VERSION="2026-08-31-detail-region-bundle-v653";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -983,10 +987,11 @@ if(firebaseReady){
   let authMod=null;
   let fsMod=null;
   try{
+    const bundledFirebaseMods=await loadBundledFirebaseModules();
     [appMod,authMod,fsMod]=[
-      bundledFirebaseAppMod,
-      bundledFirebaseAuthMod,
-      bundledFirebaseFirestoreMod
+      bundledFirebaseMods.firebaseAppMod,
+      bundledFirebaseMods.firebaseAuthMod,
+      bundledFirebaseMods.firebaseFirestoreMod
     ];
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);

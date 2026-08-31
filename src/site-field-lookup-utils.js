@@ -85,6 +85,7 @@ export function createSiteFieldLookupHelpers({
     let v=firstSiteField(raw, spec.keys);
     if(!v && spec.key==="Název") v=(r && r.adresa) || "";
     if(!v && spec.key==="Adresa / umístění") v=firstSiteField(raw,["Umístění","Umístění zdroje"]);
+    if(!v && spec.key==="Kraj") v=(r && r.kraj) || "";
     if(!v && spec.key==="Kontakt") v=(r && r.kontakt) || "";
     if(!v && spec.key==="Popis_zdroje") v=(r && r.zdroj) || "";
     return v;

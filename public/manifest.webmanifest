@@ -3,7 +3,7 @@
   "name": "Servis zaloznich zdroju",
   "short_name": "SZZ mapa",
   "description": "Servisni mapa zaloznich zdroju ASTIP.",
-  "start_url": "/Mapa/?v=protocol-handoff-mobile-v652",
+  "start_url": "/Mapa/?v=detail-region-bundle-v653",
   "scope": "/Mapa/",
   "lang": "cs-CZ",
   "categories": ["business", "productivity", "utilities"],
@@ -17,7 +17,7 @@
     {
       "name": "Otevrit mapu",
       "short_name": "Mapa",
-      "url": "/Mapa/?v=protocol-handoff-mobile-v652",
+      "url": "/Mapa/?v=detail-region-bundle-v653",
       "icons": [
         {
           "src": "./szz-app-icon-192.png",
