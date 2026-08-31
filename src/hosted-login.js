@@ -4,11 +4,12 @@ import {
   AUTH_LOGGED_OUT,
   GOOGLE_WEB_CLIENT_ID,
   firebaseConfig,
+  loadCompatFirebaseScripts,
   loadGoogleIdentityServices
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v645";
+const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v646";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -304,6 +305,7 @@ function callAndroidAuthBridge(bridge,method){
 
 function waitForCompatFirebaseAuth(timeoutMs=20000){
   const started=Date.now();
+  let loadStarted=false;
   return new Promise((resolve,reject)=>{
     const tick=()=>{
       try{
@@ -315,6 +317,12 @@ function waitForCompatFirebaseAuth(timeoutMs=20000){
           return;
         }
       }catch(error){}
+      if(!loadStarted && navigator.onLine!==false){
+        loadStarted=true;
+        Promise.resolve(loadCompatFirebaseScripts()).catch(error=>{
+          console.warn("Firebase compat SDK se nepodařilo načíst pro přihlášení",error);
+        });
+      }
       if(Date.now()-started>=timeoutMs){
         reject(new Error("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."));
         return;
@@ -339,7 +347,7 @@ function signInWithAndroidGoogleCompat(auth,bridge){
       (async()=>{
         const token=String(idToken || "").trim();
         if(!token) throw new Error("Google nevrátil přihlašovací token.");
-        const authClient=auth || await waitForCompatFirebaseAuth();
+        const authClient=auth || await waitForCompatFirebaseAuth(30000);
         const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
         authClient.signInWithCredential(credential)
           .then(result=>finish(resolve,result))

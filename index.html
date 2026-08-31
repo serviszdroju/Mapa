@@ -46,7 +46,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v645";
+  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v646";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -58,7 +58,13 @@ try{
   };
   const GOOGLE_WEB_CLIENT_ID="304123957651-8nnf5s40h56r63uiqddooioiu7fqh8pk.apps.googleusercontent.com";
   const GOOGLE_IDENTITY_SCRIPT_URL="https://accounts.google.com/gsi/client";
+  const FIREBASE_COMPAT_SCRIPT_URLS=[
+    "https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"
+  ];
   let googleIdentityScriptPromise=null;
+  const firebaseCompatScriptPromiseCache=new Map();
   let pendingGoogleLoginRequested=false;
   let pendingGoogleLoginTimer=null;
   let lastGoogleLoginInteractionAt=0;
@@ -138,6 +144,54 @@ try{
     });
     return googleIdentityScriptPromise;
   }
+
+  function compatFirebaseReady(){
+    return !!(window.firebase && firebase.initializeApp && firebase.auth);
+  }
+
+  function loadFirebaseCompatScriptOnce(src){
+    const absolute=new URL(src,document.baseURI).href;
+    if(firebaseCompatScriptPromiseCache.has(absolute)) return firebaseCompatScriptPromiseCache.get(absolute);
+    const promise=new Promise((resolve,reject)=>{
+      const existing=Array.from(document.scripts).find(script=>script.src===absolute);
+      if(existing){
+        if(existing.dataset.loaded==="1" || compatFirebaseReady() || existing.readyState==="loaded" || existing.readyState==="complete"){
+          resolve();
+          return;
+        }
+        existing.addEventListener("load",()=>resolve(),{once:true});
+        existing.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
+        return;
+      }
+      const script=document.createElement("script");
+      script.src=src;
+      script.async=false;
+      script.defer=true;
+      script.dataset.firebaseCompatDynamic="1";
+      script.addEventListener("load",()=>{
+        script.dataset.loaded="1";
+        resolve();
+      },{once:true});
+      script.addEventListener("error",()=>reject(new Error("Firebase compat script se nepodařilo načíst: " + src)),{once:true});
+      document.head.appendChild(script);
+    }).catch(error=>{
+      firebaseCompatScriptPromiseCache.delete(absolute);
+      throw error;
+    });
+    firebaseCompatScriptPromiseCache.set(absolute,promise);
+    return promise;
+  }
+
+  function loadFirebaseCompatScripts(){
+    if(compatFirebaseReady()) return Promise.resolve(window.firebase);
+    if(window.__firebaseCompatLoadingPromise) return window.__firebaseCompatLoadingPromise;
+    window.__firebaseCompatLoadingPromise=FIREBASE_COMPAT_SCRIPT_URLS
+      .reduce((promise,src)=>promise.then(()=>loadFirebaseCompatScriptOnce(src)),Promise.resolve())
+      .then(()=>window.firebase);
+    return window.__firebaseCompatLoadingPromise;
+  }
+
+  window.__loadFirebaseCompatScripts=window.__loadFirebaseCompatScripts || loadFirebaseCompatScripts;
 
   function activeUserGesture(){
     try{
@@ -479,6 +533,7 @@ try{
 
   function waitForCompatFirebaseAuth(timeoutMs=20000){
     const started=Date.now();
+    let loadStarted=false;
     return new Promise((resolve,reject)=>{
       const tick=()=>{
         try{
@@ -490,6 +545,12 @@ try{
             return;
           }
         }catch(error){}
+        if(!loadStarted && navigator.onLine!==false){
+          loadStarted=true;
+          Promise.resolve(loadFirebaseCompatScripts()).catch(error=>{
+            console.warn("Firebase compat SDK se nepodařilo načíst pro přihlášení",error);
+          });
+        }
         if(Date.now()-started>=timeoutMs){
           reject(new Error("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."));
           return;
@@ -514,7 +575,7 @@ try{
         (async()=>{
           const token=textValue(idToken);
           if(!token) throw new Error("Google nevrátil přihlašovací token.");
-          const authClient=auth || await waitForCompatFirebaseAuth();
+          const authClient=auth || await waitForCompatFirebaseAuth(30000);
           const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
           authClient.signInWithCredential(credential)
             .then(result=>finish(resolve,result))
@@ -749,7 +810,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v645" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v646" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-sidebar.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <div class="sidebar-primary-actions">
@@ -1181,7 +1242,7 @@ Protokol na: ..."></textarea>
 <script type="module" src="./src/detail-tabs.js"></script>
 <script type="module" src="./src/hosted-login.js"></script>
 <script type="module" src="./src/main.js"></script>
-<script async src="./late.js?v=protocol-handoff-mobile-v645"></script>
+<script async src="./late.js?v=protocol-handoff-mobile-v646"></script>
 
 
 

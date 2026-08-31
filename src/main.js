@@ -665,7 +665,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v645";
+const APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v646";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -988,6 +988,7 @@ if(firebaseReady){
     ]),FIREBASE_MODULE_IMPORT_TIMEOUT_MS,"Firebase knihovny se nenačetly včas.");
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
+    try{ await loadCompatFirebaseScripts(); }catch(loadError){ console.warn("Firebase compat SDK se nepodařilo donačíst",loadError); }
     const compatAvailable=!!(ensureCompatFirebaseApp() && window.firebase && firebase.auth);
     if(compatAvailable){
       firebaseReady=true;
@@ -1159,6 +1160,7 @@ if(firebaseReady){
       const credential=authMod.GoogleAuthProvider.credential(null,token);
       return authMod.signInWithCredential(auth,credential);
     }
+    if(!compatFirebaseReady()) await loadCompatFirebaseScripts();
     const compatClient=getCompatAuthClient();
     if(
       compatClient &&
@@ -1179,6 +1181,7 @@ if(firebaseReady){
       const credential=authMod.GoogleAuthProvider.credential(token,null);
       return authMod.signInWithCredential(auth,credential);
     }
+    if(!compatFirebaseReady()) await loadCompatFirebaseScripts();
     const compatClient=getCompatAuthClient();
     if(
       compatClient &&
