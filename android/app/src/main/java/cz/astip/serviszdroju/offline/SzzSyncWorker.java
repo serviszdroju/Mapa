@@ -581,7 +581,7 @@ public final class SzzSyncWorker extends Worker {
     }
 
     private static String entityId(OfflineEntities.SyncOutboxEntity operation, JSONObject payload, String typeIdKey) {
-        String value = firstText(payload, "_id", "id", typeIdKey, "firebaseId", "firebaseDocId");
+        String value = firstText(payload, "_id", "id", typeIdKey, "firebaseId", "firebaseDocId", "photoFingerprint", "photoDedupeKey", "sha256");
         if (value.isEmpty()) value = trim(operation.entityLocalId);
         return value;
     }

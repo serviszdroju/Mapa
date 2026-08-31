@@ -312,6 +312,11 @@ import {
   photoFileName
 } from "./photo-url-utils.js";
 import {
+  createPhotoDedupe,
+  photoFileDedupeInfo,
+  stablePhotoIdForSite
+} from "./photo-dedupe-utils.js";
+import {
   createOfflinePhotoItemHelpers
 } from "./offline-photo-item-utils.js";
 import {
@@ -672,7 +677,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-31-repair-button-blue-v659";
+const APP_BUILD_VERSION="2026-08-31-photo-dedupe-v660";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6284,7 +6289,7 @@ function saveAttachmentsSnapshotToAndroid(site,items){
 
 function saveLocalPhotoToAndroid(site,photoPayload){
   if(!photoPayload) return false;
-  const localId=safe(photoPayload._id || photoPayload.id) || makeLocalRecordId("photo");
+  const localId=safe(photoPayload._id || photoPayload.id || photoPayload.photoFingerprint || photoPayload.photoDedupeKey || photoPayload.sha256) || makeLocalRecordId("photo");
   const payload={...photoPayload,_id:localId};
   return androidOfflineCall("saveLocalPhoto",{
     operationId:`photo:${localId}`,
@@ -8286,6 +8291,7 @@ let sitePhotoRenderSignature="";
 let sitePhotoDeleteTokens=new Map();
 
 let offlinePhotoSyncRunning=false;
+let sitePhotoUploadRunning=false;
 
 async function syncOfflinePhotos(options={}){
   if(offlinePhotoSyncRunning) return 0;
@@ -8735,7 +8741,7 @@ async function loadSitePhotos(site=selectedSite){
   const requestedKey=detailLazyKey(site);
   const stillSameSite=()=>!requestedKey || requestedKey===detailLazyKey(selectedSite);
   const items=[];
-  const photoDedupe=createRecordIdDedupe(items);
+  const photoDedupe=createPhotoDedupe(items,{photoDisplayUrl});
   const addPhoto=item=>{
     if(!item || !photoDisplayUrl(item)) return;
     photoDedupe.add(item);
@@ -8817,24 +8823,84 @@ async function loadSitePhotos(site=selectedSite){
 async function uploadSitePhotos(){
   const st=sitePhotosStatusNode();
   const files=selectedSitePhotoFiles();
+  const uploadButton=sitePhotosNode("uploadSitePhotosBtn");
   if(!st) return;
   if(!selectedSite){setSitePhotosStatusText("Není vybraný bod.");return;}
   if(!files.length){setSitePhotosStatusText("Nejdřív vyber fotografie.");return;}
+  if(sitePhotoUploadRunning){
+    setSitePhotosStatusText("Fotografie se už ukládají, počkej prosím na dokončení.");
+    return;
+  }
 
+  sitePhotoUploadRunning=true;
+  if(uploadButton) uploadButton.disabled=true;
   try{
     const signedUser=(firebaseReady && db) ? await waitForFirebaseUser(1200) : null;
     const userEmail=signedUser?.email || currentUser?.email || lastKnownUserEmail() || "";
     const identity=siteRecordIdentity(selectedSite);
     const onlineUploadAvailable=!!(firebaseReady && db && signedUser && navigator.onLine !== false);
     const uploadFolderName=photoFolderNameForDate(new Date());
+    const siteStableKey=detailLazyKey(selectedSite) || selectedSiteDocId(selectedSite) || sitePlaceGroupKey(selectedSite) || safe(selectedSite.id);
+    const existingPhotos=[...sitePhotoItems];
+    const addExistingPhoto=item=>{ if(item && typeof item==="object") existingPhotos.push(item); };
+    readAndroidCachedRecords("cachedPhotosJson",selectedSite,5000).forEach(addExistingPhoto);
+    readSiteLocalArray("photos",selectedSite).forEach(addExistingPhoto);
+    try{
+      const offlinePhotos=await readOfflinePhotoItems(selectedSite);
+      offlinePhotos.forEach(addExistingPhoto);
+    }catch(e){}
+    if(onlineUploadAvailable){
+      setSitePhotosStatusText("Kontroluji už uložené fotografie...");
+      try{
+        const childPhotos=await loadSiteChildItems("photos",selectedSite);
+        childPhotos.forEach(addExistingPhoto);
+        const embeddedPhotos=Array.isArray(selectedSite?.firebaseData?.photos) ? selectedSite.firebaseData.photos : [];
+        embeddedPhotos.forEach(addExistingPhoto);
+      }catch(e){
+        console.warn("Kontrola uložených fotografií selhala, pokračuji s lokální ochranou proti duplicitám",e);
+      }
+    }
+    const existingPhotoDedupe=createPhotoDedupe(existingPhotos,{photoDisplayUrl});
+    const selectedFileDedupe=createPhotoDedupe([],{photoDisplayUrl});
+    const uploadQueue=[];
+    let skippedCount=0;
+    for(let i=0;i<files.length;i++){
+      const file=files[i];
+      setSitePhotosStatusText(`Kontroluji fotografii ${i+1}/${files.length}...`);
+      const dedupeInfo=await photoFileDedupeInfo(file);
+      const takenAt=file.lastModified ? new Date(file.lastModified).toISOString() : "";
+      const photoId=stablePhotoIdForSite(siteStableKey,dedupeInfo.photoDedupeKey || dedupeInfo.photoFingerprint);
+      const probe={
+        _id:photoId,
+        fileName:file.name || "",
+        originalFileName:file.name || "",
+        size:file.size || "",
+        originalSize:file.size || "",
+        type:file.type || "",
+        takenAt,
+        ...dedupeInfo
+      };
+      if(existingPhotoDedupe.has(probe) || selectedFileDedupe.has(probe)){
+        skippedCount++;
+        continue;
+      }
+      selectedFileDedupe.add(probe);
+      uploadQueue.push({file,photoId,dedupeInfo,takenAt});
+    }
+    if(!uploadQueue.length){
+      setSitePhotosStatusText(skippedCount ? `Fotografie už jsou u bodu uložené, duplicity jsem přeskočil: ${skippedCount}.` : "Není co uložit.");
+      resetSitePhotoInput();
+      return;
+    }
     let localOnlyCount=0;
     let offlineCount=0;
     let onlineCount=0;
 
-    const buildBasePayload=(photoId,file,createdAt)=>({
+    const buildBasePayload=(photoId,file,createdAt,dedupeInfo={},takenAt="")=>({
       _id:photoId,
       ...identity,
       fileName:file.name || "",
+      originalFileName:file.name || "",
       uploadedBy:userEmail || "nepřihlášený uživatel",
       photoFolder:uploadFolderName,
       folderName:uploadFolderName,
@@ -8842,15 +8908,19 @@ async function uploadSitePhotos(){
       cloudinaryFolderDate:uploadFolderName,
       cloudinaryFolder:cloudinaryPhotoFolderPath(uploadFolderName),
       createdAt,
-      takenAt:file.lastModified ? new Date(file.lastModified).toISOString() : createdAt
+      takenAt:takenAt || (file.lastModified ? new Date(file.lastModified).toISOString() : createdAt),
+      sha256:dedupeInfo.sha256 || "",
+      photoFingerprint:dedupeInfo.photoFingerprint || dedupeInfo.photoDedupeKey || "",
+      photoDedupeKey:dedupeInfo.photoDedupeKey || dedupeInfo.photoFingerprint || "",
+      photoFileSignature:dedupeInfo.photoFileSignature || ""
     });
 
-    const saveOfflinePhoto=async (photoId,file,reason,index)=>{
-      setSitePhotosStatusText(`Ukládám fotografii ${index+1}/${files.length} lokálně...`);
+    const saveOfflinePhoto=async (photoId,file,reason,index,total,dedupeInfo,takenAt)=>{
+      setSitePhotosStatusText(`Ukládám fotografii ${index+1}/${total} lokálně...`);
       const createdAt=new Date().toISOString();
       const offlineData=await prepareOfflinePhotoData(file);
       const photoPayload={
-        ...buildBasePayload(photoId,file,createdAt),
+        ...buildBasePayload(photoId,file,createdAt,dedupeInfo,takenAt),
         url:offlineData.dataUrl,
         displayUrl:offlineData.dataUrl,
         fullUrl:offlineData.dataUrl,
@@ -8871,27 +8941,23 @@ async function uploadSitePhotos(){
       renderSitePhotos([photoPayload,...sitePhotoItems.filter(photo=>safe(photo._id)!==photoPayload._id)]);
     };
 
-    for(let i=0;i<files.length;i++){
-      const file=files[i];
-      const photoId=(window.crypto && window.crypto.randomUUID)
-        ? window.crypto.randomUUID()
-        : `photo_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
+    for(let i=0;i<uploadQueue.length;i++){
+      const {file,photoId,dedupeInfo,takenAt}=uploadQueue[i];
       if(!onlineUploadAvailable){
-        await saveOfflinePhoto(photoId,file,!navigator.onLine ? "Bez připojení k internetu." : "Firebase nebo přihlášení není dostupné.",i);
+        await saveOfflinePhoto(photoId,file,!navigator.onLine ? "Bez připojení k internetu." : "Firebase nebo přihlášení není dostupné.",i,uploadQueue.length,dedupeInfo,takenAt);
         continue;
       }
 
-      setSitePhotosStatusText(`Zmenšuji fotografii ${i+1}/${files.length}...`);
+      setSitePhotosStatusText(`Zmenšuji fotografii ${i+1}/${uploadQueue.length}...`);
       let uploadFile;
       let cloudinaryResult;
       try{
         uploadFile=await prepareCloudinaryUploadFile(file);
-        setSitePhotosStatusText(`Nahrávám fotografii ${i+1}/${files.length} na Cloudinary...`);
+        setSitePhotosStatusText(`Nahrávám fotografii ${i+1}/${uploadQueue.length} na Cloudinary...`);
         cloudinaryResult=await uploadPhotoToCloudinary(photoId,uploadFile,selectedSite,uploadFolderName);
       }catch(uploadError){
         console.warn("Online nahrání fotky selhalo, ukládám lokálně",uploadError);
-        await saveOfflinePhoto(photoId,file,uploadError.message,i);
+        await saveOfflinePhoto(photoId,file,uploadError.message,i,uploadQueue.length,dedupeInfo,takenAt);
         continue;
       }
       if(cloudinaryResult?.cloudinaryDeleteToken){
@@ -8900,7 +8966,7 @@ async function uploadSitePhotos(){
 
       const createdAt=new Date().toISOString();
       const photoPayload={
-        ...buildBasePayload(photoId,file,createdAt),
+        ...buildBasePayload(photoId,file,createdAt,dedupeInfo,takenAt),
         url:cloudinaryResult.url,
         displayUrl:cloudinaryResult.displayUrl,
         fullUrl:cloudinaryResult.fullUrl,
@@ -8925,18 +8991,19 @@ async function uploadSitePhotos(){
       onlineCount++;
       renderSitePhotos([photoPayload,...sitePhotoItems.filter(photo=>safe(photo._id)!==photoPayload._id)]);
     }
+    const skippedSuffix=skippedCount ? ` Přeskočeno duplicit: ${skippedCount}.` : "";
 
     if(offlineCount && onlineCount){
-      setSitePhotosStatusText(`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} online, ${offlineCount} lokálně v tomto zařízení.`);
+      setSitePhotosStatusText(`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} online, ${offlineCount} lokálně v tomto zařízení.${skippedSuffix}`);
       showSaveConfirmation("Fotografie uloženy.");
     }else if(offlineCount){
-      setSitePhotosStatusText(`Fotografie uloženy lokálně do složky ${uploadFolderName}: ${offlineCount}. Po připojení se samy odešlou online.`);
+      setSitePhotosStatusText(`Fotografie uloženy lokálně do složky ${uploadFolderName}: ${offlineCount}. Po připojení se samy odešlou online.${skippedSuffix}`);
       showSaveConfirmation("Fotografie uloženy lokálně.");
     }else if(localOnlyCount){
-      setSitePhotosStatusText(`Fotografie nahrány na Cloudinary do složky ${uploadFolderName}. ${localOnlyCount} odkazů Firebase nepovolil uložit k bodu, proto jsou uložené lokálně v tomto prohlížeči.`);
+      setSitePhotosStatusText(`Fotografie nahrány na Cloudinary do složky ${uploadFolderName}. ${localOnlyCount} odkazů Firebase nepovolil uložit k bodu, proto jsou uložené lokálně v tomto prohlížeči.${skippedSuffix}`);
       showSaveConfirmation("Fotografie nahrány.");
     }else{
-      setSitePhotosStatusText(`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} (Cloudinary).`);
+      setSitePhotosStatusText(`Uloženo fotografií do složky ${uploadFolderName}: ${onlineCount} (Cloudinary).${skippedSuffix}`);
       showSaveConfirmation("Fotografie uloženy.");
     }
     if(offlineCount && navigator.onLine!==false && typeof syncOfflineChanges==="function"){
@@ -8946,6 +9013,9 @@ async function uploadSitePhotos(){
     try{ refreshDetailTabLoad("gallery",selectedSite); }catch(e){}
   }catch(e){
     setSitePhotosStatusText("Chyba uložení fotografií: "+e.message);
+  }finally{
+    sitePhotoUploadRunning=false;
+    if(uploadButton) uploadButton.disabled=false;
   }
 }
 

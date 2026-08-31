@@ -405,7 +405,7 @@ public final class SzzOfflineRepository {
         JSONObject raw = mediaRawPayload(payload, defaultSourceLocalId);
         if (raw == null) return null;
         String rawJson = raw.toString();
-        String localId = firstText(payload, raw, "localId", "photoId", "_id", "id", "firebaseId", "firebaseDocId", "cloudinaryPublicId");
+        String localId = firstText(payload, raw, "localId", "photoId", "_id", "id", "firebaseId", "firebaseDocId", "photoFingerprint", "photoDedupeKey", "sha256", "cloudinaryPublicId");
         if (localId == null) {
             String fallback = firstText(raw, "fullUrl", "displayUrl", "thumbUrl", "url", "dataUrl");
             if (fallback != null) localId = "photo-" + Integer.toHexString(fallback.hashCode());

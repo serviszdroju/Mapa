@@ -1,3 +1,5 @@
+import { createPhotoDedupe } from "./photo-dedupe-utils.js";
+
 export function createOfflinePhotoItemHelpers({
   photoDisplayUrl,
   photoFileName,
@@ -45,15 +47,12 @@ export function createOfflinePhotoItemHelpers({
 
   function collectDisplayablePhotoItemsFromLists(lists=[]){
     const out=[];
-    const seen=new Set();
+    const photoDedupe=createPhotoDedupe(out,{photoDisplayUrl:displayUrl});
     const sourceLists=Array.isArray(lists) ? lists : [];
     for(const list of sourceLists){
       const source=Array.isArray(list) ? list : [];
       for(const item of source){
-        const id=safeLocal(item && item._id);
-        if(id && seen.has(id)) continue;
-        if(id) seen.add(id);
-        if(displayUrl(item)) out.push(item);
+        if(displayUrl(item)) photoDedupe.add(item);
       }
     }
     return out;
@@ -61,16 +60,13 @@ export function createOfflinePhotoItemHelpers({
 
   function collectPendingOfflinePhotoItems(lists=[]){
     const out=[];
-    const seen=new Set();
+    const photoDedupe=createPhotoDedupe(out,{photoDisplayUrl:displayUrl});
     const sourceLists=Array.isArray(lists) ? lists : [];
     for(const list of sourceLists){
       const source=Array.isArray(list) ? list : [];
       for(const item of source){
         if(!isPendingOfflinePhotoItem(item)) continue;
-        const id=safeLocal(item._id);
-        if(id && seen.has(id)) continue;
-        if(id) seen.add(id);
-        if(displayUrl(item)) out.push(item);
+        if(displayUrl(item)) photoDedupe.add(item);
       }
     }
     return out;
