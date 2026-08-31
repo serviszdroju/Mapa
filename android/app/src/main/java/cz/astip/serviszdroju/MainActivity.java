@@ -728,7 +728,7 @@ public class MainActivity extends Activity {
             return;
         }
         googleSignInBusy = true;
-        startLegacyGoogleSignIn(webClientId);
+        startCredentialManagerGoogleSignIn(webClientId);
     }
 
     private void startSilentGoogleSignIn(boolean quiet) {

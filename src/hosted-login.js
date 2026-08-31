@@ -9,7 +9,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v649";
+const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v651";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -131,7 +131,7 @@ function appVisibleForAuthResume(){
 
 function isAndroidTransientAuthError(error){
   const message=String(error && (error.message || error.code) || error || "");
-  return /Android Google přihlášení nevrátilo výsledek včas|Tiché obnovení Android přihlášení|native-resume|auth-null/i.test(message);
+  return /Android Google přihlášení nevrátilo výsledek včas|Google přihlášení v aplikaci selhalo \(kód 7\)|kód\s+7|NETWORK_ERROR|Tiché obnovení Android přihlášení|native-resume|auth-null/i.test(message);
 }
 
 function shouldKeepMapOpenOnLoginError(error){
