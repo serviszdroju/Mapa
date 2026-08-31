@@ -42,6 +42,8 @@ test("stop stav v protokolu se nepreda ke zpracovani automaticky",()=>{
   assert.equal(h.protocolLooksRedForHandoff({sourceStateLabel:"Zdroj je ve stop stavu"}),false);
   assert.equal(h.protocolHandoffForProcessing({sourceState:"stop"}),false);
   assert.equal(h.protocolHandoffForProcessing({sourceStatus:"Stop Stav"}),false);
+  assert.equal(h.protocolHandoffForProcessing({sourceState:"stop",handoffForProcessing:true}),false);
+  assert.equal(h.protocolHandoffForProcessing({sourceStatus:"Stop Stav",processingHandoff:"ano"}),false);
   assert.equal(h.protocolHandoffForProcessing({sourceState:"stop",handoffForProcessing:true,handoffManualAt:"2026-08-31T08:00:00Z"}),true);
 });
 

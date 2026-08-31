@@ -114,6 +114,16 @@ export function createProtocolHandoffHelpers({
       normalized==="zdroj je ve stop stavu";
   }
 
+  function protocolHasStopOnlyState(protocol={}){
+    return [
+      protocol.sourceState,
+      protocol.protocolSourceState,
+      protocol.sourceStatus,
+      protocol.finalSourceState,
+      protocol.sourceStateLabel
+    ].some(protocolHandoffStopOnlyValue);
+  }
+
   function protocolLooksRedForHandoff(protocol={}){
     const values=[
       protocol.workflow,
@@ -153,9 +163,11 @@ export function createProtocolHandoffHelpers({
     const override=protocolHandoffOverrideValue(protocol);
     if(override!==null) return override;
     const wasManual=protocolHandoffWasManuallyChanged(protocol);
+    const stopOnly=protocolHasStopOnlyState(protocol);
     for(const value of [protocol.handoffForProcessing,protocol.submittedForProcessing,protocol.processingHandoff]){
       const parsed=protocolHandoffFieldValue(value);
       if(parsed===false && !wasManual) continue;
+      if(parsed===true && stopOnly && !wasManual) continue;
       if(parsed!==null) return parsed;
     }
     if(protocolProcessedForHandoff(protocol) || protocolLooksRedForHandoff(protocol)) return true;
@@ -200,6 +212,7 @@ export function createProtocolHandoffHelpers({
     protocolHandoffLocalPatch,
     protocolHandoffOverrideValue,
     protocolHandoffWasManuallyChanged,
+    protocolHasStopOnlyState,
     protocolHandoffStopOnlyValue,
     protocolLooksRedForHandoff,
     protocolProcessedForHandoff,
