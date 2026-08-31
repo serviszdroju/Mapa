@@ -28,12 +28,21 @@ test("processed protocols are handed off automatically",()=>{
   assert.equal(h.protocolHandoffForProcessing({processedAt:"2026-08-30T10:00:00Z"}),true);
 });
 
-test("red and stop protocol states are handed off automatically",()=>{
+test("red protocol states are handed off automatically",()=>{
   const h=helpers();
   assert.equal(h.protocolLooksRedForHandoff({workflowState:"cervena"}),true);
-  assert.equal(h.protocolHandoffForProcessing({sourceStatus:"Stop Stav"}),true);
   assert.equal(h.protocolHandoffForProcessing({conditionsReason:"nevyhovujici stav"}),true);
   assert.equal(h.protocolHandoffForProcessing({issues:"zavada baterie"}),true);
+});
+
+test("stop stav v protokolu se nepreda ke zpracovani automaticky",()=>{
+  const h=helpers();
+  assert.equal(h.protocolLooksRedForHandoff({sourceState:"stop"}),false);
+  assert.equal(h.protocolLooksRedForHandoff({sourceStatus:"Stop Stav"}),false);
+  assert.equal(h.protocolLooksRedForHandoff({sourceStateLabel:"Zdroj je ve stop stavu"}),false);
+  assert.equal(h.protocolHandoffForProcessing({sourceState:"stop"}),false);
+  assert.equal(h.protocolHandoffForProcessing({sourceStatus:"Stop Stav"}),false);
+  assert.equal(h.protocolHandoffForProcessing({sourceState:"stop",handoffForProcessing:true,handoffManualAt:"2026-08-31T08:00:00Z"}),true);
 });
 
 test("legacy false handoff fields do not block automatic red handoff",()=>{
@@ -45,7 +54,7 @@ test("legacy false handoff fields do not block automatic red handoff",()=>{
   }),true);
   assert.equal(h.protocolHandoffForProcessing({
     processingHandoff:"ne",
-    sourceStatus:"Stop Stav"
+    sourceStatus:"červená závada"
   }),true);
 });
 
@@ -60,7 +69,7 @@ test("manual false handoff fields can uncheck automatic state",()=>{
   assert.equal(h.protocolHandoffForProcessing({
     processingHandoff:"ne",
     handoffManualBy:"iva.glozova@astip.cz",
-    sourceStatus:"Stop Stav"
+    sourceStatus:"červená závada"
   }),false);
 });
 

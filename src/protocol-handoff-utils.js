@@ -105,6 +105,15 @@ export function createProtocolHandoffHelpers({
     return !!protocol.processedAt;
   }
 
+  function protocolHandoffStopOnlyValue(value){
+    const normalized=simpleNorm(value);
+    if(!normalized) return false;
+    return normalized==="stop" ||
+      normalized==="stop stav" ||
+      normalized==="ve stop stavu" ||
+      normalized==="zdroj je ve stop stavu";
+  }
+
   function protocolLooksRedForHandoff(protocol={}){
     const values=[
       protocol.workflow,
@@ -125,9 +134,9 @@ export function createProtocolHandoffHelpers({
     return values.some(value=>{
       const normalized=simpleNorm(value);
       if(!normalized) return false;
-      if(normalized==="handoff" || normalized==="stop" || normalized==="red" || normalized==="cervena" || normalized==="cerveny") return true;
+      if(protocolHandoffStopOnlyValue(value)) return false;
+      if(normalized==="handoff" || normalized==="red" || normalized==="cervena" || normalized==="cerveny") return true;
       return normalized.includes("cerven") ||
-        normalized.includes("stop") ||
         normalized.includes("mimo provoz") ||
         normalized.includes("neprovozuschop") ||
         normalized.includes("nevyhov") ||
@@ -191,6 +200,7 @@ export function createProtocolHandoffHelpers({
     protocolHandoffLocalPatch,
     protocolHandoffOverrideValue,
     protocolHandoffWasManuallyChanged,
+    protocolHandoffStopOnlyValue,
     protocolLooksRedForHandoff,
     protocolProcessedForHandoff,
     protocolHandoffRemotePatch,
