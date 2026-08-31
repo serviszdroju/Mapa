@@ -9,7 +9,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="detail-region-bundle-v653";
+const EMAIL_LOGIN_BUILD_VERSION="detail-region-bundle-v654";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={

@@ -672,7 +672,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-31-detail-region-bundle-v653";
+const APP_BUILD_VERSION="2026-08-31-detail-region-bundle-v654";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4418,7 +4418,18 @@ function regionOptionsFixed(current){
   add("");
   APP_REGION_OPTIONS.forEach(add);
   const currentKey=dataNormFixed(current);
-  return [...map.entries()].map(([key,v])=>({key,value:v,label:v || "Vyber kraj",selected:key===currentKey}));
+  const currentRegionKey=regionCompareKeyFixed(current);
+  if(currentKey && ![...map.values()].some(v=>regionCompareKeyFixed(v)===currentRegionKey)) add(current);
+  return [...map.entries()].map(([key,v])=>({
+    key,
+    value:v,
+    label:v || "Vyber kraj",
+    selected:!!currentKey && (key===currentKey || regionCompareKeyFixed(v)===currentRegionKey)
+  }));
+}
+
+function regionCompareKeyFixed(value){
+  return dataNormFixed(value).replace(/\bkraj\b/g," ").replace(/\s+/g," ").trim();
 }
 
 function createUserSiteSelect(dataKey,options,selectedValue){
