@@ -157,6 +157,19 @@ button:active{transform:translateY(0)}
   background:#f1f5f9;
   border-color:#cbd5e1;
 }
+#toggleOrderedBtn.ordered-toggle-active,
+#detailDataCard .data-edit-actions #toggleOrderedBtn.ordered-toggle-active{
+  background:#fef3c7 !important;
+  color:#92400e !important;
+  border-color:#f59e0b !important;
+  box-shadow:0 7px 16px rgba(245,158,11,.18) !important;
+}
+#toggleOrderedBtn.ordered-toggle-active:hover,
+#detailDataCard .data-edit-actions #toggleOrderedBtn.ordered-toggle-active:hover{
+  background:#fde68a !important;
+  color:#78350f !important;
+  border-color:#d97706 !important;
+}
 #fitBtn{
   margin-top:7px !important;
   min-height:34px;
