@@ -547,7 +547,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void restoreGoogleSignIn() {
-            runOnUiThread(() -> startSilentGoogleSignIn(true));
+            runOnUiThread(() -> {
+                if (deliverFreshStoredGoogleIdToken()) return;
+                startSilentGoogleSignIn(true);
+            });
         }
 
         @JavascriptInterface
@@ -850,12 +853,26 @@ public class MainActivity extends Activity {
         return GoogleIdTokenCredential.createFrom(custom.getData());
     }
 
+    private boolean deliverFreshStoredGoogleIdToken() {
+        String token = SzzAndroidAuthStore.googleIdToken(this);
+        if (token == null || token.trim().isEmpty()) return false;
+        long savedAt = SzzAndroidAuthStore.savedAt(this);
+        long ageMs = savedAt > 0 ? Math.max(0L, System.currentTimeMillis() - savedAt) : Long.MAX_VALUE;
+        if (ageMs > 50L * 60L * 1000L) return false;
+        deliverAndroidGoogleIdToken(token, SzzAndroidAuthStore.email(this), false);
+        return true;
+    }
+
     private void deliverAndroidGoogleIdToken(String idToken) {
-        deliverAndroidGoogleIdToken(idToken, "");
+        deliverAndroidGoogleIdToken(idToken, "", true);
     }
 
     private void deliverAndroidGoogleIdToken(String idToken, String email) {
-        SzzAndroidAuthStore.saveGoogleIdToken(this, idToken, email);
+        deliverAndroidGoogleIdToken(idToken, email, true);
+    }
+
+    private void deliverAndroidGoogleIdToken(String idToken, String email, boolean remember) {
+        if (remember) SzzAndroidAuthStore.saveGoogleIdToken(this, idToken, email);
         if (offlineRepository != null) offlineRepository.enqueueSyncWork();
         evaluateWebScript(
             "window.__szzAndroidSignInWithGoogleIdToken&&window.__szzAndroidSignInWithGoogleIdToken("

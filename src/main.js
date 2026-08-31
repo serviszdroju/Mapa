@@ -665,7 +665,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-30-protocol-handoff-mobile-v640";
+const APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v645";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1194,13 +1194,22 @@ if(firebaseReady){
   }
   function androidAuthBridge(){
     const bridge=window.SzzAndroidAuth;
-    if(!bridge || typeof bridge.startGoogleSignIn!=="function") return null;
+    if(!bridge) return null;
     try{
-      if(typeof bridge.isGoogleSignInConfigured==="function" && !bridge.isGoogleSignInConfigured()) return null;
+      const checker=bridge.isGoogleSignInConfigured;
+      if(checker!=null){
+        const configured=typeof checker==="function" ? checker.call(bridge) : bridge.isGoogleSignInConfigured();
+        if(!configured) return null;
+      }
     }catch(e){
       return null;
     }
     return bridge;
+  }
+  function callAndroidAuthBridge(bridge,method){
+    const fn=bridge && bridge[method];
+    if(typeof fn==="function") return fn.call(bridge);
+    return bridge[method]();
   }
   function androidStoredAuthState(){
     const bridge=androidAuthBridge();
@@ -1245,10 +1254,15 @@ if(firebaseReady){
         finish(reject,new Error(safe(message) || "Android Google přihlášení se nepodařilo."));
       };
       try{
-        if(options.silent && typeof bridge.restoreGoogleSignIn==="function") bridge.restoreGoogleSignIn();
-        else bridge.startGoogleSignIn();
+        if(options.silent) callAndroidAuthBridge(bridge,"restoreGoogleSignIn");
+        else callAndroidAuthBridge(bridge,"startGoogleSignIn");
       }catch(error){
-        finish(reject,error);
+        if(options.silent){
+          try{callAndroidAuthBridge(bridge,"startGoogleSignIn");}
+          catch(fallbackError){finish(reject,error || fallbackError);}
+        }else{
+          finish(reject,error);
+        }
       }
       const timeoutMs=options.silent ? 9000 : 90000;
       setTimeout(()=>{

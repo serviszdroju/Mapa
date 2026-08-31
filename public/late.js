@@ -1928,7 +1928,10 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   async function showMapRowsCache(openDocId=null, options={}){
     if(openDocId) return [];
-    if(options.offlineCacheOnly && Array.isArray(window.rows) && window.rows.length) return window.rows;
+    if(options.offlineCacheOnly && Array.isArray(window.rows) && window.rows.length){
+      sideStatus("",false);
+      return window.rows;
+    }
     if(Array.isArray(window.rows) && window.rows.length) return [];
     if(navigator.onLine!==false && !options.offlineBoot && !options.offlineCacheOnly && !options.allowOnlineCache){
       return [];
@@ -1989,12 +1992,15 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   async function loadFirebaseSites(openDocId=null, opts={}){
     if(opts.offlineCacheOnly && !openDocId && Array.isArray(window.rows) && window.rows.length){
+      sideStatus("",false);
       return window.rows;
     }
     if(opts.auto && !openDocId && Array.isArray(window.rows) && window.rows.length && firebaseSitesNetworkIsFresh()){
+      sideStatus("",false);
       return window.rows;
     }
     if(opts.auto && !openDocId && Array.isArray(window.rows) && window.rows.length && firebaseSitesHaveOfflineSyncState()){
+      sideStatus("",false);
       return window.rows;
     }
     const lockLoad=!openDocId && !opts.retryAuth && !opts.retryPermission && !opts.force;
@@ -2002,6 +2008,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       if(firebaseSitesLoadingPromise){
         try{ await firebaseSitesLoadingPromise; }catch(e){}
       }
+      if(Array.isArray(window.rows) && window.rows.length) sideStatus("",false);
       return Array.isArray(window.rows) ? window.rows : [];
     }
     if(lockLoad){
@@ -2070,6 +2077,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
           allowOnlineCache:!!(opts.allowOnlineCache || opts.auto)
         });
         if(cachedRows.length && !opts.force){
+          sideStatus("",false);
           if(opts.backgroundRefreshAllowed===true) scheduleFirebaseSitesBackgroundRefresh(openDocId,80);
           return cachedRows;
         }
@@ -2655,7 +2663,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-30-protocol-handoff-mobile-v640";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v645";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

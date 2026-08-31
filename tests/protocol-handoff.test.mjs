@@ -36,15 +36,30 @@ test("red and stop protocol states are handed off automatically",()=>{
   assert.equal(h.protocolHandoffForProcessing({issues:"zavada baterie"}),true);
 });
 
-test("manual false handoff fields can uncheck automatic state",()=>{
+test("legacy false handoff fields do not block automatic red handoff",()=>{
   const h=helpers();
   assert.equal(h.protocolHandoffForProcessing({
     handoffForProcessing:false,
     processed:true,
     workflowState:"cervena"
+  }),true);
+  assert.equal(h.protocolHandoffForProcessing({
+    processingHandoff:"ne",
+    sourceStatus:"Stop Stav"
+  }),true);
+});
+
+test("manual false handoff fields can uncheck automatic state",()=>{
+  const h=helpers();
+  assert.equal(h.protocolHandoffForProcessing({
+    handoffForProcessing:false,
+    handoffManualAt:"2026-08-31T08:00:00Z",
+    processed:true,
+    workflowState:"cervena"
   }),false);
   assert.equal(h.protocolHandoffForProcessing({
     processingHandoff:"ne",
+    handoffManualBy:"iva.glozova@astip.cz",
     sourceStatus:"Stop Stav"
   }),false);
 });

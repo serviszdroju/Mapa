@@ -8,7 +8,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v640";
+const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v645";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -283,13 +283,46 @@ function isPopupClosedAuthError(error){
 
 function androidAuthBridge(){
   const bridge=window.SzzAndroidAuth;
-  if(!bridge || typeof bridge.startGoogleSignIn!=="function") return null;
+  if(!bridge) return null;
   try{
-    if(typeof bridge.isGoogleSignInConfigured==="function" && !bridge.isGoogleSignInConfigured()) return null;
+    const checker=bridge.isGoogleSignInConfigured;
+    if(checker!=null){
+      const configured=typeof checker==="function" ? checker.call(bridge) : bridge.isGoogleSignInConfigured();
+      if(!configured) return null;
+    }
   }catch(error){
     return null;
   }
   return bridge;
+}
+
+function callAndroidAuthBridge(bridge,method){
+  const fn=bridge && bridge[method];
+  if(typeof fn==="function") return fn.call(bridge);
+  return bridge[method]();
+}
+
+function waitForCompatFirebaseAuth(timeoutMs=20000){
+  const started=Date.now();
+  return new Promise((resolve,reject)=>{
+    const tick=()=>{
+      try{
+        if(window.firebase && firebase.auth && window.__firebaseConfig){
+          if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig);
+          const auth=firebase.auth();
+          try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(error){}
+          resolve(auth);
+          return;
+        }
+      }catch(error){}
+      if(Date.now()-started>=timeoutMs){
+        reject(new Error("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."));
+        return;
+      }
+      setTimeout(tick,150);
+    };
+    tick();
+  });
 }
 
 function signInWithAndroidGoogleCompat(auth,bridge){
@@ -303,22 +336,23 @@ function signInWithAndroidGoogleCompat(auth,bridge){
       fn(value);
     };
     window.__szzAndroidSignInWithGoogleIdToken=idToken=>{
-      try{
+      (async()=>{
         const token=String(idToken || "").trim();
         if(!token) throw new Error("Google nevrátil přihlašovací token.");
+        const authClient=auth || await waitForCompatFirebaseAuth();
         const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
-        auth.signInWithCredential(credential)
+        authClient.signInWithCredential(credential)
           .then(result=>finish(resolve,result))
           .catch(error=>finish(reject,error));
-      }catch(error){
+      })().catch(error=>{
         finish(reject,error);
-      }
+      });
     };
     window.__szzAndroidSignInError=message=>{
       finish(reject,new Error(String(message || "").trim() || "Android Google přihlášení se nepodařilo."));
     };
     try{
-      bridge.startGoogleSignIn();
+      callAndroidAuthBridge(bridge,"startGoogleSignIn");
     }catch(error){
       finish(reject,error);
     }
@@ -488,15 +522,16 @@ function startCompatGoogleLoginFallback(options={}){
     return true;
   }
   try{
-    if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
+    const bridge=androidAuthBridge();
+    if(!bridge && (!window.firebase || !firebase.auth || !window.__firebaseConfig)){
       showAuthState(AUTH_LOGGED_OUT,{message:"Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."});
       return;
     }
-    if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig);
+    if(window.firebase && firebase.auth && window.__firebaseConfig && (!firebase.apps || !firebase.apps.length)) firebase.initializeApp(window.__firebaseConfig);
     try{sessionStorage.removeItem("astipFirebaseExplicitSignOut");}catch(e){}
     cleanAuthResumeState(false);
-    const auth=firebase.auth();
-    try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
+    const auth=window.firebase && firebase.auth && window.__firebaseConfig ? firebase.auth() : null;
+    try{auth && auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
     status("Otevírám Google přihlášení...");
     compatGoogleLoginInProgress=true;
     let keepLoginWaiting=false;

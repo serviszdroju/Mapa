@@ -135,11 +135,18 @@ export function createProtocolHandoffHelpers({
     });
   }
 
+  function protocolHandoffWasManuallyChanged(protocol={}){
+    if(protocol.handoffManual===true || protocol.processingHandoffManual===true) return true;
+    return !!(protocol.handoffManualAt || protocol.handoffManualBy || protocol.processingHandoffManualAt || protocol.processingHandoffManualBy);
+  }
+
   function protocolHandoffForProcessing(protocol={}){
     const override=protocolHandoffOverrideValue(protocol);
     if(override!==null) return override;
+    const wasManual=protocolHandoffWasManuallyChanged(protocol);
     for(const value of [protocol.handoffForProcessing,protocol.submittedForProcessing,protocol.processingHandoff]){
       const parsed=protocolHandoffFieldValue(value);
+      if(parsed===false && !wasManual) continue;
       if(parsed!==null) return parsed;
     }
     if(protocolProcessedForHandoff(protocol) || protocolLooksRedForHandoff(protocol)) return true;
@@ -147,12 +154,16 @@ export function createProtocolHandoffHelpers({
   }
 
   function protocolHandoffLocalPatch(checked){
+    const time=new Date().toISOString();
     return {
       handoffForProcessing:!!checked,
       submittedForProcessing:!!checked,
       processingHandoff:checked ? "ano" : "ne",
-      handoffAt:checked ? new Date().toISOString() : null,
-      handoffBy:checked ? userEmail() : ""
+      handoffAt:checked ? time : null,
+      handoffBy:checked ? userEmail() : "",
+      handoffManual:true,
+      handoffManualAt:time,
+      handoffManualBy:userEmail()
     };
   }
 
@@ -164,6 +175,9 @@ export function createProtocolHandoffHelpers({
       processingHandoff:checked ? "ano" : "ne",
       handoffAt:checked ? time : null,
       handoffBy:checked ? userEmail() : "",
+      handoffManual:true,
+      handoffManualAt:time,
+      handoffManualBy:userEmail(),
       updatedBy:userEmail(),
       updatedAt:time
     };
@@ -176,6 +190,7 @@ export function createProtocolHandoffHelpers({
     protocolHandoffItemId,
     protocolHandoffLocalPatch,
     protocolHandoffOverrideValue,
+    protocolHandoffWasManuallyChanged,
     protocolLooksRedForHandoff,
     protocolProcessedForHandoff,
     protocolHandoffRemotePatch,

@@ -46,7 +46,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v640";
+  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v645";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -458,13 +458,46 @@ try{
 
   function androidAuthBridge(){
     const bridge=window.SzzAndroidAuth;
-    if(!bridge || typeof bridge.startGoogleSignIn!=="function") return null;
+    if(!bridge) return null;
     try{
-      if(typeof bridge.isGoogleSignInConfigured==="function" && !bridge.isGoogleSignInConfigured()) return null;
+      const checker=bridge.isGoogleSignInConfigured;
+      if(checker!=null){
+        const configured=typeof checker==="function" ? checker.call(bridge) : bridge.isGoogleSignInConfigured();
+        if(!configured) return null;
+      }
     }catch(error){
       return null;
     }
     return bridge;
+  }
+
+  function callAndroidAuthBridge(bridge,method){
+    const fn=bridge && bridge[method];
+    if(typeof fn==="function") return fn.call(bridge);
+    return bridge[method]();
+  }
+
+  function waitForCompatFirebaseAuth(timeoutMs=20000){
+    const started=Date.now();
+    return new Promise((resolve,reject)=>{
+      const tick=()=>{
+        try{
+          if(window.firebase && firebase.auth && window.__firebaseConfig){
+            if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig);
+            const auth=firebase.auth();
+            try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(error){}
+            resolve(auth);
+            return;
+          }
+        }catch(error){}
+        if(Date.now()-started>=timeoutMs){
+          reject(new Error("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu."));
+          return;
+        }
+        setTimeout(tick,150);
+      };
+      tick();
+    });
   }
 
   function signInWithAndroidGoogleCompat(auth,bridge){
@@ -478,22 +511,23 @@ try{
         fn(value);
       };
       window.__szzAndroidSignInWithGoogleIdToken=idToken=>{
-        try{
+        (async()=>{
           const token=textValue(idToken);
           if(!token) throw new Error("Google nevrátil přihlašovací token.");
+          const authClient=auth || await waitForCompatFirebaseAuth();
           const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
-          auth.signInWithCredential(credential)
+          authClient.signInWithCredential(credential)
             .then(result=>finish(resolve,result))
             .catch(error=>finish(reject,error));
-        }catch(error){
+        })().catch(error=>{
           finish(reject,error);
-        }
+        });
       };
       window.__szzAndroidSignInError=message=>{
         finish(reject,new Error(textValue(message) || "Android Google přihlášení se nepodařilo."));
       };
       try{
-        bridge.startGoogleSignIn();
+        callAndroidAuthBridge(bridge,"startGoogleSignIn");
       }catch(error){
         finish(reject,error);
       }
@@ -535,16 +569,17 @@ try{
       return true;
     }
     try{
-      if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
+      const bridge=androidAuthBridge();
+      if(!bridge && (!window.firebase || !firebase.auth || !window.__firebaseConfig)){
         showLogin("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
         return;
       }
-      if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig);
+      if(window.firebase && firebase.auth && window.__firebaseConfig && (!firebase.apps || !firebase.apps.length)) firebase.initializeApp(window.__firebaseConfig);
       try{sessionStorage.removeItem("astipFirebaseExplicitSignOut");}catch(e){}
       try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
       try{document.documentElement.classList.remove("auth-resume");}catch(e){}
-      const auth=firebase.auth();
-      try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
+      const auth=window.firebase && firebase.auth && window.__firebaseConfig ? firebase.auth() : null;
+      try{auth && auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
       status("Otevírám Google přihlášení...");
       compatGoogleLoginInProgress=true;
       let keepLoginWaiting=false;
@@ -714,7 +749,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v640" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v645" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-sidebar.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <div class="sidebar-primary-actions">
@@ -1146,7 +1181,7 @@ Protokol na: ..."></textarea>
 <script type="module" src="./src/detail-tabs.js"></script>
 <script type="module" src="./src/hosted-login.js"></script>
 <script type="module" src="./src/main.js"></script>
-<script async src="./late.js?v=protocol-handoff-mobile-v640"></script>
+<script async src="./late.js?v=protocol-handoff-mobile-v645"></script>
 
 
 
