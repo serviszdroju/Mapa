@@ -43,6 +43,9 @@ import {
   rememberKnownSignedIn,
   setStartupAuthChecking
 } from "./firebase-auth.js";
+import * as bundledFirebaseAppMod from "firebase/app";
+import * as bundledFirebaseAuthMod from "firebase/auth";
+import * as bundledFirebaseFirestoreMod from "firebase/firestore";
 import {
   WATCH_SELF_RAW_KEYS,
   applyWatchSelfAliases,
@@ -665,7 +668,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v646";
+const APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v647";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -677,7 +680,6 @@ const CZECH_OFFLINE_DONE_KEY="astipCzechOfflineMapVersion";
 const CZECH_OFFLINE_BOUNDS={west:12.05,south:48.45,east:18.95,north:51.15};
 const CZECH_OFFLINE_ZOOMS=[6,7,8,9,10,11];
 const SZZ_BACKGROUND_DELTA_SYNC_MIN_MS=5*60*1000;
-const FIREBASE_MODULE_IMPORT_TIMEOUT_MS=9000;
 function withTimeout(promise,timeoutMs,message){
   let timer=null;
   const timeout=new Promise((_,reject)=>{
@@ -981,11 +983,11 @@ if(firebaseReady){
   let authMod=null;
   let fsMod=null;
   try{
-    [appMod,authMod,fsMod] = await withTimeout(Promise.all([
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
-      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
-    ]),FIREBASE_MODULE_IMPORT_TIMEOUT_MS,"Firebase knihovny se nenačetly včas.");
+    [appMod,authMod,fsMod]=[
+      bundledFirebaseAppMod,
+      bundledFirebaseAuthMod,
+      bundledFirebaseFirestoreMod
+    ];
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
     try{ await loadCompatFirebaseScripts(); }catch(loadError){ console.warn("Firebase compat SDK se nepodařilo donačíst",loadError); }
@@ -1195,6 +1197,7 @@ if(firebaseReady){
     }
     throw new Error("Firebase Auth není dostupný.");
   }
+  window.__szzSignInWithGoogleIdToken=signInWithGoogleIdToken;
   function androidAuthBridge(){
     const bridge=window.SzzAndroidAuth;
     if(!bridge) return null;

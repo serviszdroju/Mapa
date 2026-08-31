@@ -46,7 +46,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v646";
+  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v647";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -575,6 +575,11 @@ try{
         (async()=>{
           const token=textValue(idToken);
           if(!token) throw new Error("Google nevrátil přihlašovací token.");
+          if(typeof window.__szzSignInWithGoogleIdToken==="function"){
+            const result=await window.__szzSignInWithGoogleIdToken(token);
+            finish(resolve,result);
+            return;
+          }
           const authClient=auth || await waitForCompatFirebaseAuth(30000);
           const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
           authClient.signInWithCredential(credential)
@@ -794,7 +799,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-CpswWPWu.js"></script>
+  <script type="module" crossorigin src="./assets/index-Cl11GnPY.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-DGRBtF1B.css">
 </head>
 <body>
@@ -811,7 +816,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v646" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v647" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./assets/szz-logo-sidebar-DvZyH9BD.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <div class="sidebar-primary-actions">
@@ -1238,7 +1243,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=protocol-handoff-mobile-v646"></script>
+<script async src="./late.js?v=protocol-handoff-mobile-v647"></script>
 
 
 

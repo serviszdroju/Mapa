@@ -12,6 +12,7 @@
     "test:sites": "node --test tests/sites-worker.test.mjs"
   },
   "dependencies": {
+    "firebase": "10.12.5",
     "vite": "6.4.2"
   },
   "devDependencies": {}

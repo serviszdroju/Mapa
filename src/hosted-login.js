@@ -9,7 +9,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v646";
+const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v647";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -347,6 +347,11 @@ function signInWithAndroidGoogleCompat(auth,bridge){
       (async()=>{
         const token=String(idToken || "").trim();
         if(!token) throw new Error("Google nevrátil přihlašovací token.");
+        if(typeof window.__szzSignInWithGoogleIdToken==="function"){
+          const result=await window.__szzSignInWithGoogleIdToken(token);
+          finish(resolve,result);
+          return;
+        }
         const authClient=auth || await waitForCompatFirebaseAuth(30000);
         const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
         authClient.signInWithCredential(credential)
