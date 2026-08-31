@@ -874,6 +874,9 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     let el=document.getElementById("firebaseUnifiedStatus");
     if(!bad){
       if(el) el.remove();
+      try{ if(typeof window.clearAuthStatusNotice==="function") window.clearAuthStatusNotice(); }catch(e){}
+      const firebaseBox=document.getElementById("firebaseBox");
+      if(firebaseBox && Array.isArray(window.rows) && window.rows.length) firebaseBox.style.display="none";
       return;
     }
     if(!el){
@@ -2663,7 +2666,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v647";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-08-31-protocol-handoff-mobile-v648";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
