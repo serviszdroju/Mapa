@@ -46,7 +46,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v651";
+  const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v652";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -341,7 +341,7 @@ try{
   function shouldKeepMapOpenOnLoginError(error){
     let explicitSignOut=false;
     try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
-    return !explicitSignOut && isAndroidTransientAuthError(error) && (appVisibleForAuthResume() || knownUser());
+    return !explicitSignOut && isAndroidTransientAuthError(error) && (appVisibleForAuthResume() || knownUser() || androidHasStoredAuth());
   }
 
   function isHardLoginRejection(error){
@@ -524,6 +524,21 @@ try{
       return null;
     }
     return bridge;
+  }
+
+  function androidHasStoredAuth(){
+    const bridge=androidAuthBridge();
+    if(!bridge) return false;
+    try{
+      if(typeof bridge.storedAuthJson==="function"){
+        const parsed=JSON.parse(String(bridge.storedAuthJson() || "{}"));
+        return !!(parsed && parsed.ok!==false && parsed.hasStoredAuth);
+      }
+    }catch(error){}
+    try{
+      return typeof bridge.hasStoredGoogleSignIn==="function" ? !!bridge.hasStoredGoogleSignIn() : false;
+    }catch(error){}
+    return false;
   }
 
   function callAndroidAuthBridge(bridge,method){
@@ -800,7 +815,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-4ssgk_N-.js"></script>
+  <script type="module" crossorigin src="./assets/index-BZFZV0Fi.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-DGRBtF1B.css">
 </head>
 <body>
@@ -817,7 +832,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v651" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-handoff-mobile-v652" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./assets/szz-logo-sidebar-DvZyH9BD.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <div class="sidebar-primary-actions">
@@ -1244,7 +1259,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=protocol-handoff-mobile-v651"></script>
+<script async src="./late.js?v=protocol-handoff-mobile-v652"></script>
 
 
 

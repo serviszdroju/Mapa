@@ -9,7 +9,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v651";
+const EMAIL_LOGIN_BUILD_VERSION="protocol-handoff-mobile-v652";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -137,7 +137,7 @@ function isAndroidTransientAuthError(error){
 function shouldKeepMapOpenOnLoginError(error){
   let explicitSignOut=false;
   try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
-  return !explicitSignOut && isAndroidTransientAuthError(error) && (appVisibleForAuthResume() || knownUser());
+  return !explicitSignOut && isAndroidTransientAuthError(error) && (appVisibleForAuthResume() || knownUser() || androidHasStoredAuth());
 }
 
 function isHardLoginRejection(error){
@@ -296,6 +296,21 @@ function androidAuthBridge(){
     return null;
   }
   return bridge;
+}
+
+function androidHasStoredAuth(){
+  const bridge=androidAuthBridge();
+  if(!bridge) return false;
+  try{
+    if(typeof bridge.storedAuthJson==="function"){
+      const parsed=JSON.parse(String(bridge.storedAuthJson() || "{}"));
+      return !!(parsed && parsed.ok!==false && parsed.hasStoredAuth);
+    }
+  }catch(error){}
+  try{
+    return typeof bridge.hasStoredGoogleSignIn==="function" ? !!bridge.hasStoredGoogleSignIn() : false;
+  }catch(error){}
+  return false;
 }
 
 function callAndroidAuthBridge(bridge,method){
