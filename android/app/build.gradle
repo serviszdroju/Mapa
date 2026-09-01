@@ -18,15 +18,15 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 58
-        versionName "1.1.56-photo-dedupe"
+        versionCode 59
+        versionName "1.1.57-stability-back"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=photo-dedupe-v660\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=stability-back-v661\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
         buildConfigField "String", "FIREBASE_WEB_API_KEY", "\"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88\""

@@ -169,7 +169,22 @@ public class MainActivity extends Activity {
             webView.goBack();
             return;
         }
-        super.onBackPressed();
+        if (webView != null) {
+            evaluateWebScript(
+                "(function(){try{"
+                    + "var active=document.activeElement;"
+                    + "if(active&&typeof active.blur==='function')active.blur();"
+                    + "var drawer=document.getElementById('drawer');"
+                    + "if(drawer&&drawer.classList&&drawer.classList.contains('open')){"
+                    + "drawer.classList.remove('open','protocol-form-fullscreen','adding-new-site');"
+                    + "return true;"
+                    + "}"
+                    + "}catch(e){}return false;})()"
+            );
+            Toast.makeText(this, "Aplikace zůstává spuštěná. Pro odchod použij Odhlásit technika.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        moveTaskToBack(true);
     }
 
     @SuppressLint("SetJavaScriptEnabled")
