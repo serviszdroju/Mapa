@@ -55,8 +55,16 @@ function computeSiteDedupKeysFromRaw(raw,parts=siteDedupRawParts(raw || {})){
   if(parts.sourceType) sourceParts.push(parts.sourceType);
   if(parts.sourceSerial) sourceParts.push(parts.sourceSerial);
   const source=siteDedupValue(sourceParts.join(" "));
+  const sourceSerial=siteDedupValue(parts.sourceSerial);
   function addKey(prefix,value){
     const key=source ? `${prefix}_source:${value}|${source}` : `${prefix}:${value}`;
+    if(seen.has(key)) return;
+    seen.add(key);
+    keys.push(key);
+  }
+  function addSerialKey(prefix,value){
+    if(!sourceSerial) return;
+    const key=`${prefix}_serial:${value}|${sourceSerial}`;
     if(seen.has(key)) return;
     seen.add(key);
     keys.push(key);
@@ -65,8 +73,12 @@ function computeSiteDedupKeysFromRaw(raw,parts=siteDedupRawParts(raw || {})){
     const n=siteDedupValue(v);
     if(!n || n.length<3) return;
     addKey(prefix,n);
+    addSerialKey(prefix,n);
     const sorted=n.split(" ").filter(Boolean).sort().join(" ");
-    if(sorted && sorted!==n) addKey(prefix,"sorted:"+sorted);
+    if(sorted && sorted!==n){
+      addKey(prefix,"sorted:"+sorted);
+      addSerialKey(prefix,"sorted:"+sorted);
+    }
   }
   add("name", parts.name);
   add("address",parts.address);

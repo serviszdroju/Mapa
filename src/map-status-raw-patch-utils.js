@@ -101,6 +101,21 @@ export function mapStatusRawPatchFromStatePatch(patch={},currentRaw={}){
   return rawPatch;
 }
 
+export function clearOrderedRepairStatusRaw(raw={}){
+  const out=raw || {};
+  const patch=mapStatusRawPatchFromStatePatch({ordered:false,repairOrdered:false},out);
+  Object.assign(out,patch);
+  clearRawStatusTextWhere(out,out,value=>
+    rawStatusTextLooksOrdered(value) ||
+    rawStatusTextLooksRepairOrdered(value)
+  );
+  clearRawStatusColorWhere(out,out,value=>
+    rawStatusColorLooksOrdered(value) ||
+    rawStatusColorLooksRepairOrdered(value)
+  );
+  return out;
+}
+
 export function rawStatusTextLooksStopped(value){
   const text=simpleNorm(value);
   return text.includes("stop") || text.includes("mimo provoz");

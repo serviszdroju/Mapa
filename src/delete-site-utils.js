@@ -15,10 +15,57 @@ export function createDeleteSiteHelpers({
   render,
   saveFirebaseRowsCacheForRows,
   safe,
+  selectedSiteDocId=()=>"",
   setSelectedSite,
+  siteDedupKeysFromRaw=()=>[],
   showSaveConfirmation,
   drawerNode
 }){
+  function uniqueClean(values=[]){
+    const out=[];
+    const seen=new Set();
+    values.forEach(value=>{
+      const clean=safe(value);
+      if(!clean || seen.has(clean)) return;
+      seen.add(clean);
+      out.push(clean);
+    });
+    return out;
+  }
+
+  function deletedSitePayload(site,currentUser){
+    const raw=(site && site.raw) || {};
+    const docId=safe(selectedSiteDocId(site) || site?.firebaseDocId || raw["Firebase_doc_id"]);
+    const aliases=uniqueClean([
+      site?.id,
+      site?.firebaseDocId,
+      raw["Firebase_doc_id"],
+      raw["Klíč_adresy"],
+      raw["ID_mista"]
+    ]);
+    let dedupKeys=[];
+    try{ dedupKeys=uniqueClean(siteDedupKeysFromRaw(raw)); }catch(_e){}
+    return {
+      siteId:safe(site?.id),
+      legacyId:safe(site?.id),
+      siteName:safe(site?.adresa || raw["Název"] || raw["Adresa / umístění"] || raw["Adresa_GPS"]),
+      firebaseDocId:docId,
+      siteDocId:docId,
+      rawFirebaseDocId:safe(raw["Firebase_doc_id"]),
+      addressKey:safe(raw["Klíč_adresy"]),
+      placeId:safe(raw["ID_mista"]),
+      aliases,
+      dedupKeys,
+      deletedBy:safe(currentUser?.email),
+      deletedAt:new Date().toISOString()
+    };
+  }
+
+  function deletedSiteDocId(payload={}){
+    const base=safe(payload.siteId || payload.firebaseDocId || payload.siteDocId || payload.aliases?.[0] || `deleted_${Date.now()}`);
+    return base.replace(/[/?#[\]]+/g,"_").slice(0,140) || `deleted_${Date.now()}`;
+  }
+
   async function deleteSelectedSite(){
     const st=getEditStatusNode();
     const selectedSite=getSelectedSite();
@@ -34,17 +81,18 @@ export function createDeleteSiteHelpers({
     try{
       const db=getDb();
       const {doc,setDoc,deleteDoc,collection,query,where,getDocs}=getFirestoreModule();
+      const deletePayload=deletedSitePayload(selectedSite,currentUser);
+      const unifiedDocId=safe(deletePayload.firebaseDocId || deletePayload.siteDocId);
+      const tombstoneId=deletedSiteDocId(deletePayload);
 
+      await setDoc(doc(db,"deletedSites",tombstoneId),deletePayload,{merge:true});
+
+      if(unifiedDocId){
+        try{ await deleteDoc(doc(db,"sitesUnified",unifiedDocId)); }catch(e){ console.warn("Mazání sitesUnified selhalo",unifiedDocId,e); }
+      }
       if(selectedSite.isNewSite && selectedSite.raw && selectedSite.raw["Firebase_doc_id"]){
-        const docId=selectedSite.raw["Firebase_doc_id"];
-        await deleteDoc(doc(db,"sites",docId));
-      }else{
-        await setDoc(doc(db,"deletedSites",selectedSite.id),{
-          siteId:selectedSite.id,
-          siteName:selectedSite.adresa || "",
-          deletedBy:currentUser.email,
-          deletedAt:new Date().toISOString()
-        },{merge:true});
+        const legacyDocId=selectedSite.raw["Firebase_doc_id"];
+        try{ await deleteDoc(doc(db,"sites",legacyDocId)); }catch(e){ console.warn("Mazání legacy sites selhalo",legacyDocId,e); }
       }
 
       try{ await deleteDoc(doc(db,"siteEdits",selectedSite.id)); }catch(e){}
@@ -63,6 +111,8 @@ export function createDeleteSiteHelpers({
       if(isFirebaseUnifiedPrimary() && typeof loadFirebaseSitesUnified==="function"){
         const deletedId=safe(selectedSite && selectedSite.id);
         if(deletedId) addDeletedSiteId(deletedId);
+        deletePayload.aliases.forEach(addDeletedSiteId);
+        if(deletePayload.firebaseDocId) addDeletedSiteId(deletePayload.firebaseDocId);
         const removeFirebaseSiteRow=getRemoveFirebaseSiteRow();
         const removedRows=typeof removeFirebaseSiteRow==="function" ? removeFirebaseSiteRow(selectedSite) : null;
         if(removedRows){

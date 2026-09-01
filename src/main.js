@@ -55,6 +55,7 @@ import {
 } from "./map-status.js";
 import {
   applyStopStatusRawPatch,
+  clearOrderedRepairStatusRaw,
   clearRawStatusColorWhere,
   clearRawStatusTextWhere,
   mapStatusRawPatchFromStatePatch,
@@ -677,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-01-stability-back-v661";
+const APP_BUILD_VERSION="2026-09-01-delete-status-v662";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2710,6 +2711,7 @@ const {
 
 
 let deletedSiteIds=new Set();
+let deletedSiteRecords=[];
 const {
   loadDeletedSites
 }=createLegacyDeletedSiteHelpers({
@@ -2723,6 +2725,7 @@ const {
   isFirebaseReady:()=>firebaseReady,
   isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
   setDeletedSiteIds:nextIds=>{ deletedSiteIds=nextIds instanceof Set ? nextIds : new Set(); },
+  setDeletedSiteRecords:records=>{ deletedSiteRecords=Array.isArray(records) ? records : []; },
   setRows:nextRows=>{ window.rows=nextRows; rows=window.rows; },
   syncCurrentUserFromCompat
 });
@@ -2746,7 +2749,9 @@ const {
   render,
   saveFirebaseRowsCacheForRows,
   safe,
+  selectedSiteDocId:site=>selectedSiteDocId(site),
   setSelectedSite:site=>{ selectedSite=site; window.selectedSite=site; },
+  siteDedupKeysFromRaw,
   showSaveConfirmation,
   drawerNode
 });
@@ -3447,7 +3452,10 @@ const {
   updateFirebaseLoadReport
 }=createFirebaseLoadReportHelpers({
   getDeletedSiteIds:()=>deletedSiteIds,
+  getDeletedSiteRecords:()=>deletedSiteRecords,
   getRows:()=>rows,
+  safeValue:safe,
+  siteDedupKeysFromRaw,
   setLastFirebaseLoadReport:report=>{ window.__lastFirebaseLoadReport=report; }
 });
 function openFirebaseRowAfterRender(openDocId){
@@ -3584,14 +3592,17 @@ window.removeFirebaseSiteRow = function(site){
   const targetDocId=safe(site.firebaseDocId || raw["Firebase_doc_id"]);
   const targetId=safe(site.id);
   const hasPreciseTarget=!!(targetDetailKey || targetDocId);
+  const targetDedupKeys=new Set(siteDedupKeysFromRaw(raw).map(safe).filter(Boolean));
   const matchesTarget=row=>{
     const rowRaw=(row && row.raw) || {};
     const rowDetailKey=detailKey(row);
     const rowDocId=safe(row && (row.firebaseDocId || rowRaw["Firebase_doc_id"]));
     const rowId=safe(row && row.id);
+    const rowDedupKeys=targetDedupKeys.size ? siteDedupKeysFromRaw(rowRaw).map(safe).filter(Boolean) : [];
     return (targetDetailKey && rowDetailKey===targetDetailKey)
       || (targetDocId && rowDocId===targetDocId)
-      || (!hasPreciseTarget && targetId && rowId===targetId);
+      || (!hasPreciseTarget && targetId && rowId===targetId)
+      || (targetDedupKeys.size && rowDedupKeys.some(key=>targetDedupKeys.has(key)));
   };
   const beforeRows=csvRows || [];
   const nextRows=beforeRows.filter(row=>!matchesTarget(row));
@@ -6561,7 +6572,7 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
         ...payload,
         updatedAt:serverTimestamp ? serverTimestamp() : new Date().toISOString()
       },{merge:true});
-      await updateSiteControlDateFromProtocol(payload,site,{clearManualStatus:item.clearManualStatusAfterSave !== false});
+      await updateSiteControlDateFromProtocol(payload,site,{clearOrderedRepairStatus:item.clearOrderedRepairStatusAfterSave !== false});
       removeSiteLocalItem("protocolHistory",id,site);
       await removeOfflineProtocolQueueItem(id);
       markAndroidOutboxSynced(`protocol:${id}`);
@@ -6832,19 +6843,67 @@ async function appendEmbeddedSiteItem(field,item,site=selectedSite){
 }
 
 function clearManualStatusRaw(raw={}){
-  const patch=mapStatusRawPatchFromStatePatch({ordered:false,repairOrdered:false,stopped:false},raw);
-  Object.assign(raw,patch);
+  clearOrderedRepairStatusRaw(raw);
+  applyStopStatusRawPatch(raw,false,raw);
   clearRawStatusTextWhere(raw,raw,value=>
-    rawStatusTextLooksOrdered(value) ||
-    rawStatusTextLooksRepairOrdered(value) ||
     rawStatusTextLooksStopped(value)
   );
   clearRawStatusColorWhere(raw,raw,value=>
-    rawStatusColorLooksOrdered(value) ||
-    rawStatusColorLooksRepairOrdered(value) ||
     rawStatusColorLooksStopped(value)
   );
   return raw;
+}
+
+function clearOrderedRepairStatusLocalState(site=selectedSite){
+  if(!site) return;
+  const selectedKey=detailKey(site) || site.id;
+  const docId=selectedSiteDocId(site);
+  const keys=[
+    detailKey(site),
+    site.id,
+    docId,
+    site.firebaseDocId,
+    site.raw && site.raw["Firebase_doc_id"]
+  ].map(safe).filter(Boolean);
+  [...new Set(keys)].forEach(key=>{
+    const existing=editCache[key] || {};
+    editCache[key]={
+      ...existing,
+      ordered:false,
+      repairOrdered:false,
+      rawEdits:clearOrderedRepairStatusRaw({...(existing.rawEdits || {})}),
+      updatedBy:currentUser?.email || existing.updatedBy || "",
+      updatedAt:new Date().toISOString()
+    };
+  });
+  const applyClear=(target)=>{
+    const raw=clearOrderedRepairStatusRaw({...(target.raw || {})});
+    const refreshed=normalize([raw])[0];
+    return {
+      ...target,
+      ...refreshed,
+      raw,
+      ordered:false,
+      repairOrdered:false,
+      firebaseDocId:target.firebaseDocId || raw["Firebase_doc_id"] || "",
+      firebaseData:{...(target.firebaseData || {}),raw}
+    };
+  };
+  const lookupKey=safe(docId || selectedKey);
+  const indexedRow=(lookupKey && findRowByAnyId(lookupKey)) || site;
+  const index=rowIndexForRow(indexedRow);
+  if(indexedRow && index>=0){
+    const nextRows=rows.slice();
+    const updated=applyClear(indexedRow);
+    nextRows[index]=updated;
+    rows=nextRows;
+    window.rows=rows;
+    selectedSite=updated;
+    return;
+  }
+  rows=rows.map(row=>manualStatusSiteMatches(row,site,selectedKey,docId) ? applyClear(row) : row);
+  window.rows=rows;
+  selectedSite=(lookupKey && findRowByAnyId(lookupKey)) || applyClear(site);
 }
 
 function manualStatusSiteMatches(row,site,selectedKey,docId){
@@ -6945,6 +7004,7 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
   const raw=latest ? applyLatestProtocolDateToRaw(baseRaw,{protocolHistory:[protocol]}) : baseRaw;
   applyProtocolFieldsToRaw(raw,protocol);
   if(options.clearManualStatus) clearManualStatusRaw(raw);
+  if(options.clearOrderedRepairStatus) clearOrderedRepairStatusRaw(raw);
   raw["Firebase_doc_id"]=docId;
   if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
   try{
@@ -6972,6 +7032,7 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
       });
     }
     if(options.clearManualStatus) clearManualStatusLocalState(site);
+    if(options.clearOrderedRepairStatus) clearOrderedRepairStatusLocalState(site);
     return true;
   }catch(e){
     console.warn("Uložení poslední kontroly z protokolu selhalo",e);
@@ -9518,6 +9579,7 @@ protocolFormEl.addEventListener("submit",async e=>{
   payload.createdBy=protocolEditState?.item?.createdBy || payload.createdBy || payload.technicianEmail || currentUser?.email || lastKnownUserEmail() || "";
   payload.updatedBy=currentUser?.email || lastKnownUserEmail() || "";
   payload.clearManualStatusAfterSave=false;
+  payload.clearOrderedRepairStatusAfterSave=true;
   const saveFingerprint=protocolSaveFingerprint(payload,selectedSite,editingId);
   const now=Date.now();
   if(protocolSaveInFlight){
@@ -9536,6 +9598,7 @@ protocolFormEl.addEventListener("submit",async e=>{
   const saveOffline=reason=>{
     const offlinePayload=saveProtocolLocally(payload,selectedSite,reason);
     clearProtocolDraft(selectedSite);
+    clearOrderedRepairStatusLocalState(selectedSite);
     applyProtocolFieldsToSite(offlinePayload,selectedSite);
     refreshSelectedDetailDataView();
     render();
@@ -9592,7 +9655,7 @@ protocolFormEl.addEventListener("submit",async e=>{
       console.warn("Samostatný protokol se neuložil, používám kopii pod bodem",e);
       if(!embeddedOk) throw e;
     }
-    await updateSiteControlDateFromProtocol(payload,selectedSite,{clearManualStatus:false});
+    await updateSiteControlDateFromProtocol(payload,selectedSite,{clearOrderedRepairStatus:true});
     clearProtocolDraft(selectedSite);
     refreshSelectedDetailDataView();
     setProtocolStatusText(editing ? "Protokol upraven." : "Protokol uložen.");
