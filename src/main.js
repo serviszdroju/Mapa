@@ -190,6 +190,7 @@ import {
   createRecordSourceHelpers
 } from "./record-source-utils.js";
 import {
+  isFirestorePermissionDenied,
   readFirestoreArrayContainsAny,
   readFirestoreEqualsAny,
   runBoundedFirestoreTasks,
@@ -678,7 +679,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-01-delete-status-v662";
+const APP_BUILD_VERSION="2026-09-02-firestore-permission-v663";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2260,6 +2261,7 @@ const {
   getDb:()=>db,
   getFsMod:()=>fb && fb.fsMod,
   isFirebaseReady:()=>firebaseReady,
+  isPermissionDenied:isFirestorePermissionDenied,
   isOnline:()=>navigator.onLine!==false,
   runBoundedFirestoreTasks,
   safetyMs:SZZ_OFFLINE_INCREMENTAL_SAFETY_MS,
@@ -6610,6 +6612,7 @@ window.syncAllOfflineProtocols=syncAllOfflineProtocols;
 
 const SITE_CHILD_ITEMS_CACHE_MS=30000;
 const siteChildItemsCache=new Map();
+const deniedSiteChildItemsCache=new Map();
 
 function siteChildItemsCacheKey(kind,site=selectedSite){
   const cleanKind=safe(kind);
@@ -6642,10 +6645,30 @@ function readSiteChildItemsCache(kind,site=selectedSite){
 function writeSiteChildItemsCache(kind,site=selectedSite,items=[]){
   const key=siteChildItemsCacheKey(kind,site);
   if(!key) return;
+  deniedSiteChildItemsCache.delete(key);
   siteChildItemsCache.set(key,{
     savedAt:Date.now(),
     items:cloneSiteChildItems(items)
   });
+}
+
+function readDeniedSiteChildItemsCache(kind,site=selectedSite){
+  const key=siteChildItemsCacheKey(kind,site);
+  if(!key) return false;
+  const cached=deniedSiteChildItemsCache.get(key);
+  if(!cached) return false;
+  if(Date.now()-cached.savedAt>SITE_CHILD_ITEMS_CACHE_MS){
+    deniedSiteChildItemsCache.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function writeDeniedSiteChildItemsCache(kind,site=selectedSite){
+  const key=siteChildItemsCacheKey(kind,site);
+  if(!key) return;
+  deniedSiteChildItemsCache.set(key,{savedAt:Date.now()});
+  siteChildItemsCache.set(key,{savedAt:Date.now(),items:[]});
 }
 
 function clearSiteChildItemsCache(kind=null,site=selectedSite){
@@ -6653,12 +6676,19 @@ function clearSiteChildItemsCache(kind=null,site=selectedSite){
   const docId=selectedSiteDocId(site);
   if(!cleanKind && !docId){
     siteChildItemsCache.clear();
+    deniedSiteChildItemsCache.clear();
     return;
   }
   siteChildItemsCache.forEach((_value,key)=>{
     const [cachedKind,cachedDocId]=String(key || "").split("|");
     if((!cleanKind || cachedKind===cleanKind) && (!docId || cachedDocId===docId)){
       siteChildItemsCache.delete(key);
+    }
+  });
+  deniedSiteChildItemsCache.forEach((_value,key)=>{
+    const [cachedKind,cachedDocId]=String(key || "").split("|");
+    if((!cleanKind || cachedKind===cleanKind) && (!docId || cachedDocId===docId)){
+      deniedSiteChildItemsCache.delete(key);
     }
   });
 }
@@ -6697,6 +6727,7 @@ async function loadSiteChildItems(kind,site=selectedSite){
   if(!docId || !firebaseReady || !db || !fb.fsMod) return [];
   const cached=readSiteChildItemsCache(kind,site);
   if(cached) return cached;
+  if(readDeniedSiteChildItemsCache(kind,site)) return [];
   try{
     const {collection,getDocs}=fb.fsMod;
     const snap=await getDocs(collection(db,"sitesUnified",docId,kind));
@@ -6713,7 +6744,11 @@ async function loadSiteChildItems(kind,site=selectedSite){
     })),site,(localKind==="photos" || localKind==="attachments") ? 180 : 180);
     return cloneSiteChildItems(items);
   }catch(e){
-    console.warn("Načtení položek pod bodem selhalo",kind,e);
+    if(isFirestorePermissionDenied(e)){
+      writeDeniedSiteChildItemsCache(kind,site);
+    }else{
+      console.warn("Načtení položek pod bodem selhalo",kind,e);
+    }
     return [];
   }
 }

@@ -6,6 +6,13 @@ export function uniqueNonEmptyStrings(values=[]){
     .filter((value,idx,arr)=>value && arr.indexOf(value)===idx);
 }
 
+export function isFirestorePermissionDenied(error){
+  const code=String(error && error.code || "").trim();
+  if(code==="permission-denied" || code==="firestore/permission-denied") return true;
+  const message=String(error && error.message || error || "").toLowerCase();
+  return message.includes("permission-denied") || message.includes("missing or insufficient permissions");
+}
+
 export async function readFirestoreArrayContainsAny(fsMod,database,colName,field,values,addDocSnap,warnLabel="Firestore dotaz"){
   const cleanValues=uniqueNonEmptyStrings(values);
   if(!cleanValues.length || !fsMod || !database || typeof addDocSnap!=="function") return true;
@@ -18,7 +25,7 @@ export async function readFirestoreArrayContainsAny(fsMod,database,colName,field
       const snap=await getDocs(q);
       snap.forEach(addDocSnap);
     }catch(e){
-      console.warn(warnLabel,field,e);
+      if(!isFirestorePermissionDenied(e)) console.warn(warnLabel,field,e);
       return false;
     }
   }
@@ -39,7 +46,7 @@ export async function readFirestoreEqualsAny(fsMod,database,colName,field,values
       snap.forEach(addDocSnap);
     }catch(e){
       batchOk=false;
-      console.warn(warnLabel,field,e);
+      if(!isFirestorePermissionDenied(e)) console.warn(warnLabel,field,e);
       break;
     }
   }
@@ -50,7 +57,7 @@ export async function readFirestoreEqualsAny(fsMod,database,colName,field,values
       const snap=await getDocs(q);
       snap.forEach(addDocSnap);
     }catch(e){
-      console.warn(warnLabel,field,"fallback",e);
+      if(!isFirestorePermissionDenied(e)) console.warn(warnLabel,field,"fallback",e);
     }
   });
   await runBoundedFirestoreTasks(fallbackTasks,6);

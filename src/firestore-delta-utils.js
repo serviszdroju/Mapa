@@ -1,6 +1,7 @@
 export function createFirestoreDeltaHelpers({
   getDb=()=>null,
   getFsMod=()=>null,
+  isPermissionDenied=()=>false,
   isFirebaseReady=()=>false,
   isOnline=()=>true,
   runBoundedFirestoreTasks=async tasks=>Promise.allSettled(tasks.map(task=>task())),
@@ -29,7 +30,7 @@ export function createFirestoreDeltaHelpers({
               addDocSnap(docSnap);
             });
           }catch(e){
-            console.warn(warnLabel,field,e);
+            if(!isPermissionDenied(e)) console.warn(warnLabel,field,e);
           }
         });
       });
