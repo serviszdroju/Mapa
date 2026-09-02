@@ -869,3 +869,43 @@ body.protocol-form-fullscreen #protocolForm .row:last-of-type{
     }
   }
 }
+
+#protocolForm .checkrow{
+  min-height:30px !important;
+  padding:5px 7px !important;
+  gap:6px !important;
+}
+#protocolForm .checkrow input[type="checkbox"]{
+  inline-size:16px !important;
+  block-size:16px !important;
+  width:16px !important;
+  height:16px !important;
+  min-width:16px !important;
+  min-height:16px !important;
+  max-width:16px !important;
+  max-height:16px !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;
+  accent-color:#2563eb;
+}
+#protocolForm .checkrow label{
+  font-size:12.5px !important;
+  line-height:1.16 !important;
+}
+@media(max-width:760px){
+  #protocolForm .checkrow{
+    min-height:28px !important;
+    padding:4px 6px !important;
+  }
+  #protocolForm .checkrow input[type="checkbox"]{
+    inline-size:15px !important;
+    block-size:15px !important;
+    width:15px !important;
+    height:15px !important;
+    min-width:15px !important;
+    min-height:15px !important;
+    max-width:15px !important;
+    max-height:15px !important;
+  }
+}

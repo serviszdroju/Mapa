@@ -42,7 +42,7 @@ let szzInstallBusy=false;
 const SZZ_INSTALL_PROMPT_WAIT_MS=15000;
 const SZZ_INSTALL_SW_CONTROL_WAIT_MS=7000;
 const SZZ_INSTALL_SW_UPDATE_WAIT_MS=6000;
-const SZZ_ANDROID_APK_URL="./downloads/szz-servis-zdroju-android.apk?v=firestore-permission-v663";
+const SZZ_ANDROID_APK_URL="./downloads/szz-servis-zdroju-android.apk?v=protocol-checkbox-v664";
 const SZZ_SIDEBAR_LOGO_URL="./szz-logo-sidebar.png";
 
 function isSzzAndroidShellRuntime(){
