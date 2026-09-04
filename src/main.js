@@ -679,7 +679,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-04-protocol-save-contact-v665";
+const APP_BUILD_VERSION="2026-09-04-android-auth-refresh-v667";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1229,6 +1229,19 @@ if(firebaseReady){
     if(typeof fn==="function") return fn.call(bridge);
     return bridge[method]();
   }
+  function clearAndroidStoredAuth(){
+    const bridge=androidAuthBridge();
+    if(!bridge) return;
+    try{
+      if(typeof bridge.signOut==="function") bridge.signOut();
+      else if(bridge.signOut) bridge.signOut();
+    }catch(e){}
+  }
+  function isStaleAndroidGoogleCredential(error){
+    const code=safe(error && error.code);
+    const message=safe(error && error.message || error);
+    return /auth\/invalid-credential|auth\/invalid-user-token|stale to sign-in|ID Token.*stale/i.test(`${code} ${message}`);
+  }
   function androidStoredAuthState(){
     const bridge=androidAuthBridge();
     if(!bridge) return null;
@@ -1266,7 +1279,10 @@ if(firebaseReady){
       window.__szzAndroidSignInWithGoogleIdToken=token=>{
         signInWithGoogleIdToken(token)
           .then(result=>finish(resolve,result))
-          .catch(error=>finish(reject,error));
+          .catch(error=>{
+            if(isStaleAndroidGoogleCredential(error)) clearAndroidStoredAuth();
+            finish(reject,error);
+          });
       };
       window.__szzAndroidSignInError=message=>{
         finish(reject,new Error(safe(message) || "Android Google přihlášení se nepodařilo."));

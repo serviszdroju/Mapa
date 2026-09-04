@@ -743,7 +743,8 @@ public class MainActivity extends Activity {
             return;
         }
         googleSignInBusy = true;
-        startCredentialManagerGoogleSignIn(webClientId);
+        SzzAndroidAuthStore.clear(this);
+        startLegacyGoogleSignIn(webClientId);
     }
 
     private void startSilentGoogleSignIn(boolean quiet) {
@@ -825,7 +826,7 @@ public class MainActivity extends Activity {
     private void startLegacyGoogleSignIn(String webClientId) {
         try {
             GoogleSignInClient client = GoogleSignIn.getClient(this, googleSignInOptions(webClientId));
-            client.signOut().addOnCompleteListener(task -> {
+            client.revokeAccess().addOnCompleteListener(task -> {
                 try {
                     startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
                 } catch (Exception error) {
