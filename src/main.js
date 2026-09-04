@@ -679,7 +679,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-04-mail-first-call-fix-v668";
+const APP_BUILD_VERSION="2026-09-04-functions-bundled-v669";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -954,7 +954,14 @@ async function ensureMailFunctions(){
   if(!mailFunctionsPromise){
     mailFunctionsPromise=(async()=>{
       try{
-        const fnMod=await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js");
+        let fnMod=fb.fnMod;
+        if(!fnMod){
+          const bundledFirebaseMods=await loadBundledFirebaseModules();
+          fnMod=bundledFirebaseMods.firebaseFunctionsMod;
+        }
+        if(!fnMod || typeof fnMod.getFunctions!=="function" || typeof fnMod.httpsCallable!=="function"){
+          throw new Error("Firebase Functions modul není v lokálním balíku dostupný.");
+        }
         fb.fnMod=fnMod;
         mailFunctions=fnMod.getFunctions(app,"europe-west1");
         window.mailFunctions=mailFunctions;
@@ -993,12 +1000,14 @@ if(firebaseReady){
   let appMod=null;
   let authMod=null;
   let fsMod=null;
+  let fnMod=null;
   try{
     const bundledFirebaseMods=await loadBundledFirebaseModules();
-    [appMod,authMod,fsMod]=[
+    [appMod,authMod,fsMod,fnMod]=[
       bundledFirebaseMods.firebaseAppMod,
       bundledFirebaseMods.firebaseAuthMod,
-      bundledFirebaseMods.firebaseFirestoreMod
+      bundledFirebaseMods.firebaseFirestoreMod,
+      bundledFirebaseMods.firebaseFunctionsMod
     ];
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
@@ -1041,10 +1050,18 @@ if(firebaseReady){
     });
   }
   if(firebaseReady && appMod && authMod && fsMod){
-  fb={appMod,authMod,fsMod,fnMod:null};
+  fb={appMod,authMod,fsMod,fnMod:fnMod || null};
   app=appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(firebaseConfig);
   auth=authMod.getAuth(app);
   window.auth=auth;
+  if(fb.fnMod && typeof fb.fnMod.getFunctions==="function"){
+    try{
+      mailFunctions=fb.fnMod.getFunctions(app,"europe-west1");
+      window.mailFunctions=mailFunctions;
+    }catch(e){
+      console.warn("Firebase Functions se nepodařilo připravit při startu",e);
+    }
+  }
   try{
     if(authMod.useDeviceLanguage) authMod.useDeviceLanguage(auth);
     else if(auth.useDeviceLanguage) auth.useDeviceLanguage();
