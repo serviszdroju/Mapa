@@ -679,7 +679,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-02-protocol-checkbox-v664";
+const APP_BUILD_VERSION="2026-09-04-protocol-save-contact-v665";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -4123,6 +4123,19 @@ function shouldShowEmptyEditableField(k,label){
   return true;
 }
 
+const CONTACT_FIELD_KEYS=[
+  "Kontakt",
+  "Kontakt_mapy",
+  "Hlavní kontakt",
+  "Upravený kontakt",
+  "Kontakty",
+  "Telefon",
+  "Telefon kontakt",
+  "Mobil",
+  "Kontakt osoba",
+  "Kontakt na místě"
+];
+
 const USER_SITE_DATA_FIELDS = [
   {label:"Název", key:"Název", keys:["Název"]},
   {label:"Adresa / umístění", key:"Adresa / umístění", keys:["Adresa / umístění","Původní adresa / umístění"]},
@@ -4131,7 +4144,7 @@ const USER_SITE_DATA_FIELDS = [
   {label:"Popis zdroje", key:"Popis_zdroje", keys:["Popis_zdroje","Jaký zdroj"]},
   {label:"Výrobní číslo", key:"Zdroj", keys:["Výrobní číslo","Výrobní_číslo","Seriové číslo","Sériové číslo","Serial","SN","Zdroj"]},
   {label:"Datum předání zdroje", key:"Datum předání zdroje", keys:["Datum předání zdroje","Datum_predani_zdroje","Datum předání","Předání zdroje"], type:"date"},
-  {label:"Kontakt", key:"Kontakt", keys:["Kontakt","Kontakt_mapy","Hlavní kontakt"]},
+  {label:"Kontakt", key:"Kontakt", keys:CONTACT_FIELD_KEYS},
   {label:"Umístění zdroje", key:"Umístění zdroje", keys:["Umístění zdroje","Umístění"]},
   {label:"Historie oprav", key:"Historie oprav", keys:["Historie oprav","Historie_oprav"], type:"textarea"},
   {label:"Postup testování", key:"Postup testování", keys:["Postup testování","Postup testovani"], type:"textarea"},
@@ -4366,7 +4379,8 @@ window.szzLookupOfferNumberForSerial=lookupOfferNumberForSerial;
 
 function siteContactForProtocol(site=selectedSite){
   const raw=rawForSiteFieldLookup(site);
-  return safe((site && site.kontakt) || firstSiteField(raw,["Kontakt","Kontakt_mapy","Hlavní kontakt","Upravený kontakt"]));
+  const detailContact=userSiteSharedFieldValue(site,"Kontakt");
+  return safe(detailContact || firstSiteField(raw,CONTACT_FIELD_KEYS) || (site && site.kontakt));
 }
 
 function syncOpenProtocolContactFromDetail(site=selectedSite,options={}){
@@ -7034,14 +7048,36 @@ const {
 async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,options={}){
   const docId=selectedSiteDocId(site);
   const latest=protocolDateIso(protocol);
-  if(!docId || !firebaseReady || !db) return false;
   const baseRaw={...(site?.raw || {})};
   const raw=latest ? applyLatestProtocolDateToRaw(baseRaw,{protocolHistory:[protocol]}) : baseRaw;
   applyProtocolFieldsToRaw(raw,protocol);
   if(options.clearManualStatus) clearManualStatusRaw(raw);
   if(options.clearOrderedRepairStatus) clearOrderedRepairStatusRaw(raw);
-  raw["Firebase_doc_id"]=docId;
-  if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
+  if(docId){
+    raw["Firebase_doc_id"]=docId;
+    if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
+  }
+  if(site){
+    site.raw=raw;
+    const refreshed=normalize([raw])[0];
+    Object.assign(site, refreshed, {
+      id:site.id,
+      i:site.i,
+      firebaseDocId:docId || site.firebaseDocId || raw["Firebase_doc_id"] || "",
+      firebaseData:{
+        ...(site.firebaseData || {}),
+        raw,
+        ...(latest ? {latestProtocolDate:latest} : {})
+      }
+    });
+  }
+  if(options.clearManualStatus) clearManualStatusLocalState(site);
+  if(options.clearOrderedRepairStatus) clearOrderedRepairStatusLocalState(site);
+  if(!docId) return false;
+  if(!firebaseReady || !db || !fb.fsMod){
+    enqueueUnifiedSiteUpsertToAndroid(site,raw,{docId,reason:"Aktualizace bodu po uložení protokolu"});
+    return false;
+  }
   try{
     const {doc,setDoc,serverTimestamp}=fb.fsMod;
     const updatePayload={
@@ -7052,25 +7088,11 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
     };
     if(latest) updatePayload.latestProtocolDate=latest;
     await setDoc(doc(db,"sitesUnified",docId),updatePayload,{merge:true});
-    if(site){
-      site.raw=raw;
-      const refreshed=normalize([raw])[0];
-      Object.assign(site, refreshed, {
-        id:site.id,
-        i:site.i,
-        firebaseDocId:docId,
-        firebaseData:{
-          ...(site.firebaseData || {}),
-          raw,
-          ...(latest ? {latestProtocolDate:latest} : {})
-        }
-      });
-    }
-    if(options.clearManualStatus) clearManualStatusLocalState(site);
-    if(options.clearOrderedRepairStatus) clearOrderedRepairStatusLocalState(site);
+    markAndroidOutboxSynced(`site:${docId}`);
     return true;
   }catch(e){
     console.warn("Uložení poslední kontroly z protokolu selhalo",e);
+    enqueueUnifiedSiteUpsertToAndroid(site,raw,{docId,reason:"Aktualizace bodu po uložení protokolu"});
     return false;
   }
 }
@@ -9392,6 +9414,7 @@ async function prefillProtocol(){
   updateProtocolSummary();
   bindProtocolDraftAutosave();
   restoreProtocolDraftIfAny(selectedSite);
+  syncOpenProtocolContactFromDetail(selectedSite,{previousContact:contacts});
   updateProtocolSourceStateUi();
 }
 
@@ -9633,8 +9656,8 @@ protocolFormEl.addEventListener("submit",async e=>{
   const saveOffline=reason=>{
     const offlinePayload=saveProtocolLocally(payload,selectedSite,reason);
     clearProtocolDraft(selectedSite);
-    clearOrderedRepairStatusLocalState(selectedSite);
     applyProtocolFieldsToSite(offlinePayload,selectedSite);
+    clearOrderedRepairStatusLocalState(selectedSite);
     refreshSelectedDetailDataView();
     render();
     setProtocolStatusText("Protokol uložen lokálně v tomto prohlížeči. Internet/Firebase teď není dostupný.");

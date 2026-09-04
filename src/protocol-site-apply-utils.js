@@ -142,10 +142,18 @@ export function createProtocolSiteApplyHelpers({
       out["Postup testovani"]=testProcedure;
     }
     if(contacts){
-      out["Kontakt"]=contacts;
-      out["Kontakt_mapy"]=contacts;
-      out["Hlavní kontakt"]=contacts;
-      out["Upravený kontakt"]=contacts;
+      [
+        "Kontakt",
+        "Kontakt_mapy",
+        "Hlavní kontakt",
+        "Upravený kontakt",
+        "Kontakty",
+        "Telefon",
+        "Telefon kontakt",
+        "Mobil",
+        "Kontakt osoba",
+        "Kontakt na místě"
+      ].forEach(key=>{ out[key]=contacts; });
     }
     if(backedSummary){
       out["Typ a umístění zálohovaných zařízení"]=backedSummary;

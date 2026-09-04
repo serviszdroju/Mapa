@@ -56,3 +56,31 @@ test("detail hlidame sami termin respektuje stejny no-order priznak jako mapovy 
   const value=userSiteFieldValue({raw,noOrder:true},watchSpec,raw);
   assert.equal(value,"ano");
 });
+
+test("kontakt v detailu podporuje stejne aliasy jako predvyplneni protokolu",()=>{
+  const contactSpec={
+    label:"Kontakt",
+    key:"Kontakt",
+    keys:[
+      "Kontakt",
+      "Kontakt_mapy",
+      "Hlavní kontakt",
+      "Upravený kontakt",
+      "Kontakty",
+      "Telefon",
+      "Telefon kontakt",
+      "Mobil",
+      "Kontakt osoba",
+      "Kontakt na místě"
+    ]
+  };
+  const { userSiteFieldValue }=createSiteFieldLookupHelpers({
+    dataNormFixed,
+    userSiteDataFields:[contactSpec],
+    detectControlPeriod:()=>"",
+    getImportantNoteFixed:()=>"",
+    getWatchFixed:()=>"",
+  });
+  const raw={"Telefon kontakt":"Novák 603 111 222"};
+  assert.equal(userSiteFieldValue({kontakt:"",raw},contactSpec,raw),"Novák 603 111 222");
+});
