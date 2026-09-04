@@ -3,7 +3,7 @@
   "name": "Servis zaloznich zdroju",
   "short_name": "SZZ mapa",
   "description": "Servisni mapa zaloznich zdroju ASTIP.",
-  "start_url": "/Mapa/?v=android-auth-refresh-v667",
+  "start_url": "/Mapa/?v=mail-first-call-fix-v668",
   "scope": "/Mapa/",
   "lang": "cs-CZ",
   "categories": ["business", "productivity", "utilities"],
@@ -17,7 +17,7 @@
     {
       "name": "Otevrit mapu",
       "short_name": "Mapa",
-      "url": "/Mapa/?v=android-auth-refresh-v667",
+      "url": "/Mapa/?v=mail-first-call-fix-v668",
       "icons": [
         {
           "src": "./szz-app-icon-192.png",

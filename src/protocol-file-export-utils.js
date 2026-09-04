@@ -97,9 +97,9 @@ export function createProtocolFileExportHelpers({
     if(!validProtocolMailRecipient(toEmail)){
       throw new Error("Zadej platný e-mail příjemce.");
     }
+    const mailReady=await ensureMailFunctions();
     const fbFnMod=getFbFnMod();
     const mailFunctions=getMailFunctions();
-    const mailReady=await ensureMailFunctions();
     if(!getFirebaseReady() || !mailReady || !fbFnMod || !mailFunctions){
       throw new Error("Odesílací funkce není dostupná. Nejdřív je potřeba nasadit Firebase Function sendProtocolMail.");
     }
