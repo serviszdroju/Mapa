@@ -1511,17 +1511,33 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       }
     }catch(e){status("Chyba mapy: "+e.message,true);}
   }
+  function fallbackNormalizedRow(raw, docId){
+    const cleanId = typeof window.safe === "function" ? window.safe(docId) : cleanSource(docId);
+    const lat = Number(raw["GPS_lat"] || raw.lat || raw.latitude);
+    const lon = Number(raw["GPS_lon"] || raw.lon || raw.lng || raw.longitude);
+    return {
+      id: raw["Klíč_adresy"] || cleanId,
+      firebaseDocId: cleanId,
+      raw,
+      adresa: raw["Adresa / umístění"] || raw["Adresa_GPS"] || raw["Název"] || "",
+      zdroj: raw["Popis_zdroje"] || raw["Zdroj"] || raw["Typ"] || "",
+      vyrobni: raw["Výrobní číslo"] || raw["Vyrobni_cislo"] || raw["SN"] || "",
+      kontakt: raw["Kontakt"] || raw["Telefon"] || "",
+      kraj: raw["Kraj"] || "",
+      lat,
+      lon
+    };
+  }
   function rowFromDoc(docId, d){
     const normalizeRows = window.normalizeSiteRows || window.normalize;
     const applyRowEdit = window.applySiteEditToRow || window.applyEditToRow || (row => row);
-    if(typeof normalizeRows !== "function") throw new Error("normalizeSiteRows není dostupné");
     let raw=Object.assign({}, d.raw || {});
     if(typeof window.applyLatestProtocolDateToRaw==="function"){
       raw=window.applyLatestProtocolDateToRaw(raw,d || {});
     }
     raw["Firebase_doc_id"]=docId;
     if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
-    const r=normalizeRows([raw])[0];
+    const r=typeof normalizeRows === "function" ? normalizeRows([raw])[0] : fallbackNormalizedRow(raw, docId);
     r.id=raw["Klíč_adresy"]; r.raw=raw; r.firebaseDocId=docId;
     r.firebaseData=d;
     return applyRowEdit(r);
@@ -2701,7 +2717,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-08-android-fast-start-v681";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-08-android-fast-start-v683";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

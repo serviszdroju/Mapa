@@ -682,7 +682,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-08-android-fast-start-v681";
+const APP_BUILD_VERSION="2026-09-08-android-fast-start-v683";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -735,6 +735,12 @@ function showStartupLoading(message="Načítám aplikaci"){
   }
   setTextIfChanged(document.getElementById("startupIntro"),"Načítám aplikaci");
   if(message) setTextIfChanged(status,message);
+}
+function scheduleAndroidSilentAuthBootAttempts(reason="boot"){
+  const scheduler=window.__szzScheduleAndroidSilentAuthBootAttempts;
+  if(typeof scheduler==="function") return scheduler(reason);
+  window.__szzPendingAndroidSilentAuthBootReason=reason || "boot";
+  return false;
 }
 function showAppShellFast(message=""){
   if(window.__szzFastShellShown) return;
@@ -1795,6 +1801,12 @@ if(firebaseReady){
         tryAndroidSilentAuth(reason);
       },delayMs);
     });
+  }
+  window.__szzScheduleAndroidSilentAuthBootAttempts=scheduleAndroidSilentAuthBootAttempts;
+  if(window.__szzPendingAndroidSilentAuthBootReason){
+    const pendingReason=window.__szzPendingAndroidSilentAuthBootReason;
+    window.__szzPendingAndroidSilentAuthBootReason="";
+    scheduleAndroidSilentAuthBootAttempts(pendingReason);
   }
   window.__szzAndroidAuthMaybeRestore=reason=>{
     if(currentAuthCandidate() || authLoginInProgress || explicitSignOutPending()) return false;
