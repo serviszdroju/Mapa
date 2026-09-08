@@ -518,6 +518,9 @@ import {
   createMainProtocolHistoryViewHelpers
 } from "./main-protocol-history-view-utils.js";
 import {
+  mergeMainProtocolHistoryItemsPreferFirebase
+} from "./main-protocol-history-merge-utils.js";
+import {
   createFilterDomHelpers,
   createFilterOptionHelpers,
   createFilterRenderScheduler
@@ -679,7 +682,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-08-processed-admin-only-v672";
+const APP_BUILD_VERSION="2026-09-08-history-merge-v673";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -7822,11 +7825,6 @@ async function loadMainProtocolHistoryItems(){
   if(!canViewMainProtocolHistory()) return [];
   const cached=readMainProtocolHistoryCache();
   if(cached) return cached;
-  const items=[];
-  const itemDedupe=createRecordIdDedupe(items);
-  const addItem=item=>{
-    itemDedupe.add(item);
-  };
   const localItemsPromise=readAllLocalAndIndexedProtocolHistoryItems()
     .catch(e=>{
       console.warn("Lokální hlavní historie protokolů nejde načíst",e);
@@ -7856,8 +7854,7 @@ async function loadMainProtocolHistoryItems(){
     })();
   }
   const [localItems,firebaseItems]=await Promise.all([localItemsPromise,firebaseItemsPromise]);
-  for(const item of localItems) addItem(item);
-  for(const item of firebaseItems) addItem(item);
+  const items=mergeMainProtocolHistoryItemsPreferFirebase(localItems,firebaseItems);
   const finalItems=selectLatestProtocolHistoryItems(items,80);
   writeMainProtocolHistoryCache(finalItems);
   return cloneDetailHistoryItems(finalItems);
