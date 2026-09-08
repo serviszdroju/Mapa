@@ -682,7 +682,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-08-android-auth-persist-v676";
+const APP_BUILD_VERSION="2026-09-08-firestore-cache-fallback-v677";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1090,10 +1090,11 @@ if(firebaseReady){
     console.warn("Firebase persistence nejde nastavit",e);
   }
   try{
-    if(fsMod.initializeFirestore && fsMod.persistentLocalCache){
-      const cacheOptions={};
-      if(fsMod.persistentMultipleTabManager) cacheOptions.tabManager=fsMod.persistentMultipleTabManager();
-      db=fsMod.initializeFirestore(app,{localCache:fsMod.persistentLocalCache(cacheOptions)});
+    if(fsMod.initializeFirestore && fsMod.memoryLocalCache){
+      db=fsMod.initializeFirestore(app,{
+        localCache:fsMod.memoryLocalCache(),
+        experimentalAutoDetectLongPolling:true
+      });
     }else{
       db=fsMod.getFirestore(app);
     }

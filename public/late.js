@@ -699,6 +699,11 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return opts.allowOnlineCache === true;
   }
 
+  function isFirestoreInternalAssertionError(error){
+    const text=String((error && (error.message || error.code)) || error || "");
+    return /FIRESTORE.*INTERNAL ASSERTION FAILED|INTERNAL ASSERTION FAILED|Unexpected state/i.test(text);
+  }
+
   function canRunFirebaseSitesBackgroundRefresh(openDocId=null){
     if(openDocId) return false;
     if(navigator.onLine===false) return false;
@@ -2111,6 +2116,28 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     }catch(e){
       const message=String(e && (e.message || e.code) || e);
       window.__lastFirebaseLoadError=message;
+      if(isFirestoreInternalAssertionError(e)){
+        try{
+          const cachedRows=await showMapRowsCache(openDocId,{
+            offlineBoot:navigator.onLine===false,
+            offlineCacheOnly:!!opts.offlineCacheOnly,
+            allowOnlineCache:true
+          });
+          if(cachedRows.length){
+            sideStatus("",false);
+            if(!opts.backgroundRefresh && navigator.onLine!==false && !opts.force){
+              scheduleFirebaseSitesBackgroundRefresh(openDocId,5000);
+            }
+            return cachedRows;
+          }
+        }catch(cacheError){
+          console.warn("Lokální cache po interní Firestore chybě se nepodařila načíst",cacheError);
+        }
+        if(Array.isArray(window.rows) && window.rows.length){
+          sideStatus("",false);
+          return window.rows;
+        }
+      }
       sideStatus("Chyba načtení z Firebase: "+message,true);
       return [];
     }finally{
@@ -2674,7 +2701,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-08-android-auth-persist-v676";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-08-firestore-cache-fallback-v677";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
