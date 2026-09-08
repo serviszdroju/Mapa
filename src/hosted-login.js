@@ -9,7 +9,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="history-merge-v673";
+const EMAIL_LOGIN_BUILD_VERSION="android-auth-persist-v675";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -20,6 +20,7 @@ let pendingGoogleLoginRequested=false;
 let pendingGoogleLoginTimer=null;
 let lastGoogleLoginInteractionAt=0;
 let compatGoogleLoginInProgress=false;
+let hostedAndroidSilentLoginTried=false;
 const GOOGLE_LOGIN_INTERACTION_MAX_AGE_MS=15000;
 const AUTH_RESUME_VISIBILITY_MS=15000;
 let authResumeReleaseTimer=null;
@@ -349,7 +350,7 @@ function waitForCompatFirebaseAuth(timeoutMs=20000){
   });
 }
 
-function signInWithAndroidGoogleCompat(auth,bridge){
+function signInWithAndroidGoogleCompat(auth,bridge,options={}){
   return new Promise((resolve,reject)=>{
     let done=false;
     const finish=(fn,value)=>{
@@ -381,14 +382,48 @@ function signInWithAndroidGoogleCompat(auth,bridge){
       finish(reject,new Error(String(message || "").trim() || "Android Google přihlášení se nepodařilo."));
     };
     try{
-      callAndroidAuthBridge(bridge,"startGoogleSignIn");
+      if(options.silent && typeof bridge.restoreGoogleSignIn==="function") callAndroidAuthBridge(bridge,"restoreGoogleSignIn");
+      else callAndroidAuthBridge(bridge,"startGoogleSignIn");
     }catch(error){
       finish(reject,error);
     }
     setTimeout(()=>{
       finish(reject,new Error("Android Google přihlášení nevrátilo výsledek včas. Zkus tlačítko znovu."));
-    },90000);
+    },options.silent ? 10000 : 90000);
   });
+}
+
+function tryHostedAndroidSilentLogin(){
+  if(hostedAndroidSilentLoginTried || isLocalFileApp() || navigator.onLine===false) return false;
+  let explicitlySignedOut=false;
+  try{explicitlySignedOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+  if(explicitlySignedOut) return false;
+  const bridge=androidAuthBridge();
+  if(!bridge || !androidHasStoredAuth()) return false;
+  hostedAndroidSilentLoginTried=true;
+  showAuthState(AUTH_LOADING,{
+    intro:"Načítám aplikaci",
+    message:"Obnovuji Android přihlášení..."
+  });
+  waitForCompatFirebaseAuth(25000)
+    .then(auth=>signInWithAndroidGoogleCompat(auth,bridge,{silent:true}))
+    .then(result=>{
+      if(result && result.user){
+        try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
+        if(result.user.email) try{localStorage.setItem("astipFirebaseLastEmail",String(result.user.email).toLowerCase());}catch(e){}
+        status("Přihlášení obnoveno. Načítám mapu...");
+        setTimeout(()=>location.reload(),250);
+      }
+    })
+    .catch(error=>{
+      if(shouldKeepMapOpenOnLoginError(error)){
+        clearAuthStatusNotice();
+        showAuthState(AUTH_LOGGED_IN,{message:""});
+        return;
+      }
+      showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení se zatím neověřilo."});
+    });
+  return true;
 }
 
 function openHostedApp(){
@@ -535,6 +570,7 @@ function startGoogleLogin(event){
     if(!knownUser()) showAuthState(AUTH_LOGGED_OUT,{message:"Jsi offline. Přihlášení přes Google půjde znovu po připojení k internetu."});
     return false;
   }
+  try{sessionStorage.removeItem("astipFirebaseExplicitSignOut");}catch(e){}
   window.__loginRequested=true;
   showAuthState("logging-in",{message:"Připravuji přihlášení..."});
   if(runReadyGoogleLogin({explicit:true})) return true;
@@ -669,6 +705,7 @@ window.setTopAuthButtonMode=setTopAuthButtonMode;
 window.showStartupLogin=(message="")=>showAuthState(AUTH_LOGGED_OUT,{message:message || "",intro:"Přihlaste se Google účtem @astip.cz."});
 
 bindLoginButtons();
+setTimeout(tryHostedAndroidSilentLogin,0);
 window.addEventListener("DOMContentLoaded",bindLoginButtons);
 window.addEventListener("load",bindLoginButtons);
 window.addEventListener("load",function(){
@@ -678,4 +715,5 @@ window.addEventListener("load",function(){
     return;
   }
   bindLoginButtons();
+  tryHostedAndroidSilentLogin();
 });

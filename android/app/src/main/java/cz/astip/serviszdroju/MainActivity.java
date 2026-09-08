@@ -543,12 +543,46 @@ public class MainActivity extends Activity {
         );
     }
 
+    private GoogleSignInAccount lastSignedInGoogleAccount() {
+        try {
+            return GoogleSignIn.getLastSignedInAccount(this);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String storedAndroidGoogleEmail() {
+        String email = SzzAndroidAuthStore.email(this);
+        if (email != null && !email.trim().isEmpty()) return email.trim().toLowerCase(Locale.ROOT);
+        GoogleSignInAccount account = lastSignedInGoogleAccount();
+        String accountEmail = account == null ? "" : account.getEmail();
+        return accountEmail == null ? "" : accountEmail.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean hasAndroidGoogleAuthHint() {
+        if (SzzAndroidAuthStore.isSignedOut(this)) return false;
+        if (SzzAndroidAuthStore.hasGoogleIdToken(this)) return true;
+        String email = storedAndroidGoogleEmail();
+        return email.endsWith("@astip.cz");
+    }
+
     private void restoreAndroidAuthIfStored(long delayMs) {
-        if (!isOnline() || !SzzAndroidAuthStore.hasGoogleIdToken(this) || webView == null) return;
+        boolean hasHint = hasAndroidGoogleAuthHint();
+        if (!isOnline() || !hasHint || webView == null) return;
         webView.postDelayed(
             () -> evaluateWebScript(
                 "(function(){try{"
-                    + "if(typeof window.__szzAndroidAuthMaybeRestore==='function')window.__szzAndroidAuthMaybeRestore('native-resume');"
+                    + "var tries=18;"
+                    + "var tick=function(){"
+                    + "try{"
+                    + "if(typeof window.__szzAndroidAuthMaybeRestore==='function'){"
+                    + "window.__szzAndroidAuthMaybeRestore('native-resume');"
+                    + "return;"
+                    + "}"
+                    + "}catch(e){}"
+                    + "if(--tries>0)setTimeout(tick,700);"
+                    + "};"
+                    + "tick();"
                     + "}catch(e){}})();"
             ),
             Math.max(0L, delayMs)
@@ -564,12 +598,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public boolean hasStoredGoogleSignIn() {
-            return SzzAndroidAuthStore.hasGoogleIdToken(MainActivity.this);
+            return hasAndroidGoogleAuthHint();
         }
 
         @JavascriptInterface
         public String storedEmail() {
-            String email = SzzAndroidAuthStore.email(MainActivity.this);
+            String email = storedAndroidGoogleEmail();
             return email == null ? "" : email;
         }
 
@@ -579,8 +613,9 @@ public class MainActivity extends Activity {
             try {
                 long savedAt = SzzAndroidAuthStore.savedAt(MainActivity.this);
                 json.put("ok", true);
-                json.put("hasStoredAuth", SzzAndroidAuthStore.hasGoogleIdToken(MainActivity.this));
-                json.put("email", SzzAndroidAuthStore.email(MainActivity.this));
+                json.put("hasStoredAuth", hasAndroidGoogleAuthHint());
+                json.put("signedOut", SzzAndroidAuthStore.isSignedOut(MainActivity.this));
+                json.put("email", storedAndroidGoogleEmail());
                 json.put("savedAt", savedAt);
                 json.put("ageMs", savedAt > 0 ? Math.max(0L, System.currentTimeMillis() - savedAt) : 0L);
             } catch (Exception error) {
@@ -607,7 +642,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void signOut() {
-            SzzAndroidAuthStore.clear(MainActivity.this);
+            SzzAndroidAuthStore.markSignedOut(MainActivity.this);
             runOnUiThread(() -> {
                 try {
                     String webClientId = BuildConfig.FIREBASE_GOOGLE_WEB_CLIENT_ID == null
@@ -780,7 +815,7 @@ public class MainActivity extends Activity {
             return;
         }
         googleSignInBusy = true;
-        SzzAndroidAuthStore.clear(this);
+        SzzAndroidAuthStore.clearSignedOut(this);
         startLegacyGoogleSignIn(webClientId);
     }
 
@@ -863,14 +898,12 @@ public class MainActivity extends Activity {
     private void startLegacyGoogleSignIn(String webClientId) {
         try {
             GoogleSignInClient client = GoogleSignIn.getClient(this, googleSignInOptions(webClientId));
-            client.revokeAccess().addOnCompleteListener(task -> {
-                try {
-                    startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
-                } catch (Exception error) {
-                    googleSignInBusy = false;
-                    deliverAndroidAuthError("Google přihlášení v aplikaci nešlo otevřít. " + compactErrorText(error));
-                }
-            });
+            try {
+                startActivityForResult(client.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
+            } catch (Exception error) {
+                googleSignInBusy = false;
+                deliverAndroidAuthError("Google přihlášení v aplikaci nešlo otevřít. " + compactErrorText(error));
+            }
         } catch (Exception error) {
             googleSignInBusy = false;
             deliverAndroidAuthError("Google přihlášení v aplikaci selhalo při přípravě. " + compactErrorText(error));

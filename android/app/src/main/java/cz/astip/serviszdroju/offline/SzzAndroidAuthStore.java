@@ -8,6 +8,7 @@ public final class SzzAndroidAuthStore {
     private static final String GOOGLE_ID_TOKEN = "google_id_token";
     private static final String EMAIL = "email";
     private static final String SAVED_AT = "saved_at";
+    private static final String SIGNED_OUT = "signed_out";
 
     private SzzAndroidAuthStore() {}
 
@@ -17,6 +18,7 @@ public final class SzzAndroidAuthStore {
             .putString(GOOGLE_ID_TOKEN, idToken.trim())
             .putString(EMAIL, email == null ? "" : email.trim().toLowerCase())
             .putLong(SAVED_AT, System.currentTimeMillis())
+            .putBoolean(SIGNED_OUT, false)
             .apply();
     }
 
@@ -33,8 +35,28 @@ public final class SzzAndroidAuthStore {
     }
 
     public static boolean hasGoogleIdToken(Context context) {
+        if (isSignedOut(context)) return false;
         String token = googleIdToken(context);
         return token != null && !token.trim().isEmpty();
+    }
+
+    public static boolean isSignedOut(Context context) {
+        return context != null && prefs(context).getBoolean(SIGNED_OUT, false);
+    }
+
+    public static void clearSignedOut(Context context) {
+        if (context == null) return;
+        prefs(context).edit().putBoolean(SIGNED_OUT, false).apply();
+    }
+
+    public static void markSignedOut(Context context) {
+        if (context == null) return;
+        prefs(context).edit()
+            .remove(GOOGLE_ID_TOKEN)
+            .remove(EMAIL)
+            .remove(SAVED_AT)
+            .putBoolean(SIGNED_OUT, true)
+            .apply();
     }
 
     public static void clear(Context context) {
