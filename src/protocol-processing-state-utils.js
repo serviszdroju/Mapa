@@ -83,6 +83,7 @@ export function createProtocolProcessingStateHelpers({
     if(item._offline || /local|indexed/i.test(safe(item._collection))) return false;
     const {doc,setDoc}=fsMod;
     const patch=mainProtocolProcessedRemotePatch(checked);
+    const embeddedPatch=mainProtocolProcessedLocalPatch(checked);
     const writes=[
       setDoc(doc(db,"protocols",id),patch,{merge:true})
     ];
@@ -94,6 +95,9 @@ export function createProtocolProcessingStateHelpers({
     for(const docId of siteDocIds){
       writes.push(setDoc(doc(db,"sitesUnified",docId,"protocols",id),patch,{merge:true}).catch(e=>{
         console.warn("Označení protokolu pod bodem selhalo",docId,e);
+      }));
+      writes.push(patchEmbeddedProtocolItemsRemote(docId,id,embeddedPatch,"zpracování").catch(e=>{
+        console.warn("Označení protokolu ve vložené historii selhalo",docId,e);
       }));
     }
     await Promise.all(writes);
@@ -164,6 +168,39 @@ export function createProtocolProcessingStateHelpers({
     }
   }
 
+  async function patchEmbeddedProtocolItemsRemote(docId,id,patch,contextLabel="protokol"){
+    const cleanDocId=safe(docId);
+    const cleanId=safe(id);
+    const db=getDb();
+    const fsMod=getFsMod();
+    if(!cleanDocId || !cleanId || !patch || !db || !fsMod) return false;
+    const {doc,getDoc,setDoc}=fsMod;
+    if(!doc || !getDoc || !setDoc) return false;
+    const ref=doc(db,"sitesUnified",cleanDocId);
+    const snap=await getDoc(ref);
+    if(!snap.exists()) return false;
+    const data=snap.data() || {};
+    const update={};
+    let changed=false;
+    if(Array.isArray(data.protocolHistory)){
+      const next=patchProtocolProcessedItems(data.protocolHistory,cleanId,patch,true);
+      if(next!==data.protocolHistory){
+        update.protocolHistory=next;
+        changed=true;
+      }
+    }
+    if(Array.isArray(data.protocolRefs)){
+      const next=patchProtocolProcessedItems(data.protocolRefs,cleanId,patch,true);
+      if(next!==data.protocolRefs){
+        update.protocolRefs=next;
+        changed=true;
+      }
+    }
+    if(!changed) return false;
+    await setDoc(ref,update,{merge:true});
+    return true;
+  }
+
   async function saveProtocolHandoffRemote(item={},checked=false){
     const id=safe(item._id || item.id);
     const db=getDb();
@@ -173,6 +210,7 @@ export function createProtocolProcessingStateHelpers({
     if(item._offline || /local|indexed/i.test(safe(item._collection))) return false;
     const {doc,setDoc}=fsMod;
     const patch=protocolHandoffRemotePatch(checked);
+    const embeddedPatch=protocolHandoffLocalPatch(checked);
     const writes=[
       setDoc(doc(db,"protocols",id),patch,{merge:true})
     ];
@@ -185,6 +223,9 @@ export function createProtocolProcessingStateHelpers({
     for(const docId of siteDocIds){
       writes.push(setDoc(doc(db,"sitesUnified",docId,"protocols",id),patch,{merge:true}).catch(e=>{
         console.warn("Předání protokolu pod bodem selhalo",docId,e);
+      }));
+      writes.push(patchEmbeddedProtocolItemsRemote(docId,id,embeddedPatch,"předání").catch(e=>{
+        console.warn("Předání protokolu ve vložené historii selhalo",docId,e);
       }));
     }
     await Promise.all(writes);

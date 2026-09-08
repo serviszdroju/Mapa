@@ -9,12 +9,12 @@ export function createDetailHistoryCacheHelpers({
   resetDetailHistoryRenderSignature,
   resetMainProtocolHistoryRenderSignature
 }){
-  const DETAIL_HISTORY_CACHE_MS=45000;
+  const DETAIL_HISTORY_CACHE_MS=12000;
   const DETAIL_HISTORY_MUTATION_KINDS=new Set(["protocolHistory","serviceHistory","protocols","serviceRecords"]);
   const detailHistoryCache=new Map();
   const LAST_PROTOCOL_CACHE_MS=45000;
   const lastProtocolCache=new Map();
-  const MAIN_PROTOCOL_HISTORY_CACHE_MS=45000;
+  const MAIN_PROTOCOL_HISTORY_CACHE_MS=12000;
   let mainProtocolHistoryCache={key:"",savedAt:0,items:null};
 
   function detailHistoryCacheKey(site=getSelectedSite()){

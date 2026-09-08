@@ -835,15 +835,15 @@
   border:1px solid #fecaca;
 }
 .main-history-row.handoff{
-  border-color:#fecaca;
-  background:#fef2f2;
+  border-color:#93c5fd;
+  background:#eff6ff;
 }
 .main-history-row.idle{
   border-color:#dbe4ef;
   background:#f8fafc;
 }
 .main-history-row.handoff .main-history-processed{
-  color:#991b1b;
+  color:#1d4ed8;
 }
 .main-history-state{
   display:inline-flex;
@@ -860,8 +860,8 @@
   color:#475569;
 }
 .main-history-state.handoff{
-  background:#fee2e2;
-  color:#991b1b;
+  background:#dbeafe;
+  color:#1d4ed8;
 }
 .main-history-state.processed{
   background:#dcfce7;
@@ -914,16 +914,19 @@
   cursor:pointer;
 }
 .history-handoff-processing.is-checked{
-  background:#e2e8f0;
-  border-color:#94a3b8;
-  color:#334155;
+  background:#dbeafe;
+  border-color:#60a5fa;
+  color:#1d4ed8;
 }
 .history-handoff-processing input{
   min-height:0;
   width:16px;
   height:16px;
   margin:0;
-  accent-color:#64748b;
+  accent-color:#2563eb;
+}
+.history-handoff-processing.is-checked input{
+  accent-color:#2563eb;
 }
 .technician-signature-overlay{
   position:fixed;

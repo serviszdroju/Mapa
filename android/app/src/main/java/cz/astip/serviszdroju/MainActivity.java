@@ -20,6 +20,7 @@ import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.ServiceWorkerController;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -95,11 +96,18 @@ public class MainActivity extends Activity {
     private SzzOfflineRepository offlineRepository;
     private boolean forceLocalAssetFallback;
     private boolean pendingWebCacheReset;
+    private long lastWebViewRecoveryAt;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestNotificationPermissionIfNeeded();
+        offlineRepository = SzzOfflineRepository.get(this);
+        pendingWebCacheReset = shouldResetWebCacheForBuild();
+        createAndAttachWebView(savedInstanceState);
+    }
+
+    private void createAndAttachWebView(Bundle savedInstanceState) {
         webView = new WebView(this);
         setContentView(
             webView,
@@ -108,11 +116,7 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         );
-        offlineRepository = SzzOfflineRepository.get(this);
-        pendingWebCacheReset = shouldResetWebCacheForBuild();
-        if (pendingWebCacheReset) {
-            webView.clearCache(true);
-        }
+        if (pendingWebCacheReset) webView.clearCache(true);
         configureWebView();
         if (savedInstanceState == null) {
             webView.loadUrl(BuildConfig.LAUNCH_URL);
@@ -213,6 +217,9 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, true);
+        }
         webView.addJavascriptInterface(new AndroidAuthBridge(), "SzzAndroidAuth");
         webView.addJavascriptInterface(new AndroidOfflineBridge(), "SzzAndroidOffline");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -268,6 +275,12 @@ public class MainActivity extends Activity {
                 }
                 super.onReceivedError(view, request, error);
             }
+
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                recoverWebViewAfterRenderProcessGone(view, detail != null && detail.didCrash());
+                return true;
+            }
         });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -314,6 +327,30 @@ public class MainActivity extends Activity {
                 if (cameraPermissionGranted()) request.grant(request.getResources());
                 else request.deny();
             }
+        });
+    }
+
+    private void recoverWebViewAfterRenderProcessGone(WebView crashedView, boolean didCrash) {
+        long now = System.currentTimeMillis();
+        if (now - lastWebViewRecoveryAt < 2500L) return;
+        lastWebViewRecoveryAt = now;
+        forceLocalAssetFallback = true;
+        runOnUiThread(() -> {
+            try {
+                if (crashedView != null) {
+                    ViewGroup parent = (ViewGroup) crashedView.getParent();
+                    if (parent != null) parent.removeView(crashedView);
+                    crashedView.destroy();
+                }
+            } catch (Exception ignored) {}
+            if (webView == crashedView) webView = null;
+            createAndAttachWebView(null);
+            if (offlineRepository != null) offlineRepository.enqueueSyncWork();
+            Toast.makeText(
+                MainActivity.this,
+                didCrash ? "Zobrazení aplikace bylo obnoveno." : "Aplikace obnovila zobrazení.",
+                Toast.LENGTH_SHORT
+            ).show();
         });
     }
 

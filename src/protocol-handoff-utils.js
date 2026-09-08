@@ -61,6 +61,40 @@ export function createProtocolHandoffHelpers({
     return safe(protocol && (protocol._id || protocol.id || protocol.protocolId || protocol.protocolDocId));
   }
 
+  function protocolHandoffTimeMs(value){
+    if(!value) return 0;
+    try{
+      if(typeof value.toMillis==="function") return Number(value.toMillis()) || 0;
+      if(typeof value.toDate==="function"){
+        const date=value.toDate();
+        return date && typeof date.getTime==="function" ? date.getTime() || 0 : 0;
+      }
+    }catch(e){}
+    const parsed=Date.parse(safe(value));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function protocolHandoffRemoteTimeMs(protocol={}){
+    const hasExplicitHandoff=[
+      protocol.handoffForProcessing,
+      protocol.submittedForProcessing,
+      protocol.processingHandoff
+    ].some(value=>protocolHandoffFieldValue(value)!==null) ||
+      !!(protocol.handoffManualAt || protocol.processingHandoffManualAt || protocol.handoffAt);
+    if(!hasExplicitHandoff) return 0;
+    let latest=0;
+    for(const value of [
+      protocol.handoffManualAt,
+      protocol.processingHandoffManualAt,
+      protocol.handoffAt,
+      protocol.updatedAt,
+      protocol.savedAt
+    ]){
+      latest=Math.max(latest,protocolHandoffTimeMs(value));
+    }
+    return latest;
+  }
+
   function protocolHandoffOverrideValue(protocol={}){
     const id=protocolHandoffItemId(protocol);
     if(!id) return null;
@@ -68,7 +102,12 @@ export function createProtocolHandoffHelpers({
     if(!Object.prototype.hasOwnProperty.call(overrides,id)) return null;
     const entry=overrides[id];
     if(entry===true || entry===false) return entry;
-    if(entry && typeof entry==="object" && typeof entry.checked==="boolean") return entry.checked;
+    if(entry && typeof entry==="object" && typeof entry.checked==="boolean"){
+      const overrideTime=protocolHandoffTimeMs(entry.updatedAt);
+      const remoteTime=protocolHandoffRemoteTimeMs(protocol);
+      if(remoteTime && (!overrideTime || remoteTime>=overrideTime)) return null;
+      return entry.checked;
+    }
     return null;
   }
 
@@ -184,7 +223,10 @@ export function createProtocolHandoffHelpers({
       handoffBy:checked ? userEmail() : "",
       handoffManual:true,
       handoffManualAt:time,
-      handoffManualBy:userEmail()
+      handoffManualBy:userEmail(),
+      processingHandoffManual:true,
+      processingHandoffManualAt:time,
+      processingHandoffManualBy:userEmail()
     };
   }
 
@@ -199,6 +241,9 @@ export function createProtocolHandoffHelpers({
       handoffManual:true,
       handoffManualAt:time,
       handoffManualBy:userEmail(),
+      processingHandoffManual:true,
+      processingHandoffManualAt:time,
+      processingHandoffManualBy:userEmail(),
       updatedBy:userEmail(),
       updatedAt:time
     };
@@ -211,6 +256,8 @@ export function createProtocolHandoffHelpers({
     protocolHandoffItemId,
     protocolHandoffLocalPatch,
     protocolHandoffOverrideValue,
+    protocolHandoffRemoteTimeMs,
+    protocolHandoffTimeMs,
     protocolHandoffWasManuallyChanged,
     protocolHasStopOnlyState,
     protocolHandoffStopOnlyValue,

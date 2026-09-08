@@ -83,3 +83,54 @@ test("remembered handoff override has priority",()=>{
   h.rememberProtocolHandoffOverride(item._id,true,item);
   assert.equal(h.protocolHandoffForProcessing(item),true);
 });
+
+test("newer remote handoff state wins over stale local override",()=>{
+  const storage=createStorage();
+  const h=createProtocolHandoffHelpers({
+    currentUserEmail:()=>"ivi@astip.cz",
+    selectedSiteDocId:()=>"site-1",
+    storageKey:"test:handoff"
+  });
+  storage.set("test:handoff",JSON.stringify({
+    "protocol-1":{checked:false,updatedAt:"2026-09-08T08:00:00.000Z"}
+  }));
+  assert.equal(h.protocolHandoffForProcessing({
+    _id:"protocol-1",
+    handoffForProcessing:true,
+    handoffManualAt:"2026-09-08T09:00:00.000Z"
+  }),true);
+});
+
+test("newer local handoff override can still cover an older remote state",()=>{
+  const storage=createStorage();
+  const h=createProtocolHandoffHelpers({
+    currentUserEmail:()=>"ivi@astip.cz",
+    selectedSiteDocId:()=>"site-1",
+    storageKey:"test:handoff"
+  });
+  storage.set("test:handoff",JSON.stringify({
+    "protocol-1":{checked:false,updatedAt:"2026-09-08T10:00:00.000Z"}
+  }));
+  assert.equal(h.protocolHandoffForProcessing({
+    _id:"protocol-1",
+    handoffForProcessing:true,
+    handoffManualAt:"2026-09-08T09:00:00.000Z"
+  }),false);
+});
+
+test("newer unrelated saved timestamp does not erase local handoff override",()=>{
+  const storage=createStorage();
+  const h=createProtocolHandoffHelpers({
+    currentUserEmail:()=>"ivi@astip.cz",
+    selectedSiteDocId:()=>"site-1",
+    storageKey:"test:handoff"
+  });
+  storage.set("test:handoff",JSON.stringify({
+    "protocol-1":{checked:false,updatedAt:"2026-09-08T08:00:00.000Z"}
+  }));
+  assert.equal(h.protocolHandoffForProcessing({
+    _id:"protocol-1",
+    processed:true,
+    savedAt:"2026-09-08T11:00:00.000Z"
+  }),false);
+});
