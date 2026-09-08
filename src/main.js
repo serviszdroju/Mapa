@@ -679,7 +679,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-08-stability-handoff-v670";
+const APP_BUILD_VERSION="2026-09-08-admin-technician-filter-v671";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -5158,6 +5158,7 @@ let protocolEditState=null;
 let mainProtocolHistoryRenderSignature="";
 let mainProtocolHistoryCurrentItems=[];
 let mainProtocolHistoryDateFilter="";
+let mainProtocolHistoryTechnicianFilter="";
 
 const {
   clearDetailHistoryCache,
@@ -7656,6 +7657,7 @@ const {
   canViewAllMainProtocolHistory,
   getMainProtocolHistoryCurrentItems:()=>mainProtocolHistoryCurrentItems,
   getMainProtocolHistoryDateFilter:()=>mainProtocolHistoryDateFilter,
+  getMainProtocolHistoryTechnicianFilter:()=>mainProtocolHistoryTechnicianFilter,
   historyDateLabel,
   historySavedDateLabel,
   isMainProtocolProcessed,
@@ -7671,6 +7673,7 @@ const {
   renderMainProtocolHistoryRows:(list,items)=>renderMainProtocolHistoryRows(list,items),
   resetMainProtocolHistoryRenderSignature:()=>{mainProtocolHistoryRenderSignature="";},
   setMainProtocolHistoryDateFilter:value=>{mainProtocolHistoryDateFilter=value || "";},
+  setMainProtocolHistoryTechnicianFilter:value=>{mainProtocolHistoryTechnicianFilter=value || "";},
   setMainProtocolHistoryProcessed:(item,checked)=>setMainProtocolHistoryProcessed(item,checked),
   showSaveConfirmation
 });
@@ -7861,7 +7864,11 @@ async function loadMainProtocolHistoryItems(){
 }
 
 function renderMainProtocolHistoryShell(drawer){
-  const shell=renderMainProtocolHistoryShellDom(drawer,{dateFilter:mainProtocolHistoryDateFilter});
+  const shell=renderMainProtocolHistoryShellDom(drawer,{
+    dateFilter:mainProtocolHistoryDateFilter,
+    technicianFilter:mainProtocolHistoryTechnicianFilter,
+    items:mainProtocolHistoryCurrentItems
+  });
   if(!shell?.reused) mainProtocolHistoryRenderSignature="";
   return shell;
 }
@@ -7871,6 +7878,7 @@ function renderMainProtocolHistoryRows(list,items=[]){
     list,
     items,
     dateFilter:mainProtocolHistoryDateFilter,
+    technicianFilter:mainProtocolHistoryTechnicianFilter,
     currentSignature:mainProtocolHistoryRenderSignature
   });
 }
@@ -7898,6 +7906,11 @@ async function openMainProtocolHistoryPanel(){
   if(firebaseReady && db && fb.fsMod && currentUser && navigator.onLine !== false) clearMainProtocolHistoryCache();
   const items=await loadMainProtocolHistoryItems();
   mainProtocolHistoryCurrentItems=items;
+  renderMainProtocolHistoryShellDom(drawer,{
+    dateFilter:mainProtocolHistoryDateFilter,
+    technicianFilter:mainProtocolHistoryTechnicianFilter,
+    items
+  });
   if(!list) return;
   renderMainProtocolHistoryRows(list,items);
 }

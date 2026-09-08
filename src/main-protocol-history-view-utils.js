@@ -11,7 +11,9 @@ export function createMainProtocolHistoryViewHelpers({
   mainProtocolWorkflowState,
   getMainProtocolHistoryCurrentItems,
   getMainProtocolHistoryDateFilter,
+  getMainProtocolHistoryTechnicianFilter,
   setMainProtocolHistoryDateFilter,
+  setMainProtocolHistoryTechnicianFilter,
   resetMainProtocolHistoryRenderSignature,
   renderMainProtocolHistoryRows,
   setMainProtocolHistoryProcessed,
@@ -22,15 +24,42 @@ export function createMainProtocolHistoryViewHelpers({
   protocolSourceTestMethodLabel,
   protocolTimeValue
 }={}){
-  function mainProtocolHistoryVisibleRows(items=[],dateFilter=""){
+  function mainProtocolHistoryTechnicianLabel(item={}){
+    return safe(item.createdBy || item.technicianEmail || item.techEmail || item.technician || item.techName || item.updatedBy);
+  }
+
+  function mainProtocolHistoryTechnicianKey(item={}){
+    return mainProtocolHistoryTechnicianLabel(item).toLowerCase();
+  }
+
+  function mainProtocolHistoryTechnicianOptions(items=[]){
+    const canViewAll=typeof canViewAllMainProtocolHistory==="function" ? canViewAllMainProtocolHistory() : false;
+    if(!canViewAll) return [];
+    const seen=new Set();
+    const options=[];
+    const source=Array.isArray(items) ? items : [];
+    for(const item of source){
+      const label=mainProtocolHistoryTechnicianLabel(item);
+      const key=label.toLowerCase();
+      if(!key || seen.has(key)) continue;
+      seen.add(key);
+      options.push({key,label});
+    }
+    options.sort((a,b)=>a.label.localeCompare(b.label,"cs",{sensitivity:"base"}));
+    return options;
+  }
+
+  function mainProtocolHistoryVisibleRows(items=[],dateFilter="",technicianFilter=""){
     const canViewAll=typeof canViewAllMainProtocolHistory==="function" ? canViewAllMainProtocolHistory() : false;
     const filterDate=safe(dateFilter);
+    const filterTechnician=canViewAll ? safe(technicianFilter).toLowerCase() : "";
     const rows=[];
     const source=Array.isArray(items) ? items : [];
     for(let idx=0;idx<source.length;idx++){
       const item=source[idx];
       if(!canViewAll && typeof mainProtocolHistoryItemOwnedByCurrentUser==="function" && !mainProtocolHistoryItemOwnedByCurrentUser(item)) continue;
       if(filterDate && typeof mainProtocolControlDateIso==="function" && mainProtocolControlDateIso(item)!==filterDate) continue;
+      if(filterTechnician && mainProtocolHistoryTechnicianKey(item)!==filterTechnician) continue;
       const title=typeof protocolGlobalHistoryTitle==="function" ? protocolGlobalHistoryTitle(item) : "Protokol";
       const key=safe(item && (item.siteKey || item.firebaseDocId || item.siteId || (Array.isArray(item.siteKeys) ? item.siteKeys[0] : "")));
       const id=safe(item && (item._id || item.id || ""));
@@ -71,7 +100,7 @@ export function createMainProtocolHistoryViewHelpers({
     return rows;
   }
 
-  function mainProtocolHistoryRenderKey(visibleRows=[],dateFilter=""){
+  function mainProtocolHistoryRenderKey(visibleRows=[],dateFilter="",technicianFilter=""){
     const adminPart=typeof canViewAllMainProtocolHistory==="function" && canViewAllMainProtocolHistory() ? "admin" : "user";
     const source=Array.isArray(visibleRows) ? visibleRows : [];
     let rows="";
@@ -79,18 +108,48 @@ export function createMainProtocolHistoryViewHelpers({
       if(i) rows+="\u001f";
       rows+=source[i] && source[i].signature ? source[i].signature : "";
     }
-    return `${adminPart}\u001e${dateFilter}\u001e${source.length}\u001e${rows}`;
+    return `${adminPart}\u001e${dateFilter}\u001e${technicianFilter}\u001e${source.length}\u001e${rows}`;
   }
 
-  function renderMainProtocolHistoryShellDom(drawer,{dateFilter=""}={}){
+  function setSelectOptions(select,options=[],selectedValue=""){
+    if(!select) return;
+    const selected=safe(selectedValue).toLowerCase();
+    const signature=options.map(option=>`${option.key}\u001f${option.label}`).join("\u001e");
+    if(select.__szzOptionsSignature!==signature){
+      const fragment=document.createDocumentFragment();
+      const all=document.createElement("option");
+      all.value="";
+      all.textContent="Všichni";
+      fragment.appendChild(all);
+      for(const option of options){
+        const node=document.createElement("option");
+        node.value=option.key;
+        node.textContent=option.label;
+        fragment.appendChild(node);
+      }
+      select.replaceChildren(fragment);
+      select.__szzOptionsSignature=signature;
+    }
+    select.value=options.some(option=>option.key===selected) ? selected : "";
+  }
+
+  function renderMainProtocolHistoryShellDom(drawer,{dateFilter="",technicianFilter="",items=[]}={}){
+    const canViewAll=typeof canViewAllMainProtocolHistory==="function" ? canViewAllMainProtocolHistory() : false;
     const existingList=drawer?.querySelector?.("#mainProtocolHistoryList");
     const existingCard=drawer?.querySelector?.("#mainProtocolHistoryCard");
     const existingDateFilter=drawer?.querySelector?.("#mainProtocolHistoryDateFilter");
-    if(existingList && existingCard && existingDateFilter){
+    const existingTechnicianFilter=drawer?.querySelector?.("#mainProtocolHistoryTechnicianFilter");
+    if(existingList && existingCard && existingDateFilter && existingTechnicianFilter){
+      if(existingTechnicianFilter){
+        const technicianWrap=existingTechnicianFilter.closest(".main-history-technician-filter");
+        if(technicianWrap) technicianWrap.hidden=!canViewAll;
+        setSelectOptions(existingTechnicianFilter,mainProtocolHistoryTechnicianOptions(items),technicianFilter);
+      }
       return {
         close:drawer.querySelector("#closeDrawer"),
         list:existingList,
         dateFilter:existingDateFilter,
+        technicianFilter:existingTechnicianFilter,
         clearDate:drawer.querySelector("#mainProtocolHistoryDateClear"),
         reused:true
       };
@@ -127,12 +186,21 @@ export function createMainProtocolHistoryViewHelpers({
     dateFilterNode.id="mainProtocolHistoryDateFilter";
     dateFilterNode.value=dateFilter;
     filterWrap.append(filterText,dateFilterNode);
+    const technicianWrap=document.createElement("label");
+    technicianWrap.className="main-history-filter main-history-technician-filter";
+    technicianWrap.hidden=!canViewAll;
+    const technicianText=document.createElement("span");
+    technicianText.textContent="Technik";
+    const technicianFilterNode=document.createElement("select");
+    technicianFilterNode.id="mainProtocolHistoryTechnicianFilter";
+    setSelectOptions(technicianFilterNode,mainProtocolHistoryTechnicianOptions(items),technicianFilter);
+    technicianWrap.append(technicianText,technicianFilterNode);
     const clearDate=document.createElement("button");
     clearDate.className="secondary main-history-clear-date";
     clearDate.type="button";
     clearDate.id="mainProtocolHistoryDateClear";
     clearDate.textContent="Vše";
-    toolbar.append(filterWrap,clearDate);
+    toolbar.append(filterWrap,technicianWrap,clearDate);
     const list=document.createElement("div");
     list.id="mainProtocolHistoryList";
     list.className="main-history-list small";
@@ -140,23 +208,26 @@ export function createMainProtocolHistoryViewHelpers({
     card.append(heading,toolbar,list);
 
     drawer.replaceChildren(head,card);
-    return {close,list,dateFilter:dateFilterNode,clearDate,reused:false};
+    return {close,list,dateFilter:dateFilterNode,technicianFilter:technicianFilterNode,clearDate,reused:false};
   }
 
   function renderMainProtocolHistoryRowsDom({
     list,
     items=[],
     dateFilter="",
+    technicianFilter="",
     currentSignature=""
   }={}){
     if(!list) return currentSignature || "";
-    const visibleRows=mainProtocolHistoryVisibleRows(items,dateFilter);
+    const canViewAll=typeof canViewAllMainProtocolHistory==="function" ? canViewAllMainProtocolHistory() : false;
+    const effectiveTechnicianFilter=canViewAll ? technicianFilter : "";
+    const visibleRows=mainProtocolHistoryVisibleRows(items,dateFilter,effectiveTechnicianFilter);
     if(!visibleRows.length){
-      const emptySignature=`empty:${dateFilter}`;
-      list.textContent=dateFilter ? "Pro vybrané datum není uložený žádný protokol." : "Zatím není uložený žádný protokol.";
+      const emptySignature=`empty:${dateFilter}:${effectiveTechnicianFilter}`;
+      list.textContent=dateFilter || effectiveTechnicianFilter ? "Pro vybraný filtr není uložený žádný protokol." : "Zatím není uložený žádný protokol.";
       return emptySignature;
     }
-    const renderSignature=mainProtocolHistoryRenderKey(visibleRows,dateFilter);
+    const renderSignature=mainProtocolHistoryRenderKey(visibleRows,dateFilter,effectiveTechnicianFilter);
     if(currentSignature===renderSignature && list.childElementCount) return currentSignature;
     const fragment=document.createDocumentFragment();
     visibleRows.forEach(({id,title,key,meta,processed,workflow,workflowLabel,showProcessedControl})=>{
@@ -250,7 +321,7 @@ export function createMainProtocolHistoryViewHelpers({
     });
   }
 
-  function bindMainProtocolHistoryControlsDom({list,dateFilter,clearDate}={}){
+  function bindMainProtocolHistoryControlsDom({list,dateFilter,technicianFilter,clearDate}={}){
     if(dateFilter && !dateFilter.__szzMainHistoryDateBound){
       dateFilter.__szzMainHistoryDateBound=true;
       dateFilter.addEventListener("change",()=>{
@@ -259,11 +330,21 @@ export function createMainProtocolHistoryViewHelpers({
         rerenderMainProtocolHistoryRows(list);
       });
     }
+    if(technicianFilter && !technicianFilter.__szzMainHistoryTechnicianBound){
+      technicianFilter.__szzMainHistoryTechnicianBound=true;
+      technicianFilter.addEventListener("change",()=>{
+        if(typeof setMainProtocolHistoryTechnicianFilter==="function") setMainProtocolHistoryTechnicianFilter(technicianFilter.value || "");
+        resetSignature();
+        rerenderMainProtocolHistoryRows(list);
+      });
+    }
     if(clearDate && !clearDate.__szzMainHistoryDateBound){
       clearDate.__szzMainHistoryDateBound=true;
       clearDate.addEventListener("click",()=>{
         if(typeof setMainProtocolHistoryDateFilter==="function") setMainProtocolHistoryDateFilter("");
+        if(typeof setMainProtocolHistoryTechnicianFilter==="function") setMainProtocolHistoryTechnicianFilter("");
         if(dateFilter) dateFilter.value="";
+        if(technicianFilter) technicianFilter.value="";
         resetSignature();
         rerenderMainProtocolHistoryRows(list);
       });
@@ -274,6 +355,7 @@ export function createMainProtocolHistoryViewHelpers({
     bindMainProtocolHistoryControlsDom,
     bindMainProtocolHistoryListClickDom,
     mainProtocolHistoryRenderKey,
+    mainProtocolHistoryTechnicianOptions,
     mainProtocolHistoryVisibleRows,
     renderMainProtocolHistoryShellDom,
     renderMainProtocolHistoryRowsDom

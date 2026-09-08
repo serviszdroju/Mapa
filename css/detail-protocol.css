@@ -612,7 +612,8 @@
   color:#64748b;
   font-weight:850;
 }
-.main-history-filter input{
+.main-history-filter input,
+.main-history-filter select{
   min-height:30px;
   padding:4px 7px;
   border:1px solid #cbd5e1;
