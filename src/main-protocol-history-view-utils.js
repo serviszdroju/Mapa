@@ -69,7 +69,7 @@ export function createMainProtocolHistoryViewHelpers({
       const processed=typeof isMainProtocolProcessed==="function" ? isMainProtocolProcessed(item) : false;
       const workflow=typeof mainProtocolWorkflowState==="function" ? mainProtocolWorkflowState(item) : (processed ? "processed" : "idle");
       const workflowLabel=typeof mainProtocolWorkflowLabel==="function" ? mainProtocolWorkflowLabel(item) : "nepředáno ke zpracování";
-      const showProcessedControl=processed || workflow==="handoff";
+      const showProcessedControl=canViewAll && (processed || workflow==="handoff");
       const sourceState=typeof protocolSourceStateLabel==="function" ? protocolSourceStateLabel(item) : "";
       const sourceTest=typeof protocolSourceTestMethodLabel==="function" ? protocolSourceTestMethodLabel(item.sourceTestMethod || item.testMethod) : "";
       const metaParts=[];

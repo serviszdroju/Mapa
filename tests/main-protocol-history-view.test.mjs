@@ -49,3 +49,18 @@ test("bezny technik nevidi admin filtr a stale vidi jen vlastni protokoly",()=>{
   const visible=helpers.mainProtocolHistoryVisibleRows(items,"","technik-b@astip.cz");
   assert.deepEqual(visible.map(row=>row.title),["A"]);
 });
+
+test("checkbox zpracovano vidi jen admin nebo Iva v hlavni historii",()=>{
+  const processedItem={_id:"1",title:"A",checkDate:"2026-09-01",createdBy:"technik-a@astip.cz",processed:true};
+  const adminHelpers=createMainProtocolHistoryViewHelpers({
+    ...baseHelpers,
+    canViewAllMainProtocolHistory:()=>true
+  });
+  const technicianHelpers=createMainProtocolHistoryViewHelpers({
+    ...baseHelpers,
+    canViewAllMainProtocolHistory:()=>false
+  });
+
+  assert.equal(adminHelpers.mainProtocolHistoryVisibleRows([processedItem])[0].showProcessedControl,true);
+  assert.equal(technicianHelpers.mainProtocolHistoryVisibleRows([processedItem])[0].showProcessedControl,false);
+});
