@@ -682,7 +682,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-08-firestore-cache-fallback-v677";
+const APP_BUILD_VERSION="2026-09-08-android-fast-start-v680";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -760,8 +760,9 @@ function showAppShellFast(message=""){
     if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
     if(!window.__szzKnownSessionBootCacheRequested){
       window.__szzKnownSessionBootCacheRequested=true;
-      setTimeout(()=>loadOfflineRowsFromLocalCacheWhenAvailable("",4500),0);
+      setTimeout(()=>loadOfflineRowsFromLocalCacheWhenAvailable("",12000),0);
     }
+    scheduleAndroidSilentAuthBootAttempts("known-session");
     return;
   }
   if(!hasUser && !explicitSignOutPending() && knownSignedIn()){
@@ -815,6 +816,15 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
   window.__szzOfflineBootCacheLoadStarted=true;
   const started=Date.now();
   const progress=document.getElementById("progress");
+  const retryOrFinish=count=>{
+    if(count) return true;
+    if(Date.now()-started<timeoutMs){
+      setTimeout(run,300);
+      return true;
+    }
+    window.__szzOfflineBootCacheLoadStarted=false;
+    return false;
+  };
   const run=()=>{
     const directLoader=window.showFirebaseMapRowsCache;
     const unifiedLoader=window.loadFirebaseSitesUnified;
@@ -829,6 +839,7 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
       }else if(count){
         setTextIfChanged(progress,"");
       }
+      if(!retryOrFinish(count)) setTextIfChanged(progress,message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.");
       if(count && navigator.onLine===false && knownSignedIn() && !explicitSignOutPending()){
         window.__szzAuthResumeStartedAt=window.__szzAuthResumeStartedAt || Date.now();
         if(typeof showApp==="function") showApp({allowWithoutUser:true});
@@ -858,6 +869,7 @@ function loadOfflineRowsFromLocalCacheWhenAvailable(message="",timeoutMs=8000){
       setTimeout(run,150);
       return;
     }
+    window.__szzOfflineBootCacheLoadStarted=false;
     setTextIfChanged(progress,message || "Offline režim. Uložená data zatím nejsou v tomto zařízení připravená.");
   };
   if(message) setTextIfChanged(progress,message);
@@ -1319,7 +1331,7 @@ if(firebaseReady){
           finish(reject,error);
         }
       }
-      const timeoutMs=options.silent ? 9000 : 90000;
+      const timeoutMs=options.silent ? 5000 : 90000;
       setTimeout(()=>{
         finish(reject,new Error("Android Google přihlášení nevrátilo výsledek včas. Zkus tlačítko znovu."));
       },timeoutMs);
@@ -1774,6 +1786,16 @@ if(firebaseReady){
     })();
     return androidSilentAuthPromise;
   }
+  function scheduleAndroidSilentAuthBootAttempts(reason="boot"){
+    if(explicitSignOutPending()) return;
+    [0,600,1500,3500,7000].forEach(delayMs=>{
+      setTimeout(()=>{
+        if(currentAuthCandidate() || authLoginInProgress || explicitSignOutPending()) return;
+        if(!androidHasStoredAuth()) return;
+        tryAndroidSilentAuth(reason);
+      },delayMs);
+    });
+  }
   window.__szzAndroidAuthMaybeRestore=reason=>{
     if(currentAuthCandidate() || authLoginInProgress || explicitSignOutPending()) return false;
     if(!androidHasStoredAuth()) return false;
@@ -1781,7 +1803,7 @@ if(firebaseReady){
     return true;
   };
   if(isAndroidShellRuntime() && androidHasStoredAuth() && !currentAuthCandidate() && !explicitSignOutPending()){
-    setTimeout(()=>tryAndroidSilentAuth("bridge-ready"),0);
+    scheduleAndroidSilentAuthBootAttempts("bridge-ready");
   }
   function scheduleBackgroundAuthRetry(delayMs=2500){
     if(backgroundAuthRetryTimer || explicitSignOutPending()) return;
@@ -1890,8 +1912,15 @@ if(firebaseReady){
   window.syncFirebaseRowsDeltaAfterAuth=syncFirebaseRowsDeltaAfterAuth;
   async function loadFirebaseRowsAfterAuthInner(reason="auth"){
     if(!firebaseUnifiedPrimary) return true;
+    if(Array.isArray(rows) && rows.length && window.__szzAndroidFastCacheRowsLoaded){
+      resetFirebaseRowsAutoReload();
+      runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth(reason).catch(e=>{
+        console.warn("Rozdílová synchronizace bodů po rychlém Android startu selhala",e);
+      }),1200);
+      return true;
+    }
     const token=++postLoginLoadToken;
-    const loaderReady=await waitForFirebaseRowsLoader();
+    const loaderReady=await waitForFirebaseRowsLoader((Array.isArray(rows) && rows.length) ? 1200 : 5000);
     if(token!==postLoginLoadToken) return false;
     if(!loaderReady){
       setProgressStatus("Firebase načítání bodů ještě není připravené, zkusím to znovu bez obnovení stránky...");
@@ -1989,7 +2018,12 @@ if(firebaseReady){
     setDisplayIfChanged(topLogoutBtn,"block");
     showApp();
     setProgressStatus("");
-    await loadFirebaseRowsAfterAuth("login");
+    const cachedRows=showAuthenticatedAndroidCachedMapRowsFast("");
+    if(cachedRows.length){
+      loadFirebaseRowsAfterAuth("login").catch(e=>console.warn("Dočtení bodů po rychlém Android startu selhalo",e));
+    }else{
+      await loadFirebaseRowsAfterAuth("login");
+    }
     if(typeof window.syncOfflineChanges==="function"){
       runWhenIdle(()=>window.syncOfflineChanges({reason:"login",silent:true}),1800);
     }
@@ -3189,6 +3223,44 @@ function installSelectedSiteWindowBridge(){
 window.markRowsDirty=markRowsDirty;
 installRowsWindowBridge();
 installSelectedSiteWindowBridge();
+
+function readAndroidMapRowsCacheFast(limit=20000){
+  try{
+    const bridge=window.SzzAndroidOffline;
+    if(!bridge || typeof bridge.cachedSitesJson!=="function") return [];
+    const parsed=JSON.parse(String(bridge.cachedSitesJson(limit) || "{}"));
+    const items=Array.isArray(parsed.items) ? parsed.items : [];
+    if(!items.length) return [];
+    const rawRows=items.map(item=>{
+      const raw={...(item && item.raw && typeof item.raw==="object" ? item.raw : {})};
+      const docId=safe(item && item.docId);
+      if(docId && !raw["Firebase_doc_id"]) raw["Firebase_doc_id"]=docId;
+      if(docId && !raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
+      return raw;
+    });
+    return normalize(rawRows).filter(row=>Number.isFinite(row.lat) && Number.isFinite(row.lon));
+  }catch(e){
+    console.warn("Rychlá Android cache bodů se nepodařila přečíst",e);
+    return [];
+  }
+}
+
+function showAuthenticatedAndroidCachedMapRowsFast(message=""){
+  const verifiedUser=currentUser || window.currentUser || window.__authReadyUser || (auth && auth.currentUser);
+  if(!verifiedUser) return [];
+  if(typeof window.setFirebaseSiteRows!=="function") return [];
+  if(Array.isArray(rows) && rows.length) return rows;
+  const cachedRows=readAndroidMapRowsCacheFast();
+  if(!cachedRows.length) return [];
+  window.__szzAndroidFastCacheRowsLoaded=true;
+  window.setFirebaseSiteRows(cachedRows,null);
+  showApp({allowWithoutUser:true});
+  setProgressStatus(message || "");
+  runAfterTwoPaints(()=>{ try{ if(window.map) window.map.invalidateSize(true); }catch(e){} });
+  return rows;
+}
+
+window.showAuthenticatedAndroidCachedMapRowsFast=showAuthenticatedAndroidCachedMapRowsFast;
 
 const {
   rowLookupKeys:resolvedRowLookupKeys,
@@ -9866,6 +9938,13 @@ async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();
   await loadDeletedSites();
   if(typeof window.loadFirebaseSitesUnified==="function"){
+    const cachedRows=showAuthenticatedAndroidCachedMapRowsFast("");
+    if(cachedRows.length && window.__szzAndroidFastCacheRowsLoaded && !firebaseRowsWereLoadedFromNetwork()){
+      runWhenIdle(()=>window.syncFirebaseRowsDeltaAfterAuth?.("startup-fast-cache")?.catch(e=>{
+        console.warn("Startovní rozdílová kontrola po rychlé Android cache selhala",e);
+      }),2200);
+      return true;
+    }
     const ready=readSzzOfflineReadyState();
     if(
       navigator.onLine!==false &&

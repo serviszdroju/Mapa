@@ -9,7 +9,7 @@ import {
 } from "./firebase-auth.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="firestore-cache-fallback-v677";
+const EMAIL_LOGIN_BUILD_VERSION="android-fast-start-v680";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -314,6 +314,20 @@ function androidHasStoredAuth(){
   return false;
 }
 
+function clearAndroidStoredAuth(bridge=androidAuthBridge()){
+  if(!bridge) return;
+  try{
+    if(typeof bridge.signOut==="function") bridge.signOut();
+    else if(bridge.signOut) bridge.signOut();
+  }catch(error){}
+}
+
+function isStaleAndroidGoogleCredential(error){
+  const code=String(error && error.code || "").trim();
+  const message=String(error && error.message || error || "").trim();
+  return /auth\/invalid-credential|auth\/invalid-user-token|auth\/user-token-expired|stale to sign-in|ID Token.*stale/i.test(`${code} ${message}`);
+}
+
 function callAndroidAuthBridge(bridge,method){
   const fn=bridge && bridge[method];
   if(typeof fn==="function") return fn.call(bridge);
@@ -365,15 +379,23 @@ function signInWithAndroidGoogleCompat(auth,bridge,options={}){
         const token=String(idToken || "").trim();
         if(!token) throw new Error("Google nevrátil přihlašovací token.");
         if(typeof window.__szzSignInWithGoogleIdToken==="function"){
-          const result=await window.__szzSignInWithGoogleIdToken(token);
-          finish(resolve,result);
+          try{
+            const result=await window.__szzSignInWithGoogleIdToken(token);
+            finish(resolve,result);
+          }catch(error){
+            if(isStaleAndroidGoogleCredential(error)) clearAndroidStoredAuth(bridge);
+            finish(reject,error);
+          }
           return;
         }
         const authClient=auth || await waitForCompatFirebaseAuth(30000);
         const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
         authClient.signInWithCredential(credential)
           .then(result=>finish(resolve,result))
-          .catch(error=>finish(reject,error));
+          .catch(error=>{
+            if(isStaleAndroidGoogleCredential(error)) clearAndroidStoredAuth(bridge);
+            finish(reject,error);
+          });
       })().catch(error=>{
         finish(reject,error);
       });
@@ -411,11 +433,16 @@ function tryHostedAndroidSilentLogin(){
       if(result && result.user){
         try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
         if(result.user.email) try{localStorage.setItem("astipFirebaseLastEmail",String(result.user.email).toLowerCase());}catch(e){}
-        status("Přihlášení obnoveno. Načítám mapu...");
-        setTimeout(()=>location.reload(),250);
+        showAuthState(AUTH_LOGGED_IN,{message:""});
+        if(typeof window.__szzShowAuthenticatedApp==="function") window.__szzShowAuthenticatedApp("");
       }
     })
     .catch(error=>{
+      if(isStaleAndroidGoogleCredential(error)){
+        clearAndroidStoredAuth(bridge);
+        showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení vypršelo. Přihlas se znovu Google účtem @astip.cz."});
+        return;
+      }
       if(shouldKeepMapOpenOnLoginError(error)){
         clearAuthStatusNotice();
         showAuthState(AUTH_LOGGED_IN,{message:""});
@@ -451,7 +478,8 @@ function showAuthState(mode,options={}){
   const offline=navigator.onLine===false;
   const keepOpenForRuntimeAuth=normalized===AUTH_LOGGED_OUT && runtimeAuthorized && appVisible && !explicitlySignedOut;
   const keepOpenForKnownResume=normalized===AUTH_LOGGED_OUT && knownUser() && appVisible && !explicitlySignedOut && (offline || resumeAge<AUTH_RESUME_VISIBILITY_MS);
-  const loggedIn=normalized===AUTH_LOGGED_IN || keepOpenForRuntimeAuth || keepOpenForKnownResume;
+  const keepOpenForAndroidResume=!explicitlySignedOut && androidHasStoredAuth() && appVisible;
+  const loggedIn=normalized===AUTH_LOGGED_IN || keepOpenForRuntimeAuth || keepOpenForKnownResume || keepOpenForAndroidResume;
   const loading=normalized===AUTH_LOADING || normalized==="checking" || normalized==="logging-in";
   if(authResumeReleaseTimer){
     clearTimeout(authResumeReleaseTimer);
@@ -608,6 +636,11 @@ function startCompatGoogleLoginFallback(options={}){
         setTimeout(()=>location.reload(),400);
       }
     }).catch(err=>{
+      if(isStaleAndroidGoogleCredential(err)){
+        clearAndroidStoredAuth(bridge);
+        showAuthState(AUTH_LOGGED_OUT,{message:"Přihlášení vypršelo. Přihlas se znovu Google účtem @astip.cz."});
+        return;
+      }
       if(shouldKeepMapOpenOnLoginError(err)){
         cleanAuthResumeState(false);
         clearAuthStatusNotice();

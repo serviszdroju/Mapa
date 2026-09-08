@@ -46,7 +46,7 @@ try{
 <script>
 (function(){
   const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-  const EMAIL_LOGIN_BUILD_VERSION="firestore-cache-fallback-v677";
+  const EMAIL_LOGIN_BUILD_VERSION="android-fast-start-v680";
   const INLINE_FIREBASE_CONFIG={
     apiKey:"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88",
     authDomain:"astip---servis.firebaseapp.com",
@@ -293,7 +293,23 @@ try{
     let explicitSignOut=false;
     try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
     const keepOfflineCacheOpen=!explicitSignOut && navigator.onLine===false && knownUser() && appVisibleForAuthResume();
+    const keepAndroidCacheOpen=!explicitSignOut && androidHasStoredAuth() && appVisibleForAuthResume();
     if(keepOfflineCacheOpen){
+      if(startup){
+        startup.classList.remove("auth-checking");
+        startup.classList.remove("auth-loading");
+        startup.style.display="none";
+      }
+      if(app) app.style.display="grid";
+      if(google){
+        google.style.display="none";
+        google.disabled=true;
+        google.setAttribute("aria-disabled","true");
+      }
+      status("");
+      return;
+    }
+    if(keepAndroidCacheOpen){
       if(startup){
         startup.classList.remove("auth-checking");
         startup.classList.remove("auth-loading");
@@ -331,7 +347,11 @@ try{
     const app=node("mainApp");
     const google=node("startupLoginBtn");
     const intro=node("startupIntro");
-    if(normalized==="logged-in"){
+    let explicitSignOut=false;
+    try{explicitSignOut=sessionStorage.getItem("astipFirebaseExplicitSignOut")==="1";}catch(e){}
+    const appVisible=!!(app && app.style.display && app.style.display!=="none");
+    const keepAndroidOpen=!explicitSignOut && androidHasStoredAuth() && appVisible;
+    if(normalized==="logged-in" || keepAndroidOpen){
       if(startup){
         startup.classList.remove("auth-checking","auth-loading");
         startup.style.display="none";
@@ -583,6 +603,20 @@ try{
     return false;
   }
 
+  function clearAndroidStoredAuth(bridge=androidAuthBridge()){
+    if(!bridge) return;
+    try{
+      if(typeof bridge.signOut==="function") bridge.signOut();
+      else if(bridge.signOut) bridge.signOut();
+    }catch(error){}
+  }
+
+  function isStaleAndroidGoogleCredential(error){
+    const code=String(error && error.code || "").trim();
+    const message=String(error && error.message || error || "").trim();
+    return /auth\/invalid-credential|auth\/invalid-user-token|auth\/user-token-expired|stale to sign-in|ID Token.*stale/i.test(`${code} ${message}`);
+  }
+
   function callAndroidAuthBridge(bridge,method){
     const fn=bridge && bridge[method];
     if(typeof fn==="function") return fn.call(bridge);
@@ -634,15 +668,23 @@ try{
           const token=textValue(idToken);
           if(!token) throw new Error("Google nevrátil přihlašovací token.");
           if(typeof window.__szzSignInWithGoogleIdToken==="function"){
-            const result=await window.__szzSignInWithGoogleIdToken(token);
-            finish(resolve,result);
+            try{
+              const result=await window.__szzSignInWithGoogleIdToken(token);
+              finish(resolve,result);
+            }catch(error){
+              if(isStaleAndroidGoogleCredential(error)) clearAndroidStoredAuth(bridge);
+              finish(reject,error);
+            }
             return;
           }
           const authClient=auth || await waitForCompatFirebaseAuth(30000);
           const credential=firebase.auth.GoogleAuthProvider.credential(token,null);
           authClient.signInWithCredential(credential)
             .then(result=>finish(resolve,result))
-            .catch(error=>finish(reject,error));
+            .catch(error=>{
+              if(isStaleAndroidGoogleCredential(error)) clearAndroidStoredAuth(bridge);
+              finish(reject,error);
+            });
         })().catch(error=>{
           finish(reject,error);
         });
@@ -680,11 +722,16 @@ try{
         if(result && result.user){
           try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
           if(result.user.email) try{localStorage.setItem("astipFirebaseLastEmail",String(result.user.email).toLowerCase());}catch(e){}
-          status("Přihlášení obnoveno. Načítám mapu...");
-          setTimeout(()=>location.reload(),250);
+          showAuthState("logged-in",{message:""});
+          if(typeof window.__szzShowAuthenticatedApp==="function") window.__szzShowAuthenticatedApp("");
         }
       })
       .catch(error=>{
+        if(isStaleAndroidGoogleCredential(error)){
+          clearAndroidStoredAuth(bridge);
+          showAuthState("logged-out",{message:"Přihlášení vypršelo. Přihlas se znovu Google účtem @astip.cz."});
+          return;
+        }
         if(shouldKeepMapOpenOnLoginError(error)){
           clearAuthStatusNotice();
           showAuthState("logged-in",{message:""});
@@ -750,6 +797,11 @@ try{
           setTimeout(()=>location.reload(),400);
         }
       }).catch(err=>{
+        if(isStaleAndroidGoogleCredential(err)){
+          clearAndroidStoredAuth(bridge);
+          showLogin("Přihlášení vypršelo. Přihlas se znovu Google účtem @astip.cz.");
+          return;
+        }
         if(shouldKeepMapOpenOnLoginError(err)){
           try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
           clearAuthStatusNotice();
@@ -782,6 +834,11 @@ try{
       });
     }catch(err){
       compatGoogleLoginInProgress=false;
+      if(isStaleAndroidGoogleCredential(err)){
+        clearAndroidStoredAuth();
+        showLogin("Přihlášení vypršelo. Přihlas se znovu Google účtem @astip.cz.");
+        return;
+      }
       if(shouldKeepMapOpenOnLoginError(err)){
         try{sessionStorage.removeItem("astipFirebaseRedirectPending");}catch(e){}
         clearAuthStatusNotice();
@@ -894,7 +951,7 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-BvzHesqv.js"></script>
+  <script type="module" crossorigin src="./assets/index-CNXhEq6j.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-CK1voNNf.css">
 </head>
 <body>
@@ -911,7 +968,7 @@ try{
 
 <div class="app" id="mainApp" style="display:none"><aside>
 <div class="app-tools">
-  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=firestore-cache-fallback-v677" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=android-fast-start-v680" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
 </div>
 <div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./assets/szz-logo-sidebar-DvZyH9BD.png" data-szz-logo-copy alt="Logo SZZ"></div>
 <div class="sidebar-primary-actions">
@@ -1339,7 +1396,7 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script async src="./late.js?v=firestore-cache-fallback-v677"></script>
+<script async src="./late.js?v=android-fast-start-v680"></script>
 
 
 

@@ -64,6 +64,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 public class MainActivity extends Activity {
@@ -151,7 +152,7 @@ public class MainActivity extends Activity {
         super.onResume();
         if (webView != null) webView.onResume();
         if (offlineRepository != null) offlineRepository.enqueueSyncWork();
-        restoreAndroidAuthIfStored(1600);
+        restoreAndroidAuthIfStored(150);
     }
 
     @Override
@@ -257,7 +258,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 injectAndroidBootstrap();
-                restoreAndroidAuthIfStored(900);
+                restoreAndroidAuthIfStored(120);
             }
 
             @Override
@@ -572,7 +573,7 @@ public class MainActivity extends Activity {
         webView.postDelayed(
             () -> evaluateWebScript(
                 "(function(){try{"
-                    + "var tries=18;"
+                    + "var tries=80;"
                     + "var tick=function(){"
                     + "try{"
                     + "if(typeof window.__szzAndroidAuthMaybeRestore==='function'){"
@@ -580,7 +581,7 @@ public class MainActivity extends Activity {
                     + "return;"
                     + "}"
                     + "}catch(e){}"
-                    + "if(--tries>0)setTimeout(tick,700);"
+                    + "if(--tries>0)setTimeout(tick,250);"
                     + "};"
                     + "tick();"
                     + "}catch(e){}})();"
@@ -816,7 +817,7 @@ public class MainActivity extends Activity {
         }
         googleSignInBusy = true;
         SzzAndroidAuthStore.clearSignedOut(this);
-        startLegacyGoogleSignIn(webClientId);
+        startCredentialManagerGoogleSignIn(webClientId);
     }
 
     private void startSilentGoogleSignIn(boolean quiet) {
@@ -858,6 +859,7 @@ public class MainActivity extends Activity {
         GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(webClientId)
+            .setNonce(UUID.randomUUID().toString())
             .build();
         GetCredentialRequest request = new GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
@@ -944,7 +946,7 @@ public class MainActivity extends Activity {
         if (token == null || token.trim().isEmpty()) return false;
         long savedAt = SzzAndroidAuthStore.savedAt(this);
         long ageMs = savedAt > 0 ? Math.max(0L, System.currentTimeMillis() - savedAt) : Long.MAX_VALUE;
-        if (ageMs > 50L * 60L * 1000L) return false;
+        if (ageMs > 4L * 60L * 1000L) return false;
         deliverAndroidGoogleIdToken(token, SzzAndroidAuthStore.email(this), false);
         return true;
     }
