@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -77,8 +78,8 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 2301;
     private static final int LOCATION_REQUEST = 2302;
     private static final int CAMERA_REQUEST = 2303;
-    private static final int NOTIFICATION_REQUEST = 2304;
     private static final int GOOGLE_SIGN_IN_REQUEST = 2305;
+    private static final long[] CONFIGURATION_RESIZE_DELAYS_MS = {40L, 120L, 300L, 700L};
     private static final Set<String> AUTH_HOSTS = new HashSet<>(Arrays.asList(
         "accounts.google.com",
         "apis.google.com",
@@ -102,7 +103,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        requestNotificationPermissionIfNeeded();
         offlineRepository = SzzOfflineRepository.get(this);
         pendingWebCacheReset = shouldResetWebCacheForBuild();
         createAndAttachWebView(savedInstanceState);
@@ -153,6 +153,37 @@ public class MainActivity extends Activity {
         if (webView != null) webView.onResume();
         if (offlineRepository != null) offlineRepository.enqueueSyncWork();
         restoreAndroidAuthIfStored(150);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (webView == null) return;
+        webView.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        webView.requestLayout();
+        for (long delayMs : CONFIGURATION_RESIZE_DELAYS_MS) {
+            postConfigurationResize(delayMs);
+        }
+    }
+
+    private void postConfigurationResize(long delayMs) {
+        final WebView target = webView;
+        if (target == null) return;
+        target.postDelayed(() -> {
+            if (webView != target) return;
+            target.requestLayout();
+            evaluateWebScript(
+                "(function(){try{"
+                    + "window.dispatchEvent(new Event('resize'));"
+                    + "setTimeout(function(){"
+                    + "try{if(window.map&&window.map.invalidateSize)window.map.invalidateSize(true);}catch(e){}"
+                    + "},80);"
+                    + "}catch(e){}})();"
+            );
+        }, delayMs);
     }
 
     @Override
@@ -1165,12 +1196,6 @@ public class MainActivity extends Activity {
 
     private boolean cameraPermissionGranted() {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return;
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
     }
 
     private boolean isOnline() {
