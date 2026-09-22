@@ -17,11 +17,10 @@ export function createFirebaseRowDocHelpers({
     if(typeof normalizeRows!=="function") return null;
     const applyRowEdit=applySiteEditToRow();
     const data=docSnap.data() || {};
-    let raw={...(data.raw || {})};
+    const sourceRaw=data.raw || {};
     const applyLatest=hasEmbeddedProtocolDateData(data) ? applyLatestProtocolDateToRaw() : null;
-    if(typeof applyLatest==="function"){
-      raw=applyLatest(raw,data || {});
-    }
+    const mergedRaw=typeof applyLatest==="function" ? applyLatest(sourceRaw,data) : sourceRaw;
+    const raw=mergedRaw && mergedRaw!==sourceRaw ? mergedRaw : {...(mergedRaw || sourceRaw)};
     raw["Firebase_doc_id"]=docSnap.id;
     if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docSnap.id;
     const row=normalizeRows([raw])[0];

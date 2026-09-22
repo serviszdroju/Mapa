@@ -22,3 +22,19 @@ test("Android publishes current configuration dimensions to CSS after rotation",
   assert.match(css,/html\.szz-android-shell \.app\{[\s\S]*?var\(--szz-android-viewport-height,100dvh\)/);
   assert.match(css,/html\.szz-android-shell #map\{\s*height:100% !important;/);
 });
+
+test("Android rotation coalesces WebView resize without forced layout storms",()=>{
+  assert.match(source,/CONFIGURATION_RESIZE_DELAY_MS = 180L/);
+  assert.doesNotMatch(source,/CONFIGURATION_RESIZE_DELAYS_MS/);
+  const changeBody=source.match(/public void onConfigurationChanged\(Configuration newConfig\) \{([\s\S]*?)\n    \}/);
+  assert.ok(changeBody);
+  assert.doesNotMatch(changeBody[1],/requestLayout|\.invalidate\(/);
+  assert.match(changeBody[1],/postConfigurationResize\(CONFIGURATION_RESIZE_DELAY_MS, resizeGeneration\)/);
+  const delayedBody=source.match(/private void postConfigurationResize\([\s\S]*?\{([\s\S]*?)\n    \}\n\n    @Override/);
+  assert.ok(delayedBody);
+  assert.equal((delayedBody[1].match(/requestLayout\(/g)||[]).length,1);
+  assert.doesNotMatch(delayedBody[1],/\.invalidate\(/);
+  assert.match(delayedBody[1],/target\.setLayoutParams\(new FrameLayout\.LayoutParams/);
+  assert.match(delayedBody[1],/target\.postOnAnimation/);
+  assert.match(delayedBody[1],/window\.dispatchEvent\(new Event\('resize'\)\)/);
+});

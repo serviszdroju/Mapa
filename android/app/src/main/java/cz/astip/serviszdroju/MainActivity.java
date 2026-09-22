@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
     private static final int LOCATION_REQUEST = 2302;
     private static final int CAMERA_REQUEST = 2303;
     private static final int GOOGLE_SIGN_IN_REQUEST = 2305;
-    private static final long[] CONFIGURATION_RESIZE_DELAYS_MS = {40L, 160L, 420L, 900L, 1500L};
+    private static final long CONFIGURATION_RESIZE_DELAY_MS = 180L;
     private static final Set<String> AUTH_HOSTS = new HashSet<>(Arrays.asList(
         "accounts.google.com",
         "apis.google.com",
@@ -162,22 +162,7 @@ public class MainActivity extends Activity {
         if (webView == null) return;
         final int resizeGeneration = ++configurationResizeGeneration;
         updateAndroidViewportCss(newConfig);
-        webView.setLayoutParams(new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ));
-        ViewGroup parent = (ViewGroup) webView.getParent();
-        if (parent != null) {
-            parent.requestLayout();
-            parent.invalidate();
-        }
-        getWindow().getDecorView().requestLayout();
-        getWindow().getDecorView().invalidate();
-        webView.requestLayout();
-        webView.invalidate();
-        for (long delayMs : CONFIGURATION_RESIZE_DELAYS_MS) {
-            postConfigurationResize(delayMs, resizeGeneration);
-        }
+        postConfigurationResize(CONFIGURATION_RESIZE_DELAY_MS, resizeGeneration);
     }
 
     private void postConfigurationResize(long delayMs, int resizeGeneration) {
@@ -186,22 +171,19 @@ public class MainActivity extends Activity {
         target.postDelayed(() -> {
             if (webView != target || configurationResizeGeneration != resizeGeneration) return;
             updateAndroidViewportCss(getResources().getConfiguration());
-            ViewGroup parent = (ViewGroup) target.getParent();
-            if (parent != null) {
-                parent.requestLayout();
-                parent.invalidate();
-            }
-            getWindow().getDecorView().requestLayout();
+            target.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
             target.requestLayout();
-            target.invalidate();
-            evaluateWebScript(
-                "(function(){try{"
-                    + "window.dispatchEvent(new Event('resize'));"
-                    + "setTimeout(function(){"
-                    + "try{if(window.map&&window.map.invalidateSize)window.map.invalidateSize(false);}catch(e){}"
-                    + "},80);"
-                    + "}catch(e){}})();"
-            );
+            target.postOnAnimation(() -> {
+                if (webView != target || configurationResizeGeneration != resizeGeneration) return;
+                evaluateWebScript(
+                    "(function(){try{"
+                        + "window.dispatchEvent(new Event('resize'));"
+                        + "}catch(e){}})();"
+                );
+            });
         }, delayMs);
     }
 
