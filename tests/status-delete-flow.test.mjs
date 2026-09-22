@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   clearOrderedRepairStatusRaw
 } from "../src/map-status-raw-patch-utils.js";
@@ -97,4 +98,14 @@ test("deduplikace spoji stejnou adresu a vyrobni cislo i pri jinem zapisu vykonu
   const result=dedupeSiteRows([first,second]);
   assert.equal(result.rows.length,1);
   assert.equal(result.duplicateDocIds.length,1);
+});
+
+test("Firebase mapa uklada do offline cache jen viditelne deduplikovane radky",()=>{
+  const lateSource=fs.readFileSync(new URL("../public/late.js",import.meta.url),"utf8");
+  const applyStart=lateSource.indexOf("function applyFirebaseRows(");
+  const applyEnd=lateSource.indexOf("async function showMapRowsCache(",applyStart);
+  assert.ok(applyStart>=0 && applyEnd>applyStart,"applyFirebaseRows musi byt v late.js");
+  const applySource=lateSource.slice(applyStart,applyEnd);
+  assert.match(applySource,/saveMapRowsCache\(loadedRows\)/);
+  assert.doesNotMatch(applySource,/saveMapRowsCache\(firebaseRows\)/);
 });

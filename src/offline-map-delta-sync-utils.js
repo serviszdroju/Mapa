@@ -41,7 +41,11 @@ export function createOfflineMapDeltaSyncHelpers({
       }
     );
     const changedRows=[...rowsById.values()];
-    if(!changedRows.length) return [];
+    if(!changedRows.length){
+      if(background) runWhenIdle(()=>cacheCurrentRowsForOffline(),cacheDeferMs);
+      else cacheCurrentRowsForOffline();
+      return [];
+    }
     await upsertChangedRows(changedRows,{background,upsertBatchSize});
     if(background){
       runWhenIdle(()=>cacheCurrentRowsForOffline(),cacheDeferMs);

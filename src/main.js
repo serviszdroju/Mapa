@@ -678,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-bounded-detail-cache-v706";
+const APP_BUILD_VERSION="2026-09-22-finalize-delta-cache-v707";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1922,6 +1922,7 @@ if(firebaseReady){
     if(!firebaseUnifiedPrimary) return true;
     if(Array.isArray(rows) && rows.length && window.__szzAndroidFastCacheRowsLoaded){
       resetFirebaseRowsAutoReload();
+      runWhenIdle(()=>cacheCurrentFirebaseRowsForOffline(),3200);
       runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth(reason).catch(e=>{
         console.warn("Rozdílová synchronizace bodů po rychlém Android startu selhala",e);
       }),1200);
