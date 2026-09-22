@@ -16,6 +16,7 @@ const SOURCE_SERIAL_RAW_KEYS=[
   "Výrobní číslo","Vyrobni cislo","Výrobní_číslo","Vyrobní_číslo","Sériové číslo","Seriove cislo",
   "Serial","Serial number","Zdroj"
 ];
+const DEDUP_NORM_CACHE_LIMIT=6000;
 
 function defaultDetailKey(r){
   return String((r && (r.firebaseDocId || (r.raw && r.raw["Firebase_doc_id"]) || r.id)) || "");
@@ -35,7 +36,9 @@ export function siteDedupValue(v){
     .replace(/\b(ceska republika|slovensko|cr|sr)\b/g," ")
     .replace(/\s+/g," ")
     .trim();
-  return text.length<=TEXT_NORM_CACHE_MAX_LENGTH ? rememberTextNormCache(dedupNormCache,text,normalized) : normalized;
+  return text.length<=TEXT_NORM_CACHE_MAX_LENGTH
+    ? rememberTextNormCache(dedupNormCache,text,normalized,DEDUP_NORM_CACHE_LIMIT)
+    : normalized;
 }
 
 export function rawValueForAny(raw,keys){

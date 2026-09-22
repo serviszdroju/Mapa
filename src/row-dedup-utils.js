@@ -1,6 +1,7 @@
 import {
   safe,
-  sameArrayValues
+  sameArrayValues,
+  stableSignature
 } from "./core-utils.js";
 import {
   siteDedupValue,
@@ -9,6 +10,8 @@ import {
 } from "./site-labels.js";
 
 const siteDedupKeysCache=new WeakMap();
+const siteDedupKeysByPartsCache=new Map();
+const SITE_DEDUP_PARTS_CACHE_LIMIT=3000;
 const rawNonEmptyValueCountCache=new WeakMap();
 
 function siteDedupRawParts(raw){
@@ -36,14 +39,38 @@ function siteDedupPartsEqual(a={},b={}){
     a.sourceSerial===b.sourceSerial;
 }
 
+function siteDedupPartsKey(parts={}){
+  return stableSignature([
+    parts.name,
+    parts.address,
+    parts.gpsAddress,
+    parts.location,
+    parts.sourceLocation,
+    parts.originalAddress,
+    parts.sourceType,
+    parts.sourceSerial
+  ]);
+}
+
+function rememberSiteDedupPartsKeys(key,keys){
+  siteDedupKeysByPartsCache.set(key,keys);
+  if(siteDedupKeysByPartsCache.size>SITE_DEDUP_PARTS_CACHE_LIMIT){
+    const oldest=siteDedupKeysByPartsCache.keys().next().value;
+    if(oldest!==undefined) siteDedupKeysByPartsCache.delete(oldest);
+  }
+  return keys;
+}
+
 export function siteDedupKeysFromRaw(raw){
   if(raw && typeof raw==="object"){
     const parts=siteDedupRawParts(raw);
     const cached=siteDedupKeysCache.get(raw);
     if(cached && siteDedupPartsEqual(cached.parts,parts)) return cached.keys.slice();
-    const keys=computeSiteDedupKeysFromRaw(raw,parts);
+    const partsKey=siteDedupPartsKey(parts);
+    const keys=siteDedupKeysByPartsCache.get(partsKey) ||
+      rememberSiteDedupPartsKeys(partsKey,computeSiteDedupKeysFromRaw(raw,parts));
     siteDedupKeysCache.set(raw,{parts,keys:keys.slice()});
-    return keys;
+    return keys.slice();
   }
   return computeSiteDedupKeysFromRaw(raw);
 }

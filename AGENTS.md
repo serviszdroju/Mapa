@@ -882,4 +882,6 @@ Current performance phase 380 decision: when a Firebase site does contain embedd
 
 Current Android stability phase 381 decision: on configuration changes, publish viewport CSS dimensions immediately and coalesce native follow-up work after 180 ms into exactly one generation-guarded WebView MATCH_PARENT/requestLayout pass, followed on the next animation frame by one web resize event. Do not force parent/decor invalidations, repeated WebView layouts, or multiple delayed map invalidations; the existing debounced web resize handlers remain responsible for the single Leaflet correction.
 
+Current performance phase 382 decision: retain normalized deduplication text across both cache-first and Firebase-refresh row passes with a dedicated bounded 6000-entry LRU cache. Keep the normalization algorithm, deduplication keys, duplicate selection, and all visible behavior unchanged; the larger limit applies only to short deduplication strings and remains strictly bounded.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

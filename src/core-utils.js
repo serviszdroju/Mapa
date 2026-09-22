@@ -60,9 +60,9 @@ export function readTextNormCache(cache,key){
   return value;
 }
 
-export function rememberTextNormCache(cache,key,value){
+export function rememberTextNormCache(cache,key,value,limit=TEXT_NORM_CACHE_LIMIT){
   cache.set(key,value);
-  if(cache.size>TEXT_NORM_CACHE_LIMIT){
+  if(cache.size>limit){
     const firstKey=cache.keys().next().value;
     if(firstKey!==undefined) cache.delete(firstKey);
   }
