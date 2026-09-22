@@ -3,7 +3,7 @@
   "name": "Servis zaloznich zdroju",
   "short_name": "SZZ mapa",
   "description": "Servisni mapa zaloznich zdroju ASTIP.",
-  "start_url": "/Mapa/?v=framed-startup-v697",
+  "start_url": "/Mapa/?v=native-cache-fast-v698",
   "scope": "/Mapa/",
   "lang": "cs-CZ",
   "categories": ["business", "productivity", "utilities"],
@@ -17,7 +17,7 @@
     {
       "name": "Otevrit mapu",
       "short_name": "Mapa",
-      "url": "/Mapa/?v=framed-startup-v697",
+      "url": "/Mapa/?v=native-cache-fast-v698",
       "icons": [
         {
           "src": "./szz-app-icon-192.png",

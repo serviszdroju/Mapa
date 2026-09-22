@@ -319,25 +319,18 @@ public final class SzzOfflineRepository {
     }
 
     private String cachedRowsJson(String countKey, int totalCount, List<String> rows) {
-        JSONObject result = new JSONObject();
-        try {
-            JSONArray items = new JSONArray();
-            for (String row : rows) {
-                try {
-                    items.put(new JSONObject(row == null ? "{}" : row));
-                } catch (Exception ignored) {}
-            }
-            result.put("ok", true);
-            result.put("count", items.length());
-            result.put(countKey, totalCount);
-            result.put("items", items);
-        } catch (Exception error) {
-            try {
-                result.put("ok", false);
-                result.put("error", compact(error));
-            } catch (Exception ignored) {}
+        StringBuilder items = new StringBuilder(Math.max(64, rows.size() * 256));
+        int count = 0;
+        for (String row : rows) {
+            String item = row == null ? "" : row.trim();
+            if (!item.startsWith("{") || !item.endsWith("}")) continue;
+            if (count > 0) items.append(',');
+            items.append(item);
+            count++;
         }
-        return result.toString();
+        return "{\"ok\":true,\"count\":" + count
+            + ",\"" + countKey + "\":" + totalCount
+            + ",\"items\":[" + items + "]}";
     }
 
     private static int cappedLimit(int limit) {
