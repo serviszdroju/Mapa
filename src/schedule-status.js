@@ -245,18 +245,25 @@ function pinkHashValue(value){
   return h.toString(36);
 }
 
-function pinkSignatureMatch(place, signature){
-  const a=normPinkText(place);
-  if(!a || !Array.isArray(signature)) return false;
-  if(pinkHashValue(a)===signature[0]) return true;
-  const at=new Set(meaningfulTokens(a).map(pinkHashValue));
-  const bt=Array.isArray(signature[1]) ? signature[1] : [];
-  if(!at.size || !bt.length) return false;
-  let common=0;
-  for(const tokenHash of bt){
-    if(at.has(tokenHash)) common++;
+function pinkSignaturesMatch(place,signatures){
+  const normalized=normPinkText(place);
+  if(!normalized || !Array.isArray(signatures) || !signatures.length) return false;
+  const placeHash=pinkHashValue(normalized);
+  let tokenHashes=null;
+  for(const signature of signatures){
+    if(!Array.isArray(signature)) continue;
+    if(placeHash===signature[0]) return true;
+    const expected=Array.isArray(signature[1]) ? signature[1] : [];
+    if(!expected.length) continue;
+    if(!tokenHashes) tokenHashes=new Set(meaningfulTokens(normalized).map(pinkHashValue));
+    if(!tokenHashes.size) continue;
+    let common=0;
+    for(const tokenHash of expected){
+      if(tokenHashes.has(tokenHash)) common++;
+    }
+    if(common>=2 || (expected.length===1 && common===1)) return true;
   }
-  return common>=2 || (bt.length===1 && common===1);
+  return false;
 }
 
 export function isNoOrderSite(r){
@@ -276,7 +283,7 @@ export function isNoOrderSite(r){
     raw["Původní adresa / umístění"]
   ].map(v=>safe(v)).filter(Boolean).join(" | ");
 
-  if(ORIGINAL_PINK_PLACE_SIGNATURES.some(signature => pinkSignatureMatch(place,signature))) return true;
+  if(pinkSignaturesMatch(place,ORIGINAL_PINK_PLACE_SIGNATURES)) return true;
 
   const text=[
     raw["Růžová"],

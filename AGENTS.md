@@ -832,4 +832,6 @@ Current performance phase 355 decision: normalized Firebase rows should share on
 
 Current performance phase 356 decision: normalized row-key caches must reuse their complete WeakMap lookup without rebuilding `Object.keys()` signatures or rescanning for absent aliases on every field read. Exact canonical keys added by in-place edits bypass the normalized cache; rebuild the cached index only if a previously indexed property was removed.
 
+Current performance phase 357 decision: legacy self-maintained-site signature matching should normalize and hash each row's place text once, lazily build its token-hash Set once, and compare all stored signatures against those shared values. Preserve the exact full-hash and token-overlap matching rules.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
