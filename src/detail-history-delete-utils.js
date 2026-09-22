@@ -5,6 +5,7 @@ export function createDetailHistoryDeleteHelpers({
   getFsMod,
   getSelectedSite,
   isHistoryAdmin,
+  isProtocolHistoryItem,
   loadHistory,
   removeSiteLocalItem,
   selectedSiteDocId,
@@ -21,7 +22,7 @@ export function createDetailHistoryDeleteHelpers({
 
   async function deleteCurrentHistoryProtocol(){
     const item=getCurrentHistoryItem();
-    if(!item || item._type!=="Protokol" || !item._id) return;
+    if(!item || !isProtocolHistoryItem(item) || !item._id) return;
     if(!isHistoryAdmin()){
       prependHistoryNotice("Mazat protokoly může jen správce.");
       return;

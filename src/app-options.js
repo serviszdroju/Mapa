@@ -142,3 +142,9 @@ export const APP_ALLOWED_EMAILS=[
 export const APP_PROTOCOL_HISTORY_EMAILS=[
   "iva.glozova@astip.cz"
 ];
+
+export const APP_PROTOCOL_DELETE_EMAILS=[
+  "jan.soldan@astip.cz",
+  "jansoldan@astip.cz",
+  "iva.glozova@astip.cz"
+];

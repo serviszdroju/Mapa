@@ -1,6 +1,7 @@
 import {
   APP_ADMIN_EMAILS,
   APP_ALLOWED_EMAILS,
+  APP_PROTOCOL_DELETE_EMAILS,
   APP_PROTOCOL_HISTORY_EMAILS,
   APP_REGION_OPTIONS,
   APP_STATUS_FILTER_OPTIONS
@@ -682,7 +683,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-official-note-once-v688";
+const APP_BUILD_VERSION="2026-09-22-iva-protocol-delete-v689";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -7222,9 +7223,10 @@ async function updateSiteControlDateFromProtocol(protocol,site=selectedSite,opti
   }
 }
 
+const APP_PROTOCOL_DELETE_EMAIL_SET=new Set(APP_PROTOCOL_DELETE_EMAILS.map(email=>String(email || "").trim().toLowerCase()).filter(Boolean));
 const isHistoryAdmin=()=>{
   const email=currentUserEmail();
-  return !!email && (isAppAdmin() || APP_PROTOCOL_HISTORY_EMAIL_SET.has(email));
+  return !!email && APP_PROTOCOL_DELETE_EMAIL_SET.has(email);
 };
 
 const {
@@ -7237,6 +7239,7 @@ const {
   getFsMod:()=>fb.fsMod,
   getSelectedSite:()=>selectedSite,
   isHistoryAdmin,
+  isProtocolHistoryItem,
   loadHistory,
   removeSiteLocalItem,
   selectedSiteDocId,
