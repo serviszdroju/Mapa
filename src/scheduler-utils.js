@@ -33,3 +33,13 @@ export function szzYieldToBrowser(timeout=120){
     }
   });
 }
+
+export function szzYieldToNextFrame(){
+  return new Promise(resolve=>{
+    if(typeof requestAnimationFrame==="function"){
+      requestAnimationFrame(()=>setTimeout(resolve,0));
+    }else{
+      setTimeout(resolve,0);
+    }
+  });
+}

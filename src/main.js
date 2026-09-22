@@ -135,7 +135,8 @@ import {
   runAfterPaint,
   runAfterTwoPaints,
   runWhenIdle,
-  szzYieldToBrowser
+  szzYieldToBrowser,
+  szzYieldToNextFrame
 } from "./scheduler-utils.js";
 import {
   dateInputValueFromAny,
@@ -677,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-batched-startup-v696";
+const APP_BUILD_VERSION="2026-09-22-framed-startup-v697";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -3252,7 +3253,7 @@ async function readAndroidMapRowsCacheFast(limit=20000){
       for(const row of batch){
         if(Number.isFinite(row.lat) && Number.isFinite(row.lon)) normalized.push(row);
       }
-      if(index+batchSize<rawRows.length) await szzYieldToBrowser(80);
+      if(index+batchSize<rawRows.length) await szzYieldToNextFrame();
     }
     return normalized;
   }catch(e){

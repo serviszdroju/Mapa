@@ -836,4 +836,6 @@ Current performance phase 357 decision: legacy self-maintained-site signature ma
 
 Current performance phase 358 decision: authenticated Android startup should normalize the native cached map rows in bounded batches and yield to the browser between batches. Preserve row order, GPS filtering, verified-user gating, cache contents, and the final `setFirebaseSiteRows` path while preventing one long main-thread startup task.
 
+Current performance phase 359 decision: Android cached-row startup batches must yield through a real animation frame and a following timer task rather than `requestIdleCallback`, because Android WebView may run consecutive idle callbacks in one frame. Preserve all existing generic idle scheduling elsewhere.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
