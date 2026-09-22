@@ -850,4 +850,6 @@ Current performance phase 364 decision: read the Android Room site cache through
 
 Current performance phase 365 decision: stream Android Room site-cache reads to WebView as ordered chunks of at most 60 stored rows, parse each callback independently, and reuse each parsed raw object directly before the existing batched normalization. Keep asynchronous and synchronous whole-response paths as compatibility fallbacks and preserve final row ordering and aliases.
 
+Current performance phase 366 decision: finalize each complete Android Room map snapshot with its authoritative Firebase document-id set and prune only stale `SYNCED` site rows in bounded batches. Accept pruning only for a non-empty, complete, count-matched unique id manifest; preserve pending offline rows, chunked cache writes, startup rendering, authentication, and all visible behavior while preventing deleted points and obsolete cache records from returning on later launches.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

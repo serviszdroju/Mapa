@@ -18,8 +18,10 @@ import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -135,6 +137,31 @@ public final class SzzOfflineRepository {
             }
             if (!sites.isEmpty()) {
                 database.runInTransaction(() -> dao.upsertSites(sites));
+            }
+            return countsJson();
+        });
+    }
+
+    public void finalizeSitesSnapshot(String payloadJson, Callback callback) {
+        run(callback, () -> {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            JSONArray ids = payload.optJSONArray("ids");
+            int expectedTotal = payload.optInt("total", -1);
+            if (ids == null || ids.length() == 0 || expectedTotal <= 0 || ids.length() != expectedTotal) {
+                return countsJson();
+            }
+            Set<String> retainedIds = new HashSet<>();
+            for (int index = 0; index < ids.length(); index++) {
+                String id = ids.optString(index, "").trim();
+                if (!id.isEmpty()) retainedIds.add(id);
+            }
+            if (retainedIds.size() != expectedTotal) return countsJson();
+            List<String> staleIds = new ArrayList<>();
+            for (String id : dao.syncedCachedSiteIds()) {
+                if (id != null && !retainedIds.contains(id)) staleIds.add(id);
+            }
+            for (int offset = 0; offset < staleIds.size(); offset += 400) {
+                dao.deleteSyncedCachedSites(staleIds.subList(offset, Math.min(offset + 400, staleIds.size())));
             }
             return countsJson();
         });

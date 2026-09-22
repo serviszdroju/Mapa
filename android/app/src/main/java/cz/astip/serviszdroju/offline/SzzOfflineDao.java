@@ -63,6 +63,12 @@ public interface SzzOfflineDao {
     @Query("SELECT raw_json FROM sites WHERE deleted_at IS NULL AND raw_json IS NOT NULL AND raw_json != '' ORDER BY updated_at DESC LIMIT :limit")
     List<String> cachedSiteRawJson(int limit);
 
+    @Query("SELECT local_id FROM sites WHERE deleted_at IS NULL AND sync_state = 'SYNCED'")
+    List<String> syncedCachedSiteIds();
+
+    @Query("DELETE FROM sites WHERE sync_state = 'SYNCED' AND local_id IN (:localIds)")
+    void deleteSyncedCachedSites(List<String> localIds);
+
     @Query("SELECT COUNT(*) FROM photos WHERE deleted_at IS NULL")
     int cachedPhotoCount();
 

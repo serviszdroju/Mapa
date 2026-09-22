@@ -733,6 +733,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void finalizeSitesSnapshot(String payloadJson) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) return;
+            repository.finalizeSitesSnapshot(payloadJson, androidOfflineCallback("sites-snapshot-finalize"));
+        }
+
+        @JavascriptInterface
         public String cachedSitesJson(int limit) {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";

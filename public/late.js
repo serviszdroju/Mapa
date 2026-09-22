@@ -1597,6 +1597,14 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         catch(e){ console.warn("Android Room cache bodů se nepodařila uložit",e); }
       },Math.floor(offset/MAP_ROWS_ANDROID_CACHE_BATCH_SIZE)*40);
     }
+    if(typeof bridge.finalizeSitesSnapshot==="function"){
+      const ids=items.map(item=>String(item?.docId || "").trim()).filter(Boolean);
+      const finalizeDelay=Math.ceil(total/MAP_ROWS_ANDROID_CACHE_BATCH_SIZE)*40;
+      setTimeout(()=>{
+        try{ bridge.finalizeSitesSnapshot(JSON.stringify({savedAt,total,ids})); }
+        catch(e){ console.warn("Android Room cache bodů se nepodařila dokončit",e); }
+      },finalizeDelay);
+    }
   }
   function scheduleMapRowsCacheAndroidSave(items){
     const bridge=androidOfflineBridge();
@@ -2717,7 +2725,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-22-stream-cache-v703";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-22-prune-cache-v704";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
