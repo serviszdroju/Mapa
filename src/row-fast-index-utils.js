@@ -13,6 +13,15 @@ export function createRowFastIndexHelpers({
   siteSourceIdentity,
   statusText
 }){
+  function ensureRowSearchIndex(r){
+    if(!r) return;
+    if(r._searchRawRef===r.raw && r._searchText) return;
+    const text=searchNorm(rowSearchText(r));
+    r._searchText=text;
+    r._compactSearchText=text.replace(/\s+/g,"");
+    r._searchRawRef=r.raw;
+  }
+
   function rowRenderFingerprint(r){
     if(!r) return "";
     const sourceIdentity=r._sourceIdentity!==undefined ? r._sourceIdentity : siteSourceIdentity(r);
@@ -32,12 +41,6 @@ export function createRowFastIndexHelpers({
   function ensureRowFastIndexes(r,index){
     if(!r) return;
     r.i=index;
-    if(r._searchRawRef!==r.raw || !r._searchText){
-      const text=searchNorm(rowSearchText(r));
-      r._searchText=text;
-      r._compactSearchText=text.replace(/\s+/g,"");
-      r._searchRawRef=r.raw;
-    }
     if(r._regionRawRef!==r.raw || !r._regionNorm){
       r._regionNorm=regionTextNorm(rowRegion(r));
       r._regionRawRef=r.raw;
@@ -50,6 +53,7 @@ export function createRowFastIndexHelpers({
 
   return {
     ensureRowFastIndexes,
+    ensureRowSearchIndex,
     rowRenderFingerprint
   };
 }

@@ -11,10 +11,10 @@ export function createFilterLogicHelpers({
   searchNorm,
   setFilteredRowsCache,
   statusText,
-  ensureRowFastIndexes
+  ensureRowSearchIndex
 }){
   function rowMatchesSearch(r,normalizedQuery,compactQuery=null){
-    if(r && (r._searchRawRef!==r.raw || !r._searchText)) ensureRowFastIndexes(r,Number.isFinite(r.i) ? r.i : 0);
+    if(r && (r._searchRawRef!==r.raw || !r._searchText)) ensureRowSearchIndex(r);
     const hay=(r && r._searchText) || searchNorm(rowSearchText(r));
     if(hay.includes(normalizedQuery)) return true;
     const compactHay=(r && r._compactSearchText) || hay.replace(/\s+/g,"");

@@ -884,4 +884,6 @@ Current Android stability phase 381 decision: on configuration changes, publish 
 
 Current performance phase 382 decision: retain normalized deduplication text across both cache-first and Firebase-refresh row passes with a dedicated bounded 6000-entry LRU cache. Keep the normalization algorithm, deduplication keys, duplicate selection, and all visible behavior unchanged; the larger limit applies only to short deduplication strings and remains strictly bounded.
 
+Current performance phase 383 decision: build each row's normalized and compact search text lazily on the first non-empty search instead of during normal map startup. Keep region, schedule, source, place, lookup, status, filter-result caching, compact matching, and visible search behavior unchanged; cache the search text on the row after first use.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

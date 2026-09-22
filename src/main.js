@@ -690,7 +690,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-dedup-cache-v718";
+const APP_BUILD_VERSION="2026-09-23-lazy-search-v719";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2862,7 +2862,7 @@ const {
   filtered,
   rowMatchesSearch
 }=createFilterLogicHelpers({
-  ensureRowFastIndexes:(r,index)=>ensureRowFastIndexes(r,index),
+  ensureRowSearchIndex:r=>ensureRowSearchIndex(r),
   filterControls,
   getFilteredRowsCache:()=>filteredRowsCache,
   getRows:()=>rows,
@@ -3428,6 +3428,7 @@ const {
 
 const {
   ensureRowFastIndexes,
+  ensureRowSearchIndex,
   rowRenderFingerprint
 }=createRowFastIndexHelpers({
   ensureRowPlaceCache,
