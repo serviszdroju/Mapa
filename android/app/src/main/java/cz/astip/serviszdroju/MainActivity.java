@@ -99,6 +99,7 @@ public class MainActivity extends Activity {
     private boolean forceLocalAssetFallback;
     private boolean pendingWebCacheReset;
     private long lastWebViewRecoveryAt;
+    private int configurationResizeGeneration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -159,6 +160,8 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         if (webView == null) return;
+        final int resizeGeneration = ++configurationResizeGeneration;
+        updateAndroidViewportCss(newConfig);
         webView.setLayoutParams(new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -173,15 +176,16 @@ public class MainActivity extends Activity {
         webView.requestLayout();
         webView.invalidate();
         for (long delayMs : CONFIGURATION_RESIZE_DELAYS_MS) {
-            postConfigurationResize(delayMs);
+            postConfigurationResize(delayMs, resizeGeneration);
         }
     }
 
-    private void postConfigurationResize(long delayMs) {
+    private void postConfigurationResize(long delayMs, int resizeGeneration) {
         final WebView target = webView;
         if (target == null) return;
         target.postDelayed(() -> {
-            if (webView != target) return;
+            if (webView != target || configurationResizeGeneration != resizeGeneration) return;
+            updateAndroidViewportCss(getResources().getConfiguration());
             ViewGroup parent = (ViewGroup) target.getParent();
             if (parent != null) {
                 parent.requestLayout();
@@ -203,6 +207,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        configurationResizeGeneration++;
         if (googleSignInCancellation != null) {
             googleSignInCancellation.cancel();
             googleSignInCancellation = null;
@@ -335,6 +340,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 injectAndroidBootstrap();
+                updateAndroidViewportCss(getResources().getConfiguration());
                 restoreAndroidAuthIfStored(120);
             }
 
@@ -604,6 +610,20 @@ public class MainActivity extends Activity {
                 + "setTimeout(window.__szzAndroidOfflineWarmup,800);"
                 + "window.addEventListener('online',function(){setTimeout(window.__szzAndroidOfflineWarmup,800);});"
                 + "})();"
+        );
+    }
+
+    private void updateAndroidViewportCss(Configuration configuration) {
+        if (webView == null || configuration == null) return;
+        int widthDp = configuration.screenWidthDp;
+        int heightDp = configuration.screenHeightDp;
+        if (widthDp <= 0 || heightDp <= 0) return;
+        evaluateWebScript(
+            "(function(){try{"
+                + "var root=document.documentElement;"
+                + "root.style.setProperty('--szz-android-viewport-width','" + widthDp + "px');"
+                + "root.style.setProperty('--szz-android-viewport-height','" + heightDp + "px');"
+                + "}catch(e){}})();"
         );
     }
 

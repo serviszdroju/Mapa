@@ -419,6 +419,18 @@ body.protocol-form-fullscreen #drawer{
   overflow-x:hidden !important;
   z-index:6500 !important;
 }
+
+html.szz-android-shell,
+html.szz-android-shell body,
+html.szz-android-shell .app{
+  height:var(--szz-android-viewport-height,100dvh) !important;
+}
+html.szz-android-shell #map{
+  height:100% !important;
+}
+html.szz-android-shell .drawer{
+  height:var(--szz-android-viewport-height,100dvh) !important;
+}
 body.protocol-form-fullscreen #drawer > .drawer-head,
 body.protocol-form-fullscreen #sourceChooser,
 body.protocol-form-fullscreen #detailTabs,
