@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {hasTrustedOfflineSession} from "../src/offline-auth-access-utils.js";
+import {
+  canResumeAndroidCachedSession,
+  hasTrustedOfflineSession
+} from "../src/offline-auth-access-utils.js";
 
 test("Android muze offline otevrit cache s ulozenym nativnim prihlasenim",()=>{
   assert.equal(hasTrustedOfflineSession({
@@ -31,4 +34,21 @@ test("ulozena relace neobchazi bezne online overeni",()=>{
     androidShell:true,
     androidStoredAuth:true
   }),false);
+});
+
+test("Android pri tichem online overeni muze ihned ukazat znamou ulozenou relaci",()=>{
+  assert.equal(canResumeAndroidCachedSession({
+    knownSignedIn:true,
+    androidStoredAuth:true
+  }),true);
+});
+
+test("Android cache se pred overenim neukaze po odhlaseni ani bez obou priznaku",()=>{
+  assert.equal(canResumeAndroidCachedSession({
+    explicitlySignedOut:true,
+    knownSignedIn:true,
+    androidStoredAuth:true
+  }),false);
+  assert.equal(canResumeAndroidCachedSession({knownSignedIn:true}),false);
+  assert.equal(canResumeAndroidCachedSession({androidStoredAuth:true}),false);
 });

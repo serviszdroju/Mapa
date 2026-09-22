@@ -8,3 +8,11 @@ export function hasTrustedOfflineSession({
   if(online!==false || explicitlySignedOut) return false;
   return !!(knownSignedIn || (androidShell && androidStoredAuth));
 }
+
+export function canResumeAndroidCachedSession({
+  explicitlySignedOut=false,
+  knownSignedIn=false,
+  androidStoredAuth=false
+}={}){
+  return !explicitlySignedOut && !!knownSignedIn && !!androidStoredAuth;
+}

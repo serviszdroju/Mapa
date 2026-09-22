@@ -7,9 +7,10 @@ import {
   loadCompatFirebaseScripts,
   loadGoogleIdentityServices
 } from "./firebase-auth.js";
+import {canResumeAndroidCachedSession} from "./offline-auth-access-utils.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="preserve-map-tiles-v709";
+const EMAIL_LOGIN_BUILD_VERSION="fast-auth-resume-v710";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -423,10 +424,22 @@ function tryHostedAndroidSilentLogin(){
   const bridge=androidAuthBridge();
   if(!bridge || !androidHasStoredAuth()) return false;
   hostedAndroidSilentLoginTried=true;
-  showAuthState(AUTH_LOADING,{
-    intro:"Načítám aplikaci",
-    message:"Obnovuji Android přihlášení..."
+  let knownSession=false;
+  try{knownSession=localStorage.getItem("astipFirebaseKnownSignedIn")==="1";}catch(e){}
+  const showCachedApp=canResumeAndroidCachedSession({
+    explicitlySignedOut,
+    knownSignedIn:knownSession,
+    androidStoredAuth:true
   });
+  if(showCachedApp){
+    window.__szzAuthResumeStartedAt=window.__szzAuthResumeStartedAt || Date.now();
+    showAuthState(AUTH_LOGGED_IN,{message:""});
+  }else{
+    showAuthState(AUTH_LOADING,{
+      intro:"Načítám aplikaci",
+      message:"Obnovuji Android přihlášení..."
+    });
+  }
   waitForCompatFirebaseAuth(25000)
     .then(auth=>signInWithAndroidGoogleCompat(auth,bridge,{silent:true}))
     .then(result=>{
