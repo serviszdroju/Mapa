@@ -16,12 +16,15 @@ export function createMapMarkerRenderHelpers({
   let mapMarkerCache=new Map();
   let mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
   let mapMoveRenderTimer=0;
+  let markerRenderGeneration=0;
+  const MARKER_BATCH_SIZE=80;
 
   function resetMapRenderCaches(){
     mapRenderCache={groups:null,rowsVersion:-1,boundsKey:""};
   }
 
   function clearMapMarkerCache(){
+    markerRenderGeneration++;
     mapMarkerCache=new Map();
     resetMapRenderCaches();
   }
@@ -109,14 +112,38 @@ export function createMapMarkerRenderHelpers({
   function mapMarkerGroups(groups){
     const source=Array.isArray(groups) ? groups : [];
     const out=[];
+    const map=getMap();
+    let visibleBounds=null;
+    try{
+      const bounds=map && typeof map.getBounds==="function" ? map.getBounds() : null;
+      visibleBounds=bounds && typeof bounds.pad==="function" ? bounds.pad(0.3) : bounds;
+    }catch(e){}
     for(const group of source){
-      if(groupHasUsableGps(group)) out.push(group);
+      if(!groupHasUsableGps(group)) continue;
+      if(visibleBounds && typeof visibleBounds.contains==="function" && !visibleBounds.contains([group.lat,group.lon])) continue;
+      out.push(group);
     }
     return out;
   }
 
+  function mapBoundsRenderKey(){
+    const map=getMap();
+    try{
+      const bounds=map && typeof map.getBounds==="function" ? map.getBounds() : null;
+      if(!bounds) return "all";
+      const southWest=typeof bounds.getSouthWest==="function" ? bounds.getSouthWest() : null;
+      const northEast=typeof bounds.getNorthEast==="function" ? bounds.getNorthEast() : null;
+      if(!southWest || !northEast) return "all";
+      return [southWest.lat,southWest.lng,northEast.lat,northEast.lng]
+        .map(value=>Number(value).toFixed(3))
+        .join("|");
+    }catch(e){
+      return "all";
+    }
+  }
+
   function renderMapGroups(groups){
-    const boundsKey="all";
+    const boundsKey=mapBoundsRenderKey();
     if(mapRenderCache.groups===groups && mapRenderCache.rowsVersion===getRowsIndexVersion() && mapRenderCache.boundsKey===boundsKey && mapMarkerCache.size){
       return;
     }
@@ -147,31 +174,48 @@ export function createMapMarkerRenderHelpers({
   function updateMapMarkers(groups){
     const layer=getLayer();
     if(!layer) return;
+    const generation=++markerRenderGeneration;
     const visibleKeys=new Set();
     const sourceGroups=Array.isArray(groups) ? groups : [];
-    for(const group of sourceGroups){
-      if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) continue;
-      const key=group.key || `${group.lat},${group.lon}`;
-      const fill=groupColor(group.rows);
-      const signature=mapMarkerSignature(group,fill);
-      visibleKeys.add(key);
-      const cached=mapMarkerCache.get(key);
-      if(cached && cached.signature===signature) continue;
-      if(cached && cached.marker){
-        try{layer.removeLayer(cached.marker);}catch(e){}
+    let index=0;
+    const finish=()=>{
+      if(generation!==markerRenderGeneration) return;
+      for(const [key,cached] of mapMarkerCache){
+        if(visibleKeys.has(key)) continue;
+        if(cached && cached.marker){
+          try{layer.removeLayer(cached.marker);}catch(e){}
+        }
+        mapMarkerCache.delete(key);
       }
-      const marker=buildMapMarkerForGroup(group,fill);
-      if(!marker) continue;
-      marker.addTo(layer);
-      mapMarkerCache.set(key,{marker,signature});
-    }
-    for(const [key,cached] of mapMarkerCache){
-      if(visibleKeys.has(key)) continue;
-      if(cached && cached.marker){
-        try{layer.removeLayer(cached.marker);}catch(e){}
+    };
+    const processBatch=()=>{
+      if(generation!==markerRenderGeneration) return;
+      const end=Math.min(sourceGroups.length,index+MARKER_BATCH_SIZE);
+      for(;index<end;index++){
+        const group=sourceGroups[index];
+        if(!Number.isFinite(group.lat) || !Number.isFinite(group.lon)) continue;
+        const key=group.key || `${group.lat},${group.lon}`;
+        const fill=groupColor(group.rows);
+        const signature=mapMarkerSignature(group,fill);
+        visibleKeys.add(key);
+        const cached=mapMarkerCache.get(key);
+        if(cached && cached.signature===signature) continue;
+        if(cached && cached.marker){
+          try{layer.removeLayer(cached.marker);}catch(e){}
+        }
+        const marker=buildMapMarkerForGroup(group,fill);
+        if(!marker) continue;
+        marker.addTo(layer);
+        mapMarkerCache.set(key,{marker,signature});
       }
-      mapMarkerCache.delete(key);
-    }
+      if(index>=sourceGroups.length){
+        finish();
+        return;
+      }
+      if(typeof requestAnimationFrame==="function") requestAnimationFrame(processBatch);
+      else setTimeout(processBatch,0);
+    };
+    processBatch();
   }
 
   return {

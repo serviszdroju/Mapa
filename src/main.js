@@ -366,13 +366,7 @@ import {
 import {
   createOfflineAppControlsHelpers
 } from "./offline-app-controls-utils.js";
-import {
-  bindLegacyOfflineSyncListeners,
-  bindOfflineConnectivityListeners
-} from "./offline-connectivity-listeners-utils.js";
-import {
-  createLegacyOfflineSyncRunner
-} from "./offline-sync-runner-utils.js";
+import { bindOfflineConnectivityListeners } from "./offline-connectivity-listeners-utils.js";
 import {
   createOfflineSyncTriggerHelpers
 } from "./offline-sync-trigger-utils.js";
@@ -683,7 +677,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-iva-protocol-delete-v689";
+const APP_BUILD_VERSION="2026-09-22-performance-stability-v690";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -7626,35 +7620,12 @@ async function loadHistory(siteId){
 
 window.loadHistory=loadHistory;
 
-const { runOfflineSync }=createLegacyOfflineSyncRunner({
-  getSelectedSite:()=>selectedSite,
-  syncOfflineChanges,
-  syncOfflineProtocolsForSite
-});
-
-bindLegacyOfflineSyncListeners({
-  getSelectedSite:()=>selectedSite,
-  refreshLoadedDetailTabs:window.refreshLoadedDetailTabs,
-  runOfflineSync,
-  showSaveConfirmation
-});
-
-
-
-function fixMapView(){
+function fixMapView(options={}){
   if(typeof map === "undefined") return;
 
   try{
-    map.invalidateSize(true);
-
-    // donucení znovunačtení dlaždic
-    map.eachLayer(layer=>{
-      if(layer && layer.redraw){
-        try{ layer.redraw(); }catch(e){}
-      }
-    });
-
-    if(typeof fit==="function") fit();
+    map.invalidateSize(false);
+    if(options.fit && typeof fit==="function") fit();
 
   }catch(e){
     console.warn("Map refresh error",e);
@@ -8910,6 +8881,7 @@ bindOfflineConnectivityListeners({
   registerSzzBackgroundSync,
   runWhenIdle,
   scheduleSzzOfflineAppStatus,
+  showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); },
   triggerSzzSync
 });
 
@@ -9950,7 +9922,7 @@ function scheduleFixMapView(delay=180){
 window.addEventListener("resize",()=>scheduleFixMapView());
 window.addEventListener("orientationchange",()=>scheduleFixMapView(240));
 window.addEventListener("DOMContentLoaded",()=>{
-  runAfterTwoPaints(()=>{ if(typeof fixMapView==="function") fixMapView(); });
+  runAfterTwoPaints(()=>{ if(typeof fixMapView==="function") fixMapView({fit:true}); });
 });
 async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();

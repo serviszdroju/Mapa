@@ -28,23 +28,37 @@ export function bindOfflineConnectivityListeners({
   registerSzzBackgroundSync,
   runWhenIdle,
   scheduleSzzOfflineAppStatus,
+  showSaveConfirmation,
   triggerSzzSync
 }){
+  let automaticRefreshTimer=0;
+  let pendingReason="";
+  function scheduleAutomaticRefresh(reason,delay=500){
+    pendingReason=reason || pendingReason || "visible";
+    clearTimeout(automaticRefreshTimer);
+    automaticRefreshTimer=setTimeout(()=>{
+      automaticRefreshTimer=0;
+      const nextReason=pendingReason || "visible";
+      pendingReason="";
+      scheduleSzzOfflineAppStatus(20);
+      runWhenIdle(()=>triggerSzzSync(nextReason,true).catch(()=>{}),150);
+    },delay);
+  }
   window.addEventListener("online",()=>{
-    scheduleSzzOfflineAppStatus(20);
     registerSzzBackgroundSync("online");
-    runWhenIdle(()=>triggerSzzSync("online",true).catch(()=>{}),1200);
+    scheduleAutomaticRefresh("online",120);
   });
-  window.addEventListener("offline",()=>scheduleSzzOfflineAppStatus(20));
+  window.addEventListener("offline",()=>{
+    scheduleSzzOfflineAppStatus(20);
+    if(typeof showSaveConfirmation==="function") showSaveConfirmation("Offline režim. Změny se uloží lokálně.");
+  });
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible"){
-      scheduleSzzOfflineAppStatus(80);
-      runWhenIdle(()=>triggerSzzSync("visible",true).catch(()=>{}),1200);
+      scheduleAutomaticRefresh("visible",500);
     }
   });
   window.addEventListener("focus",()=>{
-    scheduleSzzOfflineAppStatus(80);
-    runWhenIdle(()=>triggerSzzSync("focus",true).catch(()=>{}),1200);
+    scheduleAutomaticRefresh("focus",500);
   });
   window.addEventListener("storage",event=>{
     if(event.key && /^astip(Map|Szz)/.test(event.key)) scheduleSzzOfflineAppStatus(80);

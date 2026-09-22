@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
     private static final int LOCATION_REQUEST = 2302;
     private static final int CAMERA_REQUEST = 2303;
     private static final int GOOGLE_SIGN_IN_REQUEST = 2305;
-    private static final long[] CONFIGURATION_RESIZE_DELAYS_MS = {40L, 120L, 300L, 700L};
+    private static final long[] CONFIGURATION_RESIZE_DELAYS_MS = {40L, 160L, 420L, 900L, 1500L};
     private static final Set<String> AUTH_HOSTS = new HashSet<>(Arrays.asList(
         "accounts.google.com",
         "apis.google.com",
@@ -163,7 +163,15 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        ViewGroup parent = (ViewGroup) webView.getParent();
+        if (parent != null) {
+            parent.requestLayout();
+            parent.invalidate();
+        }
+        getWindow().getDecorView().requestLayout();
+        getWindow().getDecorView().invalidate();
         webView.requestLayout();
+        webView.invalidate();
         for (long delayMs : CONFIGURATION_RESIZE_DELAYS_MS) {
             postConfigurationResize(delayMs);
         }
@@ -174,7 +182,14 @@ public class MainActivity extends Activity {
         if (target == null) return;
         target.postDelayed(() -> {
             if (webView != target) return;
+            ViewGroup parent = (ViewGroup) target.getParent();
+            if (parent != null) {
+                parent.requestLayout();
+                parent.invalidate();
+            }
+            getWindow().getDecorView().requestLayout();
             target.requestLayout();
+            target.invalidate();
             evaluateWebScript(
                 "(function(){try{"
                     + "window.dispatchEvent(new Event('resize'));"
@@ -250,7 +265,7 @@ public class MainActivity extends Activity {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, true);
+            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, false);
         }
         webView.addJavascriptInterface(new AndroidAuthBridge(), "SzzAndroidAuth");
         webView.addJavascriptInterface(new AndroidOfflineBridge(), "SzzAndroidOffline");
