@@ -852,4 +852,6 @@ Current performance phase 365 decision: stream Android Room site-cache reads to 
 
 Current performance phase 366 decision: finalize each complete Android Room map snapshot with its authoritative Firebase document-id set and prune only stale `SYNCED` site rows in bounded batches. Accept pruning only for a non-empty, complete, count-matched unique id manifest; preserve pending offline rows, chunked cache writes, startup rendering, authentication, and all visible behavior while preventing deleted points and obsolete cache records from returning on later launches.
 
+Current performance phase 367 decision: when Android destroys an Activity or recovers a terminated WebView renderer, resolve and clear pending file-picker and geolocation callbacks, detach bridge/client references, remove the old view, and destroy it before replacement. Preserve configuration-change handling, authentication, drafts, renderer recovery copy, and all visible behavior while preventing stale WebView callback references from accumulating.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

@@ -207,11 +207,42 @@ public class MainActivity extends Activity {
             googleSignInCancellation.cancel();
             googleSignInCancellation = null;
         }
+        releasePendingWebCallbacks();
         if (webView != null) {
-            webView.destroy();
+            destroyWebView(webView);
             webView = null;
         }
         super.onDestroy();
+    }
+
+    private void releasePendingWebCallbacks() {
+        ValueCallback<Uri[]> chooser = fileChooserCallback;
+        fileChooserCallback = null;
+        if (chooser != null) {
+            try { chooser.onReceiveValue(null); } catch (Exception ignored) {}
+        }
+        GeolocationPermissions.Callback geolocation = pendingGeolocationCallback;
+        String origin = pendingGeolocationOrigin;
+        pendingGeolocationCallback = null;
+        pendingGeolocationOrigin = null;
+        if (geolocation != null) {
+            try { geolocation.invoke(origin == null ? "" : origin, false, false); } catch (Exception ignored) {}
+        }
+        cameraCaptureUri = null;
+    }
+
+    private void destroyWebView(WebView target) {
+        if (target == null) return;
+        try {
+            target.stopLoading();
+            target.setWebChromeClient(null);
+            target.setWebViewClient(null);
+            target.removeJavascriptInterface("SzzAndroidAuth");
+            target.removeJavascriptInterface("SzzAndroidOffline");
+            ViewGroup parent = (ViewGroup) target.getParent();
+            if (parent != null) parent.removeView(target);
+            target.destroy();
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -383,13 +414,8 @@ public class MainActivity extends Activity {
         lastWebViewRecoveryAt = now;
         forceLocalAssetFallback = true;
         runOnUiThread(() -> {
-            try {
-                if (crashedView != null) {
-                    ViewGroup parent = (ViewGroup) crashedView.getParent();
-                    if (parent != null) parent.removeView(crashedView);
-                    crashedView.destroy();
-                }
-            } catch (Exception ignored) {}
+            releasePendingWebCallbacks();
+            destroyWebView(crashedView);
             if (webView == crashedView) webView = null;
             createAndAttachWebView(null);
             if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPending();
