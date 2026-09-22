@@ -37,6 +37,11 @@ public final class SzzOfflineRepository {
         void onError(Exception error);
     }
 
+    public interface StringChunkCallback {
+        void onChunk(String result, boolean done);
+        void onError(Exception error);
+    }
+
     private static volatile SzzOfflineRepository instance;
 
     private final Context context;
@@ -258,6 +263,37 @@ public final class SzzOfflineRepository {
         executor.execute(() -> {
             try {
                 callback.onSuccess(cachedSitesJson(limit));
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    public void cachedSitesJsonChunksAsync(int limit, int batchSize, StringChunkCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<String> rows = dao.cachedSiteRawJson(cappedLimit(limit));
+                int safeBatchSize = Math.max(10, Math.min(batchSize <= 0 ? 60 : batchSize, 200));
+                if (rows.isEmpty()) {
+                    callback.onChunk("[]", true);
+                    return;
+                }
+                for (int offset = 0; offset < rows.size(); offset += safeBatchSize) {
+                    int end = Math.min(offset + safeBatchSize, rows.size());
+                    StringBuilder chunk = new StringBuilder(Math.max(64, (end - offset) * 256));
+                    chunk.append('[');
+                    int count = 0;
+                    for (int index = offset; index < end; index++) {
+                        String row = rows.get(index);
+                        String item = row == null ? "" : row.trim();
+                        if (!item.startsWith("{") || !item.endsWith("}")) continue;
+                        if (count > 0) chunk.append(',');
+                        chunk.append(item);
+                        count++;
+                    }
+                    chunk.append(']');
+                    callback.onChunk(chunk.toString(), end >= rows.size());
+                }
             } catch (Exception error) {
                 callback.onError(error);
             }

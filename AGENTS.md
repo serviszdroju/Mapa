@@ -848,4 +848,6 @@ Current performance phase 363 decision: compact each Android Room site snapshot 
 
 Current performance phase 364 decision: read the Android Room site cache through an asynchronous JavaScript bridge request backed by the repository executor, with request ids, a bounded timeout, and the existing synchronous bridge as compatibility fallback. Preserve the exact JSON response and row normalization while preventing Room reads and JSON assembly from blocking WebView startup.
 
+Current performance phase 365 decision: stream Android Room site-cache reads to WebView as ordered chunks of at most 60 stored rows, parse each callback independently, and reuse each parsed raw object directly before the existing batched normalization. Keep asynchronous and synchronous whole-response paths as compatibility fallbacks and preserve final row ordering and aliases.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

@@ -760,6 +760,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void requestCachedSitesJsonChunks(int limit, int batchSize, String requestId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) {
+                deliverCachedSitesJsonChunk(requestId, "", true, "Room neni dostupny.");
+                return;
+            }
+            repository.cachedSitesJsonChunksAsync(limit, batchSize, new SzzOfflineRepository.StringChunkCallback() {
+                @Override
+                public void onChunk(String result, boolean done) {
+                    deliverCachedSitesJsonChunk(requestId, result, done, "");
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    deliverCachedSitesJsonChunk(requestId, "", true, compactErrorText(error));
+                }
+            });
+        }
+
+        @JavascriptInterface
         public String countsJson() {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
@@ -848,6 +868,17 @@ public class MainActivity extends Activity {
             "window.__szzAndroidCachedSitesResult&&window.__szzAndroidCachedSitesResult("
                 + JSONObject.quote(requestId == null ? "" : requestId)
                 + "," + JSONObject.quote(payload == null ? "" : payload)
+                + "," + JSONObject.quote(error == null ? "" : error)
+                + ");"
+        );
+    }
+
+    private void deliverCachedSitesJsonChunk(String requestId, String payload, boolean done, String error) {
+        evaluateWebScript(
+            "window.__szzAndroidCachedSitesChunk&&window.__szzAndroidCachedSitesChunk("
+                + JSONObject.quote(requestId == null ? "" : requestId)
+                + "," + JSONObject.quote(payload == null ? "" : payload)
+                + "," + (done ? "true" : "false")
                 + "," + JSONObject.quote(error == null ? "" : error)
                 + ");"
         );

@@ -678,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-async-cache-v702";
+const APP_BUILD_VERSION="2026-09-22-stream-cache-v703";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -3242,6 +3242,31 @@ window.__szzAndroidCachedSitesResult=(requestId,payload,error)=>{
   if(error) pending.reject(new Error(String(error)));
   else pending.resolve(String(payload || ""));
 };
+window.__szzAndroidCachedSitesChunk=(requestId,payload,done,error)=>{
+  const key=String(requestId || "");
+  const pending=androidCachedSitesRequests.get(key);
+  if(!pending) return;
+  if(error){
+    androidCachedSitesRequests.delete(key);
+    clearTimeout(pending.timeout);
+    pending.reject(new Error(String(error)));
+    return;
+  }
+  try{
+    const chunk=JSON.parse(String(payload || "[]"));
+    if(Array.isArray(chunk)) pending.items.push(...chunk);
+  }catch(parseError){
+    androidCachedSitesRequests.delete(key);
+    clearTimeout(pending.timeout);
+    pending.reject(parseError);
+    return;
+  }
+  if(done){
+    androidCachedSitesRequests.delete(key);
+    clearTimeout(pending.timeout);
+    pending.resolve(pending.items);
+  }
+};
 
 function requestAndroidCachedSitesJson(bridge,limit){
   if(!bridge || typeof bridge.requestCachedSitesJson!=="function"){
@@ -3264,15 +3289,38 @@ function requestAndroidCachedSitesJson(bridge,limit){
   });
 }
 
+function requestAndroidCachedSitesItems(bridge,limit){
+  if(!bridge || typeof bridge.requestCachedSitesJsonChunks!=="function"){
+    return requestAndroidCachedSitesJson(bridge,limit).then(payload=>{
+      const parsed=JSON.parse(payload);
+      return Array.isArray(parsed.items) ? parsed.items : [];
+    });
+  }
+  return new Promise((resolve,reject)=>{
+    const requestId=`site-chunks-${Date.now()}-${++androidCachedSitesRequestSequence}`;
+    const timeout=setTimeout(()=>{
+      androidCachedSitesRequests.delete(requestId);
+      reject(new Error("Android cache bodů nevrátila všechny bloky včas."));
+    },15000);
+    androidCachedSitesRequests.set(requestId,{resolve,reject,timeout,items:[]});
+    try{
+      bridge.requestCachedSitesJsonChunks(limit,60,requestId);
+    }catch(error){
+      clearTimeout(timeout);
+      androidCachedSitesRequests.delete(requestId);
+      reject(error);
+    }
+  });
+}
+
 async function readAndroidMapRowsCacheFast(limit=20000){
   try{
     const bridge=window.SzzAndroidOffline;
     if(!bridge || typeof bridge.cachedSitesJson!=="function") return [];
-    const parsed=JSON.parse(await requestAndroidCachedSitesJson(bridge,limit));
-    const items=Array.isArray(parsed.items) ? parsed.items : [];
+    const items=await requestAndroidCachedSitesItems(bridge,limit);
     if(!items.length) return [];
     const rawRows=items.map(item=>{
-      const raw={...(item && item.raw && typeof item.raw==="object" ? item.raw : {})};
+      const raw=item && item.raw && typeof item.raw==="object" ? item.raw : {};
       const docId=safe(item && item.docId);
       if(docId && !raw["Firebase_doc_id"]) raw["Firebase_doc_id"]=docId;
       if(docId && !raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
