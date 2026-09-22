@@ -677,7 +677,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-status-performance-v695";
+const APP_BUILD_VERSION="2026-09-22-batched-startup-v696";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -2025,7 +2025,7 @@ if(firebaseReady){
     setDisplayIfChanged(topLogoutBtn,"block");
     showApp();
     setProgressStatus("");
-    const cachedRows=showAuthenticatedAndroidCachedMapRowsFast("");
+    const cachedRows=await showAuthenticatedAndroidCachedMapRowsFast("");
     if(cachedRows.length){
       loadFirebaseRowsAfterAuth("login").catch(e=>console.warn("Dočtení bodů po rychlém Android startu selhalo",e));
     }else{
@@ -3231,7 +3231,7 @@ window.markRowsDirty=markRowsDirty;
 installRowsWindowBridge();
 installSelectedSiteWindowBridge();
 
-function readAndroidMapRowsCacheFast(limit=20000){
+async function readAndroidMapRowsCacheFast(limit=20000){
   try{
     const bridge=window.SzzAndroidOffline;
     if(!bridge || typeof bridge.cachedSitesJson!=="function") return [];
@@ -3245,26 +3245,46 @@ function readAndroidMapRowsCacheFast(limit=20000){
       if(docId && !raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
       return raw;
     });
-    return normalize(rawRows).filter(row=>Number.isFinite(row.lat) && Number.isFinite(row.lon));
+    const normalized=[];
+    const batchSize=80;
+    for(let index=0;index<rawRows.length;index+=batchSize){
+      const batch=normalize(rawRows.slice(index,index+batchSize));
+      for(const row of batch){
+        if(Number.isFinite(row.lat) && Number.isFinite(row.lon)) normalized.push(row);
+      }
+      if(index+batchSize<rawRows.length) await szzYieldToBrowser(80);
+    }
+    return normalized;
   }catch(e){
     console.warn("Rychlá Android cache bodů se nepodařila přečíst",e);
     return [];
   }
 }
 
-function showAuthenticatedAndroidCachedMapRowsFast(message=""){
+let androidFastCacheRowsPromise=null;
+async function showAuthenticatedAndroidCachedMapRowsFast(message=""){
   const verifiedUser=currentUser || window.currentUser || window.__authReadyUser || (auth && auth.currentUser);
   if(!verifiedUser) return [];
   if(typeof window.setFirebaseSiteRows!=="function") return [];
   if(Array.isArray(rows) && rows.length) return rows;
-  const cachedRows=readAndroidMapRowsCacheFast();
-  if(!cachedRows.length) return [];
-  window.__szzAndroidFastCacheRowsLoaded=true;
-  window.setFirebaseSiteRows(cachedRows,null);
-  showApp({allowWithoutUser:true});
-  setProgressStatus(message || "");
-  runAfterTwoPaints(()=>{ try{ if(window.map) window.map.invalidateSize(true); }catch(e){} });
-  return rows;
+  if(androidFastCacheRowsPromise) return androidFastCacheRowsPromise;
+  androidFastCacheRowsPromise=(async()=>{
+    if(Array.isArray(rows) && rows.length) return rows;
+    const cachedRows=await readAndroidMapRowsCacheFast();
+    if(!cachedRows.length) return [];
+    if(Array.isArray(rows) && rows.length) return rows;
+    window.__szzAndroidFastCacheRowsLoaded=true;
+    window.setFirebaseSiteRows(cachedRows,null);
+    showApp({allowWithoutUser:true});
+    setProgressStatus(message || "");
+    runAfterTwoPaints(()=>{ try{ if(window.map) window.map.invalidateSize(true); }catch(e){} });
+    return rows;
+  })();
+  try{
+    return await androidFastCacheRowsPromise;
+  }finally{
+    androidFastCacheRowsPromise=null;
+  }
 }
 
 window.showAuthenticatedAndroidCachedMapRowsFast=showAuthenticatedAndroidCachedMapRowsFast;
@@ -9928,7 +9948,7 @@ async function refreshFirebaseUnifiedPrimary(){
   await loadEdits();
   await loadDeletedSites();
   if(typeof window.loadFirebaseSitesUnified==="function"){
-    const cachedRows=showAuthenticatedAndroidCachedMapRowsFast("");
+    const cachedRows=await showAuthenticatedAndroidCachedMapRowsFast("");
     if(cachedRows.length && window.__szzAndroidFastCacheRowsLoaded && !firebaseRowsWereLoadedFromNetwork()){
       runWhenIdle(()=>window.syncFirebaseRowsDeltaAfterAuth?.("startup-fast-cache")?.catch(e=>{
         console.warn("Startovní rozdílová kontrola po rychlé Android cache selhala",e);

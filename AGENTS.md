@@ -834,4 +834,6 @@ Current performance phase 356 decision: normalized row-key caches must reuse the
 
 Current performance phase 357 decision: legacy self-maintained-site signature matching should normalize and hash each row's place text once, lazily build its token-hash Set once, and compare all stored signatures against those shared values. Preserve the exact full-hash and token-overlap matching rules.
 
+Current performance phase 358 decision: authenticated Android startup should normalize the native cached map rows in bounded batches and yield to the browser between batches. Preserve row order, GPS filtering, verified-user gating, cache contents, and the final `setFirebaseSiteRows` path while preventing one long main-thread startup task.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
