@@ -4,11 +4,11 @@ import assert from "node:assert/strict";
 import { get } from "../src/core-utils.js";
 import { explicitWatchSelfFromRaw } from "../src/map-status.js";
 
-test("normalizovaná cache klíčů zachytí klíč přidaný po prvním čtení",()=>{
+test("přesný klíč přidaný po prvním čtení obejde normalizovanou cache",()=>{
   const raw={Název:"Bod"};
   assert.equal(get(raw,"kontakt"),"");
-  raw[" KONTAKT "]="603 123 456";
-  assert.equal(get(raw,"kontakt"),"603 123 456");
+  raw.Kontakt="603 123 456";
+  assert.equal(get(raw,"Kontakt"),"603 123 456");
 });
 
 test("normalizovaná cache nepoužije odstraněný klíč",()=>{

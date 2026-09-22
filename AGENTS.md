@@ -830,6 +830,6 @@ Current performance phase 354 decision: Android lifecycle resume, renderer recov
 
 Current performance phase 355 decision: normalized Firebase rows should share one canonical raw object between `row.raw` and `row.firebaseData.raw` instead of retaining duplicate copies of every service-point field. Preserve all non-raw Firebase metadata and keep the shared raw reference when refreshing detail data.
 
-Current performance phase 356 decision: normalized row-key caches must reuse their WeakMap lookup without rebuilding `Object.keys()` signatures on every field read. Preserve support for raw objects mutated in place by rescanning and extending the lookup only when a requested normalized key is missing or points to a removed property.
+Current performance phase 356 decision: normalized row-key caches must reuse their complete WeakMap lookup without rebuilding `Object.keys()` signatures or rescanning for absent aliases on every field read. Exact canonical keys added by in-place edits bypass the normalized cache; rebuild the cached index only if a previously indexed property was removed.
 
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

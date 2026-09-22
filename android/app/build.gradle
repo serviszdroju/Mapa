@@ -18,15 +18,15 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 91
-        versionName "1.1.89-startup-performance"
+        versionCode 92
+        versionName "1.1.90-startup-performance"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",
             webPathPrefix: "/Mapa"
         ]
 
-        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=startup-performance-v693\""
+        buildConfigField "String", "LAUNCH_URL", "\"https://serviszdroju.github.io/Mapa/?app=android&source=apk&v=startup-performance-v694\""
         buildConfigField "String", "WEB_ORIGIN", "\"https://serviszdroju.github.io\""
         buildConfigField "String", "FIREBASE_GOOGLE_WEB_CLIENT_ID", "\"${escapeBuildConfigString(googleWebClientId)}\""
         buildConfigField "String", "FIREBASE_WEB_API_KEY", "\"AIzaSyDPXDtM0NH0H2p_gT5KsRPyxhCotBTcq88\""

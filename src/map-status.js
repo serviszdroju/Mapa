@@ -46,15 +46,15 @@ function normalizedRowKeyLookup(r){
   return map;
 }
 
-function refreshNormalizedRowKey(r,normalized){
-  const lookup=normalizedRowKeyLookup(r);
-  if(!lookup) return undefined;
+function rebuildNormalizedRowKeyLookup(r){
+  if(!r || (typeof r!=="object" && typeof r!=="function")) return null;
+  const lookup=new Map();
   for(const key of Object.keys(r)){
     const keyNormalized=normalizedRowKeyName(key);
     if(!lookup.has(keyNormalized)) lookup.set(keyNormalized,key);
-    if(keyNormalized===normalized) return key;
   }
-  return undefined;
+  rowKeyLookupCache.set(r,lookup);
+  return lookup;
 }
 
 function get(r,n){
@@ -64,8 +64,9 @@ function get(r,n){
   if(!lookup) return "";
   const normalized=normalizedRowKeyName(n);
   let k=lookup.get(normalized);
-  if(k!==undefined && r[k]===undefined) k=undefined;
-  if(k===undefined) k=refreshNormalizedRowKey(r,normalized);
+  if(k!==undefined && r[k]===undefined){
+    k=rebuildNormalizedRowKeyLookup(r)?.get(normalized);
+  }
   return k!==undefined ? r[k] : "";
 }
 
