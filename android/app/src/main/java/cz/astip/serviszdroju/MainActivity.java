@@ -740,6 +740,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void requestCachedSitesJson(int limit, String requestId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) {
+                deliverCachedSitesJson(requestId, "", "Room neni dostupny.");
+                return;
+            }
+            repository.cachedSitesJsonAsync(limit, new SzzOfflineRepository.StringCallback() {
+                @Override
+                public void onSuccess(String result) {
+                    deliverCachedSitesJson(requestId, result, "");
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    deliverCachedSitesJson(requestId, "", compactErrorText(error));
+                }
+            });
+        }
+
+        @JavascriptInterface
         public String countsJson() {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
@@ -821,6 +841,16 @@ public class MainActivity extends Activity {
             SzzOfflineRepository repository = offlineRepository;
             if (repository != null) repository.enqueueSyncWorkIfPending();
         }
+    }
+
+    private void deliverCachedSitesJson(String requestId, String payload, String error) {
+        evaluateWebScript(
+            "window.__szzAndroidCachedSitesResult&&window.__szzAndroidCachedSitesResult("
+                + JSONObject.quote(requestId == null ? "" : requestId)
+                + "," + JSONObject.quote(payload == null ? "" : payload)
+                + "," + JSONObject.quote(error == null ? "" : error)
+                + ");"
+        );
     }
 
     private SzzOfflineRepository.Callback androidOfflineCallback(String action) {

@@ -32,6 +32,11 @@ public final class SzzOfflineRepository {
         void onError(Exception error);
     }
 
+    public interface StringCallback {
+        void onSuccess(String result);
+        void onError(Exception error);
+    }
+
     private static volatile SzzOfflineRepository instance;
 
     private final Context context;
@@ -247,6 +252,16 @@ public final class SzzOfflineRepository {
 
     public String cachedSitesJson(int limit) {
         return cachedRowsJson("cachedSites", dao.cachedSiteCount(), dao.cachedSiteRawJson(cappedLimit(limit)));
+    }
+
+    public void cachedSitesJsonAsync(int limit, StringCallback callback) {
+        executor.execute(() -> {
+            try {
+                callback.onSuccess(cachedSitesJson(limit));
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
     }
 
     public String cachedPhotosJson(int limit) {

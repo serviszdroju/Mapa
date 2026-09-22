@@ -678,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-compact-cache-v701";
+const APP_BUILD_VERSION="2026-09-22-async-cache-v702";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -3232,11 +3232,43 @@ window.markRowsDirty=markRowsDirty;
 installRowsWindowBridge();
 installSelectedSiteWindowBridge();
 
+let androidCachedSitesRequestSequence=0;
+const androidCachedSitesRequests=new Map();
+window.__szzAndroidCachedSitesResult=(requestId,payload,error)=>{
+  const pending=androidCachedSitesRequests.get(String(requestId || ""));
+  if(!pending) return;
+  androidCachedSitesRequests.delete(String(requestId || ""));
+  clearTimeout(pending.timeout);
+  if(error) pending.reject(new Error(String(error)));
+  else pending.resolve(String(payload || ""));
+};
+
+function requestAndroidCachedSitesJson(bridge,limit){
+  if(!bridge || typeof bridge.requestCachedSitesJson!=="function"){
+    return Promise.resolve(String(bridge?.cachedSitesJson?.(limit) || "{}"));
+  }
+  return new Promise((resolve,reject)=>{
+    const requestId=`sites-${Date.now()}-${++androidCachedSitesRequestSequence}`;
+    const timeout=setTimeout(()=>{
+      androidCachedSitesRequests.delete(requestId);
+      reject(new Error("Android cache bodů nevrátila výsledek včas."));
+    },15000);
+    androidCachedSitesRequests.set(requestId,{resolve,reject,timeout});
+    try{
+      bridge.requestCachedSitesJson(limit,requestId);
+    }catch(error){
+      clearTimeout(timeout);
+      androidCachedSitesRequests.delete(requestId);
+      reject(error);
+    }
+  });
+}
+
 async function readAndroidMapRowsCacheFast(limit=20000){
   try{
     const bridge=window.SzzAndroidOffline;
     if(!bridge || typeof bridge.cachedSitesJson!=="function") return [];
-    const parsed=JSON.parse(String(bridge.cachedSitesJson(limit) || "{}"));
+    const parsed=JSON.parse(await requestAndroidCachedSitesJson(bridge,limit));
     const items=Array.isArray(parsed.items) ? parsed.items : [];
     if(!items.length) return [];
     const rawRows=items.map(item=>{
