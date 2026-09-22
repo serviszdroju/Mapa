@@ -844,4 +844,6 @@ Current performance phase 361 decision: Android cached site wrappers must be con
 
 Current performance phase 362 decision: do not batch Android cached wrapper cloning on the tested WebView; emulator evidence showed that approach regressed complete map startup from about 1.64 seconds to about 8.95 seconds. Keep the v698 native JSON bridge optimization and clone wrappers in one pass before batched normalization.
 
+Current performance phase 363 decision: compact each Android Room site snapshot asynchronously when it is written by omitting only null values and blank strings from the cached `raw` object. Preserve all wrapper fields, non-empty values, booleans, numbers, aliases, Firebase data, and server documents; the web app already treats absent and empty values equivalently.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

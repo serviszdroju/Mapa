@@ -17,6 +17,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
@@ -398,8 +399,35 @@ public final class SzzOfflineRepository {
         if (site.updatedAt == null) site.updatedAt = now;
         site.deletedAt = firstText(item, raw, "deletedAt", "deleted_at");
         site.syncState = SyncState.SYNCED.name();
-        site.rawJson = item.toString();
+        site.rawJson = compactSiteCacheItem(item).toString();
         return site;
+    }
+
+    private static JSONObject compactSiteCacheItem(JSONObject item) {
+        JSONObject compact = new JSONObject();
+        if (item == null) return compact;
+        try {
+            Iterator<String> itemKeys = item.keys();
+            while (itemKeys.hasNext()) {
+                String key = itemKeys.next();
+                if (!"raw".equals(key)) compact.put(key, item.opt(key));
+            }
+            JSONObject raw = item.optJSONObject("raw");
+            if (raw == null) return compact;
+            JSONObject compactRaw = new JSONObject();
+            Iterator<String> rawKeys = raw.keys();
+            while (rawKeys.hasNext()) {
+                String key = rawKeys.next();
+                Object value = raw.opt(key);
+                if (value == null || value == JSONObject.NULL) continue;
+                if (value instanceof String && ((String) value).trim().isEmpty()) continue;
+                compactRaw.put(key, value);
+            }
+            compact.put("raw", compactRaw);
+        } catch (Exception ignored) {
+            return item;
+        }
+        return compact;
     }
 
     private OfflineEntities.PhotoEntity photoEntityFromPayload(JSONObject payload, String defaultSourceLocalId, String now, boolean pending) {
