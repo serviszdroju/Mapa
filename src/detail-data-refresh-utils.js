@@ -41,22 +41,23 @@ export function createDetailDataRefreshHelpers({
       if(!snap.exists()) return null;
       const data=snap.data() || {};
       const mergedRaw=applyLatestProtocolDateToRaw({...(site?.raw||{}), ...(data.raw||{})}, data);
+      const mergedData={...data,raw:mergedRaw};
       if(site){
-        site.firebaseData=data;
+        site.firebaseData=mergedData;
         site.raw=mergedRaw;
         const refreshed=normalize([mergedRaw])[0];
         Object.assign(site, refreshed, {
           id:site.id,
           i:site.i,
           firebaseDocId:docId,
-          firebaseData:data
+          firebaseData:mergedData
         });
       }
       const selectedSite=getSelectedSite();
       if(selectedSite && detailKey(selectedSite)===detailKey(site)){
         setSelectedSite(site);
       }
-      return data;
+      return mergedData;
     }catch(e){
       console.warn("Čerstvé načtení dat bodu selhalo",e);
       return null;

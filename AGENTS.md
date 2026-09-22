@@ -828,4 +828,6 @@ Current performance phase 353 decision: resize, orientation, and pageshow handli
 
 Current performance phase 354 decision: Android lifecycle resume, renderer recovery, explicit bridge sync requests, and restored authentication should enqueue WorkManager synchronization only when the native outbox contains pending operations. New offline writes still enqueue synchronization immediately.
 
+Current performance phase 355 decision: normalized Firebase rows should share one canonical raw object between `row.raw` and `row.firebaseData.raw` instead of retaining duplicate copies of every service-point field. Preserve all non-raw Firebase metadata and keep the shared raw reference when refreshing detail data.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

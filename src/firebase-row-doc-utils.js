@@ -22,7 +22,7 @@ export function createFirebaseRowDocHelpers({
     row.id=raw["Klíč_adresy"];
     row.raw=raw;
     row.firebaseDocId=docSnap.id;
-    row.firebaseData=data;
+    row.firebaseData={...data,raw};
     return typeof applyRowEdit==="function" ? applyRowEdit(row) : row;
   }
 

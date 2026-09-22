@@ -1539,7 +1539,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
     const r=typeof normalizeRows === "function" ? normalizeRows([raw])[0] : fallbackNormalizedRow(raw, docId);
     r.id=raw["Klíč_adresy"]; r.raw=raw; r.firebaseDocId=docId;
-    r.firebaseData=d;
+    r.firebaseData={...d,raw};
     return applyRowEdit(r);
   }
   function rowsFromSnapshot(snap){
@@ -2717,7 +2717,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-22-lifecycle-stability-v691";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-22-memory-stability-v692";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;
