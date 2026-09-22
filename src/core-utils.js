@@ -75,17 +75,26 @@ function normalizedRowKeyName(n){
 
 function normalizedRowKeyLookup(r){
   if(!r || (typeof r!=="object" && typeof r!=="function")) return null;
-  const keys=Object.keys(r);
-  const signature=keys.join("\u001f");
   const cached=rowKeyLookupCache.get(r);
-  if(cached && cached.signature===signature) return cached.map;
+  if(cached) return cached;
   const map=new Map();
-  for(const k of keys){
+  for(const k of Object.keys(r)){
     const normalized=normalizedRowKeyName(k);
     if(!map.has(normalized)) map.set(normalized,k);
   }
-  rowKeyLookupCache.set(r,{signature,map});
+  rowKeyLookupCache.set(r,map);
   return map;
+}
+
+function refreshNormalizedRowKey(r,normalized){
+  const lookup=normalizedRowKeyLookup(r);
+  if(!lookup) return undefined;
+  for(const key of Object.keys(r)){
+    const keyNormalized=normalizedRowKeyName(key);
+    if(!lookup.has(keyNormalized)) lookup.set(keyNormalized,key);
+    if(keyNormalized===normalized) return key;
+  }
+  return undefined;
 }
 
 export function get(r,n){
@@ -93,7 +102,10 @@ export function get(r,n){
   if(r[n]!==undefined) return r[n];
   const lookup=normalizedRowKeyLookup(r);
   if(!lookup) return "";
-  const k=lookup.get(normalizedRowKeyName(n));
+  const normalized=normalizedRowKeyName(n);
+  let k=lookup.get(normalized);
+  if(k!==undefined && r[k]===undefined) k=undefined;
+  if(k===undefined) k=refreshNormalizedRowKey(r,normalized);
   return k!==undefined ? r[k] : "";
 }
 
