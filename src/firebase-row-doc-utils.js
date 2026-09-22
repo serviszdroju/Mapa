@@ -4,6 +4,13 @@ export function createFirebaseRowDocHelpers({
   normalizeSiteRows=()=>[],
   safeValue=value=>String(value ?? "").trim()
 }={}){
+  function hasEmbeddedProtocolDateData(data={}){
+    return (
+      (Array.isArray(data.protocolHistory) && data.protocolHistory.length>0) ||
+      !!safeValue(data.latestProtocolDate)
+    );
+  }
+
   function firebaseRowFromDocSnap(docSnap){
     if(!docSnap || !docSnap.id || typeof docSnap.data!=="function") return null;
     const normalizeRows=normalizeSiteRows();
@@ -11,7 +18,7 @@ export function createFirebaseRowDocHelpers({
     const applyRowEdit=applySiteEditToRow();
     const data=docSnap.data() || {};
     let raw={...(data.raw || {})};
-    const applyLatest=applyLatestProtocolDateToRaw();
+    const applyLatest=hasEmbeddedProtocolDateData(data) ? applyLatestProtocolDateToRaw() : null;
     if(typeof applyLatest==="function"){
       raw=applyLatest(raw,data || {});
     }
@@ -32,6 +39,7 @@ export function createFirebaseRowDocHelpers({
 
   return {
     firebaseRowFromDocSnap,
-    firebaseRowKey
+    firebaseRowKey,
+    hasEmbeddedProtocolDateData
   };
 }

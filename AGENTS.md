@@ -876,4 +876,6 @@ Current performance phase 377 decision: split Firebase Functions from the startu
 
 Current performance phase 378 decision: construct the existing Firebase app/auth/Firestore and Functions module facades from explicit named SDK imports instead of namespace imports. Keep every method currently read through `fb.*Mod`, including auth persistence/redirect support and all Firestore read/write/query primitives, while allowing Vite to tree-shake unused Firebase exports and reduce startup transfer and parse work.
 
+Current performance phase 379 decision: during Firebase row conversion, invoke latest-protocol date merging only for site documents that actually contain a non-empty embedded `protocolHistory` or `latestProtocolDate`. Keep the existing merge helper and resulting schedule fields unchanged for those sites, while avoiding a second large raw-object clone and protocol scan for the majority of map rows without embedded protocol dates.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
