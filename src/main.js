@@ -123,6 +123,10 @@ import {
 } from "./storage-persistence.js";
 import {hasTrustedOfflineSession} from "./offline-auth-access-utils.js";
 import {
+  runAndroidSilentAuthOnce,
+  waitForExistingAuthUser
+} from "./android-silent-auth-coordinator.js";
+import {
   MAP_TILE_CACHE_NAME,
   MAP_TILE_URL_TEMPLATE,
   visibleMapTileUrlsForMap
@@ -679,7 +683,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-fast-auth-resume-v710";
+const APP_BUILD_VERSION="2026-09-22-single-auth-restore-v711";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1776,7 +1780,10 @@ if(firebaseReady){
             ? "Obnovuji Android přihlášení..."
             : "Kontroluji Android přihlášení...");
         }
-        const result=await signInWithAndroidGoogleIdToken({silent:true});
+        const result=await runAndroidSilentAuthOnce(async()=>{
+          const existing=await waitForExistingAuthUser(()=>currentAuthCandidate());
+          return existing ? {user:existing} : signInWithAndroidGoogleIdToken({silent:true});
+        });
         const user=result && result.user ? result.user : await waitForAuthCandidate(3500);
         if(user){
           await handleAuthorizedUser(user);

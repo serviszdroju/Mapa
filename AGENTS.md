@@ -864,4 +864,8 @@ Current performance phase 371 decision: Android APK upgrades must preserve the s
 
 Current performance phase 372 decision: during silent online Android authentication restore, immediately show the cached map only when both the native stored Google-account hint and the previous known-session flag are present and no explicit sign-out is pending. Continue the existing Firebase credential verification in the background and keep hard-rejection/sign-out behavior unchanged, avoiding a long login-screen flash without changing authentication.
 
+Current performance phase 373 decision: coordinate hosted-login and main-app silent Android authentication through one shared short-lived promise so startup performs only one native token restore and one Firebase credential sign-in. Preserve both callers' existing success/error UI handling and leave explicit interactive login and sign-out paths unchanged.
+
+Current performance phase 374 decision: before invoking native Android token restore, wait up to eight seconds for Firebase's already-running persisted-session restoration and reuse its user when available. The cached map remains visible throughout, so this does not delay the working UI; invoke the native token fallback only when no existing Firebase user appears, while interactive login/sign-out behavior stays unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

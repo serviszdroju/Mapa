@@ -8,9 +8,13 @@ import {
   loadGoogleIdentityServices
 } from "./firebase-auth.js";
 import {canResumeAndroidCachedSession} from "./offline-auth-access-utils.js";
+import {
+  runAndroidSilentAuthOnce,
+  waitForExistingAuthUser
+} from "./android-silent-auth-coordinator.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="fast-auth-resume-v710";
+const EMAIL_LOGIN_BUILD_VERSION="single-auth-restore-v711";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={
@@ -440,8 +444,11 @@ function tryHostedAndroidSilentLogin(){
       message:"Obnovuji Android přihlášení..."
     });
   }
-  waitForCompatFirebaseAuth(25000)
-    .then(auth=>signInWithAndroidGoogleCompat(auth,bridge,{silent:true}))
+  runAndroidSilentAuthOnce(()=>waitForCompatFirebaseAuth(25000)
+    .then(async auth=>{
+      const existing=await waitForExistingAuthUser(()=>knownUser() || auth.currentUser);
+      return existing ? {user:existing} : signInWithAndroidGoogleCompat(auth,bridge,{silent:true});
+    }))
     .then(result=>{
       if(result && result.user){
         try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
