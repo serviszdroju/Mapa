@@ -673,17 +673,24 @@ window.explicitWatchSelfFromRaw=explicitWatchSelfFromRaw;
 window.canonicalWatchSelfValue=canonicalWatchSelfValue;
 window.applyWatchSelfAliases=applyWatchSelfAliases;
 let bundledFirebaseModulesPromise=null;
+let bundledFirebaseFunctionsPromise=null;
 function loadBundledFirebaseModules(){
   if(!bundledFirebaseModulesPromise){
     bundledFirebaseModulesPromise=import("./firebase-bundled-sdk.js");
   }
   return bundledFirebaseModulesPromise;
 }
+function loadBundledFirebaseFunctions(){
+  if(!bundledFirebaseFunctionsPromise){
+    bundledFirebaseFunctionsPromise=import("./firebase-functions-sdk.js");
+  }
+  return bundledFirebaseFunctionsPromise;
+}
 function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-rotation-resize-guard-v713";
+const APP_BUILD_VERSION="2026-09-22-lazy-mail-sdk-v714";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -978,8 +985,8 @@ async function ensureMailFunctions(){
       try{
         let fnMod=fb.fnMod;
         if(!fnMod){
-          const bundledFirebaseMods=await loadBundledFirebaseModules();
-          fnMod=bundledFirebaseMods.firebaseFunctionsMod;
+          const bundledFirebaseFunctions=await loadBundledFirebaseFunctions();
+          fnMod=bundledFirebaseFunctions.firebaseFunctionsMod;
         }
         if(!fnMod || typeof fnMod.getFunctions!=="function" || typeof fnMod.httpsCallable!=="function"){
           throw new Error("Firebase Functions modul není v lokálním balíku dostupný.");
@@ -1022,14 +1029,12 @@ if(firebaseReady){
   let appMod=null;
   let authMod=null;
   let fsMod=null;
-  let fnMod=null;
   try{
     const bundledFirebaseMods=await loadBundledFirebaseModules();
-    [appMod,authMod,fsMod,fnMod]=[
+    [appMod,authMod,fsMod]=[
       bundledFirebaseMods.firebaseAppMod,
       bundledFirebaseMods.firebaseAuthMod,
-      bundledFirebaseMods.firebaseFirestoreMod,
-      bundledFirebaseMods.firebaseFunctionsMod
+      bundledFirebaseMods.firebaseFirestoreMod
     ];
   }catch(e){
     console.warn("Firebase modulární knihovny nejsou dostupné, zkouším záložní režim",e);
@@ -1072,18 +1077,10 @@ if(firebaseReady){
     });
   }
   if(firebaseReady && appMod && authMod && fsMod){
-  fb={appMod,authMod,fsMod,fnMod:fnMod || null};
+  fb={appMod,authMod,fsMod,fnMod:null};
   app=appMod.getApps().length ? appMod.getApp() : appMod.initializeApp(firebaseConfig);
   auth=authMod.getAuth(app);
   window.auth=auth;
-  if(fb.fnMod && typeof fb.fnMod.getFunctions==="function"){
-    try{
-      mailFunctions=fb.fnMod.getFunctions(app,"europe-west1");
-      window.mailFunctions=mailFunctions;
-    }catch(e){
-      console.warn("Firebase Functions se nepodařilo připravit při startu",e);
-    }
-  }
   try{
     if(authMod.useDeviceLanguage) authMod.useDeviceLanguage(auth);
     else if(auth.useDeviceLanguage) auth.useDeviceLanguage();

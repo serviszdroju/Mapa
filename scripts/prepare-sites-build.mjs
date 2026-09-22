@@ -24,11 +24,13 @@ const precachedAssetExtensions = new Set([
   ".webmanifest",
   ".webp"
 ]);
+const lazyAssetPrefixes = ["firebase-functions-sdk-"];
 
 function productionAssetPrecacheUrls() {
   if (!existsSync(clientAssets)) return [];
   return readdirSync(clientAssets)
     .filter((file) => precachedAssetExtensions.has(path.extname(file).toLowerCase()))
+    .filter((file) => !lazyAssetPrefixes.some((prefix) => file.startsWith(prefix)))
     .sort((a, b) => a.localeCompare(b))
     .map((file) => `./assets/${file}`);
 }
