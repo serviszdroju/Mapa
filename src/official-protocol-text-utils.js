@@ -292,7 +292,9 @@ export function createOfficialProtocolTextHelpers({
       "__SZZ_MAIN__":officialMeasurementValue(protocol.mainBatVdc,"VDC"),
       "__SZZ_UNBALANCE__":officialOneLine(officialCombinedMeasurement(protocol.unbalance1,protocol.unbalance2)),
       "__SZZ_TEMP__":officialMeasurementValue(protocol.temperature,"TEMP"),
-      "__SZZ_NOTE__":officialOneLine(officialProtocolCustomerNote(protocol,officialData),130),
+      // The customer note is inserted once, highlighted directly after "Poznámky:".
+      // Keep the legacy footer placeholder empty so it is not repeated before signatures.
+      "__SZZ_NOTE__":"",
       "__SZZ_TECH__":officialOneLine(tech)
     };
   }
