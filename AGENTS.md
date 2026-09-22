@@ -840,4 +840,6 @@ Current performance phase 359 decision: Android cached-row startup batches must 
 
 Current performance phase 360 decision: the Android Room cache bridge should concatenate already validated object-shaped `raw_json` rows into its response instead of parsing every row into `JSONObject` and serializing the whole payload again on the synchronous JavaScript bridge call. Preserve response keys, row text, ordering, limits, and malformed-row skipping.
 
+Current performance phase 361 decision: Android cached site wrappers must be converted into editable raw objects inside the same bounded batches used for normalization, rather than cloning every raw object before the first browser yield. Preserve source order, Firebase id aliases, GPS filtering, and final normalized rows.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
