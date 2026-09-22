@@ -886,4 +886,6 @@ Current performance phase 382 decision: retain normalized deduplication text acr
 
 Current performance phase 383 decision: build each row's normalized and compact search text lazily on the first non-empty search instead of during normal map startup. Keep region, schedule, source, place, lookup, status, filter-result caching, compact matching, and visible search behavior unchanged; cache the search text on the row after first use.
 
+Current performance phase 384 decision: cache each raw object's non-empty field count after one own-property pass instead of allocating and comparing key/value snapshot arrays on every deduplication priority check. Row edits replace the raw object, so the WeakMap naturally recomputes edited records; preserve the same completeness score and duplicate winner selection.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

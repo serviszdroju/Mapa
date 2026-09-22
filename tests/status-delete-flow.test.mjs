@@ -100,6 +100,35 @@ test("deduplikace spoji stejnou adresu a vyrobni cislo i pri jinem zapisu vykonu
   assert.equal(result.duplicateDocIds.length,1);
 });
 
+test("deduplikace ponecha uplnejsi zaznam stejneho zdroje",()=>{
+  const sparse={
+    id:"sparse-copy",
+    firebaseDocId:"site_sparse",
+    raw:{
+      "Název":"DPS Solčany",
+      "Adresa / umístění":"1. Mája 47/42, Solčany",
+      "Popis_zdroje":"ASTIP UPS 10 kVA",
+      "Výrobní číslo":"25121801"
+    }
+  };
+  const rich={
+    id:"rich-copy",
+    firebaseDocId:"site_rich",
+    raw:{
+      "Název":"DPS Solčany",
+      "Adresa / umístění":"1. Mája 47/42, Solčany",
+      "Popis_zdroje":"ASTIP UPS 10 kVA",
+      "Výrobní číslo":"25121801",
+      "Kontakt":"Technik 123 456 789",
+      "Poznámky":"Úplnější záznam"
+    }
+  };
+  const result=dedupeSiteRows([sparse,rich]);
+  assert.equal(result.rows.length,1);
+  assert.equal(result.rows[0].firebaseDocId,"site_rich");
+  assert.deepEqual(result.duplicateDocIds,["site_sparse"]);
+});
+
 test("Firebase mapa uklada do offline cache jen viditelne deduplikovane radky",()=>{
   const lateSource=fs.readFileSync(new URL("../public/late.js",import.meta.url),"utf8");
   const applyStart=lateSource.indexOf("function applyFirebaseRows(");

@@ -1,6 +1,5 @@
 import {
   safe,
-  sameArrayValues,
   stableSignature
 } from "./core-utils.js";
 import {
@@ -121,26 +120,13 @@ function rawNonEmptyValueCount(raw={}){
   if(!source || (typeof source!=="object" && typeof source!=="function")){
     return Object.values(source).filter(v=>safe(v)).length;
   }
-  const keys=Object.keys(source);
   const cached=rawNonEmptyValueCountCache.get(source);
-  if(cached && sameArrayValues(cached.keys,keys)){
-    let same=true;
-    for(let i=0;i<keys.length;i++){
-      if(cached.values[i]!==source[keys[i]]){
-        same=false;
-        break;
-      }
-    }
-    if(same) return cached.count;
-  }
-  const values=new Array(keys.length);
+  if(cached!==undefined) return cached;
   let count=0;
-  for(let i=0;i<keys.length;i++){
-    const value=source[keys[i]];
-    values[i]=value;
-    if(safe(value)) count++;
+  for(const key in source){
+    if(Object.prototype.hasOwnProperty.call(source,key) && safe(source[key])) count++;
   }
-  rawNonEmptyValueCountCache.set(source,{keys,values,count});
+  rawNonEmptyValueCountCache.set(source,count);
   return count;
 }
 
