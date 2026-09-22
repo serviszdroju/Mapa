@@ -678,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-batched-cache-copy-v699";
+const APP_BUILD_VERSION="2026-09-22-cache-fast-v700";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -3239,24 +3239,21 @@ async function readAndroidMapRowsCacheFast(limit=20000){
     const parsed=JSON.parse(String(bridge.cachedSitesJson(limit) || "{}"));
     const items=Array.isArray(parsed.items) ? parsed.items : [];
     if(!items.length) return [];
+    const rawRows=items.map(item=>{
+      const raw={...(item && item.raw && typeof item.raw==="object" ? item.raw : {})};
+      const docId=safe(item && item.docId);
+      if(docId && !raw["Firebase_doc_id"]) raw["Firebase_doc_id"]=docId;
+      if(docId && !raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
+      return raw;
+    });
     const normalized=[];
     const batchSize=80;
-    for(let index=0;index<items.length;index+=batchSize){
-      const rawBatch=[];
-      const end=Math.min(index+batchSize,items.length);
-      for(let itemIndex=index;itemIndex<end;itemIndex++){
-        const item=items[itemIndex];
-        const raw={...(item && item.raw && typeof item.raw==="object" ? item.raw : {})};
-        const docId=safe(item && item.docId);
-        if(docId && !raw["Firebase_doc_id"]) raw["Firebase_doc_id"]=docId;
-        if(docId && !raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
-        rawBatch.push(raw);
-      }
-      const batch=normalize(rawBatch);
+    for(let index=0;index<rawRows.length;index+=batchSize){
+      const batch=normalize(rawRows.slice(index,index+batchSize));
       for(const row of batch){
         if(Number.isFinite(row.lat) && Number.isFinite(row.lon)) normalized.push(row);
       }
-      if(end<items.length) await szzYieldToNextFrame();
+      if(index+batchSize<rawRows.length) await szzYieldToNextFrame();
     }
     return normalized;
   }catch(e){

@@ -842,4 +842,6 @@ Current performance phase 360 decision: the Android Room cache bridge should con
 
 Current performance phase 361 decision: Android cached site wrappers must be converted into editable raw objects inside the same bounded batches used for normalization, rather than cloning every raw object before the first browser yield. Preserve source order, Firebase id aliases, GPS filtering, and final normalized rows.
 
+Current performance phase 362 decision: do not batch Android cached wrapper cloning on the tested WebView; emulator evidence showed that approach regressed complete map startup from about 1.64 seconds to about 8.95 seconds. Keep the v698 native JSON bridge optimization and clone wrappers in one pass before batched normalization.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
