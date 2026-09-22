@@ -95,3 +95,32 @@ test("velká sada značek se vykreslí po dávkách mezi snímky",()=>{
     globalThis.requestAnimationFrame=previousRaf;
   }
 });
+
+test("nezměněný prázdný výřez mapy se znovu neprochází",()=>{
+  let containsCalls=0;
+  const bounds={
+    pad:()=>bounds,
+    contains:()=>{ containsCalls++; return false; },
+    getSouthWest:()=>({lat:49,lng:14}),
+    getNorthEast:()=>({lat:50,lng:16})
+  };
+  const helpers=createMapMarkerRenderHelpers({
+    detailKey:row=>row.id,
+    escValue:value=>value,
+    getLastVisiblePlaceGroups:()=>[],
+    getLayer:()=>({removeLayer:()=>{}}),
+    getLeaflet:()=>({}),
+    getMap:()=>({getBounds:()=>bounds,on:()=>{}}),
+    getRowsIndexVersion:()=>1,
+    groupColor:()=>"green",
+    groupPopupHtml:()=>"",
+    groupPrimaryRow:group=>group.rows[0],
+    markerRowsSignature:()=>"rows",
+    openDetailById:()=>{},
+    resetSourcePopupActivationGuard:()=>{}
+  });
+  const groups=[{key:"outside",lat:48,lon:13,rows:[{id:"outside",lat:48,lon:13}]}];
+  helpers.renderMapGroups(groups);
+  helpers.renderMapGroups(groups);
+  assert.equal(containsCalls,1);
+});

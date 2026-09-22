@@ -42,7 +42,7 @@ let szzInstallBusy=false;
 const SZZ_INSTALL_PROMPT_WAIT_MS=15000;
 const SZZ_INSTALL_SW_CONTROL_WAIT_MS=7000;
 const SZZ_INSTALL_SW_UPDATE_WAIT_MS=6000;
-const SZZ_ANDROID_APK_URL="./downloads/szz-servis-zdroju-android.apk?v=performance-stability-v690";
+const SZZ_ANDROID_APK_URL="./downloads/szz-servis-zdroju-android.apk?v=lifecycle-stability-v691";
 const SZZ_SIDEBAR_LOGO_URL="./szz-logo-sidebar.png";
 
 function isSzzAndroidShellRuntime(){
@@ -463,10 +463,7 @@ let mobileFixMapTimer=0;
 function runMobileFixMap(){
   try{
     if(window.map && window.map.invalidateSize){
-      window.map.invalidateSize(true);
-      if(typeof window.fit==="function"){
-        window.fit();
-      }
+      window.map.invalidateSize(false);
     }
   }catch(e){}
 }

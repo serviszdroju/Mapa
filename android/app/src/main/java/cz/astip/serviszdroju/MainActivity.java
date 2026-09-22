@@ -151,7 +151,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (webView != null) webView.onResume();
-        if (offlineRepository != null) offlineRepository.enqueueSyncWork();
+        if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPending();
         restoreAndroidAuthIfStored(150);
     }
 
@@ -194,7 +194,7 @@ public class MainActivity extends Activity {
                 "(function(){try{"
                     + "window.dispatchEvent(new Event('resize'));"
                     + "setTimeout(function(){"
-                    + "try{if(window.map&&window.map.invalidateSize)window.map.invalidateSize(true);}catch(e){}"
+                    + "try{if(window.map&&window.map.invalidateSize)window.map.invalidateSize(false);}catch(e){}"
                     + "},80);"
                     + "}catch(e){}})();"
             );
@@ -392,7 +392,7 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
             if (webView == crashedView) webView = null;
             createAndAttachWebView(null);
-            if (offlineRepository != null) offlineRepository.enqueueSyncWork();
+            if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPending();
             Toast.makeText(
                 MainActivity.this,
                 didCrash ? "Zobrazení aplikace bylo obnoveno." : "Aplikace obnovila zobrazení.",
@@ -819,7 +819,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void requestSync() {
             SzzOfflineRepository repository = offlineRepository;
-            if (repository != null) repository.enqueueSyncWork();
+            if (repository != null) repository.enqueueSyncWorkIfPending();
         }
     }
 
@@ -1007,7 +1007,7 @@ public class MainActivity extends Activity {
 
     private void deliverAndroidGoogleIdToken(String idToken, String email, boolean remember) {
         if (remember) SzzAndroidAuthStore.saveGoogleIdToken(this, idToken, email);
-        if (offlineRepository != null) offlineRepository.enqueueSyncWork();
+        if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPending();
         evaluateWebScript(
             "window.__szzAndroidSignInWithGoogleIdToken&&window.__szzAndroidSignInWithGoogleIdToken("
                 + JSONObject.quote(idToken == null ? "" : idToken)

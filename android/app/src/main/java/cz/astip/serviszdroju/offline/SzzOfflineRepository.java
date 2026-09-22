@@ -363,6 +363,14 @@ public final class SzzOfflineRepository {
         );
     }
 
+    public void enqueueSyncWorkIfPending() {
+        executor.execute(() -> {
+            try {
+                if (dao.pendingOutboxCount() > 0) enqueueSyncWork();
+            } catch (Exception ignored) {}
+        });
+    }
+
     private JSONObject countsJson() throws JSONException {
         JSONObject result = new JSONObject();
         result.put("protocolDrafts", dao.protocolDraftCount());

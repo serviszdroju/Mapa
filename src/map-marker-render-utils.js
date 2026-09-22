@@ -144,7 +144,7 @@ export function createMapMarkerRenderHelpers({
 
   function renderMapGroups(groups){
     const boundsKey=mapBoundsRenderKey();
-    if(mapRenderCache.groups===groups && mapRenderCache.rowsVersion===getRowsIndexVersion() && mapRenderCache.boundsKey===boundsKey && mapMarkerCache.size){
+    if(mapRenderCache.groups===groups && mapRenderCache.rowsVersion===getRowsIndexVersion() && mapRenderCache.boundsKey===boundsKey){
       return;
     }
     const visibleGroups=mapMarkerGroups(groups);

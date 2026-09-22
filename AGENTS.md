@@ -824,4 +824,8 @@ Current protocol mail decision: PDF protocols sent by e-mail must omit internal 
 
 Current performance phase 352 decision: preserve the existing map appearance and behavior while retaining Leaflet markers only for the current padded viewport and creating large marker sets in bounded animation-frame batches, coalesce focus/visibility online synchronization into one delayed pass, avoid full tile redraw and automatic refit on every resize/orientation event, and keep the Android WebView renderer at bound priority while backgrounded. Do not change filters, marker colors, detail workflows, Firebase behavior, or visible controls.
 
+Current performance phase 353 decision: resize, orientation, and pageshow handling must only invalidate the Leaflet map size without refitting all service points or forcing tile redraws. The initial startup fit remains in the main lifecycle, and unchanged empty map viewports should reuse the marker render cache instead of rescanning groups.
+
+Current performance phase 354 decision: Android lifecycle resume, renderer recovery, explicit bridge sync requests, and restored authentication should enqueue WorkManager synchronization only when the native outbox contains pending operations. New offline writes still enqueue synchronization immediately.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
