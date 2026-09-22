@@ -452,7 +452,7 @@ public class MainActivity extends Activity {
                 + "var done=function(){setTimeout(function(){location.replace(" + JSONObject.quote(reloadUrl) + ");},80);};"
                 + "Promise.allSettled(["
                 + "('serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function(items){return Promise.all(items.map(function(reg){return reg.unregister();}));}) : Promise.resolve()),"
-                + "('caches' in window ? caches.keys().then(function(keys){return Promise.all(keys.filter(function(key){return key.indexOf('astip-szz-')===0;}).map(function(key){return caches.delete(key);}));}) : Promise.resolve())"
+                + "('caches' in window ? caches.keys().then(function(keys){return Promise.all(keys.filter(function(key){return key.indexOf('astip-szz-')===0 && key!=='astip-szz-map-tiles-v1';}).map(function(key){return caches.delete(key);}));}) : Promise.resolve())"
                 + "]).then(done).catch(done);"
                 + "})();";
         view.evaluateJavascript(script, null);

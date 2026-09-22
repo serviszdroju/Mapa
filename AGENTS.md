@@ -860,4 +860,6 @@ Current performance phase 369 decision: after an authenticated incremental map s
 
 Current performance phase 370 decision: a cold offline Android start may unlock only from an existing native stored Google account hint when the user has not explicitly signed out. Reuse the already authorized Room cache without changing online Google/Firebase authentication; web sessions without a known login remain locked offline.
 
+Current performance phase 371 decision: Android APK upgrades must preserve the stable `astip-szz-map-tiles-v1` Cache Storage entry while clearing versioned application shell/runtime caches, so map areas previously visited or explicitly downloaded remain available after an update. Keep the existing tile limit and visible-area-only OSM policy.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
