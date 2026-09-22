@@ -678,7 +678,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-webview-cleanup-v705";
+const APP_BUILD_VERSION="2026-09-22-bounded-detail-cache-v706";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -6846,8 +6846,21 @@ async function syncAllOfflineProtocols(options={}){
 window.syncAllOfflineProtocols=syncAllOfflineProtocols;
 
 const SITE_CHILD_ITEMS_CACHE_MS=30000;
+const SITE_CHILD_ITEMS_CACHE_MAX_ENTRIES=96;
 const siteChildItemsCache=new Map();
 const deniedSiteChildItemsCache=new Map();
+
+function trimSiteChildCache(cache,keepKey=""){
+  while(cache.size>SITE_CHILD_ITEMS_CACHE_MAX_ENTRIES){
+    let oldestKey;
+    for(const key of cache.keys()){
+      if(key!==keepKey){ oldestKey=key; break; }
+    }
+    if(oldestKey===undefined) oldestKey=cache.keys().next().value;
+    if(oldestKey===undefined) break;
+    cache.delete(oldestKey);
+  }
+}
 
 function siteChildItemsCacheKey(kind,site=selectedSite){
   const cleanKind=safe(kind);
@@ -6885,6 +6898,7 @@ function writeSiteChildItemsCache(kind,site=selectedSite,items=[]){
     savedAt:Date.now(),
     items:cloneSiteChildItems(items)
   });
+  trimSiteChildCache(siteChildItemsCache,key);
 }
 
 function readDeniedSiteChildItemsCache(kind,site=selectedSite){
@@ -6904,6 +6918,8 @@ function writeDeniedSiteChildItemsCache(kind,site=selectedSite){
   if(!key) return;
   deniedSiteChildItemsCache.set(key,{savedAt:Date.now()});
   siteChildItemsCache.set(key,{savedAt:Date.now(),items:[]});
+  trimSiteChildCache(deniedSiteChildItemsCache,key);
+  trimSiteChildCache(siteChildItemsCache,key);
 }
 
 function clearSiteChildItemsCache(kind=null,site=selectedSite){

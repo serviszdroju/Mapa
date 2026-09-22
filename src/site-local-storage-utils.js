@@ -9,10 +9,24 @@ export function createSiteLocalStorageHelpers({
   szzItemsMeta,
   cloneSzzItemsMeta,
   getDefaultSite,
-  maxAgeMs=1800
+  maxAgeMs=1800,
+  maxEntries=96
 }={}){
   const siteLocalArrayReadCache=new Map();
   const siteLocalObjectReadCache=new Map();
+
+  function trimCache(cache,keepKey=""){
+    const limit=Math.max(1,Number(maxEntries) || 96);
+    while(cache.size>limit){
+      let oldestKey;
+      for(const key of cache.keys()){
+        if(key!==keepKey){ oldestKey=key; break; }
+      }
+      if(oldestKey===undefined) oldestKey=cache.keys().next().value;
+      if(oldestKey===undefined) break;
+      cache.delete(oldestKey);
+    }
+  }
 
   function defaultSite(){
     return typeof getDefaultSite==="function" ? getDefaultSite() : undefined;
@@ -28,6 +42,7 @@ export function createSiteLocalStorageHelpers({
     if(!clean) return;
     const serialized=raw===null ? JSON.stringify(Array.isArray(items) ? items : []) : raw;
     siteLocalArrayReadCache.set(clean,{raw:serialized,savedAt:Date.now(),items:cloneLocalStorageArrayItems(items)});
+    trimCache(siteLocalArrayReadCache,clean);
   }
 
   function rememberSiteLocalObjectReadCache(key,item={},raw=null){
@@ -36,6 +51,7 @@ export function createSiteLocalStorageHelpers({
     const source=item && typeof item==="object" && !Array.isArray(item) ? item : {};
     const serialized=raw===null ? JSON.stringify(source) : raw;
     siteLocalObjectReadCache.set(clean,{raw:serialized,savedAt:Date.now(),item:cloneLocalStorageObjectItem(source)});
+    trimCache(siteLocalObjectReadCache,clean);
   }
 
   function clearSiteLocalObjectReadCache(prefixOrKey=""){
@@ -75,6 +91,7 @@ export function createSiteLocalStorageHelpers({
       const arr=raw ? JSON.parse(raw) : [];
       const items=Array.isArray(arr) ? arr : [];
       siteLocalArrayReadCache.set(key,{raw,savedAt:Date.now(),items:cloneLocalStorageArrayItems(items)});
+      trimCache(siteLocalArrayReadCache,key);
       return items;
     }catch(e){
       return [];
@@ -112,6 +129,7 @@ export function createSiteLocalStorageHelpers({
       const obj=raw ? JSON.parse(raw) : {};
       const item=obj && typeof obj==="object" && !Array.isArray(obj) ? obj : {};
       siteLocalObjectReadCache.set(key,{raw,savedAt:Date.now(),item:cloneLocalStorageObjectItem(item)});
+      trimCache(siteLocalObjectReadCache,key);
       return item;
     }catch(e){
       return {};

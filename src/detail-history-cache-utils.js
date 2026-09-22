@@ -10,12 +10,25 @@ export function createDetailHistoryCacheHelpers({
   resetMainProtocolHistoryRenderSignature
 }){
   const DETAIL_HISTORY_CACHE_MS=12000;
+  const DETAIL_HISTORY_CACHE_MAX_ENTRIES=32;
   const DETAIL_HISTORY_MUTATION_KINDS=new Set(["protocolHistory","serviceHistory","protocols","serviceRecords"]);
   const detailHistoryCache=new Map();
   const LAST_PROTOCOL_CACHE_MS=45000;
   const lastProtocolCache=new Map();
   const MAIN_PROTOCOL_HISTORY_CACHE_MS=12000;
   let mainProtocolHistoryCache={key:"",savedAt:0,items:null};
+
+  function trimCache(cache,keepKey=""){
+    while(cache.size>DETAIL_HISTORY_CACHE_MAX_ENTRIES){
+      let oldestKey;
+      for(const key of cache.keys()){
+        if(key!==keepKey){ oldestKey=key; break; }
+      }
+      if(oldestKey===undefined) oldestKey=cache.keys().next().value;
+      if(oldestKey===undefined) break;
+      cache.delete(oldestKey);
+    }
+  }
 
   function detailHistoryCacheKey(site=getSelectedSite()){
     if(!site) return "";
@@ -57,6 +70,7 @@ export function createDetailHistoryCacheHelpers({
       savedAt:Date.now(),
       item:cloneDetailHistoryItem(item) || null
     });
+    trimCache(lastProtocolCache,key);
   }
 
   function clearLastProtocolCache(site=getSelectedSite()){
@@ -88,6 +102,7 @@ export function createDetailHistoryCacheHelpers({
       savedAt:Date.now(),
       items:cloneDetailHistoryItems(items)
     });
+    trimCache(detailHistoryCache,key);
   }
 
   function clearDetailHistoryCache(site=getSelectedSite()){

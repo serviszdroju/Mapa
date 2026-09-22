@@ -13,8 +13,21 @@ export function createOfflineProtocolQueueHelpers({
   siteLocalCacheKey
 }={}){
   const OFFLINE_PROTOCOL_QUEUE_READ_CACHE_MS=1200;
+  const OFFLINE_PROTOCOL_QUEUE_SITE_CACHE_MAX_ENTRIES=32;
   let offlineProtocolQueueAllReadCache={savedAt:0,items:null,promise:null};
   const offlineProtocolQueueSiteReadCache=new Map();
+
+  function trimSiteReadCache(keepKey=""){
+    while(offlineProtocolQueueSiteReadCache.size>OFFLINE_PROTOCOL_QUEUE_SITE_CACHE_MAX_ENTRIES){
+      let oldestKey;
+      for(const key of offlineProtocolQueueSiteReadCache.keys()){
+        if(key!==keepKey){ oldestKey=key; break; }
+      }
+      if(oldestKey===undefined) oldestKey=offlineProtocolQueueSiteReadCache.keys().next().value;
+      if(oldestKey===undefined) break;
+      offlineProtocolQueueSiteReadCache.delete(oldestKey);
+    }
+  }
 
   function defaultSite(){
     return typeof getDefaultSite==="function" ? getDefaultSite() : undefined;
@@ -157,6 +170,7 @@ export function createOfflineProtocolQueueHelpers({
       .then(items=>{
         const cloned=cloneOfflineProtocolQueueItems(items);
         offlineProtocolQueueSiteReadCache.set(cacheKey,{savedAt:Date.now(),items:cloned,promise:null});
+        trimSiteReadCache(cacheKey);
         return cloned;
       })
       .catch(e=>{
@@ -164,6 +178,7 @@ export function createOfflineProtocolQueueHelpers({
         throw e;
       });
     offlineProtocolQueueSiteReadCache.set(cacheKey,{savedAt:0,items:null,promise});
+    trimSiteReadCache(cacheKey);
     return cloneOfflineProtocolQueueItems(await promise);
   }
 
