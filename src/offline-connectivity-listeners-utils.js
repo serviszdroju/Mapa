@@ -24,6 +24,41 @@ export function bindLegacyOfflineSyncListeners({
   window.addEventListener("focus",()=>runOfflineSync("focus",true));
 }
 
+export function createAutomaticConnectivityRefreshScheduler({
+  clearTimer=clearTimeout,
+  minIntervalMs=60000,
+  now=Date.now,
+  run,
+  setTimer=setTimeout
+}){
+  let automaticRefreshTimer=0;
+  let lastAutomaticRefreshAt=0;
+  let pendingForce=false;
+  let pendingReason="";
+
+  function schedule(reason,delay=500,{force=false}={}){
+    const currentTime=Number(now()) || Date.now();
+    if(!force && lastAutomaticRefreshAt && currentTime-lastAutomaticRefreshAt<minIntervalMs) return false;
+    pendingReason=reason || pendingReason || "visible";
+    pendingForce=pendingForce || force;
+    clearTimer(automaticRefreshTimer);
+    automaticRefreshTimer=setTimer(()=>{
+      automaticRefreshTimer=0;
+      const runTime=Number(now()) || Date.now();
+      const shouldForce=pendingForce;
+      const nextReason=pendingReason || "visible";
+      pendingForce=false;
+      pendingReason="";
+      if(!shouldForce && lastAutomaticRefreshAt && runTime-lastAutomaticRefreshAt<minIntervalMs) return;
+      lastAutomaticRefreshAt=runTime;
+      if(typeof run==="function") run(nextReason);
+    },delay);
+    return true;
+  }
+
+  return {schedule};
+}
+
 export function bindOfflineConnectivityListeners({
   registerSzzBackgroundSync,
   runWhenIdle,
@@ -31,22 +66,15 @@ export function bindOfflineConnectivityListeners({
   showSaveConfirmation,
   triggerSzzSync
 }){
-  let automaticRefreshTimer=0;
-  let pendingReason="";
-  function scheduleAutomaticRefresh(reason,delay=500){
-    pendingReason=reason || pendingReason || "visible";
-    clearTimeout(automaticRefreshTimer);
-    automaticRefreshTimer=setTimeout(()=>{
-      automaticRefreshTimer=0;
-      const nextReason=pendingReason || "visible";
-      pendingReason="";
+  const automaticRefresh=createAutomaticConnectivityRefreshScheduler({
+    run:nextReason=>{
       scheduleSzzOfflineAppStatus(20);
       runWhenIdle(()=>triggerSzzSync(nextReason,true).catch(()=>{}),150);
-    },delay);
-  }
+    }
+  });
   window.addEventListener("online",()=>{
     registerSzzBackgroundSync("online");
-    scheduleAutomaticRefresh("online",120);
+    automaticRefresh.schedule("online",120,{force:true});
   });
   window.addEventListener("offline",()=>{
     scheduleSzzOfflineAppStatus(20);
@@ -54,11 +82,11 @@ export function bindOfflineConnectivityListeners({
   });
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible"){
-      scheduleAutomaticRefresh("visible",500);
+      automaticRefresh.schedule("visible",500);
     }
   });
   window.addEventListener("focus",()=>{
-    scheduleAutomaticRefresh("focus",500);
+    automaticRefresh.schedule("focus",500);
   });
   window.addEventListener("storage",event=>{
     if(event.key && /^astip(Map|Szz)/.test(event.key)) scheduleSzzOfflineAppStatus(80);
