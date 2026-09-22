@@ -1,3 +1,5 @@
-import * as firebaseFunctionsMod from "firebase/functions";
+import {getFunctions,httpsCallable} from "firebase/functions";
+
+const firebaseFunctionsMod={getFunctions,httpsCallable};
 
 export { firebaseFunctionsMod };
