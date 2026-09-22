@@ -121,6 +121,7 @@ import {
   szzBytesLabel,
   szzStorageEstimate
 } from "./storage-persistence.js";
+import {hasTrustedOfflineSession} from "./offline-auth-access-utils.js";
 import {
   MAP_TILE_CACHE_NAME,
   MAP_TILE_URL_TEMPLATE,
@@ -678,7 +679,7 @@ function firebaseRowsWereLoadedFromNetwork(maxAgeMs=45000){
   const loadedAt=Number(window.__szzFirebaseSitesLastNetworkLoadAt || 0);
   return Array.isArray(rows) && rows.length && !!window.__szzFirebaseRowsNetworkLoaded && loadedAt>0 && Date.now()-loadedAt<maxAgeMs;
 }
-const APP_BUILD_VERSION="2026-09-22-finalize-delta-cache-v707";
+const APP_BUILD_VERSION="2026-09-22-offline-native-session-v708";
 const SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY="astipMap:protocolHandoffOverrides:v1";
 const SZZ_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
 const SZZ_OFFLINE_DETAIL_META_KEY="astipSzzOfflineDetailMeta:v1";
@@ -1719,7 +1720,13 @@ if(firebaseReady){
   function shouldKeepAppOpenOnAuthNull(){
     const runtimeAuthorized=lastAuthorizedUserAt && appIsOpenOrHasRows();
     const androidAuthorized=isAndroidShellRuntime() && lastAuthorizedUserAt && Date.now()-lastAuthorizedUserAt<ANDROID_AUTH_RESUME_KEEP_OPEN_MS && androidHasStoredAuth();
-    const offlineKnownSession=knownSignedIn() && navigator.onLine===false;
+    const offlineKnownSession=hasTrustedOfflineSession({
+      online:navigator.onLine,
+      explicitlySignedOut:explicitSignOutPending(),
+      knownSignedIn:knownSignedIn(),
+      androidShell:isAndroidShellRuntime(),
+      androidStoredAuth:androidHasStoredAuth()
+    });
     return !explicitSignOutPending() && (runtimeAuthorized || androidAuthorized || offlineKnownSession || authPending());
   }
   async function waitForAuthCandidate(timeoutMs=3500){
@@ -2112,7 +2119,13 @@ if(firebaseReady){
       });
       return;
     }
-    const knownSession=knownSignedIn() && !explicitSignOutPending();
+    const knownSession=!explicitSignOutPending() && (
+      knownSignedIn() || hasTrustedOfflineSession({
+        online:navigator.onLine,
+        androidShell:isAndroidShellRuntime(),
+        androidStoredAuth:androidHasStoredAuth()
+      })
+    );
     if(knownSession && navigator.onLine===false){
       keepAppOpenDuringAuthRestore("");
       loadOfflineRowsFromLocalCacheWhenAvailable("",4500);
