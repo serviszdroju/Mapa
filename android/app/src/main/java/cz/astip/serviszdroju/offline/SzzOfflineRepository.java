@@ -1,6 +1,7 @@
 package cz.astip.serviszdroju.offline;
 
 import android.content.Context;
+import android.os.SystemClock;
 
 import androidx.annotation.Nullable;
 import androidx.work.BackoffPolicy;
@@ -29,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public final class SzzOfflineRepository {
+    private static final long AUTOMATIC_PENDING_CHECK_INTERVAL_MS = 30_000L;
     public interface Callback {
         void onSuccess(@Nullable JSONObject result);
         void onError(Exception error);
@@ -50,6 +52,7 @@ public final class SzzOfflineRepository {
     private final SzzOfflineDatabase database;
     private final SzzOfflineDao dao;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private long lastAutomaticPendingCheckAt;
 
     private SzzOfflineRepository(Context context) {
         this.context = context.getApplicationContext();
@@ -441,6 +444,16 @@ public final class SzzOfflineRepository {
                 if (dao.pendingOutboxCount() > 0) enqueueSyncWork();
             } catch (Exception ignored) {}
         });
+    }
+
+    public synchronized void enqueueSyncWorkIfPendingOnResume() {
+        long now = SystemClock.elapsedRealtime();
+        if (
+            lastAutomaticPendingCheckAt > 0L &&
+            now - lastAutomaticPendingCheckAt < AUTOMATIC_PENDING_CHECK_INTERVAL_MS
+        ) return;
+        lastAutomaticPendingCheckAt = now;
+        enqueueSyncWorkIfPending();
     }
 
     private JSONObject countsJson() throws JSONException {

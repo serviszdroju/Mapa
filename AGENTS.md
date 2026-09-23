@@ -894,4 +894,6 @@ Current Android stability phase 386 decision: keep the Firebase startup fallback
 
 Current Android performance phase 387 decision: persist the web draft and flush WebView cookies once in `onPause()` when leaving the app. Do not repeat the same work immediately in `onStop()`; Android delivers pause before stop, so draft persistence and authentication cookies remain unchanged while ordinary Home/app-switch transitions avoid duplicate JavaScript and disk work.
 
+Current Android performance phase 388 decision: throttle only the automatic native Room outbox check triggered by rapid `onResume()` calls to once per 30 seconds. New offline writes continue to enqueue WorkManager immediately, and explicit web/manual sync requests continue to use the unthrottled pending check, preserving synchronization behavior while avoiding repeated database reads during quick app switching.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

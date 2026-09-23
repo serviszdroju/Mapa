@@ -150,7 +150,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (webView != null) webView.onResume();
-        if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPending();
+        if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPendingOnResume();
         restoreAndroidAuthIfStored(150);
     }
 
