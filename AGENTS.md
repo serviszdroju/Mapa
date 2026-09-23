@@ -978,4 +978,6 @@ Current performance phase 428 decision: lazy-load protocol signature-image and b
 
 Current performance phase 429 decision: keep house-number extraction inside the already lazy geocoding module and remove its unused duplicate startup import/window exposure. Preserve all forward/reverse geocoding, candidate ranking, requested-number matching, address validation, visible errors, and map/form behavior unchanged.
 
+Current performance phase 430 decision: lazy-load protocol mail recipient validation and error/toast formatting on the first protocol mail action. Share one retryable initialized helper promise between form mail, detail-history mail, and the lazy file-delivery runtime; await the helper before showing the unchanged prompt and preserve recipient suggestions, validation, Firebase error translations, attachment sending, button disabled state, and visible messages unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

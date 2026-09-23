@@ -45,15 +45,15 @@ export function createDetailHistoryActionsHelpers({
         return;
       }
       if(id==="mailHistoryProtocolBtn"){
-        const recipient=promptProtocolMailRecipient(getCurrentHistoryItem());
+        const recipient=await promptProtocolMailRecipient(getCurrentHistoryItem());
         if(!recipient) return;
         button.disabled=true;
         try{
           await sendProtocolByMail(getCurrentHistoryItem(),recipient);
         }catch(e){
-          const message=protocolMailErrorText(e);
+          const message=await protocolMailErrorText(e);
           setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
-          showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
+          showSaveConfirmation(`E-mail: ${await protocolMailToastText(e)}`);
         }finally{
           button.disabled=false;
         }

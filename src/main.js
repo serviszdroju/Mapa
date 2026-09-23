@@ -413,9 +413,6 @@ import {
   isProtocolHistoryItem
 } from "./protocol-export-utils.js";
 import {
-  createProtocolMailHelpers
-} from "./protocol-mail-utils.js";
-import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
 import {
@@ -6174,14 +6171,30 @@ async function exportOfficialProtocol(mode="ok"){
   showSaveConfirmation("Doklad exportován do Wordu.");
 }
 
-const {
-  promptProtocolMailRecipient,
-  protocolMailErrorText,
-  protocolMailToastText,
-  validProtocolMailRecipient
-}=createProtocolMailHelpers({
-  safe
-});
+let protocolMailHelpersPromise=null;
+function loadProtocolMailHelpers(){
+  if(!protocolMailHelpersPromise){
+    protocolMailHelpersPromise=import("./protocol-mail-utils.js")
+      .then(({createProtocolMailHelpers})=>createProtocolMailHelpers({safe}))
+      .catch(error=>{
+        protocolMailHelpersPromise=null;
+        throw error;
+      });
+  }
+  return protocolMailHelpersPromise;
+}
+async function promptProtocolMailRecipient(protocol={}){
+  const helpers=await loadProtocolMailHelpers();
+  return helpers.promptProtocolMailRecipient(protocol);
+}
+async function protocolMailErrorText(error){
+  const helpers=await loadProtocolMailHelpers();
+  return helpers.protocolMailErrorText(error);
+}
+async function protocolMailToastText(error){
+  const helpers=await loadProtocolMailHelpers();
+  return helpers.protocolMailToastText(error);
+}
 
 let browserFileHelpersPromise=null;
 function loadBrowserFileHelpers(){
@@ -6307,8 +6320,9 @@ function loadProtocolFileExportHelpers(){
       import("./protocol-mail-content-utils.js"),
       import("./protocol-word-blob-utils.js"),
       loadBrowserFileHelpers(),
-      loadProtocolSignatureImageHelpers()
-    ]).then(([exportModule,mailModule,wordBlobModule,fileHelpers,signatureImageHelpers])=>{
+      loadProtocolSignatureImageHelpers(),
+      loadProtocolMailHelpers()
+    ]).then(([exportModule,mailModule,wordBlobModule,fileHelpers,signatureImageHelpers,mailHelpers])=>{
       const {protocolMailBody,protocolMailSubject}=mailModule.createProtocolMailContentHelpers({
         currentUserEmail,
         getCurrentUser:()=>currentUser,
@@ -6343,7 +6357,7 @@ function loadProtocolFileExportHelpers(){
         safe,
         setProtocolStatusText,
         showSaveConfirmation,
-        validProtocolMailRecipient
+        validProtocolMailRecipient:mailHelpers.validProtocolMailRecipient
       });
     }).catch(error=>{
         protocolFileExportHelpersPromise=null;
@@ -10150,15 +10164,15 @@ if(mailProtocolFormBtn){
     }
     const payload=protocolPayload();
     payload.createdBy=payload.createdBy || payload.technicianEmail || currentUser?.email || "";
-    const recipient=promptProtocolMailRecipient(payload);
+    const recipient=await promptProtocolMailRecipient(payload);
     if(!recipient) return;
     mailProtocolFormBtn.disabled=true;
     try{
       await sendProtocolByMail(payload,recipient);
     }catch(e){
-      const message=protocolMailErrorText(e);
+      const message=await protocolMailErrorText(e);
       setProtocolStatusText(`Chyba odeslání e-mailu: ${message}`);
-      showSaveConfirmation(`E-mail: ${protocolMailToastText(e)}`);
+      showSaveConfirmation(`E-mail: ${await protocolMailToastText(e)}`);
     }finally{
       mailProtocolFormBtn.disabled=false;
     }
