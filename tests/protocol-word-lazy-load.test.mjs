@@ -11,6 +11,8 @@ test("protocol Word document content is loaded only for export",()=>{
   assert.match(main,/import\("\.\/protocol-word-document-utils\.js"\)/);
   assert.match(main,/import\("\.\/protocol-word-xml-utils\.js"\)/);
   assert.match(main,/import\("\.\/protocol-word-signature-utils\.js"\)/);
+  assert.match(main,/import\("\.\/protocol-word-blob-utils\.js"\)/);
+  assert.doesNotMatch(main,/^import\s*\{[^}]*createProtocolWordBlobHelpers[^}]*\}/m);
   assert.match(main,/return helpers\.buildProtocolWordEntries\(protocol\)/);
   assert.match(main,/protocolWordRuntimePromise=null;\s*throw error;/);
 });

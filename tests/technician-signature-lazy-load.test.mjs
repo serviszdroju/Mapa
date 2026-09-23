@@ -6,7 +6,8 @@ const main=fs.readFileSync(new URL("../src/main.js",import.meta.url),"utf8");
 
 test("technician signature tools load only when first used",()=>{
   assert.doesNotMatch(main,/^import\s*\{[^}]*createTechnicianSignatureHelpers[^}]*\}\s*from\s*["']\.\/technician-signature-utils\.js["']/m);
-  assert.match(main,/technicianSignatureHelpersPromise=import\("\.\/technician-signature-utils\.js"\)/);
+  assert.match(main,/import\("\.\/technician-signature-utils\.js"\)/);
+  assert.match(main,/loadBrowserFileHelpers\(\)/);
   assert.match(main,/helpers\.enrichProtocolWithTechnicianSignature\(protocol\)/);
   assert.match(main,/helpers\.openTechnicianSignatureDialog\(\)/);
 });

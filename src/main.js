@@ -407,9 +407,6 @@ import {
   createPhotoDateHelpers
 } from "./photo-date-utils.js";
 import {
-  createBrowserFileHelpers
-} from "./browser-file-utils.js";
-import {
   createProtocolProcessingStateHelpers
 } from "./protocol-processing-state-utils.js";
 import {
@@ -440,9 +437,6 @@ import {
 import {
   protocolMeasurementTableSpec
 } from "./protocol-measurement-table-utils.js";
-import {
-  createProtocolWordBlobHelpers
-} from "./protocol-word-blob-utils.js";
 import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
@@ -6112,7 +6106,8 @@ async function exportOfficialProtocol(mode="ok"){
     showSaveConfirmation("Doklad se nepodařilo připravit.");
     return;
   }
-  downloadBlobFile(prepared.fileName,prepared.blob);
+  const fileHelpers=await loadBrowserFileHelpers();
+  fileHelpers.downloadBlobFile(prepared.fileName,prepared.blob);
   if(noteInput) noteInput.value=noteBefore;
   setTextIfChanged(status,mode==="stop" ? "Doklad Stop Stav exportován." : "Doklad provozuschopnosti exportován.");
   showSaveConfirmation("Doklad exportován do Wordu.");
@@ -6127,31 +6122,31 @@ const {
   safe
 });
 
-const {
-  buildProtocolWordBlob
-}=createProtocolWordBlobHelpers({
-  buildProtocolWordEntries
-});
-
-const {
-  blobToBase64,
-  downloadBlobFile,
-  drawImageContained,
-  loadDataUrlImage,
-  protocolPdfFileNameFromWord
-}=createBrowserFileHelpers({ safe });
+let browserFileHelpersPromise=null;
+function loadBrowserFileHelpers(){
+  if(!browserFileHelpersPromise){
+    browserFileHelpersPromise=import("./browser-file-utils.js")
+      .then(({createBrowserFileHelpers})=>createBrowserFileHelpers({safe}))
+      .catch(error=>{
+        browserFileHelpersPromise=null;
+        throw error;
+      });
+  }
+  return browserFileHelpersPromise;
+}
 
 let protocolPdfRuntimePromise=null;
 function loadProtocolPdfRuntime(){
   if(!protocolPdfRuntimePromise){
     protocolPdfRuntimePromise=Promise.all([
       import("./protocol-pdf-render-utils.js"),
-      import("./pdf-byte-writer-utils.js")
-    ]).then(([renderModule,writerModule])=>({
+      import("./pdf-byte-writer-utils.js"),
+      loadBrowserFileHelpers()
+    ]).then(([renderModule,writerModule,fileHelpers])=>({
       renderProtocolPdfPageCanvases:renderModule.createProtocolPdfRenderHelpers({
-        drawImageContained,
+        drawImageContained:fileHelpers.drawImageContained,
         getSelectedSite:()=>selectedSite,
-        loadDataUrlImage,
+        loadDataUrlImage:fileHelpers.loadDataUrlImage,
         protocolAccessText,
         protocolAvailabilityText,
         protocolBackedDevicesText,
@@ -6190,15 +6185,18 @@ const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
 let technicianSignatureHelpersPromise=null;
 function loadTechnicianSignatureHelpers(){
   if(!technicianSignatureHelpersPromise){
-    technicianSignatureHelpersPromise=import("./technician-signature-utils.js").then(({createTechnicianSignatureHelpers})=>
-      createTechnicianSignatureHelpers({
+    technicianSignatureHelpersPromise=Promise.all([
+      import("./technician-signature-utils.js"),
+      loadBrowserFileHelpers()
+    ]).then(([signatureModule,fileHelpers])=>
+      signatureModule.createTechnicianSignatureHelpers({
         collectionName:TECHNICIAN_SIGNATURE_COLLECTION,
         currentUserEmail,
-        drawImageContained,
+        drawImageContained:fileHelpers.drawImageContained,
         getDb:()=>db,
         getFbFsMod:()=>fb.fsMod,
         getFirebaseReady:()=>firebaseReady,
-        loadDataUrlImage,
+        loadDataUrlImage:fileHelpers.loadDataUrlImage,
         officialTipekSignatureUrl:OFFICIAL_TIPEK_SIGNATURE_URL,
         protocolTechnicianEmail,
         protocolTechnicianSignatureImageBytes,
@@ -6231,8 +6229,10 @@ function loadProtocolFileExportHelpers(){
   if(!protocolFileExportHelpersPromise){
     protocolFileExportHelpersPromise=Promise.all([
       import("./protocol-file-export-utils.js"),
-      import("./protocol-mail-content-utils.js")
-    ]).then(([exportModule,mailModule])=>{
+      import("./protocol-mail-content-utils.js"),
+      import("./protocol-word-blob-utils.js"),
+      loadBrowserFileHelpers()
+    ]).then(([exportModule,mailModule,wordBlobModule,fileHelpers])=>{
       const {protocolMailBody,protocolMailSubject}=mailModule.createProtocolMailContentHelpers({
         currentUserEmail,
         getCurrentUser:()=>currentUser,
@@ -6241,11 +6241,14 @@ function loadProtocolFileExportHelpers(){
         protocolDisplayDate,
         safe
       });
+      const {buildProtocolWordBlob}=wordBlobModule.createProtocolWordBlobHelpers({
+        buildProtocolWordEntries
+      });
       return exportModule.createProtocolFileExportHelpers({
-        blobToBase64,
+        blobToBase64:fileHelpers.blobToBase64,
         buildPdfFromJpegPages,
         buildProtocolWordBlob,
-        downloadBlobFile,
+        downloadBlobFile:fileHelpers.downloadBlobFile,
         enrichProtocolWithTechnicianSignature,
         ensureMailFunctions,
         getFbFnMod:()=>fb.fnMod,
@@ -6256,7 +6259,7 @@ function loadProtocolFileExportHelpers(){
         protocolExportDatePart,
         protocolMailBody,
         protocolMailSubject,
-        protocolPdfFileNameFromWord,
+        protocolPdfFileNameFromWord:fileHelpers.protocolPdfFileNameFromWord,
         protocolTechnicianDisplayName,
         protocolTechnicianSignatureImageBytes,
         protocolWordFileNamePart,
