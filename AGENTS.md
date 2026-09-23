@@ -964,4 +964,6 @@ Current Android performance phase 421 decision: begin a background read of the n
 
 Current performance phase 422 decision: lazy-load protocol processing-state mutations on the first main-history "zpracováno" or detail-history "předáno ke zpracování" checkbox action. Keep protocol state reads, colors, permissions, history data, and action wiring in the main app; share one retryable helper instance and preserve Firebase, embedded, localStorage, IndexedDB/offline queue, cache invalidation, and visible checkbox behavior unchanged.
 
+Current performance phase 423 decision: lazy-load the site-deletion runtime on the first administrator delete action while keeping deleted-site loading/filtering and both delete button bindings in the main app. Share one retryable helper instance and preserve admin checks, confirmation, Firebase tombstones and document/child deletion, local row removal, cache updates, fallback reloads, and visible messages unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

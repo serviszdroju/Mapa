@@ -486,9 +486,6 @@ import {
   createEditFormHelpers
 } from "./edit-form-utils.js";
 import {
-  createDeleteSiteHelpers
-} from "./delete-site-utils.js";
-import {
   createMapStatusParityHelpers
 } from "./map-status-parity-utils.js";
 import {
@@ -2809,31 +2806,49 @@ const {
   syncCurrentUserFromCompat
 });
 
-const {
-  deleteSelectedSite
-}=createDeleteSiteHelpers({
-  addDeletedSiteId:id=>deletedSiteIds.add(id),
-  getCurrentUser:()=>currentUser,
-  getDb:()=>db,
-  getEditStatusNode:()=>document.getElementById("editStatus"),
-  getFirestoreModule:()=>fb.fsMod,
-  getLoadFirebaseSitesUnified:()=>window.loadFirebaseSitesUnified,
-  getRemoveFirebaseSiteRow:()=>window.removeFirebaseSiteRow,
-  getSelectedSite:()=>selectedSite,
-  isAppAdmin,
-  isFirebaseReady:()=>firebaseReady,
-  isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
-  loadDeletedSites,
-  loadExtraSites,
-  render,
-  saveFirebaseRowsCacheForRows,
-  safe,
-  selectedSiteDocId:site=>selectedSiteDocId(site),
-  setSelectedSite:site=>{ selectedSite=site; window.selectedSite=site; },
-  siteDedupKeysFromRaw,
-  showSaveConfirmation,
-  drawerNode
-});
+let deleteSiteHelpers=null;
+let deleteSiteHelpersPromise=null;
+function loadDeleteSiteHelpers(){
+  if(deleteSiteHelpers) return Promise.resolve(deleteSiteHelpers);
+  if(!deleteSiteHelpersPromise){
+    deleteSiteHelpersPromise=import("./delete-site-utils.js")
+      .then(({createDeleteSiteHelpers})=>{
+        deleteSiteHelpers=createDeleteSiteHelpers({
+          addDeletedSiteId:id=>deletedSiteIds.add(id),
+          getCurrentUser:()=>currentUser,
+          getDb:()=>db,
+          getEditStatusNode:()=>document.getElementById("editStatus"),
+          getFirestoreModule:()=>fb.fsMod,
+          getLoadFirebaseSitesUnified:()=>window.loadFirebaseSitesUnified,
+          getRemoveFirebaseSiteRow:()=>window.removeFirebaseSiteRow,
+          getSelectedSite:()=>selectedSite,
+          isAppAdmin,
+          isFirebaseReady:()=>firebaseReady,
+          isFirebaseUnifiedPrimary:()=>firebaseUnifiedPrimary,
+          loadDeletedSites,
+          loadExtraSites,
+          render,
+          saveFirebaseRowsCacheForRows,
+          safe,
+          selectedSiteDocId:site=>selectedSiteDocId(site),
+          setSelectedSite:site=>{ selectedSite=site; window.selectedSite=site; },
+          siteDedupKeysFromRaw,
+          showSaveConfirmation,
+          drawerNode
+        });
+        return deleteSiteHelpers;
+      }).catch(error=>{
+        deleteSiteHelpersPromise=null;
+        throw error;
+      });
+  }
+  return deleteSiteHelpersPromise;
+}
+
+async function deleteSelectedSite(){
+  const helpers=await loadDeleteSiteHelpers();
+  return helpers.deleteSelectedSite();
+}
 
 const {
   filtered,
