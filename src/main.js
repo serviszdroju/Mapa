@@ -396,9 +396,6 @@ import {
   createPhotoFolderHelpers
 } from "./photo-folder-utils.js";
 import {
-  createPhotoUploadRuntimeHelpers
-} from "./photo-upload-runtime-utils.js";
-import {
   attachmentDisplayUrl,
   attachmentFileName,
   attachmentRenderSignature
@@ -8907,16 +8904,38 @@ function canDeleteSitePhoto(item){
   return canDeleteSitePhotoForUser(item,currentUserEmail(),isAppAdmin());
 }
 
-const {
-  deleteCloudinaryUpload,
-  prepareCloudinaryUploadFile,
-  prepareOfflinePhotoData,
-  uploadPhotoToCloudinary
-}=createPhotoUploadRuntimeHelpers({
-  cloudinaryPhotos:CLOUDINARY_PHOTOS,
-  getDefaultSite:()=>selectedSite,
-  getDeleteToken:item=>safe((item && item.cloudinaryDeleteToken) || sitePhotoDeleteTokens.get(safe(item && item._id)))
-});
+let photoUploadRuntimeHelpersPromise=null;
+function loadPhotoUploadRuntimeHelpers(){
+  if(!photoUploadRuntimeHelpersPromise){
+    photoUploadRuntimeHelpersPromise=import("./photo-upload-runtime-utils.js")
+      .then(({createPhotoUploadRuntimeHelpers})=>createPhotoUploadRuntimeHelpers({
+        cloudinaryPhotos:CLOUDINARY_PHOTOS,
+        getDefaultSite:()=>selectedSite,
+        getDeleteToken:item=>safe((item && item.cloudinaryDeleteToken) || sitePhotoDeleteTokens.get(safe(item && item._id)))
+      }))
+      .catch(error=>{
+        photoUploadRuntimeHelpersPromise=null;
+        throw error;
+      });
+  }
+  return photoUploadRuntimeHelpersPromise;
+}
+async function deleteCloudinaryUpload(...args){
+  const helpers=await loadPhotoUploadRuntimeHelpers();
+  return helpers.deleteCloudinaryUpload(...args);
+}
+async function prepareCloudinaryUploadFile(...args){
+  const helpers=await loadPhotoUploadRuntimeHelpers();
+  return helpers.prepareCloudinaryUploadFile(...args);
+}
+async function prepareOfflinePhotoData(...args){
+  const helpers=await loadPhotoUploadRuntimeHelpers();
+  return helpers.prepareOfflinePhotoData(...args);
+}
+async function uploadPhotoToCloudinary(...args){
+  const helpers=await loadPhotoUploadRuntimeHelpers();
+  return helpers.uploadPhotoToCloudinary(...args);
+}
 
 let sitePhotoItems=[];
 let sitePhotoIndex=0;
