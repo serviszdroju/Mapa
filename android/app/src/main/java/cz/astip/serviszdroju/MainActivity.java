@@ -128,7 +128,6 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         );
-        if (pendingWebCacheReset) webView.clearCache(true);
         configureWebView();
         if (savedInstanceState == null) {
             webView.loadUrl(BuildConfig.LAUNCH_URL);

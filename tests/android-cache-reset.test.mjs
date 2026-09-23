@@ -23,3 +23,9 @@ test("aktualizace Android aplikace neobnovi stranku behem prace",()=>{
   assert.match(pageFinished,/injectAndroidBootstrap\(\)/);
   assert.doesNotMatch(pageFinished,/purgeServiceWorkerCaches\(view\);\s*return;/);
 });
+
+test("aktualizace APK nemaze Google a Firebase HTTP cache",()=>{
+  assert.doesNotMatch(activitySource,/\.clearCache\(true\)/);
+  assert.match(activitySource,/pendingWebCacheReset = shouldResetWebCacheForBuild\(\)/);
+  assert.match(activitySource,/purgeServiceWorkerCaches\(view\)/);
+});

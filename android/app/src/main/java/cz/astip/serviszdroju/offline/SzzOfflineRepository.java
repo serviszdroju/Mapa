@@ -5,6 +5,7 @@ import android.os.SystemClock;
 
 import androidx.annotation.Nullable;
 import androidx.work.BackoffPolicy;
+import androidx.work.Configuration;
 import androidx.work.Constraints;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.NetworkType;
@@ -47,6 +48,7 @@ public final class SzzOfflineRepository {
     }
 
     private static volatile SzzOfflineRepository instance;
+    private static volatile WorkManager workManager;
 
     private final Context context;
     private final SzzOfflineDatabase database;
@@ -469,11 +471,28 @@ public final class SzzOfflineRepository {
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
             .build();
-        WorkManager.getInstance(context).enqueueUniqueWork(
+        workManager().enqueueUniqueWork(
             "szz-sync-outbox",
             ExistingWorkPolicy.KEEP,
             request
         );
+    }
+
+    private WorkManager workManager() {
+        WorkManager current = workManager;
+        if (current != null) return current;
+        synchronized (SzzOfflineRepository.class) {
+            current = workManager;
+            if (current != null) return current;
+            try {
+                WorkManager.initialize(context, new Configuration.Builder().build());
+            } catch (IllegalStateException ignored) {
+                // Another caller or process component initialized it first.
+            }
+            current = WorkManager.getInstance(context);
+            workManager = current;
+            return current;
+        }
     }
 
     public void enqueueSyncWorkIfPending() {
