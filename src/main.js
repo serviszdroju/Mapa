@@ -417,9 +417,6 @@ import {
   isProtocolHistoryItem
 } from "./protocol-export-utils.js";
 import {
-  createProtocolCheckTextHelpers
-} from "./protocol-check-text-utils.js";
-import {
   createProtocolMailHelpers
 } from "./protocol-mail-utils.js";
 import {
@@ -5799,20 +5796,9 @@ const {
   simpleNorm
 });
 
-const {
-  protocolAccessText,
-  protocolAvailabilityText,
-  protocolBackedDevicesText,
-  protocolConditionsText,
-  protocolPeriodText,
-  wordCheck
-}=createProtocolCheckTextHelpers({
-  safe,
-  simpleNorm
-});
-
 let protocolWordRuntimePromise=null;
 let protocolMeasurementTableSpecPromise=null;
+let protocolCheckTextHelpersPromise=null;
 function loadProtocolMeasurementTableSpec(){
   if(!protocolMeasurementTableSpecPromise){
     protocolMeasurementTableSpecPromise=import("./protocol-measurement-table-utils.js")
@@ -5825,14 +5811,34 @@ function loadProtocolMeasurementTableSpec(){
   return protocolMeasurementTableSpecPromise;
 }
 
+function loadProtocolCheckTextHelpers(){
+  if(!protocolCheckTextHelpersPromise){
+    protocolCheckTextHelpersPromise=import("./protocol-check-text-utils.js")
+      .then(({createProtocolCheckTextHelpers})=>createProtocolCheckTextHelpers({safe,simpleNorm}))
+      .catch(error=>{
+        protocolCheckTextHelpersPromise=null;
+        throw error;
+      });
+  }
+  return protocolCheckTextHelpersPromise;
+}
+
 async function buildProtocolWordEntries(protocol={}){
   if(!protocolWordRuntimePromise){
     protocolWordRuntimePromise=Promise.all([
       import("./protocol-word-document-utils.js"),
       import("./protocol-word-xml-utils.js"),
       import("./protocol-word-signature-utils.js"),
-      loadProtocolMeasurementTableSpec()
-    ]).then(([documentModule,xmlModule,signatureModule,protocolMeasurementTableSpec])=>{
+      loadProtocolMeasurementTableSpec(),
+      loadProtocolCheckTextHelpers()
+    ]).then(([documentModule,xmlModule,signatureModule,protocolMeasurementTableSpec,checkTextHelpers])=>{
+      const {
+        protocolAccessText,
+        protocolAvailabilityText,
+        protocolBackedDevicesText,
+        protocolConditionsText,
+        protocolPeriodText
+      }=checkTextHelpers;
       const xmlHelpers=xmlModule.createProtocolWordXmlHelpers({protocolExportValue});
       const signatureHelpers=signatureModule.createProtocolWordSignatureHelpers({
         protocolSignatureImageBytes,
@@ -6188,9 +6194,18 @@ function loadProtocolPdfRuntime(){
       import("./protocol-pdf-render-utils.js"),
       import("./pdf-byte-writer-utils.js"),
       loadBrowserFileHelpers(),
-      loadProtocolMeasurementTableSpec()
-    ]).then(([renderModule,writerModule,fileHelpers,protocolMeasurementTableSpec])=>({
-      renderProtocolPdfPageCanvases:renderModule.createProtocolPdfRenderHelpers({
+      loadProtocolMeasurementTableSpec(),
+      loadProtocolCheckTextHelpers()
+    ]).then(([renderModule,writerModule,fileHelpers,protocolMeasurementTableSpec,checkTextHelpers])=>{
+      const {
+        protocolAccessText,
+        protocolAvailabilityText,
+        protocolBackedDevicesText,
+        protocolConditionsText,
+        protocolPeriodText
+      }=checkTextHelpers;
+      return {
+        renderProtocolPdfPageCanvases:renderModule.createProtocolPdfRenderHelpers({
         drawImageContained:fileHelpers.drawImageContained,
         getSelectedSite:()=>selectedSite,
         loadDataUrlImage:fileHelpers.loadDataUrlImage,
@@ -6207,12 +6222,13 @@ function loadProtocolPdfRuntime(){
         protocolSourceTestMethodLabel,
         protocolTechnicianDisplayName,
         safe
-      }).renderProtocolPdfPageCanvases,
-      buildPdfFromJpegPages:writerModule.createPdfByteWriterHelpers({
-        base64ToBytes,
-        safe
-      }).buildPdfFromJpegPages
-    })).catch(error=>{
+        }).renderProtocolPdfPageCanvases,
+        buildPdfFromJpegPages:writerModule.createPdfByteWriterHelpers({
+          base64ToBytes,
+          safe
+        }).buildPdfFromJpegPages
+      };
+    }).catch(error=>{
       protocolPdfRuntimePromise=null;
       throw error;
     });

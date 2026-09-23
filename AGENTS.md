@@ -972,4 +972,6 @@ Current performance phase 425 decision: lazy-load the offline-app preparation wo
 
 Current performance phase 426 decision: lazy-load the protocol measurement-table specification only when Word or PDF protocol export first needs it. Share one retryable import promise between both export pipelines and preserve every table width, label, value field, colspan, Word/PDF rendering path, and visible export behavior unchanged.
 
+Current performance phase 427 decision: lazy-load protocol checkbox/text formatting helpers only when Word or PDF protocol export first needs them. Share one retryable initialized helper promise between both export pipelines and preserve all Czech labels, checkbox glyphs, access/availability/device/condition/period formatting, document content, and visible export behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
