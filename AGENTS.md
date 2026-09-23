@@ -938,4 +938,6 @@ Current performance phase 408 decision: lazy-load only the main cross-site proto
 
 Current performance phase 409 decision: lazy-load only the per-site detail protocol-history renderer on its first render, while keeping Firebase/IndexedDB reads, permissions, handoff persistence, delete, edit, Word export, mail, signature actions, and history state in the main app. Reuse one initialized renderer, allow retry after import failure, and preserve all rows, colors, photos, navigation, and action controls unchanged.
 
+Current performance phase 410 decision: lazy-load only the site photo viewer DOM renderer on the first Galerie render, while keeping uploads, Cloudinary/local/offline reads, dedupe, deletion, click navigation, URL transforms, folder grouping data, and gallery state in the main app. Reuse one initialized renderer, allow retry after import failure, and preserve the empty view, full image, thumbnails, counter, metadata, controls, and point cards unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

@@ -18,8 +18,8 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 131
-        versionName "1.2.29-lazy-detail-history"
+        versionCode 132
+        versionName "1.2.30-lazy-gallery-view"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",

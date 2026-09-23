@@ -383,9 +383,6 @@ import {
   createSitePhotoDeleteHelpers
 } from "./site-photo-delete-utils.js";
 import {
-  createSitePhotoViewerRenderHelpers
-} from "./site-photo-viewer-render-utils.js";
-import {
   createOfflineMapTileCacheHelpers
 } from "./offline-map-tile-cache-utils.js";
 import {
@@ -9266,18 +9263,25 @@ const {
   siteRecordKeys
 });
 
-const {
-  createSitePhotoEmptyNode,
-  createSitePhotoViewer
-}=createSitePhotoViewerRenderHelpers({
-  canDeleteSitePhoto,
-  photoDisplayUrl,
-  photoFullUrl,
-  photoRenderMeta,
-  photoThumbUrl,
-  safe,
-  sitePhotoFolderGroups
-});
+let sitePhotoViewerRenderHelpersPromise=null;
+function loadSitePhotoViewerRenderHelpers(){
+  if(!sitePhotoViewerRenderHelpersPromise){
+    sitePhotoViewerRenderHelpersPromise=import("./site-photo-viewer-render-utils.js")
+      .then(({createSitePhotoViewerRenderHelpers})=>createSitePhotoViewerRenderHelpers({
+        canDeleteSitePhoto,
+        photoDisplayUrl,
+        photoFullUrl,
+        photoRenderMeta,
+        photoThumbUrl,
+        safe,
+        sitePhotoFolderGroups
+      })).catch(error=>{
+        sitePhotoViewerRenderHelpersPromise=null;
+        throw error;
+      });
+  }
+  return sitePhotoViewerRenderHelpersPromise;
+}
 
 const { deleteCurrentSitePhoto }=createSitePhotoDeleteHelpers({
   canDeleteSitePhoto,
@@ -9306,9 +9310,17 @@ const { bindSitePhotoListClicks }=createSitePhotoClickHelpers({
   setSitePhotoIndex:index=>{ sitePhotoIndex=index; }
 });
 
-function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
+async function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
   const list=sitePhotosListNode();
   if(!list) return;
+  let viewerHelpers;
+  try{
+    viewerHelpers=await loadSitePhotoViewerRenderHelpers();
+  }catch(error){
+    console.error("Galerii fotografií se nepodařilo zobrazit",error);
+    setSitePhotosStatusText("Galerii fotografií se nepodařilo zobrazit. Zkus záložku otevřít znovu.");
+    return;
+  }
   bindSitePhotoListClicks(list);
   if(Array.isArray(items) && items!==sitePhotoItems){
     sitePhotoItems=items;
@@ -9318,14 +9330,14 @@ function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     const emptySignature=`empty:${detailLazyKey(selectedSite) || sitePlaceGroupKey(selectedSite) || safe(selectedSite && selectedSite.id)}`;
     if(sitePhotoRenderSignature===emptySignature && list.childElementCount) return;
     sitePhotoRenderSignature=emptySignature;
-    list.replaceChildren(createSitePhotoEmptyNode());
+    list.replaceChildren(viewerHelpers.createSitePhotoEmptyNode());
     return;
   }
   sitePhotoIndex=Math.max(0,Math.min(sitePhotoIndex,sitePhotoItems.length-1));
   const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite);
   if(sitePhotoRenderSignature===renderSignature && list.childElementCount) return;
   sitePhotoRenderSignature=renderSignature;
-  list.replaceChildren(createSitePhotoViewer(sitePhotoItems,sitePhotoIndex));
+  list.replaceChildren(viewerHelpers.createSitePhotoViewer(sitePhotoItems,sitePhotoIndex));
 }
 
 async function loadSitePhotos(site=selectedSite){
