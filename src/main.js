@@ -637,6 +637,19 @@ function withTimeout(promise,timeoutMs,message){
   });
   return Promise.race([promise,timeout]).finally(()=>{ if(timer) clearTimeout(timer); });
 }
+function setProgressStatus(message){
+  const p=document.getElementById("progress");
+  setTextIfChanged(p,message || "");
+  const gps=document.getElementById("gpsBox");
+  if(gps && message){
+    setDisplayIfChanged(gps,"block");
+    setClassNameIfChanged(gps,"notice");
+    setTextIfChanged(gps,message);
+  }else if(gps && !message && gps.className==="notice"){
+    setDisplayIfChanged(gps,"none");
+    setTextIfChanged(gps,"");
+  }
+}
 function showStartupLoading(message="Načítám aplikaci"){
   const hasCachedRows=!!((Array.isArray(rows) && rows.length) || (Array.isArray(window.rows) && window.rows.length));
   if(navigator.onLine===false && knownSignedIn() && !explicitSignOutPending() && hasCachedRows){
@@ -1407,19 +1420,6 @@ if(firebaseReady){
     }
     return currentAuthCandidate();
   }
-  function setProgressStatus(message){
-    const p=document.getElementById("progress");
-    setTextIfChanged(p,message || "");
-    const gps=document.getElementById("gpsBox");
-    if(gps && message){
-      setDisplayIfChanged(gps,"block");
-      setClassNameIfChanged(gps,"notice");
-      setTextIfChanged(gps,message);
-    }else if(gps && !message && gps.className==="notice"){
-      setDisplayIfChanged(gps,"none");
-      setTextIfChanged(gps,"");
-    }
-  }
   function setSignedUser(user){
     currentUser=user;
     window.currentUser=user;
@@ -2149,8 +2149,9 @@ if(firebaseReady){
       const appEl=document.getElementById("mainApp");
       const intro=document.getElementById("startupIntro");
       const appVisible=!!(appEl && appEl.style.display && appEl.style.display!=="none");
+      const emptyVisibleShell=appVisible && rows.length===0 && navigator.onLine!==false;
       const startupStillChecking=!!(startup && (startup.classList.contains("auth-checking") || /Načítám|Kontroluji|Obnovuji/i.test(String(intro && intro.textContent || ""))));
-      if(!startupStillChecking || appVisible) return;
+      if(!startupStillChecking && !emptyVisibleShell) return;
       if(navigator.onLine===false && knownSignedIn() && appIsOpenOrHasRows()){
         keepAppOpenDuringAuthRestore("Offline režim. Používám lokálně uložené body, protokoly a fotky.");
         return;

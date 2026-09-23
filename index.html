@@ -893,13 +893,16 @@ try{
   window.bindLoginButtons=bindLoginButtons;
   window.setTopAuthButtonMode=setTopAuthButtonMode;
 
-  function releaseStuckStartupChecking(){
+  function releaseStuckStartupChecking(options={}){
     const state=typeof window.__szzGetAuthState==="function" ? window.__szzGetAuthState() : null;
     if(state && state.mode==="logging-in") return;
     if(window.__loginRequested) return;
     const startup=node("startupScreen");
     const app=node("mainApp");
-    if(!startup || (app && app.style.display && app.style.display!=="none")) return;
+    if(!startup) return;
+    const appVisible=!!(app && app.style.display && app.style.display!=="none");
+    const hasRows=Array.isArray(window.rows) && window.rows.length>0;
+    if(appVisible && (!options.allowEmptyShell || hasRows || navigator.onLine===false)) return;
     const intro=node("startupIntro");
     const introText=String(intro && intro.textContent || "");
     if(/Připravuji|Otevírám/i.test(introText)) return;
@@ -925,7 +928,10 @@ try{
   function scheduleStartupAuthWatchdog(){
     if(startupAuthWatchdogStarted) return;
     startupAuthWatchdogStarted=true;
-    [5000,9000,15000,30000].forEach(delay=>setTimeout(releaseStuckStartupChecking,delay));
+    [5000,9000,15000,30000].forEach(delay=>setTimeout(
+      ()=>releaseStuckStartupChecking({allowEmptyShell:delay>=15000}),
+      delay
+    ));
   }
 
   window.__szzReleaseStuckStartupChecking=releaseStuckStartupChecking;
