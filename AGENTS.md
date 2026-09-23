@@ -990,4 +990,6 @@ Current Android release phase 434 decision: publish the verified startup recover
 
 Current performance phase 435 decision: declare the unchanged local Leaflet CSS/JS, app CSS, and application modules before the large inline authentication bootstrap so Android WebView can discover and fetch packaged resources in parallel while parsing the bootstrap. Preserve script execution order, authentication behavior, DOM, styling, map rendering, and every function unchanged.
 
+Current Android performance phase 436 decision: package bundled HTML, JavaScript, and CSS assets without ZIP compression so WebView can stream the unchanged local app shell without per-start decompression. Keep images, documents, data, Firebase/Auth requests, source content, script order, styling, and all behavior unchanged; retain the change only when APK size and emulator timing remain acceptable.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
