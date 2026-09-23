@@ -143,8 +143,6 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onStop() {
-        flushWebDraftToNative();
-        CookieManager.getInstance().flush();
         super.onStop();
     }
 

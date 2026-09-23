@@ -892,4 +892,6 @@ Current Android stability phase 385 decision: while the device is online and no 
 
 Current Android stability phase 386 decision: keep the Firebase startup fallback row normalizer independent of helpers declared in later `late.js` blocks. Its document-id cleanup must remain self-contained so an APK/local-asset startup without `window.safe` cannot fail with `cleanSource is not defined`; verify this path with an offline cached-row emulator test.
 
+Current Android performance phase 387 decision: persist the web draft and flush WebView cookies once in `onPause()` when leaving the app. Do not repeat the same work immediately in `onStop()`; Android delivers pause before stop, so draft persistence and authentication cookies remain unchanged while ordinary Home/app-switch transitions avoid duplicate JavaScript and disk work.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
