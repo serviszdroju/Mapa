@@ -18,8 +18,8 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 143
-        versionName "1.2.41-offline-photo-cache"
+        versionCode 144
+        versionName "1.2.42-offline-gallery-memory"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",

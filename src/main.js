@@ -9604,6 +9604,7 @@ async function renderSitePhotos(items=sitePhotoItems,preserveIndex=false){
     return;
   }
   sitePhotoIndex=Math.max(0,Math.min(sitePhotoIndex,sitePhotoItems.length-1));
+  await hydrateOfflinePhotoObjectUrls(sitePhotoItems,{activeIndex:sitePhotoIndex});
   const renderSignature=sitePhotoRenderKey(sitePhotoItems,sitePhotoIndex,selectedSite);
   if(sitePhotoRenderSignature===renderSignature && list.childElementCount) return;
   sitePhotoRenderSignature=renderSignature;
@@ -9625,8 +9626,6 @@ async function loadSitePhotos(site=selectedSite){
     if(!stillSameSite()) return;
     items.sort((a,b)=>historyTimeValue(b)-historyTimeValue(a));
     savePhotosSnapshotToAndroid(site,items);
-    await hydrateOfflinePhotoObjectUrls(items);
-    if(!stillSameSite()) return;
     await renderSitePhotos(items);
     setSitePhotosStatusText(message || (items.length ? `Načteno fotografií: ${items.length}.` : ""));
   };

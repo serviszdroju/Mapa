@@ -31,6 +31,14 @@ export function createOfflineMediaObjectUrlHelpers({
     objectUrls.clear();
   }
 
+  function releaseUnusedObjectUrls(neededKeys){
+    for(const [key,url] of objectUrls){
+      if(neededKeys.has(key)) continue;
+      objectUrls.delete(key);
+      try{ revokeObjectUrl(url); }catch(e){}
+    }
+  }
+
   async function cachedObjectUrl(url){
     const key=safeValue(url);
     if(!key || !/^https?:\/\//i.test(key)) return "";
@@ -48,7 +56,7 @@ export function createOfflineMediaObjectUrlHelpers({
     }
   }
 
-  async function hydrateOfflinePhotoObjectUrls(items=[]){
+  async function hydrateOfflinePhotoObjectUrls(items=[],options={}){
     const source=Array.isArray(items) ? items : [];
     if(!isOffline()){
       releaseObjectUrls();
@@ -60,15 +68,41 @@ export function createOfflineMediaObjectUrlHelpers({
       }
       return source;
     }
-    await Promise.all(source.map(async item=>{
+    const activeIndex=Math.max(0,Math.min(Number(options.activeIndex) || 0,Math.max(0,source.length-1)));
+    const remoteUrls=source.map(item=>{
+      if(!item || typeof item!=="object") return {display:"",full:"",thumb:""};
+      delete item._offlineDisplayUrl;
+      delete item._offlineFullUrl;
+      delete item._offlineThumbUrl;
+      return {
+        display:photoDisplayUrl(item),
+        full:photoFullUrl(item),
+        thumb:photoThumbUrl(item)
+      };
+    });
+    const neededKeys=new Set();
+    remoteUrls.forEach((urls,index)=>{
+      const thumb=safeValue(urls.thumb);
+      if(thumb) neededKeys.add(thumb);
+      if(index===activeIndex){
+        const display=safeValue(urls.display);
+        const full=safeValue(urls.full);
+        if(display) neededKeys.add(display);
+        if(full) neededKeys.add(full);
+      }
+    });
+    releaseUnusedObjectUrls(neededKeys);
+    await Promise.all(source.map(async(item,index)=>{
       if(!item || typeof item!=="object") return;
-      const displayRemote=photoDisplayUrl(item);
-      const fullRemote=photoFullUrl(item);
-      const thumbRemote=photoThumbUrl(item);
-      const [display,full,thumb]=await Promise.all([
-        cachedObjectUrl(displayRemote),
-        cachedObjectUrl(fullRemote),
-        cachedObjectUrl(thumbRemote)
+      const urls=remoteUrls[index];
+      const thumb=await cachedObjectUrl(urls.thumb);
+      if(index!==activeIndex){
+        if(thumb) item._offlineThumbUrl=thumb;
+        return;
+      }
+      const [display,full]=await Promise.all([
+        cachedObjectUrl(urls.display),
+        cachedObjectUrl(urls.full)
       ]);
       const fallback=display || full || thumb;
       if(!fallback) return;
