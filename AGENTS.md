@@ -948,4 +948,6 @@ Current performance phase 413 decision: lazy-load `official-protocol-text-utils`
 
 Current performance phase 414 decision: lazy-load `pdf-byte-writer-utils` together with the existing protocol PDF page renderer on the first PDF or mail export. Reuse one retryable runtime promise for both pieces, await the unchanged byte writer before creating the PDF Blob, and preserve page rendering, PDF bytes, filenames, mail attachments, status messages, and error behavior unchanged.
 
+Current performance phase 415 decision: lazy-load the protocol Word XML and signature helpers together with the existing Word document helper on the first DOCX export. Keep the unchanged Word styles imported inside the lazy document chunk, remove the obsolete official-document XML formatter that has had no caller since the RTF template migration, reuse one retryable runtime promise, and preserve document fields, tables, signatures, styles, filenames, and ZIP output unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

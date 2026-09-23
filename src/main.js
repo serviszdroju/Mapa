@@ -446,13 +446,6 @@ import {
 import {
   createProtocolWordBlobHelpers
 } from "./protocol-word-blob-utils.js";
-import {buildProtocolWordStylesXml} from "./protocol-word-styles-utils.js";
-import {
-  createProtocolWordSignatureHelpers
-} from "./protocol-word-signature-utils.js";
-import {
-  createProtocolWordXmlHelpers
-} from "./protocol-word-xml-utils.js";
 import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
@@ -5747,19 +5740,6 @@ const {
 });
 
 const {
-  wordBlank,
-  wordFormField,
-  wordFormGrid,
-  wordParagraph,
-  wordParagraphXml,
-  wordRun,
-  wordTable,
-  wordXmlEscape
-}=createProtocolWordXmlHelpers({
-  protocolExportValue
-});
-
-const {
   historyDateLabel,
   historySavedDateLabel,
   protocolGlobalHistoryTitle
@@ -5797,20 +5777,6 @@ const {
 });
 
 const {
-  wordClientSignatureCellXml,
-  wordSignatureGrid
-}=createProtocolWordSignatureHelpers({
-  protocolSignatureImageBytes,
-  protocolTechnicianDisplayName,
-  protocolTechnicianSignatureImageBytes,
-  safe,
-  wordParagraph,
-  wordParagraphXml,
-  wordTable,
-  wordXmlEscape
-});
-
-const {
   protocolAccessText,
   protocolAvailabilityText,
   protocolBackedDevicesText,
@@ -5822,11 +5788,26 @@ const {
   simpleNorm
 });
 
-let protocolWordDocumentHelpersPromise=null;
+let protocolWordRuntimePromise=null;
 async function buildProtocolWordEntries(protocol={}){
-  if(!protocolWordDocumentHelpersPromise){
-    protocolWordDocumentHelpersPromise=import("./protocol-word-document-utils.js").then(({createProtocolWordDocumentHelpers})=>
-      createProtocolWordDocumentHelpers({
+  if(!protocolWordRuntimePromise){
+    protocolWordRuntimePromise=Promise.all([
+      import("./protocol-word-document-utils.js"),
+      import("./protocol-word-xml-utils.js"),
+      import("./protocol-word-signature-utils.js")
+    ]).then(([documentModule,xmlModule,signatureModule])=>{
+      const xmlHelpers=xmlModule.createProtocolWordXmlHelpers({protocolExportValue});
+      const signatureHelpers=signatureModule.createProtocolWordSignatureHelpers({
+        protocolSignatureImageBytes,
+        protocolTechnicianDisplayName,
+        protocolTechnicianSignatureImageBytes,
+        safe,
+        wordParagraph:xmlHelpers.wordParagraph,
+        wordParagraphXml:xmlHelpers.wordParagraphXml,
+        wordTable:xmlHelpers.wordTable,
+        wordXmlEscape:xmlHelpers.wordXmlEscape
+      });
+      return documentModule.createProtocolWordDocumentHelpers({
         getCurrentUser:()=>currentUser,
         getSelectedSite:()=>selectedSite,
         protocolAccessText,
@@ -5841,22 +5822,22 @@ async function buildProtocolWordEntries(protocol={}){
         protocolSourceStateValue,
         protocolSourceTestMethodLabel,
         protocolTechnicianSignatureImageBytes,
-        wordBlank,
-        wordFormField,
-        wordFormGrid,
-        wordParagraph,
-        wordParagraphXml,
-        wordRun,
-        wordSignatureGrid,
-        wordTable,
-        wordXmlEscape
-      })
-    ).catch(error=>{
-      protocolWordDocumentHelpersPromise=null;
+        wordBlank:xmlHelpers.wordBlank,
+        wordFormField:xmlHelpers.wordFormField,
+        wordFormGrid:xmlHelpers.wordFormGrid,
+        wordParagraph:xmlHelpers.wordParagraph,
+        wordParagraphXml:xmlHelpers.wordParagraphXml,
+        wordRun:xmlHelpers.wordRun,
+        wordSignatureGrid:signatureHelpers.wordSignatureGrid,
+        wordTable:xmlHelpers.wordTable,
+        wordXmlEscape:xmlHelpers.wordXmlEscape
+      });
+    }).catch(error=>{
+      protocolWordRuntimePromise=null;
       throw error;
     });
   }
-  const helpers=await protocolWordDocumentHelpersPromise;
+  const helpers=await protocolWordRuntimePromise;
   return helpers.buildProtocolWordEntries(protocol);
 }
 
@@ -6040,10 +6021,7 @@ function loadOfficialRtfExportHelpers(){
         protocolSerialFromSite:(site)=>protocolSerialFromSite(site),
         protocolSourceLocationFromSite:(site)=>protocolSourceLocationFromSite(site),
         safe,
-        simpleNorm,
-        wordBlank,
-        wordParagraph,
-        wordTable
+        simpleNorm
       });
       const {
         officialProtocolAddressFileName,

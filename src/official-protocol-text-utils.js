@@ -14,10 +14,7 @@ export function createOfficialProtocolTextHelpers({
   protocolSerialFromSite,
   protocolSourceLocationFromSite,
   safe,
-  simpleNorm,
-  wordBlank,
-  wordParagraph,
-  wordTable
+  simpleNorm
 }){
   function officialOneLine(value,maxLength=0){
     const text=protocolExportValue(value).replace(/\u00a0/g," ").replace(/\s+/g," ").trim();
@@ -193,19 +190,6 @@ export function createOfficialProtocolTextHelpers({
     };
   }
 
-  function officialProtocolMeasurementNotesXml(protocol={},extraNote="",after=80){
-    const columns=officialProtocolMeasurementColumns(protocol);
-    const columnXml=lines=>lines.filter(line=>safe(line).trim()).map(line=>wordParagraph(line,{size:22,after:0})).join("");
-    const notes=[];
-    if(safe(protocol.notes || protocol.issues)) notes.push(`Poznámka z protokolu – ${safe(protocol.notes || protocol.issues)}`);
-    if(safe(extraNote)) notes.push(`Poznámka do dokladu – ${safe(extraNote)}`);
-    const notesXml=notes.map(text=>wordParagraph(text,{size:22,after:0})).join("");
-    return wordTable([[
-      {xml:columnXml(columns.left),vAlign:"top"},
-      {xml:columnXml(columns.right),vAlign:"top"}
-    ]],[4815,4815],{noBorders:true}) + (notesXml ? wordBlank(10) + notesXml : "") + wordBlank(after);
-  }
-
   function officialManufacturerTextByKey(key){
     return (OFFICIAL_MANUFACTURERS[key] || OFFICIAL_MANUFACTURERS.szz).text;
   }
@@ -312,7 +296,6 @@ export function createOfficialProtocolTextHelpers({
     officialProtocolCustomerNote,
     officialProtocolDeviceLine,
     officialProtocolFunctionalText,
-    officialProtocolMeasurementNotesXml,
     officialProtocolNextDate,
     officialProtocolResultText,
     officialProtocolTemplateValues,
