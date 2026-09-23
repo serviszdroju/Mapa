@@ -952,4 +952,6 @@ Current performance phase 415 decision: lazy-load the protocol Word XML and sign
 
 Current performance phase 416 decision: lazy-load `protocol-file-export-utils` on the first Word export or mail action while preserving the public `exportProtocolToWord` and `sendProtocolByMail` wrappers used by forms and history actions. Reuse one retryable helper instance, preserve the existing Word import error message, and keep Word/PDF preparation, technician signatures, Firebase Functions mail delivery, filenames, status text, and download behavior unchanged.
 
+Current performance phase 417 decision: keep recipient prompting, address validation, and mail error formatting in the startup bundle, but lazy-load protocol mail subject/body/sender composition together with the file-export runtime on the first Word or mail action. Reuse the existing retryable export promise and preserve the exact subject, body, technician naming, recipient flow, Firebase Functions request, and visible error behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

@@ -6120,17 +6120,10 @@ async function exportOfficialProtocol(mode="ok"){
 
 const {
   promptProtocolMailRecipient,
-  protocolMailBody,
   protocolMailErrorText,
-  protocolMailSubject,
   protocolMailToastText,
   validProtocolMailRecipient
 }=createProtocolMailHelpers({
-  currentUserEmail,
-  getCurrentUser:()=>currentUser,
-  getSelectedSite:()=>selectedSite,
-  normalizeTechnicianDisplayName,
-  protocolDisplayDate,
   safe
 });
 
@@ -6236,8 +6229,19 @@ window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
 let protocolFileExportHelpersPromise=null;
 function loadProtocolFileExportHelpers(){
   if(!protocolFileExportHelpersPromise){
-    protocolFileExportHelpersPromise=import("./protocol-file-export-utils.js")
-      .then(({createProtocolFileExportHelpers})=>createProtocolFileExportHelpers({
+    protocolFileExportHelpersPromise=Promise.all([
+      import("./protocol-file-export-utils.js"),
+      import("./protocol-mail-content-utils.js")
+    ]).then(([exportModule,mailModule])=>{
+      const {protocolMailBody,protocolMailSubject}=mailModule.createProtocolMailContentHelpers({
+        currentUserEmail,
+        getCurrentUser:()=>currentUser,
+        getSelectedSite:()=>selectedSite,
+        normalizeTechnicianDisplayName,
+        protocolDisplayDate,
+        safe
+      });
+      return exportModule.createProtocolFileExportHelpers({
         blobToBase64,
         buildPdfFromJpegPages,
         buildProtocolWordBlob,
@@ -6261,7 +6265,8 @@ function loadProtocolFileExportHelpers(){
         setProtocolStatusText,
         showSaveConfirmation,
         validProtocolMailRecipient
-      })).catch(error=>{
+      });
+    }).catch(error=>{
         protocolFileExportHelpersPromise=null;
         throw error;
       });

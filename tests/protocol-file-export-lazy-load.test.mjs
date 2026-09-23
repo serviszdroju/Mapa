@@ -11,6 +11,12 @@ test("protocol file export orchestration is excluded from startup",()=>{
   assert.match(main,/async function sendProtocolByMail\(\.\.\.args\)/);
 });
 
+test("protocol mail content composition is excluded from startup",()=>{
+  assert.doesNotMatch(main,/^import\s*\{[^}]*createProtocolMailContentHelpers[^}]*\}/m);
+  assert.match(main,/import\("\.\/protocol-mail-content-utils\.js"\)/);
+  assert.doesNotMatch(main,/v příloze posílám vyexportovaný protokol/);
+});
+
 test("protocol file export runtime is shared and retries import failures",()=>{
   assert.match(main,/if\(!protocolFileExportHelpersPromise\)/);
   assert.match(main,/protocolFileExportHelpersPromise=null;\s*throw error;/);
