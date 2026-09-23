@@ -25,12 +25,14 @@ const precachedAssetExtensions = new Set([
   ".webp"
 ]);
 const lazyAssetPrefixes = ["firebase-functions-sdk-"];
+const excludedPrecacheAssetNames = new Set(["map-fallback.jpg"]);
 
 function productionAssetPrecacheUrls() {
   if (!existsSync(clientAssets)) return [];
   return readdirSync(clientAssets)
     .filter((file) => precachedAssetExtensions.has(path.extname(file).toLowerCase()))
     .filter((file) => !lazyAssetPrefixes.some((prefix) => file.startsWith(prefix)))
+    .filter((file) => !excludedPrecacheAssetNames.has(file))
     .sort((a, b) => a.localeCompare(b))
     .map((file) => `./assets/${file}`);
 }

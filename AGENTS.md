@@ -900,4 +900,6 @@ Current Android performance phase 389 decision: reuse the existing asynchronous 
 
 Current Android stability phase 390 decision: a known Android authentication hint must not reveal an empty map shell while cached rows are still loading. Keep the existing startup loading screen visible, render cached rows behind it when available, and dismiss it only after the point counter or sidebar confirms the first map render; keep the existing authentication mechanisms unchanged.
 
+Current performance phase 391 decision: keep the unused `assets/map-fallback.jpg` available in the public build for backward compatibility, but exclude it from critical service-worker precache and packaged Android web assets. No runtime code references this file; avoiding its automatic transfer reduces each clean offline install and APK payload without changing map tiles, offline rows, authentication, or appearance.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

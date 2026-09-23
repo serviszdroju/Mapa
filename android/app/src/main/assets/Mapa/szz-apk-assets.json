@@ -2,6 +2,7 @@
   "source": "dist/client",
   "target": "android/app/src/main/assets/Mapa",
   "excludes": [
-    "downloads/*.apk"
+    "downloads/*.apk",
+    "assets/map-fallback.jpg"
   ]
 }
