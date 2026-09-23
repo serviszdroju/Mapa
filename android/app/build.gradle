@@ -18,8 +18,8 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 145
-        versionName "1.2.43-nonblocking-google-preload"
+        versionCode 146
+        versionName "1.2.44-early-local-resources"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",

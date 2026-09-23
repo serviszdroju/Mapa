@@ -24,6 +24,14 @@
   .startup-card .logo-img{display:block;width:min(240px,72vw)!important;max-width:72vw!important;max-height:28dvh!important;height:auto!important;margin:0 auto 14px;object-fit:contain}
   #startupLoginBtn{max-width:360px;margin:10px auto 0}
 </style>
+<link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+<script defer src="./vendor/leaflet/leaflet.js"></script>
+<link rel="stylesheet" href="./app.css">
+<script type="module" src="./src/shell-boot.js"></script>
+<script type="module" src="./src/sw-register.js"></script>
+<script type="module" src="./src/detail-tabs.js"></script>
+<script type="module" src="./src/hosted-login.js"></script>
+<script type="module" src="./src/main.js"></script>
 <script>
 try{
   const szzParams=new URLSearchParams(window.location.search || "");
@@ -954,10 +962,6 @@ try{
   });
 })();
 </script>
-<link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
-<script defer src="./vendor/leaflet/leaflet.js"></script>
-<link rel="stylesheet" href="./app.css">
-
 </head>
 <body>
 
@@ -1401,11 +1405,6 @@ Protokol na: ..."></textarea>
 </div>
 
 
-<script type="module" src="./src/shell-boot.js"></script>
-<script type="module" src="./src/sw-register.js"></script>
-<script type="module" src="./src/detail-tabs.js"></script>
-<script type="module" src="./src/hosted-login.js"></script>
-<script type="module" src="./src/main.js"></script>
 <script async src="./late.js?v=row-priority-v720"></script>
 
 

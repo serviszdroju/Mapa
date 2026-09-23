@@ -988,4 +988,6 @@ Current performance phase 433 decision: lazy-load detail protocol-history action
 
 Current Android release phase 434 decision: publish the verified startup recovery and lazy history-action bundle as Android `versionCode 139`, `versionName 1.2.37-startup-recovery`. The downloadable APK uses the same existing Android debug certificate as version 138, so it must install as an in-place update and preserve the account, Room cache, drafts, photos, protocols, and offline data; never deploy the suffixed emulator-only test package as the public APK.
 
+Current performance phase 435 decision: declare the unchanged local Leaflet CSS/JS, app CSS, and application modules before the large inline authentication bootstrap so Android WebView can discover and fetch packaged resources in parallel while parsing the bootstrap. Preserve script execution order, authentication behavior, DOM, styling, map rendering, and every function unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
