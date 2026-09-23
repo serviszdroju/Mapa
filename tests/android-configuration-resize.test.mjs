@@ -38,3 +38,12 @@ test("Android rotation coalesces WebView resize without forced layout storms",()
   assert.match(delayedBody[1],/target\.postOnAnimation/);
   assert.match(delayedBody[1],/window\.dispatchEvent\(new Event\('resize'\)\)/);
 });
+
+test("online Android requests use the current web build before APK fallback assets",()=>{
+  const body=source.match(/private WebResourceResponse localApkAssetResponse\(Uri uri\) \{([\s\S]*?)\n    \}/);
+  assert.ok(body);
+  const onlineAt=body[1].indexOf("if (isOnline() && !forceLocalAssetFallback) return null;");
+  const bundledAt=body[1].indexOf("openBundledAssetFirst(uri)");
+  assert.ok(onlineAt>=0 && bundledAt>onlineAt);
+  assert.match(body[1],/return isDocumentRequest\(uri\) \? openAssetResponse\(SZZ_ASSET_ROOT \+ "\/index\.html"\) : null;/);
+});
