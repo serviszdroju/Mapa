@@ -898,4 +898,6 @@ Current Android performance phase 388 decision: throttle only the automatic nati
 
 Current Android performance phase 389 decision: reuse the existing asynchronous chunked Room site-cache bridge in the late Firebase/offline fallback before attempting the legacy synchronous `cachedSitesJson()` bridge. Convert the returned raw cache items through the original `rowsFromMapRowsCacheItems()` path so latest protocol dates and row semantics remain unchanged; retain the synchronous bridge and IndexedDB/localStorage order as compatibility fallbacks when chunked delivery is unavailable or fails.
 
+Current Android stability phase 390 decision: a known Android authentication hint must not reveal an empty map shell while cached rows are still loading. Keep the existing startup loading screen visible, render cached rows behind it when available, and dismiss it only after the point counter or sidebar confirms the first map render; keep the existing authentication mechanisms unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

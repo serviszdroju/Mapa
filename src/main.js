@@ -1840,18 +1840,45 @@ if(firebaseReady){
   }
   function keepAppOpenDuringAuthRestore(message){
     if(explicitSignOutPending()) return false;
-    setStartupAuthChecking(false);
     try{document.documentElement.classList.add("auth-resume");}catch(e){}
     window.__szzAuthResumeStartedAt=window.__szzAuthResumeStartedAt || Date.now();
-    showApp({allowWithoutUser:true});
-    const topLogoutBtn=document.getElementById("topLogoutBtn");
-    if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
-    setDisplayIfChanged(topLogoutBtn,"block");
-    setProgressStatus(message === undefined ? "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat." : message);
-    runWhenIdle(()=>{
+    const revealCachedMap=()=>{
+      if(!Array.isArray(rows) || !rows.length) return false;
+      showApp({allowWithoutUser:true});
+      setStartupAuthChecking(true);
+      setDisplayIfChanged(document.getElementById("startupScreen"),"flex");
+      setDisplayIfChanged(document.getElementById("mainApp"),"grid");
+      const topLogoutBtn=document.getElementById("topLogoutBtn");
+      if(window.setTopAuthButtonMode) window.setTopAuthButtonMode("login");
+      setDisplayIfChanged(topLogoutBtn,"block");
+      setProgressStatus(message === undefined ? "Přihlášení se obnovuje na pozadí. Mapa zůstává otevřená z uložených dat." : message);
+      const revealToken=(Number(window.__szzAuthResumeMapRevealToken) || 0)+1;
+      window.__szzAuthResumeMapRevealToken=revealToken;
+      const revealAfterRender=(attempt=0)=>{
+        if(window.__szzAuthResumeMapRevealToken!==revealToken) return;
+        const shown=Number(String(document.getElementById("shownCount")?.textContent || "0").trim()) || 0;
+        const listHasRows=!!document.getElementById("list")?.firstElementChild;
+        if(shown>0 || listHasRows || attempt>=200){
+          setStartupAuthChecking(false);
+          setDisplayIfChanged(document.getElementById("startupScreen"),"none");
+          return;
+        }
+        setTimeout(()=>revealAfterRender(attempt+1),50);
+      };
+      if(typeof requestRender==="function") requestRender();
+      requestAnimationFrame(()=>requestAnimationFrame(()=>revealAfterRender()));
+      return true;
+    };
+    if(!revealCachedMap()){
+      setStartupAuthChecking(true);
+      setDisplayIfChanged(document.getElementById("startupScreen"),"flex");
+      setDisplayIfChanged(document.getElementById("mainApp"),"none");
+    }
+    runWhenIdle(async()=>{
       try{
         if(typeof window.loadFirebaseSitesUnified==="function"){
-          window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true});
+          await window.loadFirebaseSitesUnified(null,{offlineCacheOnly:true});
+          revealCachedMap();
         }
       }catch(e){}
     },200);

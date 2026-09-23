@@ -437,7 +437,10 @@ function tryHostedAndroidSilentLogin(){
   });
   if(showCachedApp){
     window.__szzAuthResumeStartedAt=window.__szzAuthResumeStartedAt || Date.now();
-    showAuthState(AUTH_LOGGED_IN,{message:""});
+    showAuthState(AUTH_LOADING,{
+      intro:"Načítám aplikaci",
+      message:"Načítám uloženou mapu..."
+    });
   }else{
     showAuthState(AUTH_LOADING,{
       intro:"Načítám aplikaci",
