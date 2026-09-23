@@ -364,9 +364,6 @@ import {
   createOfflineDetailPrefetchSiteHelpers
 } from "./offline-detail-prefetch-site-utils.js";
 import {
-  createOfflineAppPrepareHelpers
-} from "./offline-app-prepare-utils.js";
-import {
   createOfflineAppControlsHelpers
 } from "./offline-app-controls-utils.js";
 import { bindOfflineConnectivityListeners } from "./offline-connectivity-listeners-utils.js";
@@ -2458,34 +2455,52 @@ function writeSzzOfflineReadyState(update={}){
   }
 }
 
-const {
-  prepareOfflineAppData:prepareSzzOfflineAppData
-}=createOfflineAppPrepareHelpers({
-  appBuildVersion:APP_BUILD_VERSION,
-  cacheAppShellForOffline,
-  cacheCurrentRowsForOffline:()=>cacheCurrentFirebaseRowsForOffline(),
-  czechOfflineMapReady,
-  getButton:()=>document.getElementById("prepareOfflineAppBtn"),
-  getSyncText:()=>document.getElementById("appSyncText"),
-  getWindowRows:()=>window.rows,
-  incrementalSafetyMs:SZZ_OFFLINE_INCREMENTAL_SAFETY_MS,
-  isOnline:()=>navigator.onLine!==false,
-  loadFirebaseSitesUnified:(focusId,options)=>typeof window.loadFirebaseSitesUnified==="function" ? window.loadFirebaseSitesUnified(focusId,options) : null,
-  openAppToolsPanel:()=>{ if(window.openAppToolsPanel) window.openAppToolsPanel(); },
-  prefetchOfflineDetailData:(rowsForDetails,options)=>prefetchSzzOfflineDetailData(rowsForDetails,options),
-  readCachedFirebaseSiteCount,
-  readOfflineReadyState:()=>readSzzOfflineReadyState(),
-  requestPersistentStorage:options=>requestSzzPersistentStorage(options),
-  rowsForPrefetch:()=>szzOfflineRowsForPrefetch(),
-  scheduleOfflineAppStatus:delay=>{ if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(delay); },
-  setDisabledIfChanged,
-  setTextIfChanged,
-  showFirebaseMapRowsCache:(focusId,options)=>typeof window.showFirebaseMapRowsCache==="function" ? window.showFirebaseMapRowsCache(focusId,options) : null,
-  showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); },
-  storageEstimate:()=>szzStorageEstimate(),
-  syncOfflineMapRowDeltas:sinceMs=>syncSzzOfflineMapRowDeltas(sinceMs),
-  writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
-});
+let offlineAppPrepareHelpers=null;
+let offlineAppPrepareHelpersPromise=null;
+function loadOfflineAppPrepareHelpers(){
+  if(offlineAppPrepareHelpers) return Promise.resolve(offlineAppPrepareHelpers);
+  if(!offlineAppPrepareHelpersPromise){
+    offlineAppPrepareHelpersPromise=import("./offline-app-prepare-utils.js")
+      .then(({createOfflineAppPrepareHelpers})=>{
+        offlineAppPrepareHelpers=createOfflineAppPrepareHelpers({
+          appBuildVersion:APP_BUILD_VERSION,
+          cacheAppShellForOffline,
+          cacheCurrentRowsForOffline:()=>cacheCurrentFirebaseRowsForOffline(),
+          czechOfflineMapReady,
+          getButton:()=>document.getElementById("prepareOfflineAppBtn"),
+          getSyncText:()=>document.getElementById("appSyncText"),
+          getWindowRows:()=>window.rows,
+          incrementalSafetyMs:SZZ_OFFLINE_INCREMENTAL_SAFETY_MS,
+          isOnline:()=>navigator.onLine!==false,
+          loadFirebaseSitesUnified:(focusId,options)=>typeof window.loadFirebaseSitesUnified==="function" ? window.loadFirebaseSitesUnified(focusId,options) : null,
+          openAppToolsPanel:()=>{ if(window.openAppToolsPanel) window.openAppToolsPanel(); },
+          prefetchOfflineDetailData:(rowsForDetails,options)=>prefetchSzzOfflineDetailData(rowsForDetails,options),
+          readCachedFirebaseSiteCount,
+          readOfflineReadyState:()=>readSzzOfflineReadyState(),
+          requestPersistentStorage:options=>requestSzzPersistentStorage(options),
+          rowsForPrefetch:()=>szzOfflineRowsForPrefetch(),
+          scheduleOfflineAppStatus:delay=>{ if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(delay); },
+          setDisabledIfChanged,
+          setTextIfChanged,
+          showFirebaseMapRowsCache:(focusId,options)=>typeof window.showFirebaseMapRowsCache==="function" ? window.showFirebaseMapRowsCache(focusId,options) : null,
+          showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); },
+          storageEstimate:()=>szzStorageEstimate(),
+          syncOfflineMapRowDeltas:sinceMs=>syncSzzOfflineMapRowDeltas(sinceMs),
+          writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
+        });
+        return offlineAppPrepareHelpers;
+      }).catch(error=>{
+        offlineAppPrepareHelpersPromise=null;
+        throw error;
+      });
+  }
+  return offlineAppPrepareHelpersPromise;
+}
+
+async function prepareSzzOfflineAppData(options={}){
+  const helpers=await loadOfflineAppPrepareHelpers();
+  return helpers.prepareOfflineAppData(options);
+}
 window.prepareSzzOfflineAppData=prepareSzzOfflineAppData;
 
 function visibleMapTileUrls(maxTiles=650){
