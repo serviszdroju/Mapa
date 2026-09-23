@@ -383,9 +383,6 @@ import {
   createSitePhotoDeleteHelpers
 } from "./site-photo-delete-utils.js";
 import {
-  createOfflineMapTileCacheHelpers
-} from "./offline-map-tile-cache-utils.js";
-import {
   createOfflineDetailPrefetchRunner
 } from "./offline-detail-prefetch-runner-utils.js";
 import {
@@ -2503,24 +2500,38 @@ function markCzechOfflineMapReady(){
   try{localStorage.setItem(CZECH_OFFLINE_DONE_KEY,CZECH_OFFLINE_TILE_VERSION);}catch(e){}
 }
 
-const {
-  cacheMapTileUrls
-}=createOfflineMapTileCacheHelpers({
-  cacheAppShellForOffline,
-  cacheName:MAP_TILE_CACHE_NAME,
-  getNavigator:()=>navigator,
-  getRunning:()=>window.__mapTileCacheRunning,
-  markCzechReady:()=>markCzechOfflineMapReady(),
-  reportServiceWorkerError:e=>{ if(typeof window.reportSzzServiceWorkerError==="function") window.reportSzzServiceWorkerError(e); },
-  requestPersistentStorage:options=>requestSzzPersistentStorage(options),
-  setButtonState:setOfflineMapButtonState,
-  setRunning:value=>{ window.__mapTileCacheRunning=value; },
-  setStatus:setOfflineMapStatus,
-  showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); }
-});
+let offlineMapTileCacheHelpers=null;
+let offlineMapTileCacheHelpersPromise=null;
+function loadOfflineMapTileCacheHelpers(){
+  if(offlineMapTileCacheHelpers) return Promise.resolve(offlineMapTileCacheHelpers);
+  if(!offlineMapTileCacheHelpersPromise){
+    offlineMapTileCacheHelpersPromise=import("./offline-map-tile-cache-utils.js")
+      .then(({createOfflineMapTileCacheHelpers})=>{
+        offlineMapTileCacheHelpers=createOfflineMapTileCacheHelpers({
+          cacheAppShellForOffline,
+          cacheName:MAP_TILE_CACHE_NAME,
+          getNavigator:()=>navigator,
+          getRunning:()=>window.__mapTileCacheRunning,
+          markCzechReady:()=>markCzechOfflineMapReady(),
+          reportServiceWorkerError:e=>{ if(typeof window.reportSzzServiceWorkerError==="function") window.reportSzzServiceWorkerError(e); },
+          requestPersistentStorage:options=>requestSzzPersistentStorage(options),
+          setButtonState:setOfflineMapButtonState,
+          setRunning:value=>{ window.__mapTileCacheRunning=value; },
+          setStatus:setOfflineMapStatus,
+          showSaveConfirmation:message=>{ if(window.showSaveConfirmation) window.showSaveConfirmation(message); }
+        });
+        return offlineMapTileCacheHelpers;
+      }).catch(error=>{
+        offlineMapTileCacheHelpersPromise=null;
+        throw error;
+      });
+  }
+  return offlineMapTileCacheHelpersPromise;
+}
 
 async function cacheVisibleMapTiles(){
-  return cacheMapTileUrls(visibleMapTileUrls(),{
+  const helpers=await loadOfflineMapTileCacheHelpers();
+  return helpers.cacheMapTileUrls(visibleMapTileUrls(),{
     label:"aktuální výřez mapy",
     donePrefix:"Mapa"
   });
