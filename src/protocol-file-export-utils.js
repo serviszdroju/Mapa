@@ -65,7 +65,7 @@ export function createProtocolFileExportHelpers({
 
   async function buildProtocolPdfBlob(protocol={},options={}){
     const pages=await renderProtocolPdfPageCanvases(protocol,options);
-    return new Blob([buildPdfFromJpegPages(pages)],{type:"application/pdf"});
+    return new Blob([await buildPdfFromJpegPages(pages)],{type:"application/pdf"});
   }
 
   async function preparedProtocolPdfExport(protocol,options={}){

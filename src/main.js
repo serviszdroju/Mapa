@@ -410,9 +410,6 @@ import {
   createBrowserFileHelpers
 } from "./browser-file-utils.js";
 import {
-  createPdfByteWriterHelpers
-} from "./pdf-byte-writer-utils.js";
-import {
   createProtocolProcessingStateHelpers
 } from "./protocol-processing-state-utils.js";
 import {
@@ -6176,11 +6173,14 @@ const {
   protocolPdfFileNameFromWord
 }=createBrowserFileHelpers({ safe });
 
-let protocolPdfRendererPromise=null;
-async function renderProtocolPdfPageCanvases(protocol={},options={}){
-  if(!protocolPdfRendererPromise){
-    protocolPdfRendererPromise=import("./protocol-pdf-render-utils.js").then(({createProtocolPdfRenderHelpers})=>
-      createProtocolPdfRenderHelpers({
+let protocolPdfRuntimePromise=null;
+function loadProtocolPdfRuntime(){
+  if(!protocolPdfRuntimePromise){
+    protocolPdfRuntimePromise=Promise.all([
+      import("./protocol-pdf-render-utils.js"),
+      import("./pdf-byte-writer-utils.js")
+    ]).then(([renderModule,writerModule])=>({
+      renderProtocolPdfPageCanvases:renderModule.createProtocolPdfRenderHelpers({
         drawImageContained,
         getSelectedSite:()=>selectedSite,
         loadDataUrlImage,
@@ -6197,14 +6197,25 @@ async function renderProtocolPdfPageCanvases(protocol={},options={}){
         protocolSourceTestMethodLabel,
         protocolTechnicianDisplayName,
         safe
-      }).renderProtocolPdfPageCanvases
-    ).catch(error=>{
-      protocolPdfRendererPromise=null;
+      }).renderProtocolPdfPageCanvases,
+      buildPdfFromJpegPages:writerModule.createPdfByteWriterHelpers({
+        base64ToBytes,
+        safe
+      }).buildPdfFromJpegPages
+    })).catch(error=>{
+      protocolPdfRuntimePromise=null;
       throw error;
     });
   }
-  const renderer=await protocolPdfRendererPromise;
-  return renderer(protocol,options);
+  return protocolPdfRuntimePromise;
+}
+async function renderProtocolPdfPageCanvases(protocol={},options={}){
+  const runtime=await loadProtocolPdfRuntime();
+  return runtime.renderProtocolPdfPageCanvases(protocol,options);
+}
+async function buildPdfFromJpegPages(pages=[]){
+  const runtime=await loadProtocolPdfRuntime();
+  return runtime.buildPdfFromJpegPages(pages);
 }
 
 const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
@@ -6246,13 +6257,6 @@ async function openTechnicianSignatureDialog(){
   return helpers.openTechnicianSignatureDialog();
 }
 window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
-
-const {
-  buildPdfFromJpegPages
-}=createPdfByteWriterHelpers({
-  base64ToBytes,
-  safe
-});
 
 const {
   buildProtocolPdfBlob,

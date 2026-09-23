@@ -946,4 +946,6 @@ Current performance phase 412 decision: remove the unused eager `official-protoc
 
 Current performance phase 413 decision: lazy-load `official-protocol-text-utils` and `official-protocol-file-name-utils` together with the existing RTF asset, template, and export runtime on the first Doklad export. Keep only the small manufacturer-key lookup required by the visible Doklad form in startup code, reuse one retryable runtime promise, and preserve field values, templates, signatures, filenames, result modes, and download behavior unchanged.
 
+Current performance phase 414 decision: lazy-load `pdf-byte-writer-utils` together with the existing protocol PDF page renderer on the first PDF or mail export. Reuse one retryable runtime promise for both pieces, await the unchanged byte writer before creating the PDF Blob, and preserve page rendering, PDF bytes, filenames, mail attachments, status messages, and error behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
