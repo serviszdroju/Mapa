@@ -360,9 +360,6 @@ import {
   createOfflineStandaloneHistoryHelpers
 } from "./offline-standalone-history-utils.js";
 import {
-  createOfflineDetailPrefetchSiteHelpers
-} from "./offline-detail-prefetch-site-utils.js";
-import {
   createOfflineAppControlsHelpers
 } from "./offline-app-controls-utils.js";
 import { bindOfflineConnectivityListeners } from "./offline-connectivity-listeners-utils.js";
@@ -378,9 +375,6 @@ import {
 import {
   createSitePhotoDeleteHelpers
 } from "./site-photo-delete-utils.js";
-import {
-  createOfflineDetailPrefetchRunner
-} from "./offline-detail-prefetch-runner-utils.js";
 import {
   canDeleteSitePhotoForUser,
   createPhotoRenderMetaHelpers
@@ -2374,46 +2368,67 @@ const {
   siteRecordTextKeys
 });
 
-const {
-  prefetchOfflineDetailsForSite
-}=createOfflineDetailPrefetchSiteHelpers({
-  appendOfflineChildItemsWithMeta,
-  appendOfflineItems,
-  cacheOfflineMediaUrls:cacheSzzOfflineMediaUrls,
-  detailMetaChanged:szzDetailMetaChanged,
-  embeddedItemsForOffline:szzEmbeddedItemsForOffline,
-  getDb:()=>db,
-  getFsMod:()=>fb && fb.fsMod,
-  isFirebaseReady:()=>firebaseReady,
-  isOnline:()=>navigator.onLine!==false,
-  loadSiteChildItemsForOffline,
-  localOfflineDetailMeta:szzLocalOfflineDetailMeta,
-  mergeSiteLocalArray,
-  offlinePhotoUrls:szzOfflinePhotoUrls,
-  offlineRowFingerprint:szzOfflineRowFingerprint,
-  readOfflineSiteMeta:readSzzOfflineSiteMeta,
-  readOfflineStandaloneHistoryCollection,
-  refreshSiteDataFromFirebase:(site)=>refreshSiteDataFromFirebase(site),
-  writeOfflineSiteMeta:writeSzzOfflineSiteMeta
-});
+let offlineDetailPrefetchHelpers=null;
+let offlineDetailPrefetchHelpersPromise=null;
+function loadOfflineDetailPrefetchHelpers(){
+  if(offlineDetailPrefetchHelpers) return Promise.resolve(offlineDetailPrefetchHelpers);
+  if(!offlineDetailPrefetchHelpersPromise){
+    offlineDetailPrefetchHelpersPromise=Promise.all([
+      import("./offline-detail-prefetch-site-utils.js"),
+      import("./offline-detail-prefetch-runner-utils.js")
+    ]).then(([siteModule,runnerModule])=>{
+      const siteHelpers=siteModule.createOfflineDetailPrefetchSiteHelpers({
+        appendOfflineChildItemsWithMeta,
+        appendOfflineItems,
+        cacheOfflineMediaUrls:cacheSzzOfflineMediaUrls,
+        detailMetaChanged:szzDetailMetaChanged,
+        embeddedItemsForOffline:szzEmbeddedItemsForOffline,
+        getDb:()=>db,
+        getFsMod:()=>fb && fb.fsMod,
+        isFirebaseReady:()=>firebaseReady,
+        isOnline:()=>navigator.onLine!==false,
+        loadSiteChildItemsForOffline,
+        localOfflineDetailMeta:szzLocalOfflineDetailMeta,
+        mergeSiteLocalArray,
+        offlinePhotoUrls:szzOfflinePhotoUrls,
+        offlineRowFingerprint:szzOfflineRowFingerprint,
+        readOfflineSiteMeta:readSzzOfflineSiteMeta,
+        readOfflineStandaloneHistoryCollection,
+        refreshSiteDataFromFirebase:(site)=>refreshSiteDataFromFirebase(site),
+        writeOfflineSiteMeta:writeSzzOfflineSiteMeta
+      });
+      const runnerHelpers=runnerModule.createOfflineDetailPrefetchRunner({
+        getRowsForPrefetch:inputRows=>szzOfflineRowsForPrefetch(inputRows),
+        isReady:()=>firebaseReady && !!db && !!(fb && fb.fsMod),
+        isOnline:()=>navigator.onLine!==false,
+        isPageVisible:()=>document.visibilityState!=="hidden",
+        prefetchOfflineDetailsForSite:(site,options)=>siteHelpers.prefetchOfflineDetailsForSite(site,options),
+        runBoundedFirestoreTasks,
+        runWhenIdle,
+        safeValue:safe,
+        scheduleOfflineAppStatus:delay=>{ if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(delay); },
+        waitForFirebaseUser:safeWaitForFirebaseUser,
+        writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
+      });
+      offlineDetailPrefetchHelpers={...siteHelpers,...runnerHelpers};
+      return offlineDetailPrefetchHelpers;
+    }).catch(error=>{
+      offlineDetailPrefetchHelpersPromise=null;
+      throw error;
+    });
+  }
+  return offlineDetailPrefetchHelpersPromise;
+}
 
-const {
-  isConstrainedDevice:szzIsConstrainedDevice,
-  prefetchOfflineDetailData:prefetchSzzOfflineDetailData,
-  scheduleBackgroundDetailPrefetch:scheduleSzzBackgroundDetailPrefetch
-}=createOfflineDetailPrefetchRunner({
-  getRowsForPrefetch:inputRows=>szzOfflineRowsForPrefetch(inputRows),
-  isReady:()=>firebaseReady && !!db && !!(fb && fb.fsMod),
-  isOnline:()=>navigator.onLine!==false,
-  isPageVisible:()=>document.visibilityState!=="hidden",
-  prefetchOfflineDetailsForSite:(site,options)=>prefetchOfflineDetailsForSite(site,options),
-  runBoundedFirestoreTasks,
-  runWhenIdle,
-  safeValue:safe,
-  scheduleOfflineAppStatus:delay=>{ if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(delay); },
-  waitForFirebaseUser:safeWaitForFirebaseUser,
-  writeOfflineReadyState:update=>writeSzzOfflineReadyState(update)
-});
+async function prefetchSzzOfflineDetailData(...args){
+  const helpers=await loadOfflineDetailPrefetchHelpers();
+  return helpers.prefetchOfflineDetailData(...args);
+}
+
+async function scheduleSzzBackgroundDetailPrefetch(...args){
+  const helpers=await loadOfflineDetailPrefetchHelpers();
+  return helpers.scheduleBackgroundDetailPrefetch(...args);
+}
 
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_OFFLINE_READY_KEY || event.key===SZZ_SYNC_STATE_KEY){
