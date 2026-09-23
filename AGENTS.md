@@ -906,4 +906,6 @@ Current performance phase 392 decision: deduplicate logo payloads in production 
 
 Current Android stability phase 393 decision: treat an Android network as online only when it has both `NET_CAPABILITY_INTERNET` and `NET_CAPABILITY_VALIDATED`. A connected but unvalidated Wi-Fi/mobile network must immediately use the packaged app shell and Room-backed map instead of exposing an online shell that cannot reach DNS/Firebase. Keep authentication and the normal validated-network path unchanged; the web layer may still synchronize once connectivity becomes usable.
 
+Current Android stability phase 394 decision: observe Android connectivity capabilities while the activity is alive and forward only actual validated online/offline state changes to WebView. This lets existing web synchronization listeners react when connectivity changes without restarting the app. The observer must not invoke, restore, clear, or otherwise alter authentication.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

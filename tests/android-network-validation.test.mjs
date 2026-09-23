@@ -16,7 +16,21 @@ test("Android considers only a validated internet connection online",()=>{
 
 test("an unvalidated connection keeps the packaged app fallback available",()=>{
   assert.match(source,/if \(isOnline\(\) && !forceLocalAssetFallback\) return null;/);
-  assert.match(source,/webView\.setNetworkAvailable\(isOnline\(\)\)/);
+  assert.match(source,/applyWebViewNetworkAvailability\(isOnline\(\)\)/);
   assert.match(source,/WebSettings\.LOAD_CACHE_ELSE_NETWORK/);
   assert.match(source,/openBundledAssetFirst\(uri\)/);
+});
+
+test("Android forwards validated connectivity changes to WebView once per state",()=>{
+  assert.match(source,/registerDefaultNetworkCallback\(networkCallback\)/);
+  assert.match(source,/onCapabilitiesChanged\(Network network, NetworkCapabilities capabilities\)/);
+  assert.match(source,/Boolean\.valueOf\(online\)\.equals\(webViewNetworkAvailable\)/);
+  assert.match(source,/target\.setNetworkAvailable\(online\)/);
+  assert.match(source,/unregisterNetworkCallback\(callback\)/);
+});
+
+test("network observer does not trigger or alter authentication",()=>{
+  const observer=source.match(/private void registerNetworkObserver\(\) \{([\s\S]*?)\n    \}\n\n    private void unregisterNetworkObserver/);
+  assert.ok(observer);
+  assert.doesNotMatch(observer[1],/restoreAndroidAuth|startGoogleSignIn|signOut/);
 });

@@ -11,6 +11,7 @@ import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -100,6 +101,9 @@ public class MainActivity extends Activity {
     private boolean pendingWebCacheReset;
     private long lastWebViewRecoveryAt;
     private int configurationResizeGeneration;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private Boolean webViewNetworkAvailable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,6 +111,7 @@ public class MainActivity extends Activity {
         offlineRepository = SzzOfflineRepository.get(this);
         pendingWebCacheReset = shouldResetWebCacheForBuild();
         createAndAttachWebView(savedInstanceState);
+        registerNetworkObserver();
     }
 
     private void createAndAttachWebView(Bundle savedInstanceState) {
@@ -150,7 +155,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (webView != null) {
-            webView.setNetworkAvailable(isOnline());
+            updateWebViewNetworkAvailability();
             webView.onResume();
         }
         if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPendingOnResume();
@@ -191,6 +196,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         configurationResizeGeneration++;
+        unregisterNetworkObserver();
         if (googleSignInCancellation != null) {
             googleSignInCancellation.cancel();
             googleSignInCancellation = null;
@@ -266,7 +272,7 @@ public class MainActivity extends Activity {
             cookieManager.setAcceptThirdPartyCookies(webView, true);
         }
         webView.setBackgroundColor(Color.WHITE);
-        webView.setNetworkAvailable(isOnline());
+        applyWebViewNetworkAvailability(isOnline());
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -1324,5 +1330,62 @@ public class MainActivity extends Activity {
         } catch (Exception error) {
             return true;
         }
+    }
+
+    private void registerNetworkObserver() {
+        if (networkCallback != null) return;
+        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) return;
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(Network network) {
+                updateWebViewNetworkAvailability();
+            }
+
+            @Override
+            public void onLost(Network network) {
+                updateWebViewNetworkAvailability();
+            }
+
+            @Override
+            public void onCapabilitiesChanged(Network network, NetworkCapabilities capabilities) {
+                updateWebViewNetworkAvailability();
+            }
+        };
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                connectivityManager.registerDefaultNetworkCallback(networkCallback);
+            } else {
+                NetworkRequest request = new NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build();
+                connectivityManager.registerNetworkCallback(request, networkCallback);
+            }
+        } catch (Exception error) {
+            networkCallback = null;
+        }
+    }
+
+    private void unregisterNetworkObserver() {
+        ConnectivityManager manager = connectivityManager;
+        ConnectivityManager.NetworkCallback callback = networkCallback;
+        connectivityManager = null;
+        networkCallback = null;
+        if (manager == null || callback == null) return;
+        try {
+            manager.unregisterNetworkCallback(callback);
+        } catch (Exception ignored) {}
+    }
+
+    private void updateWebViewNetworkAvailability() {
+        boolean online = isOnline();
+        runOnUiThread(() -> applyWebViewNetworkAvailability(online));
+    }
+
+    private void applyWebViewNetworkAvailability(boolean online) {
+        WebView target = webView;
+        if (target == null || Boolean.valueOf(online).equals(webViewNetworkAvailable)) return;
+        webViewNetworkAvailable = online;
+        target.setNetworkAvailable(online);
     }
 }
