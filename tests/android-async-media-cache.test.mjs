@@ -23,9 +23,10 @@ test("gallery and attachments await async Android media reads",()=>{
   assert.match(attachments,/await readAndroidCachedRecordsAsync\("cachedAttachmentsJson",site,5000\)/);
 });
 
-test("async Android media requests are bounded and retain the old fallback",()=>{
+test("async Android media requests are bounded without a blocking retry",()=>{
   const main=read("src/main.js");
   const body=main.match(/async function readAndroidCachedRecordsAsync[\s\S]*?\n\}/)?.[0] || "";
   assert.match(body,/},10000\)/);
-  assert.match(body,/return readAndroidCachedRecords\(method,site,limit\)/);
+  assert.equal((body.match(/readAndroidCachedRecords\(method,site,limit\)/g) || []).length,1);
+  assert.match(body,/return \[\]/);
 });

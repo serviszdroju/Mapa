@@ -922,4 +922,6 @@ Current Android stability phase 400 decision: once the Android shell already dis
 
 Current Android performance phase 401 decision: query individual Room outbox operation states asynchronously during offline protocol and photo synchronization. Preserve sequential synchronization order, status handling, removals, uploads, and the legacy synchronous `outboxOperationJson()` fallback for older APKs. Bound each native callback wait so a missing response cannot stall synchronization while keeping Room work off the WebView thread in the current APK.
 
+Current Android performance phase 402 decision: once a modern asynchronous Android Room bridge has accepted a media or outbox read, never fall back to a synchronous JavascriptInterface database read after a timeout or callback error. Return an empty/deferred result and retry on the next normal refresh or sync cycle; retain synchronous reads only for compatibility with older Android builds that do not expose the asynchronous bridge.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

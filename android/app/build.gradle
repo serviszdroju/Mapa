@@ -18,8 +18,8 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 123
-        versionName "1.2.21-async-outbox"
+        versionCode 124
+        versionName "1.2.22-nonblocking-fallback"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",

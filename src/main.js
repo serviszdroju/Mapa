@@ -6597,14 +6597,14 @@ function androidOutboxOperationAsync(operationId){
     const requestId=`outbox-${Date.now()}-${++androidOutboxOperationRequestSequence}`;
     const timeout=setTimeout(()=>{
       androidOutboxOperationRequests.delete(requestId);
-      resolve(androidOutboxOperation(operationId));
+      resolve(null);
     },5000);
     androidOutboxOperationRequests.set(requestId,{resolve,timeout});
     try{ bridge.requestOutboxOperationJson(String(operationId || ""),requestId); }
     catch(e){
       clearTimeout(timeout);
       androidOutboxOperationRequests.delete(requestId);
-      resolve(androidOutboxOperation(operationId));
+      resolve(null);
     }
   });
 }
@@ -6679,8 +6679,8 @@ async function readAndroidCachedRecordsAsync(method,site=selectedSite,limit=5000
       catch(e){ return false; }
     });
   }catch(error){
-    console.warn("Asynchronní Android cache médií selhala, používám kompatibilní čtení",error);
-    return readAndroidCachedRecords(method,site,limit);
+    console.warn("Asynchronní Android cache médií selhala; čtení se zopakuje při dalším otevření",error);
+    return [];
   }
 }
 

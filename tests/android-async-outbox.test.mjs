@@ -19,9 +19,10 @@ test("protocol and photo sync await async outbox state",()=>{
   assert.match(source,/await androidOutboxOperationAsync\(`photo:\$\{id\}`\)/);
 });
 
-test("async outbox requests are bounded and preserve the legacy fallback",()=>{
+test("async outbox requests are bounded without a blocking timeout fallback",()=>{
   const source=read("src/main.js");
   const body=source.match(/function androidOutboxOperationAsync\(operationId\)\{([\s\S]*?)\n\}/)?.[1] || "";
   assert.match(body,/},5000\)/);
-  assert.match(body,/androidOutboxOperation\(operationId\)/);
+  assert.equal((body.match(/androidOutboxOperation\(operationId\)/g) || []).length,1);
+  assert.match(body,/resolve\(null\)/);
 });
