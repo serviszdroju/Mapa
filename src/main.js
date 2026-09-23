@@ -3302,7 +3302,7 @@ function requestAndroidCachedSitesItems(bridge,limit){
     },15000);
     androidCachedSitesRequests.set(requestId,{resolve,reject,timeout,items:[]});
     try{
-      bridge.requestCachedSitesJsonChunks(limit,60,requestId);
+      bridge.requestCachedSitesJsonChunks(limit,200,requestId);
     }catch(error){
       clearTimeout(timeout);
       androidCachedSitesRequests.delete(requestId);

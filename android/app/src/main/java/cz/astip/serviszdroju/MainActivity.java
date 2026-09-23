@@ -113,6 +113,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         offlineRepository = SzzOfflineRepository.get(this);
+        offlineRepository.prewarmCachedSites();
         pendingWebCacheReset = shouldResetWebCacheForBuild();
         createAndAttachWebView(savedInstanceState);
         registerNetworkObserver();

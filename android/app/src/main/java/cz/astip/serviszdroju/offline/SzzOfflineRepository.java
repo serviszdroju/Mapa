@@ -68,6 +68,14 @@ public final class SzzOfflineRepository {
         }
     }
 
+    public void prewarmCachedSites() {
+        executor.execute(() -> {
+            try {
+                dao.cachedSiteRawJson(20000);
+            } catch (Exception ignored) {}
+        });
+    }
+
     public void saveProtocolDraft(String payloadJson, Callback callback) {
         run(callback, () -> {
             JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
