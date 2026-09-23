@@ -455,9 +455,7 @@ import {
 import {
   createProtocolWordBlobHelpers
 } from "./protocol-word-blob-utils.js";
-import {
-  createProtocolWordDocumentHelpers
-} from "./protocol-word-document-utils.js";
+import {buildProtocolWordStylesXml} from "./protocol-word-styles-utils.js";
 import {
   createProtocolWordSignatureHelpers
 } from "./protocol-word-signature-utils.js";
@@ -5753,34 +5751,43 @@ const {
   simpleNorm
 });
 
-const {
-  buildProtocolWordEntries,
-  buildProtocolWordStylesXml
-}=createProtocolWordDocumentHelpers({
-  getCurrentUser:()=>currentUser,
-  getSelectedSite:()=>selectedSite,
-  protocolAccessText,
-  protocolAvailabilityText,
-  protocolBackedDevicesText,
-  protocolConditionsText,
-  protocolDisplayDate,
-  protocolMeasurementTableSpec,
-  protocolPeriodText,
-  protocolSignatureImageBytes,
-  protocolSourceStateLabel,
-  protocolSourceStateValue,
-  protocolSourceTestMethodLabel,
-  protocolTechnicianSignatureImageBytes,
-  wordBlank,
-  wordFormField,
-  wordFormGrid,
-  wordParagraph,
-  wordParagraphXml,
-  wordRun,
-  wordSignatureGrid,
-  wordTable,
-  wordXmlEscape
-});
+let protocolWordDocumentHelpersPromise=null;
+async function buildProtocolWordEntries(protocol={}){
+  if(!protocolWordDocumentHelpersPromise){
+    protocolWordDocumentHelpersPromise=import("./protocol-word-document-utils.js").then(({createProtocolWordDocumentHelpers})=>
+      createProtocolWordDocumentHelpers({
+        getCurrentUser:()=>currentUser,
+        getSelectedSite:()=>selectedSite,
+        protocolAccessText,
+        protocolAvailabilityText,
+        protocolBackedDevicesText,
+        protocolConditionsText,
+        protocolDisplayDate,
+        protocolMeasurementTableSpec,
+        protocolPeriodText,
+        protocolSignatureImageBytes,
+        protocolSourceStateLabel,
+        protocolSourceStateValue,
+        protocolSourceTestMethodLabel,
+        protocolTechnicianSignatureImageBytes,
+        wordBlank,
+        wordFormField,
+        wordFormGrid,
+        wordParagraph,
+        wordParagraphXml,
+        wordRun,
+        wordSignatureGrid,
+        wordTable,
+        wordXmlEscape
+      })
+    ).catch(error=>{
+      protocolWordDocumentHelpersPromise=null;
+      throw error;
+    });
+  }
+  const helpers=await protocolWordDocumentHelpersPromise;
+  return helpers.buildProtocolWordEntries(protocol);
+}
 
 const {
   checkbox,

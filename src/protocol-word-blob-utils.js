@@ -10,7 +10,7 @@ export function createProtocolWordBlobHelpers({
 
   async function buildProtocolWordBlob(protocol={}){
     const {buildDocxBlob}=await loadProtocolWordZipModule();
-    return buildDocxBlob(buildProtocolWordEntries(protocol));
+    return buildDocxBlob(await buildProtocolWordEntries(protocol));
   }
 
   return { buildProtocolWordBlob };
