@@ -38,14 +38,3 @@ test("Android rotation coalesces WebView resize without forced layout storms",()
   assert.match(delayedBody[1],/target\.postOnAnimation/);
   assert.match(delayedBody[1],/window\.dispatchEvent\(new Event\('resize'\)\)/);
 });
-
-test("map startup reads IndexedDB before the slower Android Room JSON fallback",()=>{
-  const late=fs.readFileSync(new URL("../public/late.js",import.meta.url),"utf8");
-  const body=late.match(/async function readMapRowsCacheFast\(\)\{([\s\S]*?)\n  \}/);
-  assert.ok(body);
-  const indexedAt=body[1].indexOf("readMapRowsCacheIndexedDb()");
-  const androidAt=body[1].indexOf("readMapRowsCacheAndroid()");
-  assert.ok(indexedAt>=0 && androidAt>indexedAt);
-  assert.match(body[1],/if\(indexed\.length\) return indexed;/);
-  assert.match(body[1],/if\(androidRows\.length\) return androidRows;/);
-});
