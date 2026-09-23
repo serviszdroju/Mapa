@@ -587,15 +587,6 @@ import {
   createSiteAttachmentInputHelpers
 } from "./site-attachment-input-utils.js";
 import {
-  createSiteAttachmentLoadHelpers
-} from "./site-attachment-load-utils.js";
-import {
-  createSiteAttachmentRenderHelpers
-} from "./site-attachment-render-utils.js";
-import {
-  createSiteAttachmentUploadHelpers
-} from "./site-attachment-upload-utils.js";
-import {
   createSitePhotoInputHelpers
 } from "./site-photo-input-utils.js";
 import {
@@ -5656,17 +5647,108 @@ const {
   isAppAdmin
 });
 
-const {
-  renderSiteAttachments,
-  resetSiteAttachmentRenderSignature
-}=createSiteAttachmentRenderHelpers({
-  attachmentDisplayUrl,
-  attachmentFileName,
-  attachmentRenderSignature,
-  bytesLabel,
-  photoInsertedLabel,
-  siteAttachmentsNode
-});
+const ATTACHMENT_INLINE_MAX_BYTES=650*1024;
+let siteAttachmentItems=[];
+let siteAttachmentRuntimeHelpers=null;
+let siteAttachmentRuntimeHelpersPromise=null;
+function loadSiteAttachmentRuntimeHelpers(){
+  if(siteAttachmentRuntimeHelpers) return Promise.resolve(siteAttachmentRuntimeHelpers);
+  if(!siteAttachmentRuntimeHelpersPromise){
+    siteAttachmentRuntimeHelpersPromise=Promise.all([
+      import("./site-attachment-render-utils.js"),
+      import("./site-attachment-load-utils.js"),
+      import("./site-attachment-upload-utils.js")
+    ]).then(([renderModule,loadModule,uploadModule])=>{
+      const renderHelpers=renderModule.createSiteAttachmentRenderHelpers({
+        attachmentDisplayUrl,
+        attachmentFileName,
+        attachmentRenderSignature,
+        bytesLabel,
+        photoInsertedLabel,
+        siteAttachmentsNode
+      });
+      const loadHelpers=loadModule.createSiteAttachmentLoadHelpers({
+        attachmentDisplayUrl,
+        attachmentSiblingRows,
+        detailLazyKey,
+        getDb:()=>db,
+        getFirebaseReady:()=>firebaseReady,
+        getSelectedSite:()=>selectedSite,
+        historyTimeValue,
+        loadSiteChildItems,
+        readAndroidCachedRecords,
+        readAndroidCachedRecordsAsync,
+        readSiteLocalArray,
+        refreshSiteDataFromFirebase,
+        renderSiteAttachments,
+        safe,
+        saveAttachmentsSnapshotToAndroid,
+        setSiteAttachmentItems:items=>{ siteAttachmentItems=items; },
+        setSiteAttachmentsStatusText,
+        siteAttachmentsStatusNode,
+        waitForFirebaseUser
+      });
+      const uploadHelpers=uploadModule.createSiteAttachmentUploadHelpers({
+        addLocalAttachmentToCurrentView,
+        appendEmbeddedSiteItem,
+        appendSiteLocalArray,
+        attachmentInlineMaxBytes:ATTACHMENT_INLINE_MAX_BYTES,
+        attachmentSiblingRows,
+        bytesLabel,
+        getCurrentUserEmail:()=>currentUser?.email || lastKnownUserEmail() || "",
+        getDb:()=>db,
+        getFirebaseReady:()=>firebaseReady,
+        getSelectedSite:()=>selectedSite,
+        getSiteAttachmentItems:()=>siteAttachmentItems,
+        readAttachmentFileData,
+        refreshDetailTabLoad,
+        renderSiteAttachments,
+        resetSiteAttachmentInput,
+        safe,
+        saveAttachmentsSnapshotToAndroid,
+        saveLocalAttachmentToAndroid,
+        saveSiteChildItem,
+        selectedSiteAttachmentFiles,
+        setSiteAttachmentsStatusText,
+        showSaveConfirmation,
+        sitePlaceGroupKey,
+        sitePlaceLabel,
+        siteRecordIdentity,
+        waitForFirebaseUser
+      });
+      siteAttachmentRuntimeHelpers={...renderHelpers,...loadHelpers,...uploadHelpers};
+      return siteAttachmentRuntimeHelpers;
+    }).catch(error=>{
+      siteAttachmentRuntimeHelpersPromise=null;
+      throw error;
+    });
+  }
+  return siteAttachmentRuntimeHelpersPromise;
+}
+
+async function renderSiteAttachments(items=[]){
+  try{
+    const helpers=await loadSiteAttachmentRuntimeHelpers();
+    return helpers.renderSiteAttachments(items);
+  }catch(error){
+    console.error("Přílohy se nepodařilo zobrazit",error);
+    setSiteAttachmentsStatusText("Přílohy se nepodařilo zobrazit. Zkus záložku otevřít znovu.");
+  }
+}
+
+function resetSiteAttachmentRenderSignature(){
+  if(siteAttachmentRuntimeHelpers) siteAttachmentRuntimeHelpers.resetSiteAttachmentRenderSignature();
+}
+
+async function loadSiteAttachments(...args){
+  const helpers=await loadSiteAttachmentRuntimeHelpers();
+  return helpers.loadSiteAttachments(...args);
+}
+
+async function uploadSiteAttachments(...args){
+  const helpers=await loadSiteAttachmentRuntimeHelpers();
+  return helpers.uploadSiteAttachments(...args);
+}
 
 const {
   protocolExportDatePart,
@@ -9628,58 +9710,6 @@ async function uploadSitePhotos(){
 window.loadSitePhotos=loadSitePhotos;
 window.uploadSitePhotos=uploadSitePhotos;
 
-const ATTACHMENT_INLINE_MAX_BYTES=650*1024;
-let siteAttachmentItems=[];
-const { loadSiteAttachments }=createSiteAttachmentLoadHelpers({
-  attachmentDisplayUrl,
-  attachmentSiblingRows,
-  detailLazyKey,
-  getDb:()=>db,
-  getFirebaseReady:()=>firebaseReady,
-  getSelectedSite:()=>selectedSite,
-  historyTimeValue,
-  loadSiteChildItems,
-  readAndroidCachedRecords,
-  readAndroidCachedRecordsAsync,
-  readSiteLocalArray,
-  refreshSiteDataFromFirebase,
-  renderSiteAttachments,
-  safe,
-  saveAttachmentsSnapshotToAndroid,
-  setSiteAttachmentItems:items=>{ siteAttachmentItems=items; },
-  setSiteAttachmentsStatusText,
-  siteAttachmentsStatusNode,
-  waitForFirebaseUser
-});
-
-const { uploadSiteAttachments }=createSiteAttachmentUploadHelpers({
-  addLocalAttachmentToCurrentView,
-  appendEmbeddedSiteItem,
-  appendSiteLocalArray,
-  attachmentInlineMaxBytes:ATTACHMENT_INLINE_MAX_BYTES,
-  attachmentSiblingRows,
-  bytesLabel,
-  getCurrentUserEmail:()=>currentUser?.email || lastKnownUserEmail() || "",
-  getDb:()=>db,
-  getFirebaseReady:()=>firebaseReady,
-  getSelectedSite:()=>selectedSite,
-  getSiteAttachmentItems:()=>siteAttachmentItems,
-  readAttachmentFileData,
-  refreshDetailTabLoad,
-  renderSiteAttachments,
-  resetSiteAttachmentInput,
-  safe,
-  saveAttachmentsSnapshotToAndroid,
-  saveLocalAttachmentToAndroid,
-  saveSiteChildItem,
-  selectedSiteAttachmentFiles,
-  setSiteAttachmentsStatusText,
-  showSaveConfirmation,
-  sitePlaceGroupKey,
-  sitePlaceLabel,
-  siteRecordIdentity,
-  waitForFirebaseUser
-});
 function addLocalAttachmentToCurrentView(item){
   const id=safe(item && item._id);
   siteAttachmentItems=[item,...siteAttachmentItems.filter(existing=>safe(existing && existing._id)!==id)];

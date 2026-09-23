@@ -6,10 +6,10 @@ export function createSiteAttachmentRenderHelpers({
   photoInsertedLabel,
   siteAttachmentsNode
 }){
-  let siteAttachmentRenderSignature="";
+  let siteAttachmentRenderSignature=null;
 
   function resetSiteAttachmentRenderSignature(){
-    siteAttachmentRenderSignature="";
+    siteAttachmentRenderSignature=null;
   }
 
   function renderSiteAttachments(items=[]){
