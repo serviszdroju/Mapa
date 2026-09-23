@@ -432,9 +432,6 @@ import {
   isProtocolHistoryItem
 } from "./protocol-export-utils.js";
 import {
-  createProtocolFileExportHelpers
-} from "./protocol-file-export-utils.js";
-import {
   createProtocolCheckTextHelpers
 } from "./protocol-check-text-utils.js";
 import {
@@ -6236,38 +6233,55 @@ async function openTechnicianSignatureDialog(){
 }
 window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
 
-const {
-  buildProtocolPdfBlob,
-  exportProtocolToWord,
-  preparedProtocolExport,
-  preparedProtocolFilled,
-  preparedProtocolPdfExport,
-  sendProtocolByMail
-}=createProtocolFileExportHelpers({
-  blobToBase64,
-  buildPdfFromJpegPages,
-  buildProtocolWordBlob,
-  downloadBlobFile,
-  enrichProtocolWithTechnicianSignature,
-  ensureMailFunctions,
-  getFbFnMod:()=>fb.fnMod,
-  getFirebaseReady:()=>firebaseReady,
-  getMailFunctions:()=>mailFunctions,
-  getSelectedSite:()=>selectedSite,
-  normalizeProtocolTechnicianFields,
-  protocolExportDatePart,
-  protocolMailBody,
-  protocolMailSubject,
-  protocolPdfFileNameFromWord,
-  protocolTechnicianDisplayName,
-  protocolTechnicianSignatureImageBytes,
-  protocolWordFileNamePart,
-  renderProtocolPdfPageCanvases,
-  safe,
-  setProtocolStatusText,
-  showSaveConfirmation,
-  validProtocolMailRecipient
-});
+let protocolFileExportHelpersPromise=null;
+function loadProtocolFileExportHelpers(){
+  if(!protocolFileExportHelpersPromise){
+    protocolFileExportHelpersPromise=import("./protocol-file-export-utils.js")
+      .then(({createProtocolFileExportHelpers})=>createProtocolFileExportHelpers({
+        blobToBase64,
+        buildPdfFromJpegPages,
+        buildProtocolWordBlob,
+        downloadBlobFile,
+        enrichProtocolWithTechnicianSignature,
+        ensureMailFunctions,
+        getFbFnMod:()=>fb.fnMod,
+        getFirebaseReady:()=>firebaseReady,
+        getMailFunctions:()=>mailFunctions,
+        getSelectedSite:()=>selectedSite,
+        normalizeProtocolTechnicianFields,
+        protocolExportDatePart,
+        protocolMailBody,
+        protocolMailSubject,
+        protocolPdfFileNameFromWord,
+        protocolTechnicianDisplayName,
+        protocolTechnicianSignatureImageBytes,
+        protocolWordFileNamePart,
+        renderProtocolPdfPageCanvases,
+        safe,
+        setProtocolStatusText,
+        showSaveConfirmation,
+        validProtocolMailRecipient
+      })).catch(error=>{
+        protocolFileExportHelpersPromise=null;
+        throw error;
+      });
+  }
+  return protocolFileExportHelpersPromise;
+}
+async function exportProtocolToWord(...args){
+  try{
+    const helpers=await loadProtocolFileExportHelpers();
+    return helpers.exportProtocolToWord(...args);
+  }catch(error){
+    console.warn("Načtení Word exportu protokolu selhalo",error);
+    setProtocolStatusText("Export do Wordu se nepodařil.");
+    showSaveConfirmation("Export do Wordu se nepodařil.");
+  }
+}
+async function sendProtocolByMail(...args){
+  const helpers=await loadProtocolFileExportHelpers();
+  return helpers.sendProtocolByMail(...args);
+}
 
 const {
   siteLocalCacheKey,
