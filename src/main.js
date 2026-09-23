@@ -496,15 +496,6 @@ import {
   createOfficialProtocolTextHelpers
 } from "./official-protocol-text-utils.js";
 import {
-  createOfficialRtfAssetHelpers
-} from "./official-rtf-asset-utils.js";
-import {
-  createOfficialRtfExportHelpers
-} from "./official-rtf-export-utils.js";
-import {
-  createOfficialRtfTemplateHelpers
-} from "./official-rtf-template-utils.js";
-import {
   createOfficialProtocolWordDocumentHelpers
 } from "./official-protocol-word-document-utils.js";
 import {
@@ -5999,34 +5990,6 @@ const OFFICIAL_TIPEK_SIGNATURE_URL="./podpis-tipek.png";
 const OFFICIAL_WATERMARK_LOGO_URL="./szz-logo-display.png";
 
 const {
-  addOfficialRtfSignatures,
-  addOfficialRtfWatermark
-}=createOfficialRtfAssetHelpers({
-  base64ToBytes,
-  officialOneLine,
-  officialRtfEscape,
-  protocolSignatureImageBytes,
-  safe
-});
-
-const {
-  fillOfficialRtfTemplate
-}=createOfficialRtfTemplateHelpers({
-  OFFICIAL_CONTROL_SUBJECT_TEXT,
-  addOfficialRtfSignatures,
-  addOfficialRtfWatermark,
-  compactOfficialRtfMeasurementSection,
-  officialManufacturerText,
-  officialMultiline,
-  officialOneLine,
-  officialOperatorLines,
-  officialProtocolCustomerNote,
-  officialProtocolTemplateValues,
-  officialRtfEscape,
-  safe
-});
-
-const {
   officialProtocolAddressFileName,
   officialProtocolFileDatePart
 }=createOfficialProtocolFileNameHelpers({
@@ -6041,19 +6004,58 @@ const {
   sourceTypeTextFromRaw
 });
 
-const {
-  preparedOfficialProtocolExport
-}=createOfficialRtfExportHelpers({
-  OFFICIAL_RTF_TEMPLATE_URL,
-  OFFICIAL_STOP_RTF_TEMPLATE_URL,
-  OFFICIAL_TIPEK_SIGNATURE_URL,
-  OFFICIAL_WATERMARK_LOGO_URL,
-  fillOfficialRtfTemplate,
-  getCurrentUser:()=>currentUser,
-  getSelectedSite:()=>selectedSite,
-  officialProtocolAddressFileName,
-  officialProtocolFileDatePart
-});
+let officialRtfExportHelpersPromise=null;
+function loadOfficialRtfExportHelpers(){
+  if(!officialRtfExportHelpersPromise){
+    officialRtfExportHelpersPromise=Promise.all([
+      import("./official-rtf-asset-utils.js"),
+      import("./official-rtf-template-utils.js"),
+      import("./official-rtf-export-utils.js")
+    ]).then(([assetModule,templateModule,exportModule])=>{
+      const {addOfficialRtfSignatures,addOfficialRtfWatermark}=assetModule.createOfficialRtfAssetHelpers({
+        base64ToBytes,
+        officialOneLine,
+        officialRtfEscape,
+        protocolSignatureImageBytes,
+        safe
+      });
+      const {fillOfficialRtfTemplate}=templateModule.createOfficialRtfTemplateHelpers({
+        OFFICIAL_CONTROL_SUBJECT_TEXT,
+        addOfficialRtfSignatures,
+        addOfficialRtfWatermark,
+        compactOfficialRtfMeasurementSection,
+        officialManufacturerText,
+        officialMultiline,
+        officialOneLine,
+        officialOperatorLines,
+        officialProtocolCustomerNote,
+        officialProtocolTemplateValues,
+        officialRtfEscape,
+        safe
+      });
+      return exportModule.createOfficialRtfExportHelpers({
+        OFFICIAL_RTF_TEMPLATE_URL,
+        OFFICIAL_STOP_RTF_TEMPLATE_URL,
+        OFFICIAL_TIPEK_SIGNATURE_URL,
+        OFFICIAL_WATERMARK_LOGO_URL,
+        fillOfficialRtfTemplate,
+        getCurrentUser:()=>currentUser,
+        getSelectedSite:()=>selectedSite,
+        officialProtocolAddressFileName,
+        officialProtocolFileDatePart
+      });
+    }).catch(error=>{
+      officialRtfExportHelpersPromise=null;
+      throw error;
+    });
+  }
+  return officialRtfExportHelpersPromise;
+}
+
+async function preparedOfficialProtocolExport(protocol={},officialData={},mode="ok"){
+  const helpers=await loadOfficialRtfExportHelpers();
+  return helpers.preparedOfficialProtocolExport(protocol,officialData,mode);
+}
 
 async function exportOfficialProtocol(mode="ok"){
   const status=officialProtocolStatusNode();
