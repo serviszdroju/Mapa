@@ -404,9 +404,6 @@ import {
   createPhotoDateHelpers
 } from "./photo-date-utils.js";
 import {
-  createProtocolProcessingStateHelpers
-} from "./protocol-processing-state-utils.js";
-import {
   createProtocolSignatureImageHelpers
 } from "./protocol-signature-image-utils.js";
 import {
@@ -8145,38 +8142,60 @@ window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
 });
 
-const {
-  setDetailHistoryProtocolHandoff,
-  setMainProtocolHistoryProcessed
-}=createProtocolProcessingStateHelpers({
-  clearDetailHistoryCacheForKind,
-  clearLocalDetailReadCacheForKind,
-  clearLocalStorageArrayEntriesCache,
-  clearSiteChildItemsCache,
-  getCurrentUser:()=>currentUser,
-  getDb:()=>db,
-  getDetailHistoryItems:()=>detailHistoryItems,
-  getFirebaseReady:()=>firebaseReady,
-  getFsMod:()=>fb.fsMod,
-  getMainProtocolHistoryCurrentItems:()=>mainProtocolHistoryCurrentItems,
-  getSelectedSite:()=>selectedSite,
-  mainProtocolProcessedLocalPatch,
-  mainProtocolProcessedRemotePatch,
-  patchMainProtocolHistoryCacheItems,
-  patchProtocolProcessedItems,
-  protocolHandoffLocalPatch,
-  protocolHandoffRemotePatch,
-  rememberProtocolHandoffOverride,
-  rememberSiteLocalArrayReadCache,
-  safe,
-  selectedSiteDocId,
-  setDetailHistoryItems:items=>{ detailHistoryItems=items; },
-  setMainProtocolHistoryCurrentItems:items=>{ mainProtocolHistoryCurrentItems=items; },
-  setSelectedSite:site=>{ selectedSite=site; },
-  uniqueNonEmptyStrings,
-  withSzzOfflineQueueStore,
-  SZZ_OFFLINE_PROTOCOL_QUEUE_STORE
-});
+let protocolProcessingStateHelpers=null;
+let protocolProcessingStateHelpersPromise=null;
+function loadProtocolProcessingStateHelpers(){
+  if(protocolProcessingStateHelpers) return Promise.resolve(protocolProcessingStateHelpers);
+  if(!protocolProcessingStateHelpersPromise){
+    protocolProcessingStateHelpersPromise=import("./protocol-processing-state-utils.js")
+      .then(({createProtocolProcessingStateHelpers})=>{
+        protocolProcessingStateHelpers=createProtocolProcessingStateHelpers({
+          clearDetailHistoryCacheForKind,
+          clearLocalDetailReadCacheForKind,
+          clearLocalStorageArrayEntriesCache,
+          clearSiteChildItemsCache,
+          getCurrentUser:()=>currentUser,
+          getDb:()=>db,
+          getDetailHistoryItems:()=>detailHistoryItems,
+          getFirebaseReady:()=>firebaseReady,
+          getFsMod:()=>fb.fsMod,
+          getMainProtocolHistoryCurrentItems:()=>mainProtocolHistoryCurrentItems,
+          getSelectedSite:()=>selectedSite,
+          mainProtocolProcessedLocalPatch,
+          mainProtocolProcessedRemotePatch,
+          patchMainProtocolHistoryCacheItems,
+          patchProtocolProcessedItems,
+          protocolHandoffLocalPatch,
+          protocolHandoffRemotePatch,
+          rememberProtocolHandoffOverride,
+          rememberSiteLocalArrayReadCache,
+          safe,
+          selectedSiteDocId,
+          setDetailHistoryItems:items=>{ detailHistoryItems=items; },
+          setMainProtocolHistoryCurrentItems:items=>{ mainProtocolHistoryCurrentItems=items; },
+          setSelectedSite:site=>{ selectedSite=site; },
+          uniqueNonEmptyStrings,
+          withSzzOfflineQueueStore,
+          SZZ_OFFLINE_PROTOCOL_QUEUE_STORE
+        });
+        return protocolProcessingStateHelpers;
+      }).catch(error=>{
+        protocolProcessingStateHelpersPromise=null;
+        throw error;
+      });
+  }
+  return protocolProcessingStateHelpersPromise;
+}
+
+async function setDetailHistoryProtocolHandoff(item,checked){
+  const helpers=await loadProtocolProcessingStateHelpers();
+  return helpers.setDetailHistoryProtocolHandoff(item,checked);
+}
+
+async function setMainProtocolHistoryProcessed(item,checked){
+  const helpers=await loadProtocolProcessingStateHelpers();
+  return helpers.setMainProtocolHistoryProcessed(item,checked);
+}
 
 function readAllLocalProtocolHistoryItems(){
   const items=[];

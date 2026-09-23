@@ -17,9 +17,17 @@ test("history view shares its initialized instance and retries import failure",(
   assert.match(main,/mainProtocolHistoryViewHelpersPromise=null;\s*throw error;/);
 });
 
-test("history data and processing remain in the main app",()=>{
+test("history data and processing actions remain wired in the main app",()=>{
   assert.match(main,/async function loadMainProtocolHistoryItems\(\)/);
   assert.match(main,/setMainProtocolHistoryProcessed:\(item,checked\)=>setMainProtocolHistoryProcessed\(item,checked\)/);
   assert.match(main,/getMainProtocolHistoryTechnicianFilter:\(\)=>mainProtocolHistoryTechnicianFilter/);
   assert.match(main,/viewHelpers\.bindMainProtocolHistoryControlsDom\(shell\)/);
+});
+
+test("protocol processing mutations load only on first checkbox action",()=>{
+  assert.doesNotMatch(main,/from "\.\/protocol-processing-state-utils\.js"/);
+  assert.match(main,/import\("\.\/protocol-processing-state-utils\.js"\)/);
+  assert.match(main,/async function setMainProtocolHistoryProcessed\(item,checked\)[\s\S]*?await loadProtocolProcessingStateHelpers\(\)/);
+  assert.match(main,/async function setDetailHistoryProtocolHandoff\(item,checked\)[\s\S]*?await loadProtocolProcessingStateHelpers\(\)/);
+  assert.match(main,/protocolProcessingStateHelpersPromise=null;\s*throw error;/);
 });
