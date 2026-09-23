@@ -6509,9 +6509,46 @@ function androidOfflineReadJson(method,limit=5000){
   }
 }
 
+let androidCountsRequestSequence=0;
+const androidCountsRequests=new Map();
+window.__szzAndroidCountsResult=(requestId,payload,error)=>{
+  const key=String(requestId || "");
+  const pending=androidCountsRequests.get(key);
+  if(!pending) return;
+  androidCountsRequests.delete(key);
+  clearTimeout(pending.timeout);
+  if(error){
+    pending.resolve(null);
+    return;
+  }
+  try{
+    const parsed=JSON.parse(String(payload || "{}"));
+    pending.resolve(parsed && typeof parsed==="object" ? {...parsed,ok:true} : null);
+  }catch(e){
+    pending.resolve(null);
+  }
+};
+
 function readAndroidOfflineCounts(){
   const bridge=androidOfflineBridge();
-  if(!bridge || typeof bridge.countsJson!=="function") return null;
+  if(!bridge) return null;
+  if(typeof bridge.requestCountsJson==="function"){
+    return new Promise(resolve=>{
+      const requestId=`counts-${Date.now()}-${++androidCountsRequestSequence}`;
+      const timeout=setTimeout(()=>{
+        androidCountsRequests.delete(requestId);
+        resolve(null);
+      },5000);
+      androidCountsRequests.set(requestId,{resolve,timeout});
+      try{ bridge.requestCountsJson(requestId); }
+      catch(e){
+        clearTimeout(timeout);
+        androidCountsRequests.delete(requestId);
+        resolve(null);
+      }
+    });
+  }
+  if(typeof bridge.countsJson!=="function") return null;
   try{
     const parsed=JSON.parse(String(bridge.countsJson() || "{}"));
     return parsed?.ok ? parsed : null;

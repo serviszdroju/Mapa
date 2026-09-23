@@ -908,4 +908,6 @@ Current Android stability phase 393 decision: treat an Android network as online
 
 Current Android stability phase 394 decision: observe Android connectivity capabilities while the activity is alive and forward only actual validated online/offline state changes to WebView. This lets existing web synchronization listeners react when connectivity changes without restarting the app. The observer must not invoke, restore, clear, or otherwise alter authentication.
 
+Current Android performance phase 395 decision: read native Room offline counters through an asynchronous JavaScript bridge backed by the repository executor, preserving the synchronous `countsJson()` method only as a compatibility fallback for older APKs. Keep the same counters and offline-status rendering while preventing seven Room count queries from blocking the WebView main thread during startup, focus, and sync-status refreshes.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

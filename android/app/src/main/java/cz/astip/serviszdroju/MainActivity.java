@@ -830,6 +830,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void requestCountsJson(String requestId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) {
+                deliverCountsJson(requestId, "", "Room neni dostupny.");
+                return;
+            }
+            repository.counts(new SzzOfflineRepository.Callback() {
+                @Override
+                public void onSuccess(JSONObject result) {
+                    deliverCountsJson(requestId, result == null ? "{}" : result.toString(), "");
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    deliverCountsJson(requestId, "", compactErrorText(error));
+                }
+            });
+        }
+
+        @JavascriptInterface
         public void savePhotosSnapshot(String payloadJson) {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return;
@@ -909,6 +929,16 @@ public class MainActivity extends Activity {
     private void deliverCachedSitesJson(String requestId, String payload, String error) {
         evaluateWebScript(
             "window.__szzAndroidCachedSitesResult&&window.__szzAndroidCachedSitesResult("
+                + JSONObject.quote(requestId == null ? "" : requestId)
+                + "," + JSONObject.quote(payload == null ? "" : payload)
+                + "," + JSONObject.quote(error == null ? "" : error)
+                + ");"
+        );
+    }
+
+    private void deliverCountsJson(String requestId, String payload, String error) {
+        evaluateWebScript(
+            "window.__szzAndroidCountsResult&&window.__szzAndroidCountsResult("
                 + JSONObject.quote(requestId == null ? "" : requestId)
                 + "," + JSONObject.quote(payload == null ? "" : payload)
                 + "," + JSONObject.quote(error == null ? "" : error)
