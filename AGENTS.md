@@ -934,4 +934,6 @@ Current performance phase 406 decision: lazy-load the active official RTF asset,
 
 Current performance phase 407 decision: keep synchronous region inference and house-number parsing in small startup modules, but lazy-load Nominatim address and reverse-GPS network helpers on the first geocoding action. Share one module load across add/edit/manual-GPS flows, reset it after import failure for retry, and preserve all address candidates, region values, GPS behavior, errors, and visible form behavior unchanged.
 
+Current performance phase 408 decision: lazy-load only the main cross-site protocol-history view helpers on the first authorized history opening, while keeping permissions, Firebase/local history loading, processing state, cache, filters, and data ownership in the main app. Reuse one initialized view instance, allow retry after import failure, and preserve the existing history drawer, technician/date filters, colors, processed controls, and point-opening behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

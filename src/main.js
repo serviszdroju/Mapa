@@ -496,9 +496,6 @@ import {
   createOfficialProtocolWordDocumentHelpers
 } from "./official-protocol-word-document-utils.js";
 import {
-  createMainProtocolHistoryViewHelpers
-} from "./main-protocol-history-view-utils.js";
-import {
   mergeMainProtocolHistoryItemsPreferFirebase
 } from "./main-protocol-history-merge-utils.js";
 import {
@@ -8050,35 +8047,45 @@ function showSaveConfirmation(message="Uloženo."){
 }
 window.showSaveConfirmation=showSaveConfirmation;
 
-const {
-  bindMainProtocolHistoryControlsDom,
-  bindMainProtocolHistoryListClickDom,
-  renderMainProtocolHistoryShellDom,
-  renderMainProtocolHistoryRowsDom
-}=createMainProtocolHistoryViewHelpers({
-  canViewAllMainProtocolHistory,
-  getMainProtocolHistoryCurrentItems:()=>mainProtocolHistoryCurrentItems,
-  getMainProtocolHistoryDateFilter:()=>mainProtocolHistoryDateFilter,
-  getMainProtocolHistoryTechnicianFilter:()=>mainProtocolHistoryTechnicianFilter,
-  historyDateLabel,
-  historySavedDateLabel,
-  isMainProtocolProcessed,
-  mainProtocolControlDateIso,
-  mainProtocolHistoryItemOwnedByCurrentUser,
-  mainProtocolWorkflowLabel,
-  mainProtocolWorkflowState,
-  openDetailById:key=>window.openDetailById(key),
-  protocolGlobalHistoryTitle,
-  protocolSourceStateLabel,
-  protocolSourceTestMethodLabel,
-  protocolTimeValue,
-  renderMainProtocolHistoryRows:(list,items)=>renderMainProtocolHistoryRows(list,items),
-  resetMainProtocolHistoryRenderSignature:()=>{mainProtocolHistoryRenderSignature="";},
-  setMainProtocolHistoryDateFilter:value=>{mainProtocolHistoryDateFilter=value || "";},
-  setMainProtocolHistoryTechnicianFilter:value=>{mainProtocolHistoryTechnicianFilter=value || "";},
-  setMainProtocolHistoryProcessed:(item,checked)=>setMainProtocolHistoryProcessed(item,checked),
-  showSaveConfirmation
-});
+let mainProtocolHistoryViewHelpers=null;
+let mainProtocolHistoryViewHelpersPromise=null;
+function loadMainProtocolHistoryViewHelpers(){
+  if(mainProtocolHistoryViewHelpers) return Promise.resolve(mainProtocolHistoryViewHelpers);
+  if(!mainProtocolHistoryViewHelpersPromise){
+    mainProtocolHistoryViewHelpersPromise=import("./main-protocol-history-view-utils.js")
+      .then(({createMainProtocolHistoryViewHelpers})=>{
+        mainProtocolHistoryViewHelpers=createMainProtocolHistoryViewHelpers({
+          canViewAllMainProtocolHistory,
+          getMainProtocolHistoryCurrentItems:()=>mainProtocolHistoryCurrentItems,
+          getMainProtocolHistoryDateFilter:()=>mainProtocolHistoryDateFilter,
+          getMainProtocolHistoryTechnicianFilter:()=>mainProtocolHistoryTechnicianFilter,
+          historyDateLabel,
+          historySavedDateLabel,
+          isMainProtocolProcessed,
+          mainProtocolControlDateIso,
+          mainProtocolHistoryItemOwnedByCurrentUser,
+          mainProtocolWorkflowLabel,
+          mainProtocolWorkflowState,
+          openDetailById:key=>window.openDetailById(key),
+          protocolGlobalHistoryTitle,
+          protocolSourceStateLabel,
+          protocolSourceTestMethodLabel,
+          protocolTimeValue,
+          renderMainProtocolHistoryRows:(list,items)=>renderMainProtocolHistoryRows(list,items),
+          resetMainProtocolHistoryRenderSignature:()=>{mainProtocolHistoryRenderSignature="";},
+          setMainProtocolHistoryDateFilter:value=>{mainProtocolHistoryDateFilter=value || "";},
+          setMainProtocolHistoryTechnicianFilter:value=>{mainProtocolHistoryTechnicianFilter=value || "";},
+          setMainProtocolHistoryProcessed:(item,checked)=>setMainProtocolHistoryProcessed(item,checked),
+          showSaveConfirmation
+        });
+        return mainProtocolHistoryViewHelpers;
+      }).catch(error=>{
+        mainProtocolHistoryViewHelpersPromise=null;
+        throw error;
+      });
+  }
+  return mainProtocolHistoryViewHelpersPromise;
+}
 
 window.addEventListener("storage",event=>{
   if(!event.key || event.key===SZZ_PROTOCOL_HANDOFF_OVERRIDES_KEY) clearProtocolHandoffOverridesCache();
@@ -8260,7 +8267,7 @@ async function loadMainProtocolHistoryItems(){
 }
 
 function renderMainProtocolHistoryShell(drawer){
-  const shell=renderMainProtocolHistoryShellDom(drawer,{
+  const shell=mainProtocolHistoryViewHelpers.renderMainProtocolHistoryShellDom(drawer,{
     dateFilter:mainProtocolHistoryDateFilter,
     technicianFilter:mainProtocolHistoryTechnicianFilter,
     items:mainProtocolHistoryCurrentItems
@@ -8270,7 +8277,7 @@ function renderMainProtocolHistoryShell(drawer){
 }
 
 function renderMainProtocolHistoryRows(list,items=[]){
-  mainProtocolHistoryRenderSignature=renderMainProtocolHistoryRowsDom({
+  mainProtocolHistoryRenderSignature=mainProtocolHistoryViewHelpers.renderMainProtocolHistoryRowsDom({
     list,
     items,
     dateFilter:mainProtocolHistoryDateFilter,
@@ -8282,6 +8289,14 @@ function renderMainProtocolHistoryRows(list,items=[]){
 async function openMainProtocolHistoryPanel(){
   if(!canViewMainProtocolHistory()){
     showSaveConfirmation("Historii protokolů uvidí přihlášený technik.");
+    return;
+  }
+  let viewHelpers;
+  try{
+    viewHelpers=await loadMainProtocolHistoryViewHelpers();
+  }catch(error){
+    console.error("Panel historie protokolů se nepodařilo načíst",error);
+    showSaveConfirmation("Historii protokolů se nepodařilo načíst. Zkus to znovu.");
     return;
   }
   const drawer=drawerNode();
@@ -8296,13 +8311,13 @@ async function openMainProtocolHistoryPanel(){
     setProtocolFormOpen(false,{skipPrefill:true});
     drawer.classList.remove("open");
   };
-  bindMainProtocolHistoryListClickDom(list);
-  bindMainProtocolHistoryControlsDom(shell);
+  viewHelpers.bindMainProtocolHistoryListClickDom(list);
+  viewHelpers.bindMainProtocolHistoryControlsDom(shell);
   if(dateFilter) dateFilter.value=mainProtocolHistoryDateFilter;
   if(firebaseReady && db && fb.fsMod && currentUser && navigator.onLine !== false) clearMainProtocolHistoryCache();
   const items=await loadMainProtocolHistoryItems();
   mainProtocolHistoryCurrentItems=items;
-  renderMainProtocolHistoryShellDom(drawer,{
+  viewHelpers.renderMainProtocolHistoryShellDom(drawer,{
     dateFilter:mainProtocolHistoryDateFilter,
     technicianFilter:mainProtocolHistoryTechnicianFilter,
     items
