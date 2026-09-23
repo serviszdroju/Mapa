@@ -942,4 +942,8 @@ Current performance phase 410 decision: lazy-load only the site photo viewer DOM
 
 Current performance phase 411 decision: lazy-load the Přílohy render, load, and upload helper modules together on the first attachments action, while keeping input selection, sibling source resolution, local/Firebase/Android storage primitives, refresh routing, and public entry points in the main app. Reuse one initialized runtime, allow retry after import failure, and preserve the empty state, attachment rows, metadata, open/download actions, upload behavior, and offline fallback unchanged.
 
+Current performance phase 412 decision: remove the unused eager `official-protocol-word-document-utils` factory from the startup graph. The production functional-document path remains the existing lazy RTF template pipeline, and its Doklad controls, saved data, template assets, signatures, output names, and visible behavior stay unchanged.
+
+Current performance phase 413 decision: lazy-load `official-protocol-text-utils` and `official-protocol-file-name-utils` together with the existing RTF asset, template, and export runtime on the first Doklad export. Keep only the small manufacturer-key lookup required by the visible Doklad form in startup code, reuse one retryable runtime promise, and preserve field values, templates, signatures, filenames, result modes, and download behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

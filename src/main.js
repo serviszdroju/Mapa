@@ -478,17 +478,8 @@ import {
   createProtocolWorkflowHelpers
 } from "./protocol-workflow-utils.js";
 import {
-  createOfficialProtocolFileNameHelpers
-} from "./official-protocol-file-name-utils.js";
-import {
   createOfficialProtocolDataHelpers
 } from "./official-protocol-data-utils.js";
-import {
-  createOfficialProtocolTextHelpers
-} from "./official-protocol-text-utils.js";
-import {
-  createOfficialProtocolWordDocumentHelpers
-} from "./official-protocol-word-document-utils.js";
 import {
   mergeMainProtocolHistoryItemsPreferFirebase
 } from "./main-protocol-history-merge-utils.js";
@@ -5950,44 +5941,9 @@ const OFFICIAL_MANUFACTURERS={
   }
 };
 
-const {
-  compactOfficialRtfMeasurementSection,
-  officialManufacturerText,
-  officialManufacturerTextByKey,
-  officialMultiline,
-  officialOneLine,
-  officialOperatorLines,
-  officialOperatorText,
-  officialProtocolConditionsText,
-  officialProtocolCustomerNote,
-  officialProtocolDeviceLine,
-  officialProtocolFunctionalText,
-  officialProtocolMeasurementNotesXml,
-  officialProtocolNextDate,
-  officialProtocolResultText,
-  officialProtocolTemplateValues,
-  officialRtfEscape
-}=createOfficialProtocolTextHelpers({
-  NEXT_CHECK_KEYS,
-  OFFICIAL_DEFAULT_MANUFACTURER_TEXT,
-  OFFICIAL_MANUFACTURERS,
-  addMonths,
-  first,
-  formatDateCz,
-  getSelectedSite:()=>selectedSite,
-  parseDateValue,
-  periodMonths,
-  protocolDeviceTypeFromSite:(site)=>protocolDeviceTypeFromSite(site),
-  protocolDisplayDate,
-  protocolExportValue,
-  protocolSerialFromSite:(site)=>protocolSerialFromSite(site),
-  protocolSourceLocationFromSite:(site)=>protocolSourceLocationFromSite(site),
-  safe,
-  simpleNorm,
-  wordBlank,
-  wordParagraph,
-  wordTable
-});
+function officialManufacturerTextByKey(key){
+  return (OFFICIAL_MANUFACTURERS[key] || OFFICIAL_MANUFACTURERS.szz).text;
+}
 
 const {
   fillOfficialProtocolInputs,
@@ -6047,63 +6003,65 @@ const {
   writeSiteLocalObject:(...args)=>writeSiteLocalObject(...args)
 });
 
-const {
-  buildOfficialProtocolWordEntries
-}=createOfficialProtocolWordDocumentHelpers({
-  OFFICIAL_CONTROL_SUBJECT_TEXT,
-  buildProtocolWordStylesXml,
-  getCurrentUser:()=>currentUser,
-  getSelectedSite:()=>selectedSite,
-  officialManufacturerText,
-  officialOperatorText,
-  officialProtocolConditionsText,
-  officialProtocolCustomerNote,
-  officialProtocolDeviceLine,
-  officialProtocolFunctionalText,
-  officialProtocolMeasurementNotesXml,
-  officialProtocolNextDate,
-  officialProtocolResultText,
-  protocolDisplayDate,
-  protocolSignatureImageBytes,
-  protocolSourceLocationFromSite,
-  safe,
-  wordBlank,
-  wordClientSignatureCellXml,
-  wordParagraph,
-  wordParagraphXml,
-  wordRun,
-  wordTable,
-  wordXmlEscape
-});
-
 const OFFICIAL_RTF_TEMPLATE_URL="official-template.rtf";
 const OFFICIAL_STOP_RTF_TEMPLATE_URL="official-stop-template.rtf";
 const OFFICIAL_TIPEK_SIGNATURE_URL="./podpis-tipek.png";
 const OFFICIAL_WATERMARK_LOGO_URL="./szz-logo-display.png";
 
-const {
-  officialProtocolAddressFileName,
-  officialProtocolFileDatePart
-}=createOfficialProtocolFileNameHelpers({
-  getSelectedSite:()=>selectedSite,
-  officialOneLine,
-  parseDateValue,
-  pickRawValue,
-  protocolWordFileNamePart,
-  safe,
-  siteHasMultipleSources,
-  siteSourceLabel,
-  sourceTypeTextFromRaw
-});
-
 let officialRtfExportHelpersPromise=null;
 function loadOfficialRtfExportHelpers(){
   if(!officialRtfExportHelpersPromise){
     officialRtfExportHelpersPromise=Promise.all([
+      import("./official-protocol-text-utils.js"),
+      import("./official-protocol-file-name-utils.js"),
       import("./official-rtf-asset-utils.js"),
       import("./official-rtf-template-utils.js"),
       import("./official-rtf-export-utils.js")
-    ]).then(([assetModule,templateModule,exportModule])=>{
+    ]).then(([textModule,fileNameModule,assetModule,templateModule,exportModule])=>{
+      const {
+        compactOfficialRtfMeasurementSection,
+        officialManufacturerText,
+        officialMultiline,
+        officialOneLine,
+        officialOperatorLines,
+        officialProtocolCustomerNote,
+        officialProtocolTemplateValues,
+        officialRtfEscape
+      }=textModule.createOfficialProtocolTextHelpers({
+        NEXT_CHECK_KEYS,
+        OFFICIAL_DEFAULT_MANUFACTURER_TEXT,
+        OFFICIAL_MANUFACTURERS,
+        addMonths,
+        first,
+        formatDateCz,
+        getSelectedSite:()=>selectedSite,
+        parseDateValue,
+        periodMonths,
+        protocolDeviceTypeFromSite:(site)=>protocolDeviceTypeFromSite(site),
+        protocolDisplayDate,
+        protocolExportValue,
+        protocolSerialFromSite:(site)=>protocolSerialFromSite(site),
+        protocolSourceLocationFromSite:(site)=>protocolSourceLocationFromSite(site),
+        safe,
+        simpleNorm,
+        wordBlank,
+        wordParagraph,
+        wordTable
+      });
+      const {
+        officialProtocolAddressFileName,
+        officialProtocolFileDatePart
+      }=fileNameModule.createOfficialProtocolFileNameHelpers({
+        getSelectedSite:()=>selectedSite,
+        officialOneLine,
+        parseDateValue,
+        pickRawValue,
+        protocolWordFileNamePart,
+        safe,
+        siteHasMultipleSources,
+        siteSourceLabel,
+        sourceTypeTextFromRaw
+      });
       const {addOfficialRtfSignatures,addOfficialRtfWatermark}=assetModule.createOfficialRtfAssetHelpers({
         base64ToBytes,
         officialOneLine,

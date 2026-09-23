@@ -5,7 +5,9 @@ import test from "node:test";
 const main=fs.readFileSync(new URL("../src/main.js",import.meta.url),"utf8");
 
 test("official RTF pipeline loads only for document export",()=>{
-  assert.doesNotMatch(main,/^import\s*\{[^}]*createOfficialRtf(?:Asset|Template|Export)Helpers[^}]*\}/m);
+  assert.doesNotMatch(main,/^import\s*\{[^}]*(?:createOfficialRtf(?:Asset|Template|Export)Helpers|createOfficialProtocol(?:Text|FileName)Helpers)[^}]*\}/m);
+  assert.match(main,/import\("\.\/official-protocol-text-utils\.js"\)/);
+  assert.match(main,/import\("\.\/official-protocol-file-name-utils\.js"\)/);
   assert.match(main,/import\("\.\/official-rtf-asset-utils\.js"\)/);
   assert.match(main,/import\("\.\/official-rtf-template-utils\.js"\)/);
   assert.match(main,/import\("\.\/official-rtf-export-utils\.js"\)/);
