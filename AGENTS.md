@@ -970,4 +970,6 @@ Current performance phase 424 decision: lazy-load the offline map-tile cache wor
 
 Current performance phase 425 decision: lazy-load the offline-app preparation worker on the first manual prepare/full-sync action while keeping offline status collection, automatic queue synchronization, connectivity listeners, controls, and public preparation action in the main app. Share one retryable helper instance and preserve full/incremental Firebase refreshes, detail/media prefetch, app-shell caching, persistent-storage requests, progress text, readiness metadata, and visible messages unchanged.
 
+Current performance phase 426 decision: lazy-load the protocol measurement-table specification only when Word or PDF protocol export first needs it. Share one retryable import promise between both export pipelines and preserve every table width, label, value field, colspan, Word/PDF rendering path, and visible export behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

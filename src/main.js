@@ -423,9 +423,6 @@ import {
   createProtocolMailHelpers
 } from "./protocol-mail-utils.js";
 import {
-  protocolMeasurementTableSpec
-} from "./protocol-measurement-table-utils.js";
-import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
 import {
@@ -5815,13 +5812,27 @@ const {
 });
 
 let protocolWordRuntimePromise=null;
+let protocolMeasurementTableSpecPromise=null;
+function loadProtocolMeasurementTableSpec(){
+  if(!protocolMeasurementTableSpecPromise){
+    protocolMeasurementTableSpecPromise=import("./protocol-measurement-table-utils.js")
+      .then(module=>module.protocolMeasurementTableSpec)
+      .catch(error=>{
+        protocolMeasurementTableSpecPromise=null;
+        throw error;
+      });
+  }
+  return protocolMeasurementTableSpecPromise;
+}
+
 async function buildProtocolWordEntries(protocol={}){
   if(!protocolWordRuntimePromise){
     protocolWordRuntimePromise=Promise.all([
       import("./protocol-word-document-utils.js"),
       import("./protocol-word-xml-utils.js"),
-      import("./protocol-word-signature-utils.js")
-    ]).then(([documentModule,xmlModule,signatureModule])=>{
+      import("./protocol-word-signature-utils.js"),
+      loadProtocolMeasurementTableSpec()
+    ]).then(([documentModule,xmlModule,signatureModule,protocolMeasurementTableSpec])=>{
       const xmlHelpers=xmlModule.createProtocolWordXmlHelpers({protocolExportValue});
       const signatureHelpers=signatureModule.createProtocolWordSignatureHelpers({
         protocolSignatureImageBytes,
@@ -6176,8 +6187,9 @@ function loadProtocolPdfRuntime(){
     protocolPdfRuntimePromise=Promise.all([
       import("./protocol-pdf-render-utils.js"),
       import("./pdf-byte-writer-utils.js"),
-      loadBrowserFileHelpers()
-    ]).then(([renderModule,writerModule,fileHelpers])=>({
+      loadBrowserFileHelpers(),
+      loadProtocolMeasurementTableSpec()
+    ]).then(([renderModule,writerModule,fileHelpers,protocolMeasurementTableSpec])=>({
       renderProtocolPdfPageCanvases:renderModule.createProtocolPdfRenderHelpers({
         drawImageContained:fileHelpers.drawImageContained,
         getSelectedSite:()=>selectedSite,
