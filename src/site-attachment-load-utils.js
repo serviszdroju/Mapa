@@ -7,7 +7,7 @@ export function createSiteAttachmentLoadHelpers({
   getSelectedSite,
   historyTimeValue,
   loadSiteChildItems,
-  readAndroidCachedRecords,
+  readAndroidCachedRecordsAsync,
   readSiteLocalArray,
   refreshSiteDataFromFirebase,
   renderSiteAttachments,
@@ -44,7 +44,8 @@ export function createSiteAttachmentLoadHelpers({
     };
     const siblings=attachmentSiblingRows(site);
     if(site){
-      const androidAttachments=readAndroidCachedRecords("cachedAttachmentsJson",site,5000);
+      const androidAttachments=await readAndroidCachedRecordsAsync("cachedAttachmentsJson",site,5000);
+      if(!stillSameSite()) return;
       androidAttachments.forEach((item,idx)=>addAttachment({...item,_id:item._id || `android_attachment_${idx}`,_androidRoom:true}));
     }
     siblings.forEach(sibling=>{

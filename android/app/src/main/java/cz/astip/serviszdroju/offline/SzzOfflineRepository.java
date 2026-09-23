@@ -334,8 +334,28 @@ public final class SzzOfflineRepository {
         return cachedRowsJson("cachedPhotos", dao.cachedPhotoCount(), dao.cachedPhotoRawJson(cappedLimit(limit)));
     }
 
+    public void cachedPhotosJsonAsync(int limit, StringCallback callback) {
+        executor.execute(() -> {
+            try {
+                callback.onSuccess(cachedPhotosJson(limit));
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
+    }
+
     public String cachedAttachmentsJson(int limit) {
         return cachedRowsJson("cachedAttachments", dao.cachedAttachmentCount(), dao.cachedAttachmentRawJson(cappedLimit(limit)));
+    }
+
+    public void cachedAttachmentsJsonAsync(int limit, StringCallback callback) {
+        executor.execute(() -> {
+            try {
+                callback.onSuccess(cachedAttachmentsJson(limit));
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
     }
 
     public String countsJsonString() {

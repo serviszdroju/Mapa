@@ -326,8 +326,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 CookieManager.getInstance().flush();
                 if (pendingWebCacheReset && isSzzWebUrl(Uri.parse(url))) {
-                    purgeServiceWorkerCachesThenReload(view);
-                    return;
+                    purgeServiceWorkerCaches(view);
                 }
                 injectAndroidBootstrap();
                 updateAndroidViewportCss(getResources().getConfiguration());
@@ -437,19 +436,14 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private void purgeServiceWorkerCachesThenReload(WebView view) {
+    private void purgeServiceWorkerCaches(WebView view) {
         pendingWebCacheReset = false;
-        String reloadUrl = BuildConfig.LAUNCH_URL +
-            (BuildConfig.LAUNCH_URL.contains("?") ? "&" : "?") +
-            "androidCacheReset=" +
-            Uri.encode(BuildConfig.VERSION_NAME);
         String script =
             "(function(){"
-                + "var done=function(){setTimeout(function(){location.replace(" + JSONObject.quote(reloadUrl) + ");},80);};"
                 + "Promise.allSettled(["
                 + "('serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function(items){return Promise.all(items.map(function(reg){return reg.unregister();}));}) : Promise.resolve()),"
                 + "('caches' in window ? caches.keys().then(function(keys){return Promise.all(keys.filter(function(key){return key.indexOf('astip-szz-')===0 && key!=='astip-szz-map-tiles-v1';}).map(function(key){return caches.delete(key);}));}) : Promise.resolve())"
-                + "]).then(done).catch(done);"
+                + "]).catch(function(){});"
                 + "})();";
         view.evaluateJavascript(script, null);
     }
@@ -873,6 +867,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void requestCachedPhotosJson(int limit, String requestId) {
+            requestCachedMediaJson("photos", limit, requestId);
+        }
+
+        @JavascriptInterface
         public void saveAttachmentsSnapshot(String payloadJson) {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return;
@@ -891,6 +890,32 @@ public class MainActivity extends Activity {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return "{\"ok\":false,\"error\":\"Room neni dostupny.\"}";
             return repository.cachedAttachmentsJson(limit);
+        }
+
+        @JavascriptInterface
+        public void requestCachedAttachmentsJson(int limit, String requestId) {
+            requestCachedMediaJson("attachments", limit, requestId);
+        }
+
+        private void requestCachedMediaJson(String kind, int limit, String requestId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) {
+                deliverCachedRecordsJson(requestId, "", "Room neni dostupny.");
+                return;
+            }
+            SzzOfflineRepository.StringCallback callback = new SzzOfflineRepository.StringCallback() {
+                @Override
+                public void onSuccess(String result) {
+                    deliverCachedRecordsJson(requestId, result, "");
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    deliverCachedRecordsJson(requestId, "", compactErrorText(error));
+                }
+            };
+            if ("attachments".equals(kind)) repository.cachedAttachmentsJsonAsync(limit, callback);
+            else repository.cachedPhotosJsonAsync(limit, callback);
         }
 
         @JavascriptInterface
@@ -941,6 +966,16 @@ public class MainActivity extends Activity {
     private void deliverCountsJson(String requestId, String payload, String error) {
         evaluateWebScript(
             "window.__szzAndroidCountsResult&&window.__szzAndroidCountsResult("
+                + JSONObject.quote(requestId == null ? "" : requestId)
+                + "," + JSONObject.quote(payload == null ? "" : payload)
+                + "," + JSONObject.quote(error == null ? "" : error)
+                + ");"
+        );
+    }
+
+    private void deliverCachedRecordsJson(String requestId, String payload, String error) {
+        evaluateWebScript(
+            "window.__szzAndroidCachedRecordsResult&&window.__szzAndroidCachedRecordsResult("
                 + JSONObject.quote(requestId == null ? "" : requestId)
                 + "," + JSONObject.quote(payload == null ? "" : payload)
                 + "," + JSONObject.quote(error == null ? "" : error)

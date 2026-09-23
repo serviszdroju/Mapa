@@ -1958,7 +1958,7 @@ if(firebaseReady){
   window.syncFirebaseRowsDeltaAfterAuth=syncFirebaseRowsDeltaAfterAuth;
   async function loadFirebaseRowsAfterAuthInner(reason="auth"){
     if(!firebaseUnifiedPrimary) return true;
-    if(Array.isArray(rows) && rows.length && window.__szzAndroidFastCacheRowsLoaded){
+    if(Array.isArray(rows) && rows.length && (window.__szzAndroidFastCacheRowsLoaded || isAndroidShellRuntime())){
       resetFirebaseRowsAutoReload();
       runWhenIdle(()=>cacheCurrentFirebaseRowsForOffline(),3200);
       runWhenIdle(()=>syncFirebaseRowsDeltaAfterAuth(reason).catch(e=>{
@@ -6599,6 +6599,50 @@ function readAndroidCachedRecords(method,site=selectedSite,limit=5000){
   });
 }
 
+let androidCachedRecordsRequestSequence=0;
+const androidCachedRecordsRequests=new Map();
+window.__szzAndroidCachedRecordsResult=(requestId,payload,error)=>{
+  const key=String(requestId || "");
+  const pending=androidCachedRecordsRequests.get(key);
+  if(!pending) return;
+  androidCachedRecordsRequests.delete(key);
+  clearTimeout(pending.timeout);
+  if(error) pending.reject(new Error(String(error)));
+  else pending.resolve(String(payload || ""));
+};
+
+async function readAndroidCachedRecordsAsync(method,site=selectedSite,limit=5000){
+  const bridge=androidOfflineBridge();
+  const requestMethod=method==="cachedAttachmentsJson" ? "requestCachedAttachmentsJson" : "requestCachedPhotosJson";
+  if(!bridge || typeof bridge[requestMethod]!=="function") return readAndroidCachedRecords(method,site,limit);
+  try{
+    const payload=await new Promise((resolve,reject)=>{
+      const requestId=`records-${Date.now()}-${++androidCachedRecordsRequestSequence}`;
+      const timeout=setTimeout(()=>{
+        androidCachedRecordsRequests.delete(requestId);
+        reject(new Error("Android cache médií nevrátila výsledek včas."));
+      },10000);
+      androidCachedRecordsRequests.set(requestId,{resolve,reject,timeout});
+      try{ bridge[requestMethod](limit,requestId); }
+      catch(error){
+        clearTimeout(timeout);
+        androidCachedRecordsRequests.delete(requestId);
+        reject(error);
+      }
+    });
+    const parsed=JSON.parse(payload || "{}");
+    const items=Array.isArray(parsed?.items) ? parsed.items : [];
+    if(!site) return items;
+    return items.filter(item=>{
+      try{ return recordMatchesSite(item,site); }
+      catch(e){ return false; }
+    });
+  }catch(error){
+    console.warn("Asynchronní Android cache médií selhala, používám kompatibilní čtení",error);
+    return readAndroidCachedRecords(method,site,limit);
+  }
+}
+
 function saveMediaSnapshotToAndroid(method,site,items){
   if(!Array.isArray(items) || !items.length) return false;
   const compactItems=items.filter(item=>item && typeof item==="object");
@@ -9193,7 +9237,8 @@ async function loadSitePhotos(site=selectedSite){
   };
 
   if(site){
-    const androidPhotos=readAndroidCachedRecords("cachedPhotosJson",site,5000);
+    const androidPhotos=await readAndroidCachedRecordsAsync("cachedPhotosJson",site,5000);
+    if(!stillSameSite()) return;
     for(let idx=0;idx<androidPhotos.length;idx++){
       const item=androidPhotos[idx];
       addPhoto({...item,_id:item._id || `android_photo_${idx}`,_androidRoom:true});
@@ -9272,7 +9317,7 @@ async function uploadSitePhotos(){
     const siteStableKey=detailLazyKey(selectedSite) || selectedSiteDocId(selectedSite) || sitePlaceGroupKey(selectedSite) || safe(selectedSite.id);
     const existingPhotos=[...sitePhotoItems];
     const addExistingPhoto=item=>{ if(item && typeof item==="object") existingPhotos.push(item); };
-    readAndroidCachedRecords("cachedPhotosJson",selectedSite,5000).forEach(addExistingPhoto);
+    (await readAndroidCachedRecordsAsync("cachedPhotosJson",selectedSite,5000)).forEach(addExistingPhoto);
     readSiteLocalArray("photos",selectedSite).forEach(addExistingPhoto);
     try{
       const offlinePhotos=await readOfflinePhotoItems(selectedSite);
@@ -9463,6 +9508,7 @@ const { loadSiteAttachments }=createSiteAttachmentLoadHelpers({
   historyTimeValue,
   loadSiteChildItems,
   readAndroidCachedRecords,
+  readAndroidCachedRecordsAsync,
   readSiteLocalArray,
   refreshSiteDataFromFirebase,
   renderSiteAttachments,
