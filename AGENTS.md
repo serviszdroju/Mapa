@@ -974,4 +974,6 @@ Current performance phase 426 decision: lazy-load the protocol measurement-table
 
 Current performance phase 427 decision: lazy-load protocol checkbox/text formatting helpers only when Word or PDF protocol export first needs them. Share one retryable initialized helper promise between both export pipelines and preserve all Czech labels, checkbox glyphs, access/availability/device/condition/period formatting, document content, and visible export behavior unchanged.
 
+Current performance phase 428 decision: lazy-load protocol signature-image and base64 byte helpers only when Word/PDF/RTF export, technician-signature enrichment, signature administration, or protocol file delivery first needs them. Share one retryable initialized helper promise across all paths and preserve PNG data-URL validation, client and technician signatures, PDF bytes, document assets, e-mail attachments, and visible behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

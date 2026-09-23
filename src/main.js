@@ -398,9 +398,6 @@ import {
   createPhotoDateHelpers
 } from "./photo-date-utils.js";
 import {
-  createProtocolSignatureImageHelpers
-} from "./protocol-signature-image-utils.js";
-import {
   createProtocolTechnicianIdentityHelpers
 } from "./protocol-technician-identity-utils.js";
 import {
@@ -5777,12 +5774,6 @@ function protocolDisplayDate(value){
 }
 
 const {
-  base64ToBytes,
-  protocolSignatureImageBytes,
-  protocolTechnicianSignatureImageBytes
-}=createProtocolSignatureImageHelpers({ safe });
-
-const {
   normalizeProtocolTechnicianFields,
   normalizeTechnicianDisplayName,
   protocolTechnicianDisplayName,
@@ -5799,6 +5790,7 @@ const {
 let protocolWordRuntimePromise=null;
 let protocolMeasurementTableSpecPromise=null;
 let protocolCheckTextHelpersPromise=null;
+let protocolSignatureImageHelpersPromise=null;
 function loadProtocolMeasurementTableSpec(){
   if(!protocolMeasurementTableSpecPromise){
     protocolMeasurementTableSpecPromise=import("./protocol-measurement-table-utils.js")
@@ -5823,6 +5815,18 @@ function loadProtocolCheckTextHelpers(){
   return protocolCheckTextHelpersPromise;
 }
 
+function loadProtocolSignatureImageHelpers(){
+  if(!protocolSignatureImageHelpersPromise){
+    protocolSignatureImageHelpersPromise=import("./protocol-signature-image-utils.js")
+      .then(({createProtocolSignatureImageHelpers})=>createProtocolSignatureImageHelpers({safe}))
+      .catch(error=>{
+        protocolSignatureImageHelpersPromise=null;
+        throw error;
+      });
+  }
+  return protocolSignatureImageHelpersPromise;
+}
+
 async function buildProtocolWordEntries(protocol={}){
   if(!protocolWordRuntimePromise){
     protocolWordRuntimePromise=Promise.all([
@@ -5830,8 +5834,9 @@ async function buildProtocolWordEntries(protocol={}){
       import("./protocol-word-xml-utils.js"),
       import("./protocol-word-signature-utils.js"),
       loadProtocolMeasurementTableSpec(),
-      loadProtocolCheckTextHelpers()
-    ]).then(([documentModule,xmlModule,signatureModule,protocolMeasurementTableSpec,checkTextHelpers])=>{
+      loadProtocolCheckTextHelpers(),
+      loadProtocolSignatureImageHelpers()
+    ]).then(([documentModule,xmlModule,signatureModule,protocolMeasurementTableSpec,checkTextHelpers,signatureImageHelpers])=>{
       const {
         protocolAccessText,
         protocolAvailabilityText,
@@ -5839,6 +5844,10 @@ async function buildProtocolWordEntries(protocol={}){
         protocolConditionsText,
         protocolPeriodText
       }=checkTextHelpers;
+      const {
+        protocolSignatureImageBytes,
+        protocolTechnicianSignatureImageBytes
+      }=signatureImageHelpers;
       const xmlHelpers=xmlModule.createProtocolWordXmlHelpers({protocolExportValue});
       const signatureHelpers=signatureModule.createProtocolWordSignatureHelpers({
         protocolSignatureImageBytes,
@@ -6037,8 +6046,10 @@ function loadOfficialRtfExportHelpers(){
       import("./official-protocol-file-name-utils.js"),
       import("./official-rtf-asset-utils.js"),
       import("./official-rtf-template-utils.js"),
-      import("./official-rtf-export-utils.js")
-    ]).then(([textModule,fileNameModule,assetModule,templateModule,exportModule])=>{
+      import("./official-rtf-export-utils.js"),
+      loadProtocolSignatureImageHelpers()
+    ]).then(([textModule,fileNameModule,assetModule,templateModule,exportModule,signatureImageHelpers])=>{
+      const {base64ToBytes,protocolSignatureImageBytes}=signatureImageHelpers;
       const {
         compactOfficialRtfMeasurementSection,
         officialManufacturerText,
@@ -6195,8 +6206,9 @@ function loadProtocolPdfRuntime(){
       import("./pdf-byte-writer-utils.js"),
       loadBrowserFileHelpers(),
       loadProtocolMeasurementTableSpec(),
-      loadProtocolCheckTextHelpers()
-    ]).then(([renderModule,writerModule,fileHelpers,protocolMeasurementTableSpec,checkTextHelpers])=>{
+      loadProtocolCheckTextHelpers(),
+      loadProtocolSignatureImageHelpers()
+    ]).then(([renderModule,writerModule,fileHelpers,protocolMeasurementTableSpec,checkTextHelpers,signatureImageHelpers])=>{
       const {
         protocolAccessText,
         protocolAvailabilityText,
@@ -6204,6 +6216,7 @@ function loadProtocolPdfRuntime(){
         protocolConditionsText,
         protocolPeriodText
       }=checkTextHelpers;
+      const {base64ToBytes}=signatureImageHelpers;
       return {
         renderProtocolPdfPageCanvases:renderModule.createProtocolPdfRenderHelpers({
         drawImageContained:fileHelpers.drawImageContained,
@@ -6250,8 +6263,9 @@ function loadTechnicianSignatureHelpers(){
   if(!technicianSignatureHelpersPromise){
     technicianSignatureHelpersPromise=Promise.all([
       import("./technician-signature-utils.js"),
-      loadBrowserFileHelpers()
-    ]).then(([signatureModule,fileHelpers])=>
+      loadBrowserFileHelpers(),
+      loadProtocolSignatureImageHelpers()
+    ]).then(([signatureModule,fileHelpers,signatureImageHelpers])=>
       signatureModule.createTechnicianSignatureHelpers({
         collectionName:TECHNICIAN_SIGNATURE_COLLECTION,
         currentUserEmail,
@@ -6262,7 +6276,7 @@ function loadTechnicianSignatureHelpers(){
         loadDataUrlImage:fileHelpers.loadDataUrlImage,
         officialTipekSignatureUrl:OFFICIAL_TIPEK_SIGNATURE_URL,
         protocolTechnicianEmail,
-        protocolTechnicianSignatureImageBytes,
+        protocolTechnicianSignatureImageBytes:signatureImageHelpers.protocolTechnicianSignatureImageBytes,
         safe,
         setProtocolStatusText:message=>setProtocolStatusText(message),
         showSaveConfirmation,
@@ -6294,8 +6308,9 @@ function loadProtocolFileExportHelpers(){
       import("./protocol-file-export-utils.js"),
       import("./protocol-mail-content-utils.js"),
       import("./protocol-word-blob-utils.js"),
-      loadBrowserFileHelpers()
-    ]).then(([exportModule,mailModule,wordBlobModule,fileHelpers])=>{
+      loadBrowserFileHelpers(),
+      loadProtocolSignatureImageHelpers()
+    ]).then(([exportModule,mailModule,wordBlobModule,fileHelpers,signatureImageHelpers])=>{
       const {protocolMailBody,protocolMailSubject}=mailModule.createProtocolMailContentHelpers({
         currentUserEmail,
         getCurrentUser:()=>currentUser,
@@ -6324,7 +6339,7 @@ function loadProtocolFileExportHelpers(){
         protocolMailSubject,
         protocolPdfFileNameFromWord:fileHelpers.protocolPdfFileNameFromWord,
         protocolTechnicianDisplayName,
-        protocolTechnicianSignatureImageBytes,
+        protocolTechnicianSignatureImageBytes:signatureImageHelpers.protocolTechnicianSignatureImageBytes,
         protocolWordFileNamePart,
         renderProtocolPdfPageCanvases,
         safe,

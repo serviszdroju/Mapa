@@ -1,0 +1,1 @@
+import{_ as u}from"./index-Bqqpi3oe.js";function c({buildProtocolWordEntries:r}){let o=null;function t(){return o||(o=u(()=>import("./zip-docx-CsnmNYND.js"),[],import.meta.url)),o}async function l(e={}){const{buildDocxBlob:i}=await t();return i(await r(e))}return{buildProtocolWordBlob:l}}export{c as createProtocolWordBlobHelpers};
