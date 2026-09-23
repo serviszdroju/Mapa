@@ -89,13 +89,10 @@ import {
 } from "./schedule-status.js";
 import {
   canonicalRegionValue,
-  geocodeAddressFast,
-  geocodeAddressGeneric,
-  geocodeRequestedHouseNumbers,
   inferRegionFromAddressText,
-  regionTextNorm,
-  reverseGeocodeGpsGeneric
-} from "./geocode-utils.js";
+  regionTextNorm
+} from "./geocode-region-utils.js";
+import { geocodeRequestedHouseNumbers } from "./geocode-house-number-utils.js";
 import {
   rowSearchText,
   searchNorm
@@ -657,6 +654,28 @@ window.canonicalWatchSelfValue=canonicalWatchSelfValue;
 window.applyWatchSelfAliases=applyWatchSelfAliases;
 let bundledFirebaseModulesPromise=null;
 let bundledFirebaseFunctionsPromise=null;
+let geocodeNetworkModulePromise=null;
+function loadGeocodeNetworkModule(){
+  if(!geocodeNetworkModulePromise){
+    geocodeNetworkModulePromise=import("./geocode-utils.js").catch(error=>{
+      geocodeNetworkModulePromise=null;
+      throw error;
+    });
+  }
+  return geocodeNetworkModulePromise;
+}
+async function geocodeAddressFast(...args){
+  const module=await loadGeocodeNetworkModule();
+  return module.geocodeAddressFast(...args);
+}
+async function geocodeAddressGeneric(...args){
+  const module=await loadGeocodeNetworkModule();
+  return module.geocodeAddressGeneric(...args);
+}
+async function reverseGeocodeGpsGeneric(...args){
+  const module=await loadGeocodeNetworkModule();
+  return module.reverseGeocodeGpsGeneric(...args);
+}
 function loadBundledFirebaseModules(){
   if(!bundledFirebaseModulesPromise){
     bundledFirebaseModulesPromise=import("./firebase-bundled-sdk.js");

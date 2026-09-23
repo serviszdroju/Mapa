@@ -18,8 +18,8 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 128
-        versionName "1.2.26-lazy-rtf"
+        versionCode 129
+        versionName "1.2.27-lazy-geocode"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",

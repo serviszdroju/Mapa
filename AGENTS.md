@@ -932,4 +932,6 @@ Current performance phase 405 decision: lazy-load protocol Word document entry g
 
 Current performance phase 406 decision: lazy-load the active official RTF asset, template, and export helpers together on the first official-document export. Share one initialized pipeline across later exports, reset it after import failure for retry, and preserve both RTF templates, signatures, watermark, official data handling, filenames, downloads, and visible status flow unchanged.
 
+Current performance phase 407 decision: keep synchronous region inference and house-number parsing in small startup modules, but lazy-load Nominatim address and reverse-GPS network helpers on the first geocoding action. Share one module load across add/edit/manual-GPS flows, reset it after import failure for retry, and preserve all address candidates, region values, GPS behavior, errors, and visible form behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

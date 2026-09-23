@@ -5,6 +5,6 @@ import test from "node:test";
 const gradle=fs.readFileSync(new URL("../android/app/build.gradle",import.meta.url),"utf8");
 
 test("network fallback fix is shipped as an installable Android update",()=>{
-  assert.match(gradle,/versionCode 128/);
-  assert.match(gradle,/versionName "1\.2\.26-lazy-rtf"/);
+  assert.match(gradle,/versionCode 129/);
+  assert.match(gradle,/versionName "1\.2\.27-lazy-geocode"/);
 });
