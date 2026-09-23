@@ -63,8 +63,10 @@ import org.json.JSONObject;
 import java.io.File;
 import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -81,6 +83,8 @@ public class MainActivity extends Activity {
     private static final int CAMERA_REQUEST = 2303;
     private static final int GOOGLE_SIGN_IN_REQUEST = 2305;
     private static final long CONFIGURATION_RESIZE_DELAY_MS = 180L;
+    private static final Map<String, String> SZZ_ASSET_RESPONSE_HEADERS =
+        Collections.singletonMap("Cache-Control", "no-store");
     private static final Set<String> AUTH_HOSTS = new HashSet<>(Arrays.asList(
         "accounts.google.com",
         "apis.google.com",
@@ -265,6 +269,7 @@ public class MainActivity extends Activity {
 
     @SuppressLint("SetJavaScriptEnabled")
     private void configureWebView() {
+        boolean online = isOnline();
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -272,13 +277,13 @@ public class MainActivity extends Activity {
             cookieManager.setAcceptThirdPartyCookies(webView, true);
         }
         webView.setBackgroundColor(Color.WHITE);
-        applyWebViewNetworkAvailability(isOnline());
+        applyWebViewNetworkAvailability(online);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setGeolocationEnabled(true);
-        settings.setCacheMode(isOnline() ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        settings.setCacheMode(online ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setLoadsImagesAutomatically(true);
         settings.setUseWideViewPort(true);
@@ -297,7 +302,7 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(new AndroidOfflineBridge(), "SzzAndroidOffline");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             ServiceWorkerController.getInstance().getServiceWorkerWebSettings()
-                .setCacheMode(isOnline() ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK);
+                .setCacheMode(online ? WebSettings.LOAD_DEFAULT : WebSettings.LOAD_CACHE_ELSE_NETWORK);
         }
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -527,12 +532,13 @@ public class MainActivity extends Activity {
 
     private WebResourceResponse openAssetResponse(String assetPath) {
         try {
+            String extension = assetExtension(assetPath);
             return new WebResourceResponse(
-                mimeTypeForAsset(assetPath),
-                charsetForAsset(assetPath),
+                mimeTypeForExtension(extension),
+                charsetForExtension(extension),
                 200,
                 "OK",
-                java.util.Collections.singletonMap("Cache-Control", "no-store"),
+                SZZ_ASSET_RESPONSE_HEADERS,
                 getAssets().open(assetPath)
             );
         } catch (Exception error) {
@@ -540,8 +546,11 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String mimeTypeForAsset(String assetPath) {
-        String extension = assetPath.substring(assetPath.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+    private String assetExtension(String assetPath) {
+        return assetPath.substring(assetPath.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private String mimeTypeForExtension(String extension) {
         switch (extension) {
             case "html": return "text/html";
             case "js":
@@ -559,8 +568,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String charsetForAsset(String assetPath) {
-        String extension = assetPath.substring(assetPath.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+    private String charsetForExtension(String extension) {
         switch (extension) {
             case "html":
             case "js":
