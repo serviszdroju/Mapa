@@ -3330,6 +3330,7 @@ function requestAndroidCachedSitesItems(bridge,limit){
     }
   });
 }
+window.requestAndroidCachedSitesItems=limit=>requestAndroidCachedSitesItems(window.SzzAndroidOffline,limit);
 
 async function readAndroidMapRowsCacheFast(limit=20000){
   try{

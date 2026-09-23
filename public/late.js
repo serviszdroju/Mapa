@@ -1945,6 +1945,12 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   async function readMapRowsCacheFast(){
     if(pendingMapRowsCacheItems.length) return rowsFromMapRowsCacheItems(pendingMapRowsCacheItems);
+    if(typeof window.requestAndroidCachedSitesItems==="function"){
+      try{
+        const chunkedAndroidItems=await window.requestAndroidCachedSitesItems(20000);
+        if(chunkedAndroidItems.length) return rowsFromMapRowsCacheItems(chunkedAndroidItems);
+      }catch(e){}
+    }
     const androidRows=readMapRowsCacheAndroid();
     if(androidRows.length) return androidRows;
     const indexed=await readMapRowsCacheIndexedDb();
