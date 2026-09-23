@@ -419,9 +419,6 @@ import {
   createPdfByteWriterHelpers
 } from "./pdf-byte-writer-utils.js";
 import {
-  createProtocolPdfRenderHelpers
-} from "./protocol-pdf-render-utils.js";
-import {
   createProtocolProcessingStateHelpers
 } from "./protocol-processing-state-utils.js";
 import {
@@ -6123,26 +6120,36 @@ const {
   protocolPdfFileNameFromWord
 }=createBrowserFileHelpers({ safe });
 
-const {
-  renderProtocolPdfPageCanvases
-}=createProtocolPdfRenderHelpers({
-  drawImageContained,
-  getSelectedSite:()=>selectedSite,
-  loadDataUrlImage,
-  protocolAccessText,
-  protocolAvailabilityText,
-  protocolBackedDevicesText,
-  protocolConditionsText,
-  protocolDisplayDate,
-  protocolExportValue,
-  protocolMeasurementTableSpec,
-  protocolPeriodText,
-  protocolSourceStateLabel,
-  protocolSourceStateValue,
-  protocolSourceTestMethodLabel,
-  protocolTechnicianDisplayName,
-  safe
-});
+let protocolPdfRendererPromise=null;
+async function renderProtocolPdfPageCanvases(protocol={},options={}){
+  if(!protocolPdfRendererPromise){
+    protocolPdfRendererPromise=import("./protocol-pdf-render-utils.js").then(({createProtocolPdfRenderHelpers})=>
+      createProtocolPdfRenderHelpers({
+        drawImageContained,
+        getSelectedSite:()=>selectedSite,
+        loadDataUrlImage,
+        protocolAccessText,
+        protocolAvailabilityText,
+        protocolBackedDevicesText,
+        protocolConditionsText,
+        protocolDisplayDate,
+        protocolExportValue,
+        protocolMeasurementTableSpec,
+        protocolPeriodText,
+        protocolSourceStateLabel,
+        protocolSourceStateValue,
+        protocolSourceTestMethodLabel,
+        protocolTechnicianDisplayName,
+        safe
+      }).renderProtocolPdfPageCanvases
+    ).catch(error=>{
+      protocolPdfRendererPromise=null;
+      throw error;
+    });
+  }
+  const renderer=await protocolPdfRendererPromise;
+  return renderer(protocol,options);
+}
 
 const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
 const {
