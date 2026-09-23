@@ -23,7 +23,9 @@ async function assertDirectory(dir, label) {
 function shouldSkipAsset(relativePath, entry) {
   if (entry.name === ".DS_Store") return true;
   if (/^downloads\/.+\.apk$/i.test(relativePath)) return true;
+  if (relativePath === "assets/fzz-logo.png") return true;
   if (relativePath === "assets/map-fallback.jpg") return true;
+  if (relativePath === "szz-logo.png") return true;
   return false;
 }
 
@@ -53,7 +55,7 @@ await writeFile(
     {
       source: "dist/client",
       target: "android/app/src/main/assets/Mapa",
-      excludes: ["downloads/*.apk", "assets/map-fallback.jpg"]
+      excludes: ["downloads/*.apk", "assets/fzz-logo.png", "assets/map-fallback.jpg", "szz-logo.png"]
     },
     null,
     2

@@ -149,7 +149,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) webView.onResume();
+        if (webView != null) {
+            webView.setNetworkAvailable(isOnline());
+            webView.onResume();
+        }
         if (offlineRepository != null) offlineRepository.enqueueSyncWorkIfPendingOnResume();
         restoreAndroidAuthIfStored(150);
     }
@@ -263,6 +266,7 @@ public class MainActivity extends Activity {
             cookieManager.setAcceptThirdPartyCookies(webView, true);
         }
         webView.setBackgroundColor(Color.WHITE);
+        webView.setNetworkAvailable(isOnline());
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -1314,7 +1318,9 @@ public class MainActivity extends Activity {
             Network network = manager.getActiveNetwork();
             if (network == null) return false;
             NetworkCapabilities capabilities = manager.getNetworkCapabilities(network);
-            return capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+            return capabilities != null &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
         } catch (Exception error) {
             return true;
         }

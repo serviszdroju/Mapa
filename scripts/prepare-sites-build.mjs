@@ -25,7 +25,7 @@ const precachedAssetExtensions = new Set([
   ".webp"
 ]);
 const lazyAssetPrefixes = ["firebase-functions-sdk-"];
-const excludedPrecacheAssetNames = new Set(["map-fallback.jpg"]);
+const excludedPrecacheAssetNames = new Set(["fzz-logo.png", "map-fallback.jpg"]);
 
 function productionAssetPrecacheUrls() {
   if (!existsSync(clientAssets)) return [];

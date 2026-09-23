@@ -3,6 +3,8 @@
   "target": "android/app/src/main/assets/Mapa",
   "excludes": [
     "downloads/*.apk",
-    "assets/map-fallback.jpg"
+    "assets/fzz-logo.png",
+    "assets/map-fallback.jpg",
+    "szz-logo.png"
   ]
 }
