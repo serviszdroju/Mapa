@@ -18,8 +18,8 @@ android {
         applicationId "cz.astip.serviszdroju"
         minSdk 23
         targetSdk 36
-        versionCode 142
-        versionName "1.2.40-lazy-offline-detail"
+        versionCode 143
+        versionName "1.2.41-offline-photo-cache"
 
         manifestPlaceholders = [
             webHost: "serviszdroju.github.io",

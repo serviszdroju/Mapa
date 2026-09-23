@@ -328,6 +328,9 @@ import {
   createOfflinePhotoQueueHelpers
 } from "./offline-photo-queue-utils.js";
 import {
+  createOfflineMediaObjectUrlHelpers
+} from "./offline-media-object-url-utils.js";
+import {
   createOfflineIdHelpers
 } from "./offline-id-utils.js";
 import {
@@ -9520,6 +9523,16 @@ const {
   siteRecordKeys
 });
 
+const {
+  hydrateOfflinePhotoObjectUrls
+}=createOfflineMediaObjectUrlHelpers({
+  isOffline:()=>navigator.onLine===false,
+  photoDisplayUrl,
+  photoFullUrl,
+  photoThumbUrl,
+  safeValue:safe
+});
+
 let sitePhotoViewerRenderHelpersPromise=null;
 function loadSitePhotoViewerRenderHelpers(){
   if(!sitePhotoViewerRenderHelpersPromise){
@@ -9608,12 +9621,14 @@ async function loadSitePhotos(site=selectedSite){
     if(!item || !photoDisplayUrl(item)) return;
     photoDedupe.add(item);
   };
-  const renderLoaded=(message="")=>{
+  const renderLoaded=async(message="")=>{
     if(!stillSameSite()) return;
     items.sort((a,b)=>historyTimeValue(b)-historyTimeValue(a));
-    renderSitePhotos(items);
-    setSitePhotosStatusText(message || (items.length ? `Načteno fotografií: ${items.length}.` : ""));
     savePhotosSnapshotToAndroid(site,items);
+    await hydrateOfflinePhotoObjectUrls(items);
+    if(!stillSameSite()) return;
+    await renderSitePhotos(items);
+    setSitePhotosStatusText(message || (items.length ? `Načteno fotografií: ${items.length}.` : ""));
   };
   let offlinePhotosPromise=null;
   const mergeOfflinePhotosOnce=async()=>{
@@ -9645,7 +9660,7 @@ async function loadSitePhotos(site=selectedSite){
 
   if(!firebaseReady || !db || !site){
     await mergeOfflinePhotosOnce();
-    renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "");
+    await renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "");
     return;
   }
   if(!stillSameSite()) return;
@@ -9654,7 +9669,7 @@ async function loadSitePhotos(site=selectedSite){
   if(!stillSameSite()) return;
   if(!signedUser){
     await mergeOfflinePhotosOnce();
-    renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "Čekám na přihlášení, fotografie se načtou po přihlášení.");
+    await renderLoaded(items.length ? `Načteno lokálních fotografií: ${items.length}.` : "Čekám na přihlášení, fotografie se načtou po přihlášení.");
     return;
   }
   try{
@@ -9673,10 +9688,10 @@ async function loadSitePhotos(site=selectedSite){
       const item=childPhotos[idx];
       addPhoto({...item,_id:item._id || `site_photo_${idx}`});
     }
-    renderLoaded();
+    await renderLoaded();
   }catch(e){
     if(items.length){
-      renderLoaded(`Načteno lokálních fotografií: ${items.length}. Online fotky se nepodařilo načíst.`);
+      await renderLoaded(`Načteno lokálních fotografií: ${items.length}. Online fotky se nepodařilo načíst.`);
     }else{
       if(stillSameSite()) setSitePhotosStatusText("Chyba načtení fotografií: "+e.message);
     }

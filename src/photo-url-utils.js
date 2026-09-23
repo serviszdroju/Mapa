@@ -62,6 +62,9 @@ export function createPhotoUrlHelpers(){
   function photoUrlFingerprint(item){
     if(!item || (typeof item!=="object" && typeof item!=="function")) return "";
     return [
+      item._offlineDisplayUrl,
+      item._offlineFullUrl,
+      item._offlineThumbUrl,
       item.displayUrl,
       item.url,
       item.fullUrl,
@@ -75,6 +78,8 @@ export function createPhotoUrlHelpers(){
   }
 
   function computePhotoDisplayUrl(item){
+    const offline=safe(item && item._offlineDisplayUrl);
+    if(offline) return offline;
     const explicit=safe(item && (item.displayUrl || item.url));
     if(explicit) return cloudinaryTransformUrl(explicit,"f_auto,q_auto,w_1600,c_limit");
     const original=safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl));
@@ -83,10 +88,14 @@ export function createPhotoUrlHelpers(){
   }
 
   function computePhotoFullUrl(item){
+    const offline=safe(item && item._offlineFullUrl);
+    if(offline) return offline;
     return safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl || item.url || item.displayUrl || item.dataUrl));
   }
 
   function computePhotoThumbUrl(item,displayUrl=""){
+    const offline=safe(item && item._offlineThumbUrl);
+    if(offline) return offline;
     const original=safe(item && (item.fullUrl || item.originalUrl || item.downloadUrl));
     if(original) return cloudinaryTransformUrl(original,"f_auto,q_auto,w_240,c_limit");
     const explicit=safe(item && (item.thumbUrl || item.previewUrl || item.thumbnailUrl));

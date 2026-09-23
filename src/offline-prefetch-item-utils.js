@@ -87,7 +87,7 @@ export function createOfflinePrefetchItemHelpers({
           const local=sameOrigin(url);
           const request=new Request(url,{
             cache:"reload",
-            mode:local ? "same-origin" : "no-cors",
+            mode:local ? "same-origin" : "cors",
             credentials:local ? "same-origin" : "omit"
           });
           const cached=await cache.match(request) || await cache.match(url);
