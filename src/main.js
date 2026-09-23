@@ -431,9 +431,6 @@ import {
   createProtocolWorkflowHelpers
 } from "./protocol-workflow-utils.js";
 import {
-  createOfficialProtocolDataHelpers
-} from "./official-protocol-data-utils.js";
-import {
   mergeMainProtocolHistoryItemsPreferFirebase
 } from "./main-protocol-history-merge-utils.js";
 import {
@@ -5991,63 +5988,96 @@ function officialManufacturerTextByKey(key){
   return (OFFICIAL_MANUFACTURERS[key] || OFFICIAL_MANUFACTURERS.szz).text;
 }
 
-const {
-  fillOfficialProtocolInputs,
-  officialManufacturerKeyFromText,
-  officialProtocolDataForSite,
-  officialProtocolInputData,
-  propagateOfficialProtocolDataToSiblingSources,
-  protocolForOfficialDocument,
-  resetOfficialProtocolSection,
-  saveOfficialProtocolData,
-  selectedHistoryProtocol,
-  sharedOfficialProtocolData,
-  syncOfficialManufacturerHidden,
-  updateOfficialProtocolSourceInfo
-}=createOfficialProtocolDataHelpers({
-  detailKey,
-  getCurrentUser:()=>currentUser,
-  getDb:()=>db,
-  getDetailHistoryIndex:()=>detailHistoryIndex,
-  getDetailHistoryItems:()=>detailHistoryItems,
-  getFirebaseReady:()=>firebaseReady,
-  getFsMod:()=>fb.fsMod,
-  getLastProtocol:(site)=>getLastProtocol(site),
-  getRows:()=>rows,
-  getSelectedSite:()=>selectedSite,
-  historyDateLabel,
-  historySavedDateLabel,
-  isProtocolHistoryItem,
-  officialManufacturerSelectNode,
-  officialManufacturerTextByKey,
-  officialProtocolDataBoxNode,
-  officialProtocolSourceInfoNode,
-  officialProtocolStatusNode,
-  pickRawValue,
-  protocolTimeValue,
-  readSiteLocalArray:(...args)=>readSiteLocalArray(...args),
-  readSiteLocalObject:(...args)=>readSiteLocalObject(...args),
-  recordMatchesSite,
-  rowIdentityKeys,
-  rowMatchesIdentity,
-  safe,
-  selectedSiteDocId,
-  selectedSiteMatchForSave,
-  setDisplayIfChanged,
-  setInputValue,
-  setRows:nextRows=>{
-    rows=nextRows;
-    window.rows=rows;
-  },
-  setTextIfChanged,
-  showSaveConfirmation,
-  simpleNorm,
-  siteSiblingRows,
-  timeValueFromAny,
-  val,
-  waitForFirebaseUser,
-  writeSiteLocalObject:(...args)=>writeSiteLocalObject(...args)
-});
+let officialProtocolDataHelpers=null;
+let officialProtocolDataHelpersPromise=null;
+function loadOfficialProtocolDataHelpers(){
+  if(officialProtocolDataHelpers) return Promise.resolve(officialProtocolDataHelpers);
+  if(!officialProtocolDataHelpersPromise){
+    officialProtocolDataHelpersPromise=import("./official-protocol-data-utils.js")
+      .then(({createOfficialProtocolDataHelpers})=>{
+        officialProtocolDataHelpers=createOfficialProtocolDataHelpers({
+          detailKey,
+          getCurrentUser:()=>currentUser,
+          getDb:()=>db,
+          getDetailHistoryIndex:()=>detailHistoryIndex,
+          getDetailHistoryItems:()=>detailHistoryItems,
+          getFirebaseReady:()=>firebaseReady,
+          getFsMod:()=>fb.fsMod,
+          getLastProtocol:(site)=>getLastProtocol(site),
+          getRows:()=>rows,
+          getSelectedSite:()=>selectedSite,
+          historyDateLabel,
+          historySavedDateLabel,
+          isProtocolHistoryItem,
+          officialManufacturerSelectNode,
+          officialManufacturerTextByKey,
+          officialProtocolDataBoxNode,
+          officialProtocolSourceInfoNode,
+          officialProtocolStatusNode,
+          pickRawValue,
+          protocolTimeValue,
+          readSiteLocalArray:(...args)=>readSiteLocalArray(...args),
+          readSiteLocalObject:(...args)=>readSiteLocalObject(...args),
+          recordMatchesSite,
+          rowIdentityKeys,
+          rowMatchesIdentity,
+          safe,
+          selectedSiteDocId,
+          selectedSiteMatchForSave,
+          setDisplayIfChanged,
+          setInputValue,
+          setRows:nextRows=>{
+            rows=nextRows;
+            window.rows=rows;
+          },
+          setTextIfChanged,
+          showSaveConfirmation,
+          simpleNorm,
+          siteSiblingRows,
+          timeValueFromAny,
+          val,
+          waitForFirebaseUser,
+          writeSiteLocalObject:(...args)=>writeSiteLocalObject(...args)
+        });
+        return officialProtocolDataHelpers;
+      })
+      .catch(error=>{
+        officialProtocolDataHelpersPromise=null;
+        throw error;
+      });
+  }
+  return officialProtocolDataHelpersPromise;
+}
+
+function selectedHistoryProtocol(){
+  const current=detailHistoryItems[detailHistoryIndex];
+  return isProtocolHistoryItem(current) ? current : null;
+}
+
+async function resetOfficialProtocolSection(...args){
+  const helpers=await loadOfficialProtocolDataHelpers();
+  return helpers.resetOfficialProtocolSection(...args);
+}
+
+async function saveOfficialProtocolData(...args){
+  const helpers=await loadOfficialProtocolDataHelpers();
+  return helpers.saveOfficialProtocolData(...args);
+}
+
+async function protocolForOfficialDocument(...args){
+  const helpers=await loadOfficialProtocolDataHelpers();
+  return helpers.protocolForOfficialDocument(...args);
+}
+
+async function syncOfficialManufacturerHidden(...args){
+  const helpers=await loadOfficialProtocolDataHelpers();
+  return helpers.syncOfficialManufacturerHidden(...args);
+}
+
+async function updateOfficialProtocolSourceInfo(...args){
+  const helpers=await loadOfficialProtocolDataHelpers();
+  return helpers.updateOfficialProtocolSourceInfo(...args);
+}
 
 const OFFICIAL_RTF_TEMPLATE_URL="official-template.rtf";
 const OFFICIAL_STOP_RTF_TEMPLATE_URL="official-stop-template.rtf";
