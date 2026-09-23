@@ -984,4 +984,8 @@ Current stability phase 431 decision: an online Android/web shell revealed from 
 
 Current stability phase 432 decision: the shared progress-status renderer must remain module-scoped because Android fast-cache restoration and offline login recovery call it outside the asynchronous Firebase initialization closure. Preserve the same progress/GPS notice rendering while preventing authenticated Android startup from failing with `setProgressStatus is not defined` after cached rows are displayed.
 
+Current performance phase 433 decision: lazy-load detail protocol-history action binding together with the already lazy detail-history renderer. Share one retryable initialized action-helper promise, load both dependencies in parallel on the first Protokol history render, and preserve edit, Word export, mail, handoff, delete, technician-signature, navigation, permissions, status messages, and visible history behavior unchanged.
+
+Current Android release phase 434 decision: publish the verified startup recovery and lazy history-action bundle as Android `versionCode 139`, `versionName 1.2.37-startup-recovery`. The downloadable APK uses the same existing Android debug certificate as version 138, so it must install as an in-place update and preserve the account, Room cache, drafts, photos, protocols, and offline data; never deploy the suffixed emulator-only test package as the public APK.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

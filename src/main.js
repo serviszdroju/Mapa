@@ -425,9 +425,6 @@ import {
   createDetailDataRefreshHelpers
 } from "./detail-data-refresh-utils.js";
 import {
-  createDetailHistoryActionsHelpers
-} from "./detail-history-actions-utils.js";
-import {
   createProtocolHandoffHelpers
 } from "./protocol-handoff-utils.js";
 import {
@@ -7700,24 +7697,6 @@ const {
   showSaveConfirmation
 });
 
-const { bindDetailHistoryActions }=createDetailHistoryActionsHelpers({
-  deleteCurrentHistoryProtocol,
-  editCurrentHistoryProtocol,
-  exportProtocolToWord,
-  getCurrentHistoryItem:()=>detailHistoryItems[detailHistoryIndex],
-  getHistoryIndex:()=>detailHistoryIndex,
-  openTechnicianSignatureDialog,
-  promptProtocolMailRecipient,
-  protocolMailErrorText,
-  protocolMailToastText,
-  renderHistory:()=>renderHistory(),
-  sendProtocolByMail,
-  setDetailHistoryProtocolHandoff:(item,checked)=>setDetailHistoryProtocolHandoff(item,checked),
-  setHistoryIndex:value=>{ detailHistoryIndex=value; },
-  setProtocolStatusText:message=>setProtocolStatusText(message),
-  showSaveConfirmation
-});
-
 const {
   clearProtocolHandoffOverridesCache,
   protocolHandoffForProcessing,
@@ -7747,11 +7726,41 @@ const {
   serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString()
 });
 
+let detailHistoryActionsHelpersPromise=null;
+function loadDetailHistoryActionsHelpers(){
+  if(!detailHistoryActionsHelpersPromise){
+    detailHistoryActionsHelpersPromise=import("./detail-history-actions-utils.js")
+      .then(({createDetailHistoryActionsHelpers})=>createDetailHistoryActionsHelpers({
+        deleteCurrentHistoryProtocol,
+        editCurrentHistoryProtocol,
+        exportProtocolToWord,
+        getCurrentHistoryItem:()=>detailHistoryItems[detailHistoryIndex],
+        getHistoryIndex:()=>detailHistoryIndex,
+        openTechnicianSignatureDialog,
+        promptProtocolMailRecipient,
+        protocolMailErrorText,
+        protocolMailToastText,
+        renderHistory:()=>renderHistory(),
+        sendProtocolByMail,
+        setDetailHistoryProtocolHandoff:(item,checked)=>setDetailHistoryProtocolHandoff(item,checked),
+        setHistoryIndex:value=>{ detailHistoryIndex=value; },
+        setProtocolStatusText:message=>setProtocolStatusText(message),
+        showSaveConfirmation
+      })).catch(error=>{
+        detailHistoryActionsHelpersPromise=null;
+        throw error;
+      });
+  }
+  return detailHistoryActionsHelpersPromise;
+}
+
 let detailHistoryViewHelpersPromise=null;
 function loadDetailHistoryViewHelpers(){
   if(!detailHistoryViewHelpersPromise){
-    detailHistoryViewHelpersPromise=import("./detail-history-view-utils.js")
-      .then(({createDetailHistoryViewHelpers})=>createDetailHistoryViewHelpers({
+    detailHistoryViewHelpersPromise=Promise.all([
+      import("./detail-history-view-utils.js"),
+      loadDetailHistoryActionsHelpers()
+    ]).then(([{createDetailHistoryViewHelpers},{bindDetailHistoryActions}])=>createDetailHistoryViewHelpers({
         bindDetailHistoryActions,
         canViewProtocolHistory,
         detailHistoryNode,
