@@ -890,4 +890,6 @@ Current performance phase 384 decision: cache each raw object's non-empty field 
 
 Current Android stability phase 385 decision: while the device is online and no explicit local fallback is active, let WebView load the current GitHub Pages document and subresources instead of intercepting every request with the APK-bundled web build. Preserve the complete packaged shell for offline starts and main-frame network-error recovery. This prevents stale packaged assets from competing with newer service-worker/web releases without changing authentication or visible behavior.
 
+Current Android stability phase 386 decision: keep the Firebase startup fallback row normalizer independent of helpers declared in later `late.js` blocks. Its document-id cleanup must remain self-contained so an APK/local-asset startup without `window.safe` cannot fail with `cleanSource is not defined`; verify this path with an offline cached-row emulator test.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

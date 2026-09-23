@@ -1512,7 +1512,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     }catch(e){status("Chyba mapy: "+e.message,true);}
   }
   function fallbackNormalizedRow(raw, docId){
-    const cleanId = typeof window.safe === "function" ? window.safe(docId) : cleanSource(docId);
+    const cleanId = typeof window.safe === "function" ? window.safe(docId) : String(docId ?? "").trim();
     const lat = Number(raw["GPS_lat"] || raw.lat || raw.latitude);
     const lon = Number(raw["GPS_lon"] || raw.lon || raw.lng || raw.longitude);
     return {
