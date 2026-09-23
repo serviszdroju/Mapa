@@ -8,6 +8,7 @@ function reportSzzServiceWorkerError(err){
 }
 
 function registerSzzServiceWorker(){
+  if(document.documentElement.classList.contains("szz-android-shell")) return Promise.resolve(null);
   if(!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   if(window.__szzServiceWorkerRegistrationPromise) return window.__szzServiceWorkerRegistrationPromise;
   const serviceWorkerBuildVersion="2026-09-23-row-priority-v720";

@@ -171,6 +171,7 @@ export function createOfflineAppShellControlHelpers({
   }
 
   async function cacheAppShellForOffline(options={}){
+    if(document.documentElement.classList.contains("szz-android-shell")) return 0;
     if(!("serviceWorker" in navigator)) return 0;
     try{
       const registration=window.registerSzzServiceWorker

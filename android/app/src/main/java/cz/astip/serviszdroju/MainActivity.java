@@ -497,7 +497,9 @@ public class MainActivity extends Activity {
 
     private WebResourceResponse localApkAssetResponse(Uri uri) {
         if (uri == null || !isSzzWebUrl(uri) || isSzzApkDownloadUrl(uri)) return null;
-        if (isOnline() && !forceLocalAssetFallback) return null;
+        // Keep the app shell atomic even when Android reports a validated but
+        // temporarily stalled connection. External Firebase/Auth/tile requests
+        // remain network-backed because they use different hosts.
         WebResourceResponse bundledResponse = openBundledAssetFirst(uri);
         if (bundledResponse != null) return bundledResponse;
         return isDocumentRequest(uri) ? openAssetResponse(SZZ_ASSET_ROOT + "/index.html") : null;

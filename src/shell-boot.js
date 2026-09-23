@@ -270,6 +270,7 @@ async function activateSzzWaitingServiceWorker(registration){
 }
 
 async function warmUpSzzPwaInstall(options={}){
+  if(document.documentElement.classList.contains("szz-android-shell")) return null;
   if(isSzzStandaloneApp()) return null;
   if(szzInstallWarmupPromise && !options.force) return szzInstallWarmupPromise;
   szzInstallWarmupPromise=(async()=>{

@@ -14,8 +14,8 @@ test("Android considers only a validated internet connection online",()=>{
   assert.match(body[1],/NET_CAPABILITY_VALIDATED/);
 });
 
-test("an unvalidated connection keeps the packaged app fallback available",()=>{
-  assert.match(source,/if \(isOnline\(\) && !forceLocalAssetFallback\) return null;/);
+test("every connection state keeps the packaged app shell available",()=>{
+  assert.doesNotMatch(source,/if \(isOnline\(\) && !forceLocalAssetFallback\) return null;/);
   assert.match(source,/applyWebViewNetworkAvailability\(isOnline\(\)\)/);
   assert.match(source,/WebSettings\.LOAD_CACHE_ELSE_NETWORK/);
   assert.match(source,/openBundledAssetFirst\(uri\)/);
