@@ -976,4 +976,6 @@ Current performance phase 427 decision: lazy-load protocol checkbox/text formatt
 
 Current performance phase 428 decision: lazy-load protocol signature-image and base64 byte helpers only when Word/PDF/RTF export, technician-signature enrichment, signature administration, or protocol file delivery first needs them. Share one retryable initialized helper promise across all paths and preserve PNG data-URL validation, client and technician signatures, PDF bytes, document assets, e-mail attachments, and visible behavior unchanged.
 
+Current performance phase 429 decision: keep house-number extraction inside the already lazy geocoding module and remove its unused duplicate startup import/window exposure. Preserve all forward/reverse geocoding, candidate ranking, requested-number matching, address validation, visible errors, and map/form behavior unchanged.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

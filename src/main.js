@@ -92,7 +92,6 @@ import {
   inferRegionFromAddressText,
   regionTextNorm
 } from "./geocode-region-utils.js";
-import { geocodeRequestedHouseNumbers } from "./geocode-house-number-utils.js";
 import {
   rowSearchText,
   searchNorm
@@ -3605,7 +3604,6 @@ function recordMatchesSite(record,site=selectedSite){
 Object.assign(window,{
   geocodeAddressGeneric,
   geocodeAddressFast,
-  geocodeRequestedHouseNumbers,
   inferControlPeriodMonthsFromDateValues,
   inferControlPeriodMonthsFromDates,
   inferRegionFromAddressText,
