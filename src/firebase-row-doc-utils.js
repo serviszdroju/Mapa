@@ -4,6 +4,36 @@ export function createFirebaseRowDocHelpers({
   normalizeSiteRows=()=>[],
   safeValue=value=>String(value ?? "").trim()
 }={}){
+  const deferredDetailFields=new Set([
+    "attachments",
+    "photos",
+    "protocolHistory",
+    "serviceHistory",
+    "sitePhotosEmbedded",
+    "sitePhotoRefs"
+  ]);
+
+  function mapRowFirebaseData(data={},raw={}){
+    const mapped={raw};
+    for(const [key,value] of Object.entries(data || {})){
+      if(key!=="raw" && !deferredDetailFields.has(key)) mapped[key]=value;
+    }
+    return mapped;
+  }
+
+  function releaseRowDetailData(row){
+    const data=row?.firebaseData;
+    if(!data || typeof data!=="object") return false;
+    let changed=false;
+    for(const key of deferredDetailFields){
+      if(Object.hasOwn(data,key)){
+        delete data[key];
+        changed=true;
+      }
+    }
+    return changed;
+  }
+
   function hasEmbeddedProtocolDateData(data={}){
     return (
       (Array.isArray(data.protocolHistory) && data.protocolHistory.length>0) ||
@@ -28,7 +58,7 @@ export function createFirebaseRowDocHelpers({
     row.id=raw["Klíč_adresy"];
     row.raw=raw;
     row.firebaseDocId=docSnap.id;
-    row.firebaseData={...data,raw};
+    row.firebaseData=mapRowFirebaseData(data,raw);
     return typeof applyRowEdit==="function" ? applyRowEdit(row) : row;
   }
 
@@ -39,6 +69,8 @@ export function createFirebaseRowDocHelpers({
   return {
     firebaseRowFromDocSnap,
     firebaseRowKey,
-    hasEmbeddedProtocolDateData
+    hasEmbeddedProtocolDateData,
+    mapRowFirebaseData,
+    releaseRowDetailData
   };
 }

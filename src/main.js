@@ -2314,7 +2314,8 @@ const {
 
 const {
   firebaseRowFromDocSnap:szzFirebaseRowFromDocSnap,
-  firebaseRowKey:szzFirebaseRowKey
+  firebaseRowKey:szzFirebaseRowKey,
+  releaseRowDetailData:szzReleaseFirebaseRowDetailData
 }=createFirebaseRowDocHelpers({
   applyLatestProtocolDateToRaw:()=>window.applyLatestProtocolDateToRaw,
   applySiteEditToRow:()=>window.applySiteEditToRow || window.applyEditToRow || (row=>row),
@@ -3715,6 +3716,8 @@ function closeDetailDrawer(){
     drawer.classList.remove("open");
     drawer.classList.remove("protocol-form-fullscreen");
   }
+  resetDetailLazyLoadState(null);
+  szzReleaseFirebaseRowDetailData(selectedSite);
   document.body.classList.remove("protocol-form-fullscreen");
   closeMapFocusIfIdle();
   if(typeof window.resetSourcePopupActivationGuard==="function"){
@@ -5294,7 +5297,9 @@ const {
 window.openDetail=function(i){
   restoreNormalDetailDrawerShell();
   syncRowIndexes();
-  const r=rows[Number(i)]; if(!r)return; selectedSite=r;
+  const r=rows[Number(i)]; if(!r)return;
+  if(selectedSite && selectedSite!==r) szzReleaseFirebaseRowDetailData(selectedSite);
+  selectedSite=r;
   startDetailAsyncLoads(r);
   const drawer=drawerNode();
   if(drawer){ drawer.classList.add("open"); drawer.scrollTop=0; }

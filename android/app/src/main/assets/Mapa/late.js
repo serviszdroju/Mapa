@@ -1539,7 +1539,11 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(!raw["Klíč_adresy"]) raw["Klíč_adresy"]="firebase_"+docId;
     const r=typeof normalizeRows === "function" ? normalizeRows([raw])[0] : fallbackNormalizedRow(raw, docId);
     r.id=raw["Klíč_adresy"]; r.raw=raw; r.firebaseDocId=docId;
-    r.firebaseData={...d,raw};
+    const deferredDetailFields=new Set(["attachments","photos","protocolHistory","serviceHistory","sitePhotosEmbedded","sitePhotoRefs"]);
+    r.firebaseData={raw};
+    Object.entries(d || {}).forEach(([key,value])=>{
+      if(key!=="raw" && !deferredDetailFields.has(key)) r.firebaseData[key]=value;
+    });
     return applyRowEdit(r);
   }
   function rowsFromSnapshot(snap){
