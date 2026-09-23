@@ -5,6 +5,7 @@ export function createNewSiteModeHelpers({
   detailTitleNode,
   drawerNode,
   forceRenderNewSiteForm,
+  ensureNewSiteFormReady=()=>Promise.resolve(),
   newSiteCardNode,
   populateNewRegionOptions,
   renderNewSiteAllFields,
@@ -29,7 +30,8 @@ export function createNewSiteModeHelpers({
     setNewSiteSourceChooserHidden();
   }
 
-  function openNewSiteForm(){
+  async function openNewSiteForm(){
+    await ensureNewSiteFormReady();
     restoreNormalDetailDrawerShell();
     setSelectedSite(null);
     setAddSourceBaseSite(null);

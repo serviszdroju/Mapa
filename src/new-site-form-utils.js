@@ -1,9 +1,6 @@
-export const WARRANTY_SELECT_OPTIONS=[
-  ["","Vyber záruku"],
-  ["záruka 2 roky","záruka 2 roky"],
-  ["záruka 5 let","záruka 5 let"],
-  ["záruka zrušena","záruka zrušena"]
-];
+import {WARRANTY_SELECT_OPTIONS} from "./warranty-options.js";
+
+export {WARRANTY_SELECT_OPTIONS} from "./warranty-options.js";
 
 const NEW_SITE_FIELD_SPECS=[
   {label:"Název",key:"Název"},

@@ -453,10 +453,7 @@ import {
 import {
   createNewSiteFieldHelpers
 } from "./new-site-field-utils.js";
-import {
-  WARRANTY_SELECT_OPTIONS,
-  createNewSiteFormFieldHelpers
-} from "./new-site-form-utils.js";
+import {WARRANTY_SELECT_OPTIONS} from "./warranty-options.js";
 import {
   createNewSiteModeHelpers
 } from "./new-site-mode-utils.js";
@@ -2718,29 +2715,54 @@ const {
   safe
 });
 
-const {
-  calcNewSiteGpsFromAddress,
-  clearNewSiteAllFields,
-  collectNewSiteAllFields,
-  forceRenderNewSiteForm,
-  newSiteFieldElementsByKey,
-  newSiteFieldValue,
-  renderNewSiteAllFields,
-  renderNewSiteFields,
-  setNewSiteFieldValue,
-  setNewSiteRegionValue,
-  syncNewSiteRegionFromText
-}=createNewSiteFormFieldHelpers({
-  applyWatchSelfAliases,
-  geocodeAddressFast,
-  geocodeAddressGeneric,
-  inferRegionFromAddressText,
-  bindNewSiteOfferLookupControls,
-  newSiteFieldNorm,
-  safe,
-  setInputValueIfExists,
-  setRegionFieldValue
-});
+let newSiteFormHelpers=null;
+let newSiteFormHelpersPromise=null;
+async function ensureNewSiteFormReady(){
+  if(newSiteFormHelpers) return newSiteFormHelpers;
+  if(!newSiteFormHelpersPromise){
+    newSiteFormHelpersPromise=import("./new-site-form-utils.js")
+      .then(module=>{
+        newSiteFormHelpers=module.createNewSiteFormFieldHelpers({
+          applyWatchSelfAliases,
+          geocodeAddressFast,
+          geocodeAddressGeneric,
+          inferRegionFromAddressText,
+          bindNewSiteOfferLookupControls,
+          newSiteFieldNorm,
+          safe,
+          setInputValueIfExists,
+          setRegionFieldValue
+        });
+        return newSiteFormHelpers;
+      })
+      .catch(error=>{
+        newSiteFormHelpersPromise=null;
+        throw error;
+      });
+  }
+  return newSiteFormHelpersPromise;
+}
+function newSiteFieldElementsByKey(){
+  return newSiteFormHelpers ? newSiteFormHelpers.newSiteFieldElementsByKey() : new Map();
+}
+function setNewSiteFieldValue(...args){
+  return newSiteFormHelpers?.setNewSiteFieldValue(...args);
+}
+function setNewSiteRegionValue(...args){
+  return newSiteFormHelpers?.setNewSiteRegionValue(...args);
+}
+function clearNewSiteAllFields(){
+  return newSiteFormHelpers?.clearNewSiteAllFields();
+}
+function collectNewSiteAllFields(){
+  return newSiteFormHelpers?.collectNewSiteAllFields() || {};
+}
+function forceRenderNewSiteForm(){
+  return newSiteFormHelpers?.forceRenderNewSiteForm();
+}
+function renderNewSiteAllFields(){
+  return newSiteFormHelpers?.renderNewSiteAllFields();
+}
 
 const {
   loadExtraSites,
@@ -2785,6 +2807,7 @@ const {
   detailTitleNode,
   drawerNode,
   forceRenderNewSiteForm,
+  ensureNewSiteFormReady,
   newSiteCardNode,
   populateNewRegionOptions,
   renderNewSiteAllFields,
@@ -3080,10 +3103,10 @@ function copyPlaceFieldsToNewSource(site){
   setNewDataFieldValue("Smlouva ano/ne",userSiteSharedFieldValue(site,"Smlouva ano/ne") || "ne");
   setNewDataFieldValue("Důležitá poznámka",userSiteSharedFieldValue(site,"Důležitá poznámka"));
 }
-function openAddSourceForSite(site=selectedSite){
+async function openAddSourceForSite(site=selectedSite){
   if(!site) return;
   addSourceBaseSite=site;
-  openNewSiteForm();
+  await openNewSiteForm();
   addSourceBaseSite=site;
   const title=document.getElementById("drawerTitle") || detailTitleNode();
   const sub=document.getElementById("drawerSub") || detailSubNode();
@@ -8535,8 +8558,8 @@ document.getElementById("reloadEditBtn").onclick=async()=>{
     if(!rendered) render();
   }
 };
-document.getElementById("addSiteBtn").onclick=()=>{
-  openNewSiteForm();
+document.getElementById("addSiteBtn").onclick=async()=>{
+  await openNewSiteForm();
   const form=newSiteCardNode();
   if(form){
     form.style.display="block";
@@ -8558,6 +8581,7 @@ document.getElementById("cancelNewSiteBtn").onclick=()=>{
   if(baseKey) window.openDetailById(baseKey);
 };
 document.getElementById("saveNewSiteBtn").onclick=async()=>{
+  await ensureNewSiteFormReady();
   const st=document.getElementById("newSiteStatus");
   const sourceBaseSite=addSourceBaseSite;
   if(!firebaseReady){st.textContent="Firebase není nastavený.";return;}
