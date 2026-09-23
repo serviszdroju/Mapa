@@ -475,9 +475,6 @@ import {
   createDetailHistoryActionsHelpers
 } from "./detail-history-actions-utils.js";
 import {
-  createDetailHistoryViewHelpers
-} from "./detail-history-view-utils.js";
-import {
   createProtocolHandoffHelpers
 } from "./protocol-handoff-utils.js";
 import {
@@ -7618,34 +7615,53 @@ const {
   serverTimestamp:()=>fb?.fsMod?.serverTimestamp ? fb.fsMod.serverTimestamp() : new Date().toISOString()
 });
 
-const {
-  renderHistory
-}=createDetailHistoryViewHelpers({
-  bindDetailHistoryActions,
-  canViewProtocolHistory,
-  detailHistoryNode,
-  detailLazyKey,
-  getDetailHistoryIndex:()=>detailHistoryIndex,
-  getDetailHistoryItems:()=>detailHistoryItems,
-  getDetailHistoryRenderSignature:()=>detailHistoryRenderSignature,
-  getSelectedSite:()=>selectedSite,
-  historyDateLabel,
-  historyObjectSummary,
-  historySavedDateLabel,
-  isHistoryAdmin,
-  isProtocolHistoryItem,
-  protocolHandoffForProcessing,
-  protocolSourceStateLabel,
-  protocolSourceStateValue,
-  protocolSourceTestMethodLabel,
-  protocolTechnicianDisplayName,
-  protocolTimeValue,
-  safe,
-  setDetailHistoryIndex:value=>{ detailHistoryIndex=value; },
-  setDetailHistoryItems:items=>{ detailHistoryItems=items; },
-  setDetailHistoryRenderSignature:value=>{ detailHistoryRenderSignature=value; },
-  updateOfficialProtocolSourceInfo
-});
+let detailHistoryViewHelpersPromise=null;
+function loadDetailHistoryViewHelpers(){
+  if(!detailHistoryViewHelpersPromise){
+    detailHistoryViewHelpersPromise=import("./detail-history-view-utils.js")
+      .then(({createDetailHistoryViewHelpers})=>createDetailHistoryViewHelpers({
+        bindDetailHistoryActions,
+        canViewProtocolHistory,
+        detailHistoryNode,
+        detailLazyKey,
+        getDetailHistoryIndex:()=>detailHistoryIndex,
+        getDetailHistoryItems:()=>detailHistoryItems,
+        getDetailHistoryRenderSignature:()=>detailHistoryRenderSignature,
+        getSelectedSite:()=>selectedSite,
+        historyDateLabel,
+        historyObjectSummary,
+        historySavedDateLabel,
+        isHistoryAdmin,
+        isProtocolHistoryItem,
+        protocolHandoffForProcessing,
+        protocolSourceStateLabel,
+        protocolSourceStateValue,
+        protocolSourceTestMethodLabel,
+        protocolTechnicianDisplayName,
+        protocolTimeValue,
+        safe,
+        setDetailHistoryIndex:value=>{ detailHistoryIndex=value; },
+        setDetailHistoryItems:items=>{ detailHistoryItems=items; },
+        setDetailHistoryRenderSignature:value=>{ detailHistoryRenderSignature=value; },
+        updateOfficialProtocolSourceInfo
+      })).catch(error=>{
+        detailHistoryViewHelpersPromise=null;
+        throw error;
+      });
+  }
+  return detailHistoryViewHelpersPromise;
+}
+
+async function renderHistory(){
+  try{
+    const helpers=await loadDetailHistoryViewHelpers();
+    return helpers.renderHistory();
+  }catch(error){
+    console.error("Historii protokolů v detailu se nepodařilo zobrazit",error);
+    const history=detailHistoryNode();
+    if(history) history.textContent="Historii protokolů se nepodařilo zobrazit. Zkus záložku otevřít znovu.";
+  }
+}
 
 const {
   firstProtocolHistoryItem,
