@@ -926,4 +926,6 @@ Current Android performance phase 402 decision: once a modern asynchronous Andro
 
 Current performance phase 403 decision: lazy-load the protocol PDF canvas renderer only when PDF generation is first requested. Cache the resolved renderer for later exports, clear the promise after an import failure so a later attempt can retry, and preserve the existing protocol mail/PDF API, output, signatures, and user-visible status flow.
 
+Current performance phase 404 decision: lazy-load technician signature storage, drawing, and lookup helpers on their first signature dialog or protocol export use. Share one resolved helper instance across both entry points, reset the import promise after failure for retry, and preserve the existing global dialog entry point, protocol enrichment, Firebase signature data, and visible workflow.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.

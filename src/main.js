@@ -465,9 +465,6 @@ import {
   createProtocolWordXmlHelpers
 } from "./protocol-word-xml-utils.js";
 import {
-  createTechnicianSignatureHelpers
-} from "./technician-signature-utils.js";
-import {
   createHistoryLabelHelpers
 } from "./history-label-utils.js";
 import {
@@ -6152,27 +6149,43 @@ async function renderProtocolPdfPageCanvases(protocol={},options={}){
 }
 
 const TECHNICIAN_SIGNATURE_COLLECTION="technicianSignatures";
-const {
-  enrichProtocolWithTechnicianSignature,
-  openTechnicianSignatureDialog
-}=createTechnicianSignatureHelpers({
-  collectionName:TECHNICIAN_SIGNATURE_COLLECTION,
-  currentUserEmail,
-  drawImageContained,
-  getDb:()=>db,
-  getFbFsMod:()=>fb.fsMod,
-  getFirebaseReady:()=>firebaseReady,
-  loadDataUrlImage,
-  officialTipekSignatureUrl:OFFICIAL_TIPEK_SIGNATURE_URL,
-  protocolTechnicianEmail,
-  protocolTechnicianSignatureImageBytes,
-  safe,
-  setProtocolStatusText:message=>setProtocolStatusText(message),
-  showSaveConfirmation,
-  simpleNorm,
-  technicianKnownKeyFromValue,
-  uniqueNonEmptyStrings
-});
+let technicianSignatureHelpersPromise=null;
+function loadTechnicianSignatureHelpers(){
+  if(!technicianSignatureHelpersPromise){
+    technicianSignatureHelpersPromise=import("./technician-signature-utils.js").then(({createTechnicianSignatureHelpers})=>
+      createTechnicianSignatureHelpers({
+        collectionName:TECHNICIAN_SIGNATURE_COLLECTION,
+        currentUserEmail,
+        drawImageContained,
+        getDb:()=>db,
+        getFbFsMod:()=>fb.fsMod,
+        getFirebaseReady:()=>firebaseReady,
+        loadDataUrlImage,
+        officialTipekSignatureUrl:OFFICIAL_TIPEK_SIGNATURE_URL,
+        protocolTechnicianEmail,
+        protocolTechnicianSignatureImageBytes,
+        safe,
+        setProtocolStatusText:message=>setProtocolStatusText(message),
+        showSaveConfirmation,
+        simpleNorm,
+        technicianKnownKeyFromValue,
+        uniqueNonEmptyStrings
+      })
+    ).catch(error=>{
+      technicianSignatureHelpersPromise=null;
+      throw error;
+    });
+  }
+  return technicianSignatureHelpersPromise;
+}
+async function enrichProtocolWithTechnicianSignature(protocol={}){
+  const helpers=await loadTechnicianSignatureHelpers();
+  return helpers.enrichProtocolWithTechnicianSignature(protocol);
+}
+async function openTechnicianSignatureDialog(){
+  const helpers=await loadTechnicianSignatureHelpers();
+  return helpers.openTechnicianSignatureDialog();
+}
 window.openTechnicianSignatureDialog=openTechnicianSignatureDialog;
 
 const {
