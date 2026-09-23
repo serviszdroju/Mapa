@@ -6568,6 +6568,47 @@ function androidOutboxOperation(operationId){
   }
 }
 
+let androidOutboxOperationRequestSequence=0;
+const androidOutboxOperationRequests=new Map();
+window.__szzAndroidOutboxOperationResult=(requestId,payload,error)=>{
+  const key=String(requestId || "");
+  const pending=androidOutboxOperationRequests.get(key);
+  if(!pending) return;
+  androidOutboxOperationRequests.delete(key);
+  clearTimeout(pending.timeout);
+  if(error){
+    pending.resolve(null);
+    return;
+  }
+  try{
+    const parsed=JSON.parse(String(payload || "{}"));
+    pending.resolve(parsed?.ok && parsed?.found ? parsed.item || null : null);
+  }catch(e){
+    pending.resolve(null);
+  }
+};
+
+function androidOutboxOperationAsync(operationId){
+  const bridge=androidOfflineBridge();
+  if(!bridge || typeof bridge.requestOutboxOperationJson!=="function"){
+    return Promise.resolve(androidOutboxOperation(operationId));
+  }
+  return new Promise(resolve=>{
+    const requestId=`outbox-${Date.now()}-${++androidOutboxOperationRequestSequence}`;
+    const timeout=setTimeout(()=>{
+      androidOutboxOperationRequests.delete(requestId);
+      resolve(androidOutboxOperation(operationId));
+    },5000);
+    androidOutboxOperationRequests.set(requestId,{resolve,timeout});
+    try{ bridge.requestOutboxOperationJson(String(operationId || ""),requestId); }
+    catch(e){
+      clearTimeout(timeout);
+      androidOutboxOperationRequests.delete(requestId);
+      resolve(androidOutboxOperation(operationId));
+    }
+  });
+}
+
 function androidOfflineSiteLocalId(site=selectedSite){
   const keys=siteRecordKeys(site);
   return keys[0] || selectedSiteDocId(site) || detailKey(site) || safe(site?.id) || "unknown-site";
@@ -6897,7 +6938,7 @@ async function syncOfflineProtocolsForSite(site=selectedSite,options={}){
     const identity=siteRecordIdentity(site);
     for(const item of offlineItems){
       const id=safe(item._id) || makeLocalRecordId("protocol");
-      const androidOperation=androidOutboxOperation(`protocol:${id}`);
+      const androidOperation=await androidOutboxOperationAsync(`protocol:${id}`);
       if(String(androidOperation?.status || "").toUpperCase()==="SYNCED"){
         removeSiteLocalItem("protocolHistory",id,site);
         await removeOfflineProtocolQueueItem(id);
@@ -8783,7 +8824,7 @@ async function syncOfflinePhotos(options={}){
         if(!site || !selectedSiteDocId(site)){
           throw new Error("K fotce nejde najít Firebase bod.");
         }
-        const androidOperation=androidOutboxOperation(`photo:${id}`);
+        const androidOperation=await androidOutboxOperationAsync(`photo:${id}`);
         if(String(androidOperation?.status || "").toUpperCase()==="SYNCED"){
           await removeOfflinePhotoItem(id,site,item);
           markAndroidOutboxSynced(`photo:${id}`);

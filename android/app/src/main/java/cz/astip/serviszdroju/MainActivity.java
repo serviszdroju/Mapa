@@ -933,6 +933,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void requestOutboxOperationJson(String operationId, String requestId) {
+            SzzOfflineRepository repository = offlineRepository;
+            if (repository == null) {
+                deliverOutboxOperationJson(requestId, "", "Room neni dostupny.");
+                return;
+            }
+            repository.outboxOperationJsonAsync(operationId, new SzzOfflineRepository.StringCallback() {
+                @Override
+                public void onSuccess(String result) {
+                    deliverOutboxOperationJson(requestId, result, "");
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    deliverOutboxOperationJson(requestId, "", compactErrorText(error));
+                }
+            });
+        }
+
+        @JavascriptInterface
         public void enqueueOutbox(String payloadJson) {
             SzzOfflineRepository repository = offlineRepository;
             if (repository == null) return;
@@ -976,6 +996,16 @@ public class MainActivity extends Activity {
     private void deliverCachedRecordsJson(String requestId, String payload, String error) {
         evaluateWebScript(
             "window.__szzAndroidCachedRecordsResult&&window.__szzAndroidCachedRecordsResult("
+                + JSONObject.quote(requestId == null ? "" : requestId)
+                + "," + JSONObject.quote(payload == null ? "" : payload)
+                + "," + JSONObject.quote(error == null ? "" : error)
+                + ");"
+        );
+    }
+
+    private void deliverOutboxOperationJson(String requestId, String payload, String error) {
+        evaluateWebScript(
+            "window.__szzAndroidOutboxOperationResult&&window.__szzAndroidOutboxOperationResult("
                 + JSONObject.quote(requestId == null ? "" : requestId)
                 + "," + JSONObject.quote(payload == null ? "" : payload)
                 + "," + JSONObject.quote(error == null ? "" : error)

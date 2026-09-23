@@ -405,6 +405,16 @@ public final class SzzOfflineRepository {
         return result.toString();
     }
 
+    public void outboxOperationJsonAsync(String operationId, StringCallback callback) {
+        executor.execute(() -> {
+            try {
+                callback.onSuccess(outboxOperationJson(operationId));
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
+    }
+
     private static JSONObject outboxRowJson(OfflineEntities.SyncOutboxEntity row) throws JSONException {
         JSONObject item = new JSONObject();
         item.put("operationId", row.operationId);
