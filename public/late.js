@@ -1945,10 +1945,11 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   }
   async function readMapRowsCacheFast(){
     if(pendingMapRowsCacheItems.length) return rowsFromMapRowsCacheItems(pendingMapRowsCacheItems);
+    const indexed=await readMapRowsCacheIndexedDb();
+    if(indexed.length) return indexed;
     const androidRows=readMapRowsCacheAndroid();
     if(androidRows.length) return androidRows;
-    const indexed=await readMapRowsCacheIndexedDb();
-    return indexed.length ? indexed : readMapRowsCache();
+    return readMapRowsCache();
   }
   function applyFirebaseRows(firebaseRows, openDocId=null, sourceLabel="", saveCache=true){
     firebaseRows.forEach((r,i)=>r.i=i);
@@ -2725,7 +2726,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
 })();
 ;
 const SZZ_INSTALL_OFFLINE_READY_KEY="astipSzzOfflineReady:v1";
-const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-23-row-priority-v720";
+const SZZ_INSTALL_APP_BUILD_VERSION="2026-09-23-indexeddb-first-v721";
 const SZZ_INSTALL_SITE_CACHE_KEY="astipFirebaseSitesMapCacheV2";
 const SZZ_INSTALL_QUEUE_DB_NAME="astipMapOfflineQueues";
 const SZZ_INSTALL_QUEUE_DB_VERSION=2;

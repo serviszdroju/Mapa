@@ -14,7 +14,7 @@ import {
 } from "./android-silent-auth-coordinator.js";
 
 const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
-const EMAIL_LOGIN_BUILD_VERSION="row-priority-v720";
+const EMAIL_LOGIN_BUILD_VERSION="indexeddb-first-v721";
 window.__firebaseConfig=window.__firebaseConfig || firebaseConfig;
 
 const authUiState={

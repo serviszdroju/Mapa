@@ -888,4 +888,6 @@ Current performance phase 383 decision: build each row's normalized and compact 
 
 Current performance phase 384 decision: cache each raw object's non-empty field count after one own-property pass instead of allocating and comparing key/value snapshot arrays on every deduplication priority check. Row edits replace the raw object, so the WeakMap naturally recomputes edited records; preserve the same completeness score and duplicate winner selection.
 
+Current performance phase 385 decision: during cache-first map startup, read the structured IndexedDB row cache before invoking the synchronous Android Room JSON bridge. Keep pending in-memory rows first, Android Room as the full fallback when IndexedDB is empty or unavailable, and localStorage as the final compatibility fallback. Preserve all offline data and visible behavior while avoiding a large native JSON serialization/parse on normal Android starts.
+
 Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
