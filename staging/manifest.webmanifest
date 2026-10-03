@@ -1,0 +1,70 @@
+{
+  "id": "https://serviszdroju.github.io/Mapa/staging/",
+  "name": "Servis zaloznich zdroju TEST",
+  "short_name": "SZZ test",
+  "description": "Servisni mapa zaloznich zdroju ASTIP.",
+  "start_url": "/Mapa/staging/",
+  "scope": "/Mapa/staging/",
+  "lang": "cs-CZ",
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#d1d5db",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Otevrit mapu",
+      "short_name": "Mapa",
+      "url": "/Mapa/staging/",
+      "icons": [
+        {
+          "src": "./szz-app-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        },
+        {
+          "src": "./szz-app-icon-maskable-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "maskable"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "./szz-app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./szz-app-icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./szz-app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./szz-app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

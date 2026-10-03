@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Servis záložních zdrojů - mapa FZ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SZZ mapa">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
+<link rel="dns-prefetch" href="//www.gstatic.com">
+<link rel="dns-prefetch" href="//tile.openstreetmap.org">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./szz-app-icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./szz-app-icon-192.png">
+<style id="startupSafeStyle">
+  .startup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:#0f172a;z-index:5000}
+  html.auth-resume #startupScreen{display:none!important}
+  html.auth-resume #mainApp{display:grid!important}
+  .startup-card{width:min(420px,92vw);max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;padding:24px;text-align:center;background:#fff;border-radius:20px}
+  .startup-card .logo-img{display:block;width:min(260px,72vw);max-width:100%;max-height:30dvh;height:auto;margin:0 auto 16px;object-fit:contain}
+  .startup-card h1{font-size:24px;line-height:1.2;margin:0 0 8px;color:#0f172a}
+  .startup-card p{margin:8px 0;color:#475569}
+  .startup-card button{min-height:44px;padding:10px 14px}
+  .startup.auth-loading #startupLoginBtn,.startup.auth-checking #startupLoginBtn{display:none}
+</style>
+<script>
+try{
+  if(localStorage.getItem("astipFirebaseKnownSignedIn")==="1"){
+    document.documentElement.classList.add("auth-resume");
+    setTimeout(function(){
+      try{
+        if(window.__mapAppUnlocked || window.currentUser || window.__authReadyUser) return;
+        document.documentElement.classList.remove("auth-resume");
+        var startup=document.getElementById("startupScreen");
+        var app=document.getElementById("mainApp");
+        var btn=document.getElementById("startupLoginBtn");
+        var intro=document.getElementById("startupIntro");
+        var status=document.getElementById("startupStatus");
+        if(startup) {
+          startup.style.display="flex";
+          startup.classList.remove("auth-loading","auth-checking");
+        }
+        if(app) app.style.display="none";
+        if(btn) {
+          btn.style.display="";
+          btn.disabled=false;
+        }
+        if(intro) intro.textContent="Přihlaste se Google účtem @astip.cz.";
+        if(status) status.textContent="Uložené přihlášení se zatím nepotvrdilo. Přihlaste se prosím znovu.";
+      }catch(e){}
+    },9000);
+  }
+}catch(e){}
+</script>
+<script>
+(function(){
+  const HOSTED_APP_URL="https://serviszdroju.github.io/Mapa/";
+
+  function isLocalFileApp(){
+    return window.location.protocol==="file:";
+  }
+
+  function status(msg){
+    const el=document.getElementById("startupStatus");
+    if(el) el.textContent=msg || "";
+    const gps=document.getElementById("gpsBox");
+    if(gps && msg){
+      gps.style.display="block";
+      gps.className="notice";
+      gps.textContent=msg;
+    }
+    const progress=document.getElementById("progress");
+    if(progress && msg) progress.textContent=msg;
+  }
+
+  function openHostedApp(){
+    status("Lokální soubor neumí Firebase přihlášení. Otevírám webovou verzi...");
+    window.location.href=HOSTED_APP_URL;
+  }
+
+  window.loginPopup=function(event){
+    if(event && typeof event.preventDefault==="function") event.preventDefault();
+    if(isLocalFileApp()){
+      openHostedApp();
+      return;
+    }
+    window.__loginRequested=true;
+    status("Připravuji přihlášení...");
+    if(typeof window.__startFirebaseRedirectLogin==="function"){
+      Promise.resolve(window.__startFirebaseRedirectLogin()).catch(err=>{
+        status("Přihlášení se nepodařilo spustit: " + ((err && (err.code || err.message)) || err || ""));
+      });
+      return;
+    }
+    if(typeof window.__startCompatGoogleLoginFallback==="function"){
+      window.__startCompatGoogleLoginFallback();
+      return;
+    }
+    status("Přihlášení ještě není připravené. Zkus tlačítko znovu za pár sekund.");
+  };
+
+  window.__startCompatGoogleLoginFallback=function(){
+    try{
+      if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
+        status("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
+        return;
+      }
+      if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig);
+      try{sessionStorage.removeItem("astipFirebaseExplicitSignOut");}catch(e){}
+      const auth=firebase.auth();
+      try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});}catch(e){}
+      const provider=new firebase.auth.GoogleAuthProvider();
+      provider.addScope("email");
+      provider.addScope("profile");
+      provider.setCustomParameters({prompt:"select_account",hd:"astip.cz"});
+      status("Otevírám Google přihlášení...");
+      auth.signInWithPopup(provider).then(result=>{
+        if(result && result.user){
+          try{localStorage.setItem("astipFirebaseKnownSignedIn","1");}catch(e){}
+          if(result.user.email) try{localStorage.setItem("astipFirebaseLastEmail",String(result.user.email).toLowerCase());}catch(e){}
+          status("Přihlášení dokončeno. Načítám mapu...");
+          setTimeout(()=>location.reload(),400);
+        }
+      }).catch(err=>{
+        const code=String(err && err.code || "");
+        if(["auth/popup-blocked","auth/cancelled-popup-request","auth/operation-not-supported-in-this-environment","auth/popup-closed-by-user"].includes(code)){
+          try{sessionStorage.setItem("astipFirebaseRedirectPending","redirect");}catch(e){}
+          status("Popup nešel dokončit. Přesměrovávám na Google přihlášení...");
+          return auth.signInWithRedirect(provider);
+        }
+        status("Přihlášení selhalo: " + (code || (err && err.message) || err || ""));
+      });
+    }catch(err){
+      status("Přihlášení selhalo: " + ((err && (err.code || err.message)) || err || ""));
+    }
+  };
+
+  function signOutAndReload(){
+    if(typeof window.__signOutFirebase==="function") window.__signOutFirebase();
+    else location.reload();
+  }
+
+  function setTopAuthButtonMode(mode){
+    const topLogout=document.getElementById("topLogoutBtn");
+    if(!topLogout) return;
+    const loginMode=mode==="login";
+    const handler=isLocalFileApp() ? openHostedApp : (window.startGoogleLogin || window.loginPopup);
+    topLogout.dataset.authMode=loginMode ? "login" : "logout";
+    topLogout.textContent=loginMode ? "Přihlásit technika" : "Odhlásit technika";
+    topLogout.classList.toggle("primary",loginMode);
+    topLogout.classList.toggle("secondary",!loginMode);
+    topLogout.onclick=loginMode ? handler : signOutAndReload;
+  }
+
+  function bindLoginButtons(){
+    const handler=isLocalFileApp() ? openHostedApp : (window.startGoogleLogin || window.loginPopup);
+    const startup=document.getElementById("startupLoginBtn");
+    const login=document.getElementById("loginBtn");
+    const logout=document.getElementById("logoutBtn");
+    const topLogout=document.getElementById("topLogoutBtn");
+    if(startup && typeof handler==="function") startup.onclick=handler;
+    if(login && typeof handler==="function") login.onclick=handler;
+    if(logout) logout.onclick=signOutAndReload;
+    if(topLogout) setTopAuthButtonMode(topLogout.dataset.authMode || (window.currentUser || window.__authReadyUser ? "logout" : "login"));
+  }
+
+  window.startGoogleLogin=window.loginPopup;
+  window.bindLoginButtons=bindLoginButtons;
+  window.setTopAuthButtonMode=setTopAuthButtonMode;
+  bindLoginButtons();
+  window.addEventListener("DOMContentLoaded",bindLoginButtons);
+  window.addEventListener("load",bindLoginButtons);
+
+  window.addEventListener("load",function(){
+    if(isLocalFileApp()){
+      status("Přihlášení přes otevřený soubor nejde. Přesměrovávám na webovou verzi...");
+      setTimeout(openHostedApp,1200);
+      return;
+    }
+    bindLoginButtons();
+  });
+})();
+</script>
+<link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
+<script defer src="./vendor/leaflet/leaflet.js"></script>
+
+  <script type="module" crossorigin src="./assets/index-DFipzbKh.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-HIrINLST.css">
+</head>
+<body>
+
+<div class="startup auth-loading auth-checking" id="startupScreen">
+  <div class="startup-card">
+    <img class="logo-img" src="./szz-logo-display.png" alt="Servis záložních zdrojů logo">
+    <h1>Servis záložních zdrojů</h1>
+    <p id="startupIntro">Načítám aplikaci</p>
+    <button class="primary" id="startupLoginBtn" type="button" onclick="window.loginPopup()" style="display:none">Přihlásit přes Google</button>
+    <p id="startupStatus" class="small"></p>
+  </div>
+</div>
+
+<div class="app" id="mainApp" style="display:none"><aside>
+<div class="app-tools">
+  <a class="secondary app-tools-toggle app-download-link" id="appDownloadLink" href="./downloads/szz-servis-zdroju-android.apk?v=protocol-status-photo-sync-v2" download="szz-servis-zdroju-android.apk" data-direct-download="apk">Stáhnout aplikaci</a>
+</div>
+<div class="sidebar-brand" aria-label="Logo SZZ"><img class="sidebar-logo-img" src="./szz-logo-display.png" data-szz-logo-copy alt="Logo SZZ"></div>
+<button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
+<button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
+<button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
+
+<div id="firebaseBox" class="notice err" style="display:none">Firebase se nepodařilo načíst.</div>
+<div class="row" id="mainLoginRow" style="display:none"><button class="primary" id="loginBtn">Přihlásit technika</button><button class="secondary" id="logoutBtn">Odhlásit</button></div>
+<p id="userBox" class="small" style="display:none">Nepřihlášeno</p>
+
+<div id="gpsBox" class="notice" style="display:none">Načítám data…</div>
+<p id="progress" class="small" style="display:none"></p>
+
+<label>Hledat</label><input id="search" placeholder="název, adresa, výrobní číslo, kontakt...">
+<div class="row"><div><label>Stav</label><select id="statusFilter"><option value="">Vše</option></select></div><div><label>Kraj</label><select id="regionFilter"><option value="">Vše</option></select></div></div>
+<button class="secondary" id="fitBtn" style="margin-top:8px">Přiblížit na body</button>
+
+<div class="legend">
+<div><span class="dot" style="background:#dc2626"></span> Propadlé kontroly</div>
+<div><span class="dot" style="background:#f97316"></span> 1–30 dní k termínu</div>
+<div><span class="dot" style="background:#eab308"></span> Kontrola objednaná</div>
+<div><span class="dot" style="background:#2563eb"></span> Objednaná oprava</div>
+<div><span class="dot" style="background:#64748b"></span> Stop Stav</div>
+<div><span class="dot" style="background:#16a34a"></span> Vše ostatní</div>
+</div>
+<div class="stats"><div class="stat"><b id="shownCount">0</b><span>zobrazeno</span></div><div class="stat" id="gpsStatBox" style="display:none"><b id="gpsCount">0</b><span>s GPS</span></div></div>
+<div id="list"></div>
+</aside><div id="map"></div><button class="secondary map-back-btn" id="mapBackBtn" type="button">Zpět na detail</button></div>
+<div id="saveToast" class="save-toast-stack" aria-live="polite"></div>
+
+<div class="drawer" id="drawer">
+<div class="drawer-head"><div><h2 id="detailTitle">Detail místa</h2><p id="detailSub" class="small"></p></div><button class="secondary x" id="closeDrawer">Zavřít</button></div>
+
+<div id="sourceChooser" class="source-chooser" style="display:none"></div>
+
+<div class="detail-tabs" id="detailTabs" role="tablist" aria-label="Přepínač detailu místa">
+  <button class="detail-tab active" type="button" data-detail-tab="data" role="tab" aria-selected="true">Detail</button>
+  <button class="detail-tab" type="button" data-detail-tab="protocol" role="tab" aria-selected="false">Protokol</button>
+  <button class="detail-tab" type="button" data-detail-tab="gallery" role="tab" aria-selected="false">Galerie</button>
+  <button class="detail-tab" type="button" data-detail-tab="document" role="tab" aria-selected="false">Doklad</button>
+  <button class="detail-tab" type="button" data-detail-tab="attachments" role="tab" aria-selected="false">Přílohy</button>
+</div>
+
+<div class="card" id="protocolCard" data-detail-panel="protocol">
+  <h3>Protokol / potvrzení o provedené zkoušce</h3>
+  <button class="primary" id="toggleProtocolBtn" type="button">Vyplnit protokol</button>
+  <p class="small">Protokol se uloží k vybranému místu.</p>
+  <form id="protocolForm" style="display:none;margin-top:8px">
+    <label>Datum provedení kontroly zdroje</label>
+    <input type="date" id="protoDate" required>
+
+    <div class="protocol-summary" id="protoSummary">
+      <div>Adresa<b id="protoSummaryAddress">-</b></div>
+      <div>Zařízení<b id="protoSummaryDevice">-</b></div>
+      <div>Výrobní číslo<b id="protoSummarySerial">-</b></div>
+      <div>Umístění zdroje<b id="protoSummaryLocation">-</b></div>
+      <div>Perioda<b id="protoSummaryPeriod">-</b></div>
+    </div>
+
+    <h4>Základní údaje zdroje</h4>
+
+    <div id="protoDeviceInputWrap" class="proto-device-input-wrap">
+      <label>Kontrolované zařízení – typ</label>
+      <input id="protoDeviceType">
+    </div>
+
+    <label>Výrobní č.</label>
+    <input id="protoSerial">
+
+    <label>Číslo plomby</label>
+    <input id="protoSeal">
+
+    <h4>Místo a provozní údaje</h4>
+
+    <label class="protocol-point">1) Místo kontroly</label>
+    <input id="protoPlace">
+
+    <label class="protocol-point">2) Provozovatel zařízení</label>
+    <input id="protoOperator">
+
+    <label class="protocol-point">3) Objednatel zkoušky provozuschopnosti</label>
+    <input id="protoCustomer">
+
+    <label class="protocol-point">4) Umístění PBZ v objektu</label>
+    <textarea id="protoPbzLocation"></textarea>
+
+    <div class="edit-grid">
+      <div><label>Počet baterií (ks)</label><input id="protoBatteryCount"></div>
+      <div><label>Kapacita (Ah)</label><input id="protoCapacity"></div>
+      <div><label>Počet sad (ks)</label><input id="protoSetCount"></div>
+      <div><label>Pom. Bat (Ah)</label><input id="protoAuxBatteryAh"></div>
+      <div><label>Teplota okolí (°C)</label><input id="protoTemp"></div>
+      <div><label>Plomba</label>
+        <select id="protoSeal2">
+          <option value="">Vyber</option>
+          <option value="v pořádku">v pořádku</option>
+          <option value="porušena">porušena</option>
+        </select>
+      </div>
+    </div>
+
+    <h4>Měření AC</h4>
+    <div class="edit-grid">
+      <div><label>Vstup (Vac)</label><input id="protoInputVac"></div>
+      <div><label>Výstup 1 (Vac)</label><input id="protoOutput1Vac"></div>
+      <div><label>Výstup 2 (Vac)</label><input id="protoOutput2Vac"></div>
+      <div><label>Výstup zál. 1 (Vac)</label><input id="protoBackup1Vac"></div>
+      <div><label>Výstup zál. 2 (Vac)</label><input id="protoBackup2Vac"></div>
+    </div>
+
+    <h4>Měření DC</h4>
+    <div class="edit-grid">
+      <div><label>Hl. bat. 1 (Vdc)</label><input id="protoMainBatVdc"></div>
+      <div><label>Reset diagnostiky *</label>
+<select id="protoResetDiag" required>
+  <option value="">Vyber</option>
+  <option value="ano">ano</option>
+  <option value="není">není</option>
+</select>
+</div>
+      <div><label>Pom. bat. (Vdc)</label><input id="protoAuxBatVdc"></div>
+      <div><label>Rozvážení 1 (Vdc)</label><input id="protoUnbalance1"></div>
+      <div><label>Rozvážení 2 (Vdc)</label><input id="protoUnbalance2"></div>
+</div>
+    <h4>Umístění a zařízení</h4>
+
+    <label class="protocol-point">5) Umístění jističů UPS a záložního zařízení v objektu</label>
+    <textarea id="protoBreakersLocation"></textarea>
+
+    <label class="protocol-point">6) Typ a umístění zálohovaných zařízení</label>
+    <div class="checkgrid2" id="protoDevicesGrid">
+<div class="checkrow"><input type="checkbox" id="protoLift"><label for="protoLift" style="margin:0">Výtah</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoVent"><label for="protoVent" style="margin:0">Vent. výt. šachty</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoMachineLight"><label for="protoMachineLight" style="margin:0">Osvětlení strojovny</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoChuc"><label for="protoChuc" style="margin:0">CHÚC</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoDamper"><label for="protoDamper" style="margin:0">Klapka</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoSkylight"><label for="protoSkylight" style="margin:0">Světlík</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoGate"><label for="protoGate" style="margin:0">Vrata</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoAts"><label for="protoAts" style="margin:0">ATS</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoRpo"><label for="protoRpo" style="margin:0">RPO</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoNo"><label for="protoNo" style="margin:0">NO</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoSprinkler"><label for="protoSprinkler" style="margin:0">Sprinkler</label></div>
+    <div class="checkrow"><input type="checkbox" id="protoCsTs"><label for="protoCsTs" style="margin:0">CS/TS</label></div>
+    </div>
+<label>Jiné zařízení</label><input id="protoOtherDevice">
+
+    <label class="protocol-point">7) Umístění zálohovaných zařízení</label>
+    <textarea id="protoControlLocation"></textarea>
+
+    <label class="protocol-point">Postup testování</label>
+    <textarea id="protoTestProcedure"></textarea>
+
+    <label class="protocol-point">8) Parkování a vstup do objektu, předepsané OOPP</label>
+    <div class="checkgrid2" id="protoAccessGrid">
+      <div class="checkrow"><input type="checkbox" id="protoBlue"><label for="protoBlue" style="margin:0">modrá</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoB"><label for="protoB" style="margin:0">B</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoC"><label for="protoC" style="margin:0">C</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoGarage"><label for="protoGarage" style="margin:0">garáže</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoCarLift"><label for="protoCarLift" style="margin:0">auto výtah</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoBarrier"><label for="protoBarrier" style="margin:0">závora</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoParkingHouse"><label for="protoParkingHouse" style="margin:0">park. dům</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoPermit"><label for="protoPermit" style="margin:0">povolení</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoTraining"><label for="protoTraining" style="margin:0">školení</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoShoes"><label for="protoShoes" style="margin:0">boty</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoVest"><label for="protoVest" style="margin:0">vesta</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoHelmet"><label for="protoHelmet" style="margin:0">helma</label></div>
+    </div>
+    <label>Jiné OOPP / vstup</label><input id="protoOtherAccess">
+
+    <h4>Kontakty a dostupnost</h4>
+
+    <label class="protocol-point">9) Kontakty</label>
+    <textarea id="protoContacts"></textarea>
+
+    <label class="protocol-point">10) Dostupnost</label>
+    <div class="checkgrid2" id="protoAvailabilityGrid">
+      <div class="checkrow"><input type="checkbox" id="protoWcOk"><label for="protoWcOk" style="margin:0">WC OK</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoWcNok"><label for="protoWcNok" style="margin:0">WC NOK</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoLightOk"><label for="protoLightOk" style="margin:0">Osvětlení OK</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoLightNok"><label for="protoLightNok" style="margin:0">Osvětlení NOK</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoLadder"><label for="protoLadder" style="margin:0">Žebřík</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoStairs"><label for="protoStairs" style="margin:0">Schody</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoLowCeiling"><label for="protoLowCeiling" style="margin:0">Snížený strop</label></div>
+      <div class="checkrow"><input type="checkbox" id="protoExtremeTemp"><label for="protoExtremeTemp" style="margin:0">Extrémní teploty</label></div>
+</div>
+    <label>Jiná dostupnost</label><textarea id="protoOtherAvailability"></textarea>
+
+    <label class="protocol-point">11) Perioda zkoušky provozuschopnosti</label>
+    <select id="protoPeriod">
+      <option value="">Vyber</option>
+      <option value="6 měsíců">6 měsíců</option>
+      <option value="12 měsíců">12 měsíců</option>
+    </select>
+
+    <h4>Výsledek a poznámky</h4>
+
+    <label class="protocol-point">12) Zařízení pracuje ve vyhovujících podmínkách</label>
+    <select id="protoConditions">
+      <option value="">Vyber</option>
+      <option value="ano">ano</option>
+      <option value="ne">ne</option>
+    </select>
+    <label>Odůvodnění podmínek</label>
+    <textarea id="protoConditionsReason"></textarea>
+
+    <label class="protocol-point">13) Poznámky</label>
+    <textarea id="protoNotes"></textarea>
+
+    <label class="protocol-point">14) Poznámka pro zákazníka</label>
+    <textarea id="protoCustomerNote" placeholder="Tato poznámka se propíše do dokladu."></textarea>
+
+    <label class="protocol-point">15) Chceck list</label>
+    <textarea id="protoChecklist" placeholder="Zapiš všechno atypické, co se týká zdroje."></textarea>
+
+    <div class="protocol-final-state">
+      <label for="protoSourceState">Stav zdroje po kontrole *</label>
+      <select id="protoSourceState" required>
+        <option value="">Vyber stav zdroje</option>
+        <option value="ok">Zdroj je v pořádku</option>
+        <option value="stop">Zdroj je ve stop stavu</option>
+      </select>
+      <div class="proto-source-test-wrap" id="protoSourceTestWrap" style="display:none">
+        <label for="protoSourceTestMethod">Odzkoušení zdroje</label>
+        <select id="protoSourceTestMethod">
+          <option value="">Vyber volitelně</option>
+          <option value="lift">zdroj byl odzkoušen výtahem</option>
+          <option value="ventilation">zdroj byl odzkoušen odvětráním</option>
+          <option value="empty">zdroj byl odzkoušen na prázdno</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="edit-grid">
+      <div><label>Za objednavatele</label><input id="protoClientSign" placeholder="čitelně + podpis"></div>
+      <div><label>Kontrolu provedl</label><input id="protoTechSign"></div>
+      <div class="signature-pad-toggle-row">
+        <button class="secondary" type="button" id="toggleClientSignatureBtn">Podpis zákazníka</button>
+      </div>
+      <div class="signature-pad-wrap" id="protoClientSignaturePanel" hidden>
+        <label>Elektronický podpis objednavatele</label>
+        <canvas id="protoClientSignaturePad" width="900" height="260"></canvas>
+        <div class="signature-pad-actions">
+          <button class="secondary" type="button" id="clearClientSignatureBtn">Vymazat podpis</button>
+        </div>
+        <p class="small signature-pad-hint">Podepiš prstem nebo elektronickou tužkou.</p>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <button class="primary" type="submit" id="saveProtocolBtn">Uložit protokol</button>
+      <button class="secondary" type="button" id="exportProtocolFormBtn">Exportovat do Wordu</button>
+      <button class="secondary" type="button" id="mailProtocolFormBtn">Poslat na mail</button>
+    </div>
+    <p id="protocolStatus" class="small"></p>
+  </form>
+</div>
+
+
+<div class="card" id="detailDataCard" data-detail-panel="data"><h3>Data</h3>
+<div class="control-dates-strong" id="controlDatesRow">
+  <div class="control-date-box control-date-last"><span>Poslední proběhlá kontrola</span><b id="detailLastCheck">-</b></div>
+  <div class="control-date-box control-date-next"><span>Příští plánovaná kontrola</span><b id="detailNextCheck">-</b></div>
+</div><table id="detailTable"></table>
+<div class="data-edit-actions">
+  <button class="secondary" type="button" id="editDataToggleBtn">Upravit data</button>
+  <button class="secondary" type="button" id="toggleOrderedBtn">Kontrola objednána</button>
+  <button class="secondary" type="button" id="toggleRepairBtn">Objednaná oprava</button>
+  <button class="secondary" type="button" id="toggleStopBtn">Stop Stav</button>
+  <button class="danger" type="button" id="deleteDataSiteBtn">Smazat bod</button>
+  <button class="secondary" type="button" id="showSiteOnMapBtn">Ukázat bod na mapě</button>
+  <button class="secondary" type="button" id="calcDataGpsBtn" style="display:none">Dopočítat GPS</button>
+  <button class="primary" type="button" id="saveDataEditsBtn" style="display:none">Uložit data</button>
+  <button class="secondary" type="button" id="cancelDataEditBtn" style="display:none">Zavřít</button>
+</div>
+<div class="data-add-row" id="addDataRowBox" style="display:none">
+  <div><label>Název nového údaje</label><input id="newDataKey" placeholder="např. Kontakt, Smlouva, Poznámky"></div>
+  <div><label>Hodnota</label><input id="newDataValue" placeholder="Hodnota údaje"></div>
+  <button class="secondary" type="button" id="addDataRowBtn">Přidat řádek</button>
+</div><p id="editStatus" class="small"></p></div>
+
+<div class="card" id="sitePhotosCard" data-detail-panel="gallery">
+  <h3>Fotografie bodu</h3>
+  <div class="site-photo-upload">
+    <div class="site-photo-inputs">
+      <label class="secondary photo-picker-btn" for="sitePhotosInput" id="selectGalleryPhotosBtn" role="button" tabindex="0" data-photo-picker="gallery">Galerie</label>
+      <label class="secondary photo-picker-btn" for="siteCameraInput" id="selectCameraPhotosBtn" role="button" tabindex="0" data-photo-picker="camera">Fotoaparát</label>
+      <input id="sitePhotosInput" type="file" accept="image/*" multiple aria-label="Vybrat fotografie z galerie">
+      <input id="siteCameraInput" type="file" accept="image/*" capture="environment" aria-label="Vyfotit novou fotografii">
+    </div>
+    <button class="primary" type="button" id="uploadSitePhotosBtn">Uložit fotografie</button>
+  </div>
+  <p class="small photo-folder-hint">Fotografie se ukládají do samostatné složky podle data nahrání.</p>
+  <div id="sitePhotoPreview" class="photo-preview"></div>
+  <div id="sitePhotosList" class="history-photos"></div>
+  <p id="sitePhotosStatus" class="small"></p>
+</div>
+
+<div class="card site-attachments-card" id="siteAttachmentsCard" data-detail-panel="attachments">
+  <h3>Přílohy</h3>
+  <div class="site-attachment-upload">
+    <label class="secondary attachment-picker-btn" for="siteAttachmentsInput" id="selectSiteAttachmentsBtn" role="button" tabindex="0">Vybrat přílohu</label>
+    <input id="siteAttachmentsInput" type="file" multiple aria-label="Vybrat přílohy">
+    <button class="primary" type="button" id="uploadSiteAttachmentsBtn">Uložit přílohy</button>
+  </div>
+  <p class="small">Přílohy se zobrazují u všech zdrojů na stejné adrese.</p>
+  <div id="siteAttachmentsPreview" class="site-attachments-preview small"></div>
+  <div id="siteAttachmentsList" class="site-attachments-list small"></div>
+  <p id="siteAttachmentsStatus" class="small"></p>
+</div>
+
+<div class="card" id="legacyEditTools" style="display:none">
+  <div class="row">
+    <button class="secondary" id="editBtn">Upravit údaje</button>
+    <button class="secondary" id="reloadEditBtn">Načíst uložené úpravy</button>
+  </div>
+  <p id="legacyEditStatus" class="small"></p>
+</div>
+
+<div class="card" id="editCard" style="display:none!important">
+  <h3>Upravit údaje zdroje a polohu na mapě</h3><p class="small">Změna GPS lat/lon se po uložení projeví rovnou jako nová poloha bodu na mapě.</p>
+  <div class="edit-grid">
+    <div><label>Název</label><input id="editName"></div>
+    <div><label>Kontakt</label><input id="editContact"></div>
+  </div>
+  <label>Zdroj / popis zařízení</label><input id="editSource">
+  <div class="checkrow"><input type="checkbox" id="editOrdered"><label for="editOrdered" style="margin:0">Kontrola je objednaná – zobrazit žlutě</label></div>
+  <label>Adresa pro GPS / mapu</label>
+  <div class="row">
+    <input id="editGpsAddress" placeholder="např. Nemocniční 492/4, Albrechtice, Česká republika">
+    <button type="button" class="secondary" id="editFindGpsBtn">Dopočítat GPS</button>
+  </div>
+  <button type="button" class="secondary" id="editPickGpsBtn" style="margin-top:8px">Vybrat místo na mapě</button>
+  <div class="edit-grid">
+    <div><label>Poslední kontrola</label><input type="date" id="editLastCheck"></div>
+    <div><label>Další kontrola</label><input id="editNextCheck" readonly></div>
+  </div>
+  <div class="edit-grid">
+    <div><label>GPS lat</label><input id="editGpsLat" placeholder="49.123456"></div>
+    <div><label>GPS lon</label><input id="editGpsLon" placeholder="16.123456"></div>
+  </div>
+  <label>Poznámky</label><textarea id="editNotes"></textarea>
+  <div class="row" style="margin-top:8px">
+    <button class="primary" id="saveEditBtn">Uložit úpravy</button>
+    <button class="secondary" id="cancelEditBtn">Zrušit</button>
+    <button class="danger" id="deleteSiteBtn" type="button">Smazat místo</button>
+  </div>
+</div>
+
+<div class="card" id="newSiteCard" style="display:none;order:-100">
+  <h3>Přidat nové místo</h3>
+  <p class="small">Nové místo se uloží a zobrazí se v mapě.</p>
+
+  <div class="legacy-newsite-fields" aria-hidden="true">
+    <label>Název / umístění</label><input id="newName" placeholder="např. Nemocnice, budova A">
+    <label>Adresa pro GPS / mapu</label><input id="newGpsAddress" placeholder="Ulice číslo, město, Česká republika">
+    <button type="button" class="secondary" id="newPickGpsBtn" style="margin:8px 0">Vybrat místo na mapě</button>
+    <div class="edit-grid">
+      <div><label>GPS lat</label><input id="newGpsLat" placeholder="49.123456"></div>
+      <div><label>GPS lon</label><input id="newGpsLon" placeholder="16.123456"></div>
+    </div>
+
+    <div class="edit-grid">
+      <div><label>Kraj</label><select id="newRegion"><option value="">Vyber kraj</option></select></div>
+      <div><label>Kontakt</label><input id="newContact"></div>
+    </div>
+
+    <label>Zdroj / popis zařízení</label><input id="newSource">
+    <div class="checkrow"><input type="checkbox" id="newNoOrder"><label for="newNoOrder" style="margin:0">Hlídáme termín sami – označit růžově</label></div>
+    <label>Příští kontrola</label><input type="date" id="newNextCheck">
+    <label>Poslední kontrola</label><input type="date" id="newLastCheck">
+    <label>Poznámky</label><textarea id="newNotes"></textarea>
+    <label>Další informace</label><textarea id="newExtra" placeholder="Sem napiš cokoliv dalšího – fakturace, protokol, cena, poznámka..."></textarea>
+    <label>Veškerá data / vlastní pole</label>
+    <textarea id="newAllData" placeholder="Sem můžeš doplnit libovolná další data. Např.:
+Rok výroby: 2024
+Serviska: ano
+Protokol na: ..."></textarea>
+  </div>
+
+  <div id="newAllFieldsBox"></div>
+  <div class="row" style="margin-top:8px">
+    <button class="primary" id="saveNewSiteBtn">Uložit nové místo</button>
+    <button class="secondary" id="cancelNewSiteBtn">Zrušit</button>
+  </div>
+  <p id="newSiteStatus" class="small"></p>
+</div>
+
+<div class="card protocol-history-private" id="detailHistoryCard" data-detail-panel="protocol" style="display:none"><h3>Historie záznamů</h3><div id="history" class="small">Zatím nenačteno.</div></div>
+
+<div class="card official-protocol-card" id="officialProtocolCard" data-detail-panel="document">
+  <div class="official-protocol-head">
+    <div>
+      <h3>Doklad provozuschopnosti</h3>
+      <p class="small" id="officialProtocolSourceInfo">Použije se poslední uložený protokol.</p>
+    </div>
+  </div>
+  <div class="official-protocol-actions">
+    <button class="secondary" type="button" id="officialProtocolDataBtn">Doplnit data provozovatele</button>
+    <button class="primary" type="button" id="officialProtocolOkBtn">Funkční doklad</button>
+    <button class="secondary" type="button" id="officialProtocolStopBtn">Doklad Stop Stav</button>
+  </div>
+  <div class="official-protocol-data" id="officialProtocolDataBox" style="display:none">
+    <label>a) Provozovatel PBZ</label>
+    <textarea id="officialOperatorData" placeholder="Název, adresa, PSČ, IČO, DIČ..."></textarea>
+    <label>b) Adresa objektu kde je PBZ umístěno</label>
+    <textarea id="officialObjectData" placeholder="Název objektu, ulice, město, PSČ..."></textarea>
+    <label>f) Výrobce PBZ</label>
+    <select id="officialManufacturerSelect">
+      <option value="astip">Astip</option>
+      <option value="tipo">TiPO</option>
+      <option value="szz">Servis záložních zdrojů</option>
+    </select>
+    <textarea id="officialManufacturerData" style="display:none"></textarea>
+    <button class="secondary" type="button" id="saveOfficialProtocolDataBtn">Uložit data provozovatele</button>
+  </div>
+  <div class="official-protocol-note-wrap">
+    <label class="official-protocol-note-label" for="officialProtocolNote">Poznámka do dokladu</label>
+    <textarea id="officialProtocolNote" class="official-protocol-note" placeholder="Poznámka se propíše do vygenerovaného protokolu."></textarea>
+  </div>
+  <p id="officialProtocolStatus" class="small"></p>
+</div>
+</div>
+
+
+<script async src="./late.js?v=protocol-status-photo-sync-v2"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
