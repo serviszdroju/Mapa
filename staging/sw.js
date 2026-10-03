@@ -1,1 +1,414 @@
-const CACHE_VERSION="astip-szz-v493",STATIC_CACHE=`${CACHE_VERSION}-static`,RUNTIME_CACHE=`${CACHE_VERSION}-runtime`,TILE_CACHE="astip-szz-map-tiles-v1",OFFLINE_SYNC_TAG="astip-szz-offline-sync",RUNTIME_CACHE_MAX_ENTRIES=260,TILE_CACHE_MAX_ENTRIES=1500,PRECACHE_URLS=["./","./index.html","./late.js","./manifest.webmanifest","./szz-icon.svg","./szz-icon-192.png","./szz-icon-512.png","./szz-app-icon-192.png","./szz-app-icon-512.png","./szz-app-icon-maskable-192.png","./szz-app-icon-maskable-512.png","./szz-logo.png","./szz-logo-display.png","./podpis-tipek.png","./podpis-tipek.jpg","./vendor/leaflet/leaflet.css","./vendor/leaflet/leaflet.js","./vendor/leaflet/images/layers.png","./vendor/leaflet/images/layers-2x.png","./vendor/leaflet/images/marker-icon.png","./vendor/leaflet/images/marker-icon-2x.png","./vendor/leaflet/images/marker-shadow.png","./assets/fzz-logo.png","./assets/index-Ck13DhFA.css","./assets/index-CNxMbWS9.js","./assets/manifest-DFy1VXtE.webmanifest","./assets/map-fallback.jpg","./assets/photo-upload-CHmC0Ang.js","./assets/szz-app-icon-192-NPugw1Cq.png","./assets/szz-logo-display-bhO5DHWi.png","./assets/zip-docx-CsnmNYND.js"],EXTERNAL_PRECACHE_URLS=[];self.addEventListener("install",e=>{e.waitUntil(caches.open(STATIC_CACHE).then(t=>cacheUrls(t,PRECACHE_URLS)).then(()=>(cacheExternalShellUrls(),self.skipWaiting())))}),self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(t=>Promise.all(t.filter(a=>![STATIC_CACHE,RUNTIME_CACHE,TILE_CACHE].includes(a)).map(a=>caches.delete(a)))).then(()=>trimCache(RUNTIME_CACHE,RUNTIME_CACHE_MAX_ENTRIES)).then(()=>trimCache(TILE_CACHE,TILE_CACHE_MAX_ENTRIES)).then(()=>self.clients.claim()).then(()=>refreshOpenAppClientsAfterActivation()))});async function refreshOpenAppClientsAfterActivation(){try{const e=new URL(self.registration.scope),t=await self.clients.matchAll({type:"window",includeUncontrolled:!0});await Promise.all(t.map(a=>{try{const n=new URL(a.url);return n.origin!==self.location.origin||!n.pathname.startsWith(e.pathname)||!n.searchParams.has("v")&&n.searchParams.get("app")!=="android"||n.searchParams.get("sw-refresh")===CACHE_VERSION?Promise.resolve():(n.searchParams.set("sw-refresh",CACHE_VERSION),a.navigate(n.href))}catch{return Promise.resolve()}}))}catch(e){console.warn("Service worker: otevrene stranky se nepodarilo obnovit",e)}}self.addEventListener("message",e=>{e.data&&e.data.type==="SKIP_WAITING"&&self.skipWaiting(),e.data&&e.data.type==="SZZ_CACHE_APP_SHELL"&&e.waitUntil(cacheClientShellUrls(e.data.urls,e.ports&&e.ports[0]))}),self.addEventListener("sync",e=>{e.tag===OFFLINE_SYNC_TAG&&e.waitUntil(notifyClientsToSync("background-sync"))});async function notifyClientsToSync(e){const t=await self.clients.matchAll({type:"window",includeUncontrolled:!0});await Promise.all(t.map(a=>a.postMessage({type:"SZZ_SYNC_REQUEST",reason:e})))}async function cacheUrls(e,t){let a=0;const n=async()=>{for(;a<t.length;){const s=t[a++];try{const o=new Request(s,{cache:"reload"});let i=null;try{i=await fetch(o)}catch{i=await fetch(new Request(s,{cache:"reload",mode:isSameOriginUrl(s)?"same-origin":"no-cors",credentials:isSameOriginUrl(s)?"same-origin":"omit"}))}i&&(i.ok||i.type==="opaque")&&await e.put(o,i.clone())}catch(o){console.warn("Offline cache: soubor se nepoda\u0159ilo ulo\u017Eit",s,o)}}};await Promise.allSettled(Array.from({length:Math.min(4,t.length)},()=>n()))}async function trimCache(e,t){try{const a=await caches.open(e),n=await a.keys(),s=n.length-t;if(s<=0)return;await Promise.all(n.slice(0,s).map(o=>a.delete(o)))}catch(a){console.warn("Offline cache: star\xE9 do\u010Dasn\xE9 soubory se nepoda\u0159ilo vy\u010Distit",a)}}async function cacheExternalShellUrls(){try{const e=await caches.open(STATIC_CACHE);await cacheUrls(e,EXTERNAL_PRECACHE_URLS)}catch(e){console.warn("Offline cache: extern\xED knihovny se nepoda\u0159ilo p\u0159ipravit",e)}}async function cacheClientShellUrls(e,t){let a=0;try{const n=normalizeClientShellUrls(e);if(n.length){const s=await caches.open(STATIC_CACHE);await cacheUrls(s,n),a=n.length}t&&t.postMessage({type:"SZZ_CACHE_APP_SHELL_DONE",count:a})}catch(n){console.warn("Offline cache: shell aplikace se nepoda\u0159ilo ulo\u017Eit",n),t&&t.postMessage({type:"SZZ_CACHE_APP_SHELL_DONE",count:a,error:String(n&&n.message||n)})}}function normalizeClientShellUrls(e){const t=[];return(Array.isArray(e)?e:[]).slice(0,80).forEach(a=>{try{const n=new URL(a,self.registration.scope),s=n.href;isClientShellUrl(n)&&!t.includes(s)&&t.push(s)}catch{}}),t}function isClientShellUrl(e){try{const t=new URL(self.registration.scope);return e.origin===self.location.origin&&e.pathname.startsWith(t.pathname)?e.pathname.includes("/assets/")||/\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(e.pathname)||e.pathname===t.pathname||e.pathname===`${t.pathname}index.html`:!1}catch{return!1}}function isSameOriginUrl(e){try{return new URL(e,self.location.href).origin===self.location.origin}catch{return!1}}async function networkFirst(e,t={}){const{fallbackToShell:a=!1}=t,n=await caches.open(RUNTIME_CACHE);try{const s=await fetch(new Request(e,{cache:"reload"}));return s&&s.ok&&n.put(e,s.clone()).then(()=>trimCache(RUNTIME_CACHE,RUNTIME_CACHE_MAX_ENTRIES)).catch(()=>{}),s}catch{const o=await n.match(e);return o||a&&(await caches.match("./")||await caches.match("./index.html")||await caches.match(new URL("./index.html",self.registration.scope).href))||Response.error()}}async function networkOnly(e){try{return await fetch(e)}catch{return Response.error()}}async function cacheFirst(e,t=STATIC_CACHE){const a=await caches.open(t),n=await a.match(e);if(n)return n;try{const s=await fetch(e);return s&&(s.ok||s.type==="opaque")&&(await a.put(e,s.clone()),t===TILE_CACHE&&trimCache(TILE_CACHE,TILE_CACHE_MAX_ENTRIES)),s}catch{return Response.error()}}async function staleWhileRevalidate(e){const t=await caches.open(isMapTileRequest(e)?TILE_CACHE:RUNTIME_CACHE),a=await t.match(e),n=fetch(e).then(s=>(s&&(s.ok||s.type==="opaque")&&t.put(e,s.clone()).then(()=>{isMapTileRequest(e)||trimCache(RUNTIME_CACHE,RUNTIME_CACHE_MAX_ENTRIES)}).catch(()=>{}),s)).catch(()=>a);return a||n}function timeoutResponse(e,t){return new Promise(a=>setTimeout(()=>a(t),e))}async function appShellStaleWhileRevalidate(e,t={}){const{fallbackToShell:a=!1,preferFreshNetwork:n=!1,networkTimeoutMs:s=700}=t,o=await caches.open(RUNTIME_CACHE),i=await o.match(e)||(a?await shellFallbackResponse():null),c=fetch(new Request(e,{cache:"reload"})).then(r=>(r&&r.ok&&o.put(e,r.clone()).then(()=>trimCache(RUNTIME_CACHE,RUNTIME_CACHE_MAX_ENTRIES)).catch(()=>{}),r)).catch(()=>i);return n&&i?await Promise.race([c,timeoutResponse(s,i)])||i||Response.error():i||c||Response.error()}async function appShellNetworkFirst(e){const t=await caches.open(RUNTIME_CACHE);try{const a=await fetch(new Request(e,{cache:"reload"}));return a&&a.ok&&t.put(e,a.clone()).then(()=>trimCache(RUNTIME_CACHE,RUNTIME_CACHE_MAX_ENTRIES)).catch(()=>{}),a}catch{return await t.match(e)||await shellFallbackResponse()||Response.error()}}async function shellFallbackResponse(){return await caches.match("./")||await caches.match("./index.html")||await caches.match(new URL("./index.html",self.registration.scope).href)||null}function isMapTileRequest(e){try{const t=new URL(e.url);return t.hostname==="tile.openstreetmap.org"&&/\/\d+\/\d+\/\d+\.png$/.test(t.pathname)}catch{return!1}}function isFirebaseOrAuthRequest(e){try{const t=new URL(e.url),a=t.hostname;return a==="accounts.google.com"||a==="apis.google.com"||a==="oauth2.googleapis.com"||a==="securetoken.googleapis.com"||a==="identitytoolkit.googleapis.com"||a==="firestore.googleapis.com"||a==="firebase.googleapis.com"||a==="firebaseinstallations.googleapis.com"||a==="firebasestorage.googleapis.com"||a.endsWith(".googleapis.com")&&/\/(google\.firestore|identitytoolkit|securetoken)\//.test(t.pathname)}catch{return!1}}function isRuntimeCacheAllowed(e){try{const t=new URL(e.url);return t.origin===self.location.origin||isMapTileRequest(e)||t.hostname==="www.gstatic.com"&&["script","style","font"].includes(e.destination)||t.hostname==="res.cloudinary.com"&&e.destination==="image"?!0:e.destination==="image"}catch{return!1}}function isStaticAssetRequest(e){try{const t=new URL(e.url);return t.origin===self.location.origin?e.destination!=="document"&&(t.pathname.includes("/assets/")||/\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(t.pathname)):!1}catch{return!1}}function isAppShellRequest(e){try{const t=new URL(e.url);return t.origin!==self.location.origin?!1:e.destination==="document"||e.destination==="script"||e.destination==="style"||e.destination==="manifest"||/\/(index\.html|manifest\.webmanifest|sw\.js)$/.test(t.pathname)}catch{return!1}}self.addEventListener("fetch",e=>{const{request:t}=e;if(t.method==="GET"){if(isMapTileRequest(t)){e.respondWith(cacheFirst(t,TILE_CACHE));return}if(t.mode==="navigate"){e.respondWith(appShellNetworkFirst(t));return}if(isStaticAssetRequest(t)){e.respondWith(cacheFirst(t));return}if(isAppShellRequest(t)){if(t.destination==="document"){e.respondWith(appShellNetworkFirst(t));return}e.respondWith(networkFirst(t,{fallbackToShell:t.destination==="document"}));return}if(isFirebaseOrAuthRequest(t)||!isRuntimeCacheAllowed(t)){e.respondWith(networkOnly(t));return}e.respondWith(staleWhileRevalidate(t))}});
+const CACHE_VERSION = "astip-szz-v493";
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+const TILE_CACHE = "astip-szz-map-tiles-v1";
+const OFFLINE_SYNC_TAG = "astip-szz-offline-sync";
+const RUNTIME_CACHE_MAX_ENTRIES = 260;
+const TILE_CACHE_MAX_ENTRIES = 1500;
+
+const PRECACHE_URLS = [
+  "./",
+  "./index.html",
+  "./late.js",
+  "./manifest.webmanifest",
+  "./szz-icon.svg",
+  "./szz-icon-192.png",
+  "./szz-icon-512.png",
+  "./szz-app-icon-192.png",
+  "./szz-app-icon-512.png",
+  "./szz-app-icon-maskable-192.png",
+  "./szz-app-icon-maskable-512.png",
+  "./szz-logo.png",
+  "./szz-logo-display.png",
+  "./podpis-tipek.png",
+  "./podpis-tipek.jpg",
+  "./vendor/leaflet/leaflet.css",
+  "./vendor/leaflet/leaflet.js",
+  "./vendor/leaflet/images/layers.png",
+  "./vendor/leaflet/images/layers-2x.png",
+  "./vendor/leaflet/images/marker-icon.png",
+  "./vendor/leaflet/images/marker-icon-2x.png",
+  "./vendor/leaflet/images/marker-shadow.png"
+];
+
+const EXTERNAL_PRECACHE_URLS = [];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then((cache) => cacheUrls(cache, PRECACHE_URLS))
+      .then(() => {
+        cacheExternalShellUrls();
+        return self.skipWaiting();
+      })
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => ![STATIC_CACHE, RUNTIME_CACHE, TILE_CACHE].includes(key))
+          .map((key) => caches.delete(key))
+      ))
+      .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+      .then(() => trimCache(TILE_CACHE, TILE_CACHE_MAX_ENTRIES))
+      .then(() => self.clients.claim())
+      .then(() => refreshOpenAppClientsAfterActivation())
+  );
+});
+
+async function refreshOpenAppClientsAfterActivation() {
+  try {
+    const scopeUrl = new URL(self.registration.scope);
+    const clientsList = await self.clients.matchAll({type: "window", includeUncontrolled: true});
+    await Promise.all(clientsList.map((client) => {
+      try {
+        const url = new URL(client.url);
+        if (url.origin !== self.location.origin || !url.pathname.startsWith(scopeUrl.pathname)) return Promise.resolve();
+        if (!url.searchParams.has("v") && url.searchParams.get("app") !== "android") return Promise.resolve();
+        if (url.searchParams.get("sw-refresh") === CACHE_VERSION) return Promise.resolve();
+        url.searchParams.set("sw-refresh", CACHE_VERSION);
+        return client.navigate(url.href);
+      } catch (error) {
+        return Promise.resolve();
+      }
+    }));
+  } catch (error) {
+    console.warn("Service worker: otevrene stranky se nepodarilo obnovit", error);
+  }
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+  if (event.data && event.data.type === "SZZ_CACHE_APP_SHELL") {
+    event.waitUntil(cacheClientShellUrls(event.data.urls, event.ports && event.ports[0]));
+  }
+});
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === OFFLINE_SYNC_TAG) {
+    event.waitUntil(notifyClientsToSync("background-sync"));
+  }
+});
+
+async function notifyClientsToSync(reason) {
+  const clientsList = await self.clients.matchAll({type: "window", includeUncontrolled: true});
+  await Promise.all(clientsList.map((client) => client.postMessage({
+    type: "SZZ_SYNC_REQUEST",
+    reason
+  })));
+}
+
+async function cacheUrls(cache, urls) {
+  let index = 0;
+  const worker = async () => {
+    while (index < urls.length) {
+      const url = urls[index++];
+      try {
+        const request = new Request(url, {cache: "reload"});
+        let response = null;
+        try {
+          response = await fetch(request);
+        } catch (error) {
+          response = await fetch(new Request(url, {
+            cache: "reload",
+            mode: isSameOriginUrl(url) ? "same-origin" : "no-cors",
+            credentials: isSameOriginUrl(url) ? "same-origin" : "omit"
+          }));
+        }
+        if (response && (response.ok || response.type === "opaque")) {
+          await cache.put(request, response.clone());
+        }
+      } catch (error) {
+        console.warn("Offline cache: soubor se nepodařilo uložit", url, error);
+      }
+    }
+  };
+  await Promise.allSettled(Array.from({length: Math.min(4, urls.length)}, () => worker()));
+}
+
+async function trimCache(cacheName, maxEntries) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    const overflow = keys.length - maxEntries;
+    if (overflow <= 0) return;
+    await Promise.all(keys.slice(0, overflow).map((request) => cache.delete(request)));
+  } catch (error) {
+    console.warn("Offline cache: staré dočasné soubory se nepodařilo vyčistit", error);
+  }
+}
+
+async function cacheExternalShellUrls() {
+  try {
+    const cache = await caches.open(STATIC_CACHE);
+    await cacheUrls(cache, EXTERNAL_PRECACHE_URLS);
+  } catch (error) {
+    console.warn("Offline cache: externí knihovny se nepodařilo připravit", error);
+  }
+}
+
+async function cacheClientShellUrls(urls, replyPort) {
+  let count = 0;
+  try {
+    const safeUrls = normalizeClientShellUrls(urls);
+    if (safeUrls.length) {
+      const cache = await caches.open(STATIC_CACHE);
+      await cacheUrls(cache, safeUrls);
+      count = safeUrls.length;
+    }
+    if (replyPort) replyPort.postMessage({type: "SZZ_CACHE_APP_SHELL_DONE", count});
+  } catch (error) {
+    console.warn("Offline cache: shell aplikace se nepodařilo uložit", error);
+    if (replyPort) replyPort.postMessage({type: "SZZ_CACHE_APP_SHELL_DONE", count, error: String(error && error.message || error)});
+  }
+}
+
+function normalizeClientShellUrls(urls) {
+  const unique = [];
+  (Array.isArray(urls) ? urls : []).slice(0, 80).forEach((url) => {
+    try {
+      const parsed = new URL(url, self.registration.scope);
+      const normalized = parsed.href;
+      if (isClientShellUrl(parsed) && !unique.includes(normalized)) unique.push(normalized);
+    } catch (error) {}
+  });
+  return unique;
+}
+
+function isClientShellUrl(url) {
+  try {
+    const scope = new URL(self.registration.scope);
+    if (url.origin === self.location.origin && url.pathname.startsWith(scope.pathname)) {
+      return url.pathname.includes("/assets/") ||
+        /\/(index\.html|app\.css|late\.js|manifest\.webmanifest|sw\.js|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname) ||
+        url.pathname === scope.pathname ||
+        url.pathname === `${scope.pathname}index.html`;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+function isSameOriginUrl(url) {
+  try {
+    return new URL(url, self.location.href).origin === self.location.origin;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function networkFirst(request, options = {}) {
+  const {fallbackToShell = false} = options;
+  const cache = await caches.open(RUNTIME_CACHE);
+  try {
+    const response = await fetch(new Request(request, {cache: "reload"}));
+    if (response && response.ok) {
+      cache.put(request, response.clone())
+        .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+        .catch(() => {});
+    }
+    return response;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    if (!fallbackToShell) return Response.error();
+    return (await caches.match("./")) ||
+      (await caches.match("./index.html")) ||
+      (await caches.match(new URL("./index.html", self.registration.scope).href)) ||
+      Response.error();
+  }
+}
+
+async function networkOnly(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    return Response.error();
+  }
+}
+
+async function cacheFirst(request, cacheName = STATIC_CACHE) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (response && (response.ok || response.type === "opaque")) {
+      await cache.put(request, response.clone());
+      if (cacheName === TILE_CACHE) trimCache(TILE_CACHE, TILE_CACHE_MAX_ENTRIES);
+    }
+    return response;
+  } catch (error) {
+    return Response.error();
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(isMapTileRequest(request) ? TILE_CACHE : RUNTIME_CACHE);
+  const cached = await cache.match(request);
+  const network = fetch(request)
+    .then((response) => {
+      if (response && (response.ok || response.type === "opaque")) {
+        cache.put(request, response.clone())
+          .then(() => {
+            if (!isMapTileRequest(request)) trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES);
+          })
+          .catch(() => {});
+      }
+      return response;
+    })
+    .catch(() => cached);
+  return cached || network;
+}
+
+function timeoutResponse(ms, response) {
+  return new Promise((resolve) => setTimeout(() => resolve(response), ms));
+}
+
+async function appShellStaleWhileRevalidate(request, options = {}) {
+  const {fallbackToShell = false, preferFreshNetwork = false, networkTimeoutMs = 700} = options;
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = (await cache.match(request)) || (fallbackToShell ? await shellFallbackResponse() : null);
+  const network = fetch(new Request(request, {cache: "reload"}))
+    .then((response) => {
+      if (response && response.ok) {
+        cache.put(request, response.clone())
+          .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+          .catch(() => {});
+      }
+      return response;
+    })
+    .catch(() => cached);
+  if (preferFreshNetwork && cached) {
+    return (await Promise.race([network, timeoutResponse(networkTimeoutMs, cached)])) || cached || Response.error();
+  }
+  return cached || network || Response.error();
+}
+
+async function appShellNetworkFirst(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  try {
+    const response = await fetch(new Request(request, {cache: "reload"}));
+    if (response && response.ok) {
+      cache.put(request, response.clone())
+        .then(() => trimCache(RUNTIME_CACHE, RUNTIME_CACHE_MAX_ENTRIES))
+        .catch(() => {});
+    }
+    return response;
+  } catch (error) {
+    return (await cache.match(request)) || (await shellFallbackResponse()) || Response.error();
+  }
+}
+
+async function shellFallbackResponse() {
+  return (await caches.match("./")) ||
+    (await caches.match("./index.html")) ||
+    (await caches.match(new URL("./index.html", self.registration.scope).href)) ||
+    null;
+}
+
+function isMapTileRequest(request) {
+  try {
+    const url = new URL(request.url);
+    return url.hostname === "tile.openstreetmap.org" && /\/\d+\/\d+\/\d+\.png$/.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function isFirebaseOrAuthRequest(request) {
+  try {
+    const url = new URL(request.url);
+    const host = url.hostname;
+    return host === "accounts.google.com" ||
+      host === "apis.google.com" ||
+      host === "oauth2.googleapis.com" ||
+      host === "securetoken.googleapis.com" ||
+      host === "identitytoolkit.googleapis.com" ||
+      host === "firestore.googleapis.com" ||
+      host === "firebase.googleapis.com" ||
+      host === "firebaseinstallations.googleapis.com" ||
+      host === "firebasestorage.googleapis.com" ||
+      host.endsWith(".googleapis.com") && /\/(google\.firestore|identitytoolkit|securetoken)\//.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function isRuntimeCacheAllowed(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.origin === self.location.origin) return true;
+    if (isMapTileRequest(request)) return true;
+    if (url.hostname === "www.gstatic.com" && ["script", "style", "font"].includes(request.destination)) return true;
+    if (url.hostname === "res.cloudinary.com" && request.destination === "image") return true;
+    return request.destination === "image";
+  } catch (error) {
+    return false;
+  }
+}
+
+function isStaticAssetRequest(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.origin === self.location.origin) {
+      return request.destination !== "document" && (
+        url.pathname.includes("/assets/") ||
+        /\/(late\.js|manifest\.webmanifest|szz-icon(?:-\d+)?\.png|szz-app-icon(?:-maskable)?-\d+\.png|szz-logo(?:-display)?\.png|podpis-tipek\.(?:png|jpg)|vendor\/leaflet\/(?:leaflet\.(?:css|js)|images\/(?:layers(?:-2x)?|marker-icon(?:-2x)?|marker-shadow)\.png))$/.test(url.pathname)
+      );
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
+
+function isAppShellRequest(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.origin !== self.location.origin) return false;
+    return request.destination === "document" ||
+      request.destination === "script" ||
+      request.destination === "style" ||
+      request.destination === "manifest" ||
+      /\/(index\.html|manifest\.webmanifest|sw\.js)$/.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+self.addEventListener("fetch", (event) => {
+  const {request} = event;
+  if (request.method !== "GET") return;
+  if (isMapTileRequest(request)) {
+    event.respondWith(cacheFirst(request, TILE_CACHE));
+    return;
+  }
+  if (request.mode === "navigate") {
+    event.respondWith(appShellNetworkFirst(request));
+    return;
+  }
+  if (isStaticAssetRequest(request)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+  if (isAppShellRequest(request)) {
+    if (request.destination === "document") {
+      event.respondWith(appShellNetworkFirst(request));
+      return;
+    }
+    event.respondWith(networkFirst(request, {fallbackToShell: request.destination === "document"}));
+    return;
+  }
+  if (isFirebaseOrAuthRequest(request) || !isRuntimeCacheAllowed(request)) {
+    event.respondWith(networkOnly(request));
+    return;
+  }
+  event.respondWith(staleWhileRevalidate(request));
+});
