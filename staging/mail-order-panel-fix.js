@@ -33,6 +33,113 @@
 
   function candidateId(candidate){ return text(candidate && (candidate.siteId || candidate.id)).slice(0,240); }
   function candidates(item){ return Array.isArray(item && item.match && item.match.candidates) ? item.match.candidates : []; }
+  const genericMailMatchTokens=new Set(["adresa","astip","baterie","dobry","den","kontrola","kontrolu","objednavam","objednavka","oprava","revize","revizi","servis","servisni","zdroj","zdroje","zdroju","zalozni","zkouska"]);
+  const broadPlaceTokens=new Set(["brno","praha","plzen","ostrava","olomouc","liberec","karvina","zlin","opava","hodonin","pardubice","jihlava","teplice"]);
+  function norm(value){
+    return text(value).toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[_/\\,.;:()\\-]+/g," ")
+      .replace(/\bbrne\b/g,"brno")
+      .replace(/\bpraze\b/g,"praha")
+      .replace(/\bplzni\b/g,"plzen")
+      .replace(/\bostrave\b/g,"ostrava")
+      .replace(/\s+/g," ")
+      .trim();
+  }
+  function tokenSet(value){
+    const stop=new Set(["a","i","s","se","ve","v","u","na","do","pro","od","cz","psc"]);
+    return new Set(norm(value).split(" ").filter(part=>part.length>=3 && !stop.has(part)));
+  }
+  function significantTokens(value){
+    const set=tokenSet(value);
+    genericMailMatchTokens.forEach(token=>set.delete(token));
+    return set;
+  }
+  function specificPlaceTokens(value){
+    const set=significantTokens(value);
+    broadPlaceTokens.forEach(token=>set.delete(token));
+    return set;
+  }
+  function overlap(left,right){
+    if(!left.size || !right.size) return 0;
+    let shared=0;
+    left.forEach(token=>{ if(right.has(token)) shared++; });
+    return shared / Math.max(left.size,right.size);
+  }
+  function containment(left,right){
+    if(!left.size || !right.size) return 0;
+    let shared=0;
+    left.forEach(token=>{ if(right.has(token)) shared++; });
+    return shared / Math.min(left.size,right.size);
+  }
+  function numericParts(value){
+    const set=new Set();
+    const matches=text(value).replace(/_/g,"/").match(/\b\d{1,5}(?:\s*[/-]\s*\d{1,4})?[a-zA-Z]?\b/g) || [];
+    matches.forEach(match=>{
+      const cleaned=norm(match).replace(/\s+/g,"/");
+      if(!cleaned) return;
+      set.add(cleaned);
+      cleaned.split("/").forEach(part=>{ if(part.length>=2) set.add(part); });
+    });
+    return set;
+  }
+  function shares(left,right){
+    for(const value of left){ if(right.has(value)) return true; }
+    return false;
+  }
+  function rowCandidate(row){
+    const raw=row && row.raw || {};
+    const id=text(row && (row.firebaseDocId || row.id) || raw.Firebase_doc_id || raw.id || raw.ID || raw.Klíč_adresy).slice(0,240);
+    const title=text(raw["Název"] || raw["Adresa / umístění"] || raw["Adresa_GPS"] || row && row.adresa || id);
+    const address=text(raw["Adresa / umístění"] || raw["Adresa_GPS"] || raw["Umístění"] || raw["Umístění zdroje"] || row && row.adresa);
+    return id ? {siteId:id,id,title,address,source:text(raw["Popis_zdroje"] || raw["Zdroj"] || raw["Kontrolované zařízení"])} : null;
+  }
+  function mailOrderText(item){
+    const ai=item && item.ai || {};
+    return [
+      item && item.subject,
+      item && item.siteName,
+      item && item.address,
+      ai.siteName,
+      ai.address,
+      item && (item.plainText || item.bodyText || item.text || item.snippet)
+    ].map(text).filter(Boolean).join("\n");
+  }
+  function scoreRowForMail(item,row){
+    const candidate=rowCandidate(row);
+    if(!candidate) return null;
+    const mailText=mailOrderText(item);
+    const mailSpecific=specificPlaceTokens(mailText);
+    const mailAll=significantTokens(mailText);
+    const rowPlace=[candidate.title,candidate.address].join(" ");
+    const rowSpecific=specificPlaceTokens(rowPlace);
+    const rowAll=significantTokens(rowPlace);
+    const specificContainment=containment(mailSpecific,rowSpecific);
+    const allOverlap=overlap(mailAll,rowAll);
+    const mailNums=numericParts(mailText);
+    const rowNums=numericParts(rowPlace);
+    const numberMatch=shares(mailNums,rowNums);
+    if(mailSpecific.size && specificContainment<=0 && !numberMatch) return null;
+    if(!mailSpecific.size && !numberMatch) return null;
+    let score=Math.round(72*specificContainment + 28*allOverlap);
+    if(numberMatch) score+=28;
+    if(mailNums.size && !numberMatch) score-=18;
+    if(score<36) return null;
+    candidate.score=Math.max(0,score);
+    candidate.confidence=Math.min(1,candidate.score/100);
+    candidate.reason=numberMatch ? "shoda konkrétní adresy a čísla" : "shoda konkrétní ulice nebo názvu místa";
+    return candidate;
+  }
+  function rerankClientCandidates(item){
+    const rows=Array.isArray(window.rows) ? window.rows : [];
+    if(!item || !rows.length) return item;
+    const scored=rows.map(row=>scoreRowForMail(item,row)).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,5);
+    if(!scored.length) return item;
+    const existing=candidates(item).filter(candidate=>candidateId(candidate) && !scored.some(next=>candidateId(next)===candidateId(candidate)));
+    item.match={...(item.match || {}), selectedSiteId:candidateId(scored[0]), candidates:scored.concat(existing).slice(0,8), confidence:scored[0].confidence, reason:scored[0].reason};
+    item.adminSelectedSiteId=candidateId(scored[0]);
+    return item;
+  }
   function selectedSiteId(item){
     const direct=text(item && (item.adminSelectedSiteId || item.appliedSiteId || item.matchSiteId || item.siteId));
     if(direct) return direct;
@@ -293,7 +400,7 @@
     setStatus("Načítám mail...");
     try{
       const data=await callFunction("getMailOrderIntake",{intakeId:id});
-      state.current=data.item || null;
+      state.current=rerankClientCandidates(data.item || null);
       renderDetail(state.current);
       if(state.current) focusSite(selectedSiteId(state.current));
       setStatus(state.current ? "Mail načten. Zkontroluj text a navržené místo." : "Mail nebyl nalezen.");
