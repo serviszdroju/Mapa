@@ -87,6 +87,21 @@
     for(const value of left){ if(right.has(value)) return true; }
     return false;
   }
+  function relevantMailBody(value){
+    const lines=text(value).split(/\r?\n/).map(text).filter(Boolean);
+    const picked=[];
+    for(const line of lines){
+      const normalized=norm(line);
+      if(!normalized) continue;
+      if(normalized.includes("fakturacni adresa") || normalized.includes("s pozdravem") || normalized.startsWith("tel") || normalized.startsWith("mail") || normalized.includes(" ico") || normalized.includes(" dic")) break;
+      if(/\b(objednav|kontrol|reviz|oprav|servis)\w*/.test(normalized)) picked.push(line);
+    }
+    if(picked.length) return picked.join("\n");
+    return lines.filter(line=>{
+      const normalized=norm(line);
+      return normalized && !normalized.includes("fakturacni adresa") && !normalized.includes("s pozdravem") && !normalized.startsWith("tel") && !normalized.startsWith("mail");
+    }).slice(0,3).join("\n");
+  }
   function rowCandidate(row){
     const raw=row && row.raw || {};
     const id=text(row && (row.firebaseDocId || row.id) || raw.Firebase_doc_id || raw.id || raw.ID || raw.Klíč_adresy).slice(0,240);
@@ -96,13 +111,14 @@
   }
   function mailOrderText(item){
     const ai=item && item.ai || {};
+    const body=relevantMailBody(item && (item.plainText || item.bodyText || item.text || item.snippet));
     return [
       item && item.subject,
       item && item.siteName,
       item && item.address,
       ai.siteName,
       ai.address,
-      item && (item.plainText || item.bodyText || item.text || item.snippet)
+      body
     ].map(text).filter(Boolean).join("\n");
   }
   function scoreRowForMail(item,row){
@@ -119,7 +135,7 @@
     const mailNums=numericParts(mailText);
     const rowNums=numericParts(rowPlace);
     const numberMatch=shares(mailNums,rowNums);
-    if(mailSpecific.size && specificContainment<=0 && !numberMatch) return null;
+    if(mailSpecific.size && specificContainment<=0) return null;
     if(!mailSpecific.size && !numberMatch) return null;
     let score=Math.round(72*specificContainment + 28*allOverlap);
     if(numberMatch) score+=28;
