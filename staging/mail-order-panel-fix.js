@@ -54,6 +54,10 @@
       text(candidate && candidate.address)
     ].filter(Boolean).join("\n") || text(item && (item.siteName || item.address)) || candidateId(candidate) || selectedSiteId(item) || "Místo není vybrané";
   }
+  function isOpenStatus(status){
+    const value=text(status);
+    return value && value!=="applied" && value!=="rejected";
+  }
 
   function rowByAnyId(id){
     const key=text(id);
@@ -270,12 +274,11 @@
     renderShell();
     setStatus(state.mode==="history" ? "Načítám historii potvrzených mailů..." : "Načítám nové maily se shodou...");
     try{
-      const data=await callFunction("listMailOrderIntake",{
-        status:state.mode==="history" ? "applied" : "pending",
-        limit:60
-      });
+      const payload={limit:60};
+      if(state.mode==="history") payload.status="applied";
+      const data=await callFunction("listMailOrderIntake",payload);
       const raw=Array.isArray(data.items) ? data.items : [];
-      state.items=state.mode==="history" ? raw : raw.filter(hasUsableMatch);
+      state.items=state.mode==="history" ? raw : raw.filter(item=>isOpenStatus(item.status) && hasUsableMatch(item));
       renderList();
       setStatus(state.mode==="history" ? `Historie: ${state.items.length} potvrzených mailů.` : `Nové maily se shodou: ${state.items.length}.`);
     }catch(error){
