@@ -130,11 +130,21 @@
     candidate.reason=numberMatch ? "shoda konkrétní adresy a čísla" : "shoda konkrétní ulice nebo názvu místa";
     return candidate;
   }
+  function hasSpecificMailPlaceSignal(item){
+    const mailText=mailOrderText(item);
+    return specificPlaceTokens(mailText).size > 0 || numericParts(mailText).size > 0;
+  }
   function rerankClientCandidates(item){
     const rows=Array.isArray(window.rows) ? window.rows : [];
     if(!item || !rows.length) return item;
     const scored=rows.map(row=>scoreRowForMail(item,row)).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,5);
-    if(!scored.length) return item;
+    if(!scored.length){
+      if(hasSpecificMailPlaceSignal(item)){
+        item.match={...(item.match || {}), selectedSiteId:"", candidates:[], confidence:0, reason:"Nenašel jsem bod se stejnou konkrétní ulicí nebo místem."};
+        item.adminSelectedSiteId="";
+      }
+      return item;
+    }
     const existing=candidates(item).filter(candidate=>candidateId(candidate) && !scored.some(next=>candidateId(next)===candidateId(candidate)));
     item.match={...(item.match || {}), selectedSiteId:candidateId(scored[0]), candidates:scored.concat(existing).slice(0,8), confidence:scored[0].confidence, reason:scored[0].reason};
     item.adminSelectedSiteId=candidateId(scored[0]);
