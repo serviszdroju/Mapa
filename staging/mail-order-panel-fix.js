@@ -40,7 +40,7 @@
     if(matched) return matched;
     return candidateId(candidates(item)[0]);
   }
-  function hasUsableMatch(item){ return !!selectedSiteId(item); }
+  function hasUsableMatch(item){ return !!selectedSiteId(item) || Number(item && item.candidateCount || 0) > 0; }
   function orderType(item){ return text(item && (item.adminOrderType || item.appliedOrderType || item.ai && item.ai.orderType)) || "kontrola"; }
   function orderTypeLabel(value){ return text(value)==="oprava" ? "oprava" : "kontrola"; }
   function selectedCandidate(item){
@@ -56,7 +56,7 @@
   }
   function isOpenStatus(status){
     const value=text(status);
-    return value && value!=="applied" && value!=="rejected";
+    return value!=="applied" && value!=="rejected";
   }
 
   function rowByAnyId(id){
