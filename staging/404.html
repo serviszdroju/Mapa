@@ -26,10 +26,10 @@
   .mail-order-row.pending{border-left-color:#eab308}.mail-order-row.needs_review{border-left-color:#f97316}.mail-order-row.applied{border-left-color:#16a34a}.mail-order-row.rejected{border-left-color:#64748b}.mail-order-row.failed{border-left-color:#dc2626}
   .mail-order-row b{font-size:11px;line-height:1.18;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mail-order-row span,.mail-order-row small{color:#64748b;font-size:10px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mail-order-detail{min-width:0;max-height:calc(100vh - 300px);overflow:auto;padding-right:2px}
-  .mail-order-detail-inner{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(170px,.75fr);grid-template-rows:auto auto minmax(0,1fr) auto;gap:4px;min-height:0}
+  .mail-order-detail-inner{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(170px,.75fr);grid-template-rows:auto auto auto auto;gap:3px;min-height:0}
   .mail-order-summary{display:grid;grid-template-columns:1fr;gap:5px;align-items:start;grid-column:1}.mail-order-compact-meta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:3px;min-width:0}.mail-order-compact-meta span{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 6px;border-radius:999px;background:#eef2f7;color:#475569;font-size:10px;font-weight:800}#mailOrderIntakeCard .history-item{padding:5px;border-radius:6px}#mailOrderIntakeCard .history-item h4{font-size:11px;line-height:1.15}#mailOrderIntakeCard .history-detail-row{grid-template-columns:56px minmax(0,1fr);gap:6px;min-height:18px;padding:2px 0;font-size:10.5px}
   .mail-order-candidates{grid-column:2;display:flex;flex-wrap:wrap;gap:3px}.mail-order-candidates button{flex:1 1 140px;justify-content:flex-start;min-height:auto;white-space:normal;text-align:left}
-  .mail-order-original pre{white-space:pre-wrap;word-break:break-word;max-height:calc(100vh - 342px);min-height:310px;overflow:auto;padding:5px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.25px;line-height:1.22}.mail-order-original{grid-column:1 / -1}.mail-order-actions{grid-column:1 / -1}#mailOrderIntakeStatus{margin:0;font-size:11px;line-height:1.18}
+  .mail-order-original pre{white-space:pre-wrap;word-break:break-word;max-height:calc(100vh - 310px);min-height:340px;overflow:auto;padding:5px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.25px;line-height:1.22}.mail-order-original{grid-column:1 / -1}.mail-order-actions{grid-column:1 / -1}#mailOrderIntakeStatus{margin:0;font-size:11px;line-height:1.18}
   @media (max-width:760px){.mail-order-layout,.mail-order-summary,.mail-order-detail-inner{grid-template-columns:1fr}.mail-order-compact-meta,.mail-order-summary,.mail-order-candidates,.mail-order-original,.mail-order-actions{grid-column:1}.mail-order-list,.mail-order-detail{max-height:none}}
 </style>
 <style id="startupSafeStyle">
@@ -972,7 +972,7 @@ try{
 })();
 </script>
   <script type="module" crossorigin src="./assets/index-CuyOK6Kg.js"></script>
-  <script defer src="./mail-order-panel-fix.js?v=mail-ui-v521"></script>
+  <script defer src="./mail-order-panel-fix.js?v=mail-ui-v522"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-CRiG8MFM.css">
 </head>
 <body>
