@@ -359,13 +359,11 @@
     toolbar.className="mail-order-toolbar";
     const newMode=makeButton("Nové maily",state.mode==="history" ? "secondary" : "primary");
     const historyMode=makeButton("Historie potvrzených",state.mode==="history" ? "primary" : "secondary");
-    const refresh=makeButton("Obnovit","secondary");
     const importBtn=makeButton("Načíst Gmail","secondary");
     newMode.addEventListener("click",()=>switchMode("new"));
     historyMode.addEventListener("click",()=>switchMode("history"));
-    refresh.addEventListener("click",loadList);
     importBtn.addEventListener("click",importGmail);
-    toolbar.append(newMode,historyMode,refresh,importBtn);
+    toolbar.append(newMode,historyMode,importBtn);
 
     const status=document.createElement("p");
     status.className="small";
