@@ -156,7 +156,7 @@
     for(const line of lines){
       const normalized=norm(line);
       if(!normalized) continue;
-      if(normalized.includes("fakturacni adresa") || normalized.includes("s pozdravem") || normalized.startsWith("tel") || normalized.startsWith("mail") || normalized.includes(" ico") || normalized.includes(" dic")) break;
+      if(normalized.includes("fakturacni adresa") || normalized.includes("s pozdravem") || normalized.startsWith("tel") || normalized.startsWith("mail") || normalized.includes(" ico") || normalized.includes(" dic")) continue;
       if(/\b(objednav|kontrol|reviz|oprav|servis)\w*/.test(normalized)) picked.push(line);
     }
     if(picked.length) return picked.join("\n");
@@ -164,6 +164,29 @@
       const normalized=norm(line);
       return normalized && !normalized.includes("fakturacni adresa") && !normalized.includes("s pozdravem") && !normalized.startsWith("tel") && !normalized.startsWith("mail");
     }).slice(0,3).join("\n");
+  }
+  function mailBodyText(item){
+    return text(item && (item.plainText || item.bodyText || item.text || item.snippet));
+  }
+  function dateLabel(value){
+    const raw=text(value);
+    if(!raw) return "";
+    const date=new Date(raw);
+    if(Number.isFinite(date.getTime())) return date.toLocaleString("cs-CZ");
+    return raw;
+  }
+  function mailDisplayText(item){
+    const lines=[];
+    const subject=text(item && item.subject);
+    const from=text(item && item.from);
+    const received=dateLabel(item && item.receivedAt);
+    const body=mailBodyText(item);
+    if(subject) lines.push(`Předmět: ${subject}`);
+    if(from) lines.push(`Od: ${from}`);
+    if(received) lines.push(`Přijato: ${received}`);
+    if(lines.length && body) lines.push("");
+    if(body) lines.push(body);
+    return lines.join("\n") || subject || "Text mailu není k dispozici.";
   }
   function rowCandidate(row){
     const raw=row && row.raw || {};
@@ -174,7 +197,7 @@
   }
   function mailOrderText(item){
     const ai=item && item.ai || {};
-    const body=relevantMailBody(item && (item.plainText || item.bodyText || item.text || item.snippet));
+    const body=relevantMailBody(mailBodyText(item));
     return [
       item && item.subject,
       item && item.siteName,
@@ -239,6 +262,15 @@
   function hasUsableMatch(item){ return !!selectedSiteId(item) || Number(item && item.candidateCount || 0) > 0; }
   function orderType(item){ return text(item && (item.adminOrderType || item.appliedOrderType || item.ai && item.ai.orderType)) || "kontrola"; }
   function orderTypeLabel(value){ return text(value)==="oprava" ? "oprava" : "kontrola"; }
+  function statusLabel(value){
+    const status=text(value);
+    if(status==="pending") return "Čeká na schválení";
+    if(status==="needs_review") return "K ruční kontrole";
+    if(status==="applied") return "Schváleno a zapsáno";
+    if(status==="rejected") return "Zamítnuto";
+    if(status==="failed") return "Chyba";
+    return status || "Bez stavu";
+  }
   function selectedCandidate(item){
     const selected=selectedSiteId(item);
     const list=candidates(item);
@@ -395,7 +427,9 @@
       title.textContent=text(item.subject || "Nový mail");
       const meta=document.createElement("span");
       meta.textContent=candidateLabel(selectedCandidate(item),item).replace(/\n+/g," · ");
-      row.append(title,meta);
+      const small=document.createElement("small");
+      small.textContent=[statusLabel(item.status),orderTypeLabel(orderType(item)),dateLabel(item.receivedAt)].filter(Boolean).join(" · ");
+      row.append(title,meta,small);
       fragment.appendChild(row);
     });
     list.replaceChildren(fragment);
@@ -411,6 +445,31 @@
     const wrap=document.createElement("div");
     wrap.className="mail-order-detail-inner";
 
+    const summary=document.createElement("div");
+    summary.className="mail-order-summary";
+
+    const meta=document.createElement("section");
+    meta.className="history-item mail-order-meta";
+    const metaTitle=document.createElement("h4");
+    metaTitle.textContent="Mail";
+    meta.appendChild(metaTitle);
+    function addMeta(label,value){
+      if(!text(value)) return;
+      const row=document.createElement("div");
+      row.className="history-detail-row";
+      const left=document.createElement("span");
+      left.textContent=label;
+      const right=document.createElement("span");
+      right.textContent=text(value);
+      row.append(left,right);
+      meta.appendChild(row);
+    }
+    addMeta("Stav",statusLabel(item.status));
+    addMeta("Typ",orderTypeLabel(orderType(item)));
+    addMeta("Od",item.from);
+    addMeta("Přijato",dateLabel(item.receivedAt));
+    summary.appendChild(meta);
+
     const place=document.createElement("section");
     place.className="history-item";
     const placeTitle=document.createElement("h4");
@@ -420,7 +479,8 @@
     const showOnMap=makeButton("Ukázat bod v mapě","secondary");
     showOnMap.id="mailOrderShowSite";
     place.append(placeTitle,placeText,showOnMap);
-    wrap.appendChild(place);
+    summary.appendChild(place);
+    wrap.appendChild(summary);
 
     const candidateList=candidates(item);
     if(candidateList.length>1){
@@ -442,9 +502,9 @@
     const mail=document.createElement("section");
     mail.className="history-item mail-order-original";
     const mailTitle=document.createElement("h4");
-    mailTitle.textContent="Text mailu";
+    mailTitle.textContent="Celý mail";
     const body=document.createElement("pre");
-    body.textContent=text(item.plainText || item.bodyText || item.text || item.snippet || item.subject);
+    body.textContent=mailDisplayText(item);
     mail.append(mailTitle,body);
     wrap.appendChild(mail);
 
