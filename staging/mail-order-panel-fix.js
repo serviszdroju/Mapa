@@ -4,11 +4,39 @@
   const state={items:[],current:null,mode:"new"};
   let focusMarker=null;
   const FUNCTIONS_COMPAT_SCRIPT_URL="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js";
+  const MAIL_ORDER_ADMIN_EMAILS=new Set(["jan.soldan@astip.cz","jansoldan@astip.cz","iva.glozova@astip.cz"]);
   let functionsCompatScriptPromise=null;
 
   function text(value){ return String(value == null ? "" : value).trim(); }
+  function email(value){ return text(value).toLowerCase(); }
   function drawer(){ return document.getElementById("drawer"); }
   function setStatus(message){ const node=document.getElementById("mailOrderIntakeStatus"); if(node) node.textContent=message || ""; }
+  function currentUserEmail(){
+    return email(
+      (window.currentUser && window.currentUser.email) ||
+      (window.__authReadyUser && window.__authReadyUser.email) ||
+      (window.firebase && firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.email) ||
+      ""
+    );
+  }
+  function isMailOrderAdmin(){
+    const userEmail=currentUserEmail();
+    if(userEmail && (MAIL_ORDER_ADMIN_EMAILS.has(userEmail) || userEmail.endsWith("@astip.cz"))) return true;
+    const historyButton=document.getElementById("mainProtocolHistoryBtn");
+    if(historyButton){
+      const style=window.getComputedStyle ? window.getComputedStyle(historyButton) : null;
+      if(style && style.display!=="none" && style.visibility!=="hidden") return true;
+    }
+    return false;
+  }
+  function refreshMailOrderButtonVisibility(button){
+    if(!button) return;
+    if(isMailOrderAdmin()){
+      button.style.display="";
+      button.hidden=false;
+      button.removeAttribute("aria-hidden");
+    }
+  }
 
   function loadFunctionsCompatScript(){
     if(window.firebase && firebase.functions) return Promise.resolve();
@@ -531,7 +559,7 @@
       renderShell();
       loadList();
     };
-    const button=document.getElementById("mailOrderIntakeBtn");
+    let button=document.getElementById("mailOrderIntakeBtn");
     if(button && !button.dataset.mailOrderFixBound){
       const clone=button.cloneNode(true);
       clone.dataset.mailOrderFixBound="1";
@@ -541,7 +569,9 @@
         window.openMailOrderIntakePanel();
       });
       button.replaceWith(clone);
+      button=clone;
     }
+    refreshMailOrderButtonVisibility(button);
   }
 
   install();
