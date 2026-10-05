@@ -26,11 +26,11 @@
   .mail-order-row.pending{border-left-color:#eab308}.mail-order-row.needs_review{border-left-color:#f97316}.mail-order-row.applied{border-left-color:#16a34a}.mail-order-row.rejected{border-left-color:#64748b}.mail-order-row.failed{border-left-color:#dc2626}
   .mail-order-row b{font-size:11px;line-height:1.18;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mail-order-row span,.mail-order-row small{color:#64748b;font-size:10px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mail-order-detail{min-width:0;max-height:calc(100vh - 260px);overflow:auto;padding-right:2px}
-  .mail-order-detail-inner{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:5px;min-height:0}
-  .mail-order-summary{display:grid;grid-template-columns:1fr;gap:5px;align-items:start}.mail-order-compact-meta{display:flex;flex-wrap:wrap;gap:4px;min-width:0}.mail-order-compact-meta span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 6px;border-radius:999px;background:#eef2f7;color:#475569;font-size:10.5px;font-weight:800}#mailOrderIntakeCard .history-item{padding:6px;border-radius:6px}#mailOrderIntakeCard .history-item h4{font-size:11px;line-height:1.15}#mailOrderIntakeCard .history-detail-row{grid-template-columns:56px minmax(0,1fr);gap:6px;min-height:18px;padding:2px 0;font-size:10.5px}
-  .mail-order-candidates{display:flex;flex-wrap:wrap;gap:4px}.mail-order-candidates button{flex:1 1 135px;justify-content:flex-start;min-height:auto;white-space:normal;text-align:left}
-  .mail-order-original pre{white-space:pre-wrap;word-break:break-word;max-height:calc(100vh - 365px);min-height:230px;overflow:auto;padding:6px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;line-height:1.28}
-  @media (max-width:760px){.mail-order-layout,.mail-order-summary{grid-template-columns:1fr}.mail-order-list,.mail-order-detail{max-height:none}}
+  .mail-order-detail-inner{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.95fr);grid-template-rows:auto auto minmax(0,1fr) auto;gap:5px;min-height:0}
+  .mail-order-summary{display:grid;grid-template-columns:1fr;gap:5px;align-items:start;grid-column:1}.mail-order-compact-meta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:4px;min-width:0}.mail-order-compact-meta span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 6px;border-radius:999px;background:#eef2f7;color:#475569;font-size:10.5px;font-weight:800}#mailOrderIntakeCard .history-item{padding:6px;border-radius:6px}#mailOrderIntakeCard .history-item h4{font-size:11px;line-height:1.15}#mailOrderIntakeCard .history-detail-row{grid-template-columns:56px minmax(0,1fr);gap:6px;min-height:18px;padding:2px 0;font-size:10.5px}
+  .mail-order-candidates{grid-column:2;display:flex;flex-wrap:wrap;gap:4px}.mail-order-candidates button{flex:1 1 135px;justify-content:flex-start;min-height:auto;white-space:normal;text-align:left}
+  .mail-order-original pre{white-space:pre-wrap;word-break:break-word;max-height:calc(100vh - 325px);min-height:270px;overflow:auto;padding:6px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;line-height:1.28}.mail-order-original{grid-column:1 / -1}.mail-order-actions{grid-column:1 / -1}
+  @media (max-width:760px){.mail-order-layout,.mail-order-summary,.mail-order-detail-inner{grid-template-columns:1fr}.mail-order-compact-meta,.mail-order-summary,.mail-order-candidates,.mail-order-original,.mail-order-actions{grid-column:1}.mail-order-list,.mail-order-detail{max-height:none}}
 </style>
 <style id="startupSafeStyle">
   html,body{width:100%;min-height:100%;margin:0}
@@ -972,7 +972,7 @@ try{
 })();
 </script>
   <script type="module" crossorigin src="./assets/index-CuyOK6Kg.js"></script>
-  <script defer src="./mail-order-panel-fix.js?v=mail-ui-v519"></script>
+  <script defer src="./mail-order-panel-fix.js?v=mail-ui-v520"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-CRiG8MFM.css">
 </head>
 <body>
