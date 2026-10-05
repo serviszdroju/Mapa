@@ -17,6 +17,20 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./szz-app-icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./szz-app-icon-192.png">
+<style>
+  .mail-order-card{display:flex;flex-direction:column;gap:8px}
+  .mail-order-toolbar,.mail-order-actions{display:flex;flex-wrap:wrap;align-items:end;gap:6px}
+  .mail-order-layout{display:grid;grid-template-columns:minmax(180px,260px) minmax(0,1fr);gap:8px;min-height:360px}
+  .mail-order-list{display:flex;flex-direction:column;gap:5px;max-height:calc(100vh - 330px);overflow:auto;padding-right:2px}
+  .mail-order-row{width:100%;display:grid;gap:2px;min-height:auto;padding:7px 8px;text-align:left;background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-left:4px solid #94a3b8;box-shadow:none}
+  .mail-order-row.pending{border-left-color:#eab308}.mail-order-row.needs_review{border-left-color:#f97316}.mail-order-row.applied{border-left-color:#16a34a}.mail-order-row.rejected{border-left-color:#64748b}.mail-order-row.failed{border-left-color:#dc2626}
+  .mail-order-row b{font-size:12px;line-height:1.25}.mail-order-row span,.mail-order-row small{color:#64748b;font-size:11px;line-height:1.25}
+  .mail-order-detail{min-width:0;max-height:calc(100vh - 330px);overflow:auto;padding-right:2px}
+  .mail-order-detail-inner{display:flex;flex-direction:column;gap:8px}
+  .mail-order-candidates{display:flex;flex-direction:column;gap:5px}.mail-order-candidates button{justify-content:flex-start;min-height:auto;white-space:normal;text-align:left}
+  .mail-order-original pre{white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto;padding:8px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;font-family:inherit;font-size:11px}
+  @media (max-width:760px){.mail-order-layout{grid-template-columns:1fr}.mail-order-list,.mail-order-detail{max-height:none}}
+</style>
 <style id="startupSafeStyle">
   html,body{width:100%;min-height:100%;margin:0}
   .startup{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;background:#fff;padding:16px;overflow:auto}
@@ -957,6 +971,7 @@ try{
 })();
 </script>
   <script type="module" crossorigin src="./assets/index-CuyOK6Kg.js"></script>
+  <script defer src="./mail-order-panel-fix.js?v=mail-ui-v513"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-CRiG8MFM.css">
 </head>
 <body>
@@ -980,6 +995,7 @@ try{
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
 <button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
 <button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
+<button class="secondary admin-only" id="mailOrderIntakeBtn" style="display:none;margin-top:8px">Objednávky z mailu</button>
 </div>
 
 <div id="firebaseBox" class="notice err" style="display:none">Firebase se nepodařilo načíst.</div>
