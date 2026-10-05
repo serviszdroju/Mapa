@@ -474,9 +474,9 @@
       if(state.mode==="history") payload.status="applied";
       const data=await callFunction("listMailOrderIntake",payload);
       const raw=Array.isArray(data.items) ? data.items : [];
-      state.items=state.mode==="history" ? raw : raw.filter(item=>isOpenStatus(item.status) && hasUsableMatch(item));
+      state.items=state.mode==="history" ? raw : raw.filter(item=>isOpenStatus(item.status));
       renderList();
-      setStatus(state.mode==="history" ? `Historie: ${state.items.length} potvrzených mailů.` : `Nové maily se shodou: ${state.items.length}.`);
+      setStatus(state.mode==="history" ? `Historie: ${state.items.length} potvrzených mailů.` : `Nové maily: ${state.items.length}. Bez jisté shody zůstanou k ruční kontrole.`);
     }catch(error){
       setStatus(errorText(error));
       const list=document.getElementById("mailOrderIntakeList");
