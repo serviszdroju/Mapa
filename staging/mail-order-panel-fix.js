@@ -443,30 +443,17 @@
     const wrap=document.createElement("div");
     wrap.className="mail-order-detail-inner";
 
+    const compactMeta=document.createElement("div");
+    compactMeta.className="mail-order-compact-meta";
+    [statusLabel(item.status),orderTypeLabel(orderType(item)),item.from,dateLabel(item.receivedAt)].map(text).filter(Boolean).forEach(value=>{
+      const pill=document.createElement("span");
+      pill.textContent=value;
+      compactMeta.appendChild(pill);
+    });
+    if(compactMeta.childNodes.length) wrap.appendChild(compactMeta);
+
     const summary=document.createElement("div");
     summary.className="mail-order-summary";
-
-    const meta=document.createElement("section");
-    meta.className="history-item mail-order-meta";
-    const metaTitle=document.createElement("h4");
-    metaTitle.textContent="Mail";
-    meta.appendChild(metaTitle);
-    function addMeta(label,value){
-      if(!text(value)) return;
-      const row=document.createElement("div");
-      row.className="history-detail-row";
-      const left=document.createElement("span");
-      left.textContent=label;
-      const right=document.createElement("span");
-      right.textContent=text(value);
-      row.append(left,right);
-      meta.appendChild(row);
-    }
-    addMeta("Stav",statusLabel(item.status));
-    addMeta("Typ",orderTypeLabel(orderType(item)));
-    addMeta("Od",item.from);
-    addMeta("Přijato",dateLabel(item.receivedAt));
-    summary.appendChild(meta);
 
     const place=document.createElement("section");
     place.className="history-item";
