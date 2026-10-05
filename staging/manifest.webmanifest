@@ -3,7 +3,7 @@
   "name": "Servis zaloznich zdroju TEST",
   "short_name": "SZZ test",
   "description": "Servisni mapa zaloznich zdroju ASTIP.",
-  "start_url": "/Mapa/staging/",
+  "start_url": "/Mapa/staging/?v=row-priority-v720",
   "scope": "/Mapa/staging/",
   "lang": "cs-CZ",
   "categories": [
@@ -24,7 +24,7 @@
     {
       "name": "Otevrit mapu",
       "short_name": "Mapa",
-      "url": "/Mapa/staging/",
+      "url": "/Mapa/staging/?v=row-priority-v720",
       "icons": [
         {
           "src": "./szz-app-icon-192.png",
