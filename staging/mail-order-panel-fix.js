@@ -95,7 +95,24 @@
   }
 
   function candidateId(candidate){ return text(candidate && (candidate.siteId || candidate.id)).slice(0,240); }
-  function candidates(item){ return Array.isArray(item && item.match && item.match.candidates) ? item.match.candidates : []; }
+  function candidateScore(candidate){
+    const score=Number(candidate && candidate.score);
+    if(Number.isFinite(score) && score>0) return score;
+    const confidence=Number(candidate && candidate.confidence);
+    return Number.isFinite(confidence) && confidence>0 ? confidence*100 : 0;
+  }
+  function meaningfulCandidates(list){
+    const candidates=Array.isArray(list) ? list.filter(candidate=>candidateId(candidate)) : [];
+    if(!candidates.length) return [];
+    const bestScore=candidateScore(candidates[0]);
+    return candidates.filter((candidate,index)=>{
+      if(index===0) return true;
+      const score=candidateScore(candidate);
+      if(bestScore>=62) return score>=62 && score>=bestScore-12;
+      return score>=Math.max(36,bestScore-8);
+    });
+  }
+  function candidates(item){ return meaningfulCandidates(item && item.match && item.match.candidates); }
   const genericMailMatchTokens=new Set(["adresa","astip","baterie","dobry","den","kontrola","kontrolu","objednavam","objednavka","oprava","revize","revizi","servis","servisni","zdroj","zdroje","zdroju","zalozni","zkouska"]);
   const broadPlaceTokens=new Set(["brno","praha","plzen","ostrava","olomouc","liberec","karvina","zlin","opava","hodonin","pardubice","jihlava","teplice"]);
   function norm(value){
@@ -247,8 +264,8 @@
       }
       return item;
     }
-    const existing=candidates(item).filter(candidate=>candidateId(candidate) && !scored.some(next=>candidateId(next)===candidateId(candidate)));
-    item.match={...(item.match || {}), selectedSiteId:candidateId(scored[0]), candidates:scored.concat(existing).slice(0,8), confidence:scored[0].confidence, reason:scored[0].reason};
+    const existing=(Array.isArray(item && item.match && item.match.candidates) ? item.match.candidates : []).filter(candidate=>candidateId(candidate) && !scored.some(next=>candidateId(next)===candidateId(candidate)));
+    item.match={...(item.match || {}), selectedSiteId:candidateId(scored[0]), candidates:meaningfulCandidates(scored.concat(existing)).slice(0,8), confidence:scored[0].confidence, reason:scored[0].reason};
     item.adminSelectedSiteId=candidateId(scored[0]);
     return item;
   }
