@@ -35,7 +35,6 @@
     style.id="mailOrderSidebarButtonStyle";
     style.textContent=[
       "#mailOrderIntakeBtn.mail-order-sidebar-ready{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;text-align:left!important;font-weight:800!important}",
-      "#mailOrderIntakeBtn .mail-order-sidebar-icon{width:16px;height:16px;flex:0 0 16px;background:currentColor;-webkit-mask-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3.5' y='5.5' width='17' height='13' rx='2.2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M5 8l7 5 7-5M8 16h8' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");mask-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3.5' y='5.5' width='17' height='13' rx='2.2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cpath d='M5 8l7 5 7-5M8 16h8' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain}",
       "#mailOrderIntakeBtn .mail-order-sidebar-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
     ].join("\n");
     document.head.appendChild(style);
@@ -50,16 +49,11 @@
     button.style.gap="10px";
     button.style.textAlign="left";
     button.style.fontWeight="800";
-    if(!button.querySelector(".mail-order-sidebar-icon")){
-      const labelText=text(button.textContent) || "Objednávky z mailu";
-      const icon=document.createElement("span");
-      icon.className="mail-order-sidebar-icon";
-      icon.setAttribute("aria-hidden","true");
-      const label=document.createElement("span");
-      label.className="mail-order-sidebar-label";
-      label.textContent=labelText;
-      button.replaceChildren(icon,label);
-    }
+    const labelText=text(button.textContent) || "Objednávky z mailu";
+    const label=document.createElement("span");
+    label.className="mail-order-sidebar-label";
+    label.textContent=labelText;
+    button.replaceChildren(label);
   }
   function refreshMailOrderButtonVisibility(button){
     if(!button) return;
