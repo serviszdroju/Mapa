@@ -33,7 +33,20 @@
   .mail-order-summary{display:grid;grid-template-columns:1fr;gap:5px;align-items:start;grid-column:1}.mail-order-compact-meta{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:3px;min-width:0}.mail-order-compact-meta span{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 6px;border-radius:999px;background:#eef2f7;color:#475569;font-size:10px;font-weight:800}#mailOrderIntakeCard .history-item{padding:5px;border-radius:6px}#mailOrderIntakeCard .history-item h4{font-size:11px;line-height:1.15}#mailOrderIntakeCard .history-detail-row{grid-template-columns:56px minmax(0,1fr);gap:6px;min-height:18px;padding:2px 0;font-size:10.5px}
   .mail-order-candidates{grid-column:2;display:flex;flex-wrap:wrap;gap:3px}.mail-order-candidates button{flex:1 1 140px;justify-content:flex-start;min-height:auto;white-space:normal;text-align:left}
   .mail-order-original pre{white-space:pre-wrap;word-break:break-word;max-height:calc(100vh - 310px);min-height:340px;overflow:auto;padding:5px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.25px;line-height:1.22}.mail-order-original{grid-column:1 / -1}.mail-order-actions{grid-column:1 / -1}#mailOrderIntakeStatus{margin:0;font-size:11px;line-height:1.18}
-  @media (max-width:760px){.mail-order-layout,.mail-order-summary,.mail-order-detail-inner{grid-template-columns:1fr}.mail-order-compact-meta,.mail-order-summary,.mail-order-candidates,.mail-order-original,.mail-order-actions{grid-column:1}.mail-order-list,.mail-order-detail{max-height:none}}
+  #drawer:has(#mailOrderIntakeCard){display:flex;flex-direction:column;overflow:hidden}
+  #drawer:has(#mailOrderIntakeCard) .drawer-head{flex:0 0 auto}
+  #mailOrderIntakeCard{flex:1;min-height:0;margin-bottom:0;overflow:hidden}
+  #mailOrderIntakeCard .mail-order-layout{flex:1;grid-template-rows:auto minmax(0,1fr);min-height:0}
+  #mailOrderIntakeCard .mail-order-detail{max-height:none;min-height:0;overflow:hidden}
+  #mailOrderIntakeCard .mail-order-detail-inner{height:100%;grid-template-rows:auto auto minmax(0,1fr) auto;min-height:0}
+  #mailOrderIntakeCard .mail-order-summary,#mailOrderIntakeCard .mail-order-candidates{grid-row:2}
+  #mailOrderIntakeCard .history-item h4{margin:0 0 4px}
+  #mailOrderIntakeCard .mail-order-summary pre{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:12px;line-height:1.3;margin:0 0 5px}
+  #mailOrderIntakeCard .mail-order-original{grid-row:3;display:flex;flex-direction:column;min-height:0;margin:0}
+  #mailOrderIntakeCard .mail-order-original pre{flex:1;min-height:0;max-height:none;margin:0;overflow:auto}
+  #mailOrderIntakeCard .mail-order-actions{grid-row:4;margin:0;padding:4px 0 0}
+  @media (max-width:760px){.mail-order-layout,.mail-order-summary,.mail-order-detail-inner{grid-template-columns:1fr}.mail-order-compact-meta,.mail-order-summary,.mail-order-candidates,.mail-order-original,.mail-order-actions{grid-column:1}#mailOrderIntakeCard .mail-order-detail-inner{display:flex;flex-direction:column}#mailOrderIntakeCard .mail-order-original{flex:1}#mailOrderIntakeCard .mail-order-candidates{max-height:90px;overflow:auto}#mailOrderIntakeCard .mail-order-compact-meta span{max-width:180px}#drawer:has(#mailOrderIntakeCard) .drawer-head .small{display:none}}
+  @media (max-height:500px){#drawer:has(#mailOrderIntakeCard) .drawer-head .small{display:none}#mailOrderIntakeCard .mail-order-summary .history-item{display:flex;align-items:center;justify-content:space-between;gap:6px}#mailOrderIntakeCard .mail-order-summary h4{display:none}#mailOrderIntakeCard .mail-order-summary pre{margin:0;min-width:0;font-size:11px}#mailOrderIntakeCard .mail-order-candidates{max-height:60px;overflow:auto}}
 </style>
 <style id="startupSafeStyle">
   html,body{width:100%;min-height:100%;margin:0}
@@ -975,7 +988,7 @@ try{
 })();
 </script>
   <script type="module" crossorigin src="./assets/index-CuyOK6Kg.js"></script>
-  <script defer src="./mail-order-panel-fix-v525.js"></script>
+  <script defer src="./mail-order-panel-fix-v526.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-CRiG8MFM.css">
   <style>
     button#mailOrderIntakeBtn:not([style*="display:none"]):not([style*="display: none"]){display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;text-align:left!important;font-weight:800!important}
