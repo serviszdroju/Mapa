@@ -163,7 +163,12 @@ try{
   window.__startCompatGoogleLoginFallback=async function(){
     try{
       status("Připravuji Google přihlášení...");
-      await ensureCompatFirebaseForLogin();
+      if(!window.firebase || !firebase.auth){
+        await ensureCompatFirebaseForLogin();
+        if(!window.firebase || !firebase.auth) throw new Error("Firebase přihlášení se nepodařilo načíst. Zkontroluj internet a zkus to znovu.");
+        status("Přihlášení je připravené. Klepni na Přihlásit přes Google.");
+        return;
+      }
       if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
         status("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
         return;
@@ -187,9 +192,8 @@ try{
       }).catch(err=>{
         const code=String(err && err.code || "");
         if(["auth/popup-blocked","auth/cancelled-popup-request","auth/operation-not-supported-in-this-environment","auth/popup-closed-by-user"].includes(code)){
-          try{sessionStorage.setItem("astipFirebaseRedirectPending","redirect");}catch(e){}
-          status("Popup nešel dokončit. Přesměrovávám na Google přihlášení...");
-          return auth.signInWithRedirect(provider);
+          status(window.__szzGooglePopupErrorText?.(err) || "Google přihlášení nebylo dokončeno. Povol vyskakovací okno pro tento web a klepni znovu na Přihlásit přes Google.");
+          return;
         }
         status("Přihlášení selhalo: " + (code || (err && err.message) || err || ""));
       });
@@ -247,8 +251,8 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-5FocR03f.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-OAkasWwW.css">
+  <script type="module" crossorigin src="./assets/index-CxBJnlvn.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-gaN2oPkT.css">
 </head>
 <body>
 
@@ -270,6 +274,7 @@ try{
 <button class="primary" id="addSiteBtn" style="margin-top:8px">Přidat nové místo</button>
 <button class="secondary" id="topLogoutBtn" style="display:none;margin:8px 0">Odhlásit technika</button>
 <button class="secondary main-protocol-history-private" id="mainProtocolHistoryBtn" style="display:none;margin-top:8px">Historie protokolů</button>
+<button class="secondary" id="routePlannerBtn" style="display:none;margin-top:8px" type="button">Plánování trasy</button>
 <button class="secondary admin-only" id="mailOrderIntakeBtn" style="display:none;margin-top:8px">Objednávky z mailu</button>
 
 <div id="firebaseBox" class="notice err" style="display:none">Firebase se nepodařilo načíst.</div>
@@ -334,9 +339,6 @@ try{
 
     <label>Výrobní č.</label>
     <input id="protoSerial">
-
-    <label>Číslo plomby</label>
-    <input id="protoSeal">
 
     <h4>Místo a provozní údaje</h4>
 
@@ -497,6 +499,9 @@ try{
         </select>
       </div>
     </div>
+
+    <label for="protoSeal">Číslo plomby</label>
+    <input id="protoSeal">
 
     <div class="edit-grid">
       <div><label>Za objednavatele</label><input id="protoClientSign" placeholder="čitelně + podpis"></div>
