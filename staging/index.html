@@ -163,7 +163,12 @@ try{
   window.__startCompatGoogleLoginFallback=async function(){
     try{
       status("Připravuji Google přihlášení...");
-      await ensureCompatFirebaseForLogin();
+      if(!window.firebase || !firebase.auth){
+        await ensureCompatFirebaseForLogin();
+        if(!window.firebase || !firebase.auth) throw new Error("Firebase přihlášení se nepodařilo načíst. Zkontroluj internet a zkus to znovu.");
+        status("Přihlášení je připravené. Klepni na Přihlásit přes Google.");
+        return;
+      }
       if(!window.firebase || !firebase.auth || !window.__firebaseConfig){
         status("Firebase přihlášení ještě není načtené. Zkontroluj internet a zkus to znovu.");
         return;
@@ -187,9 +192,8 @@ try{
       }).catch(err=>{
         const code=String(err && err.code || "");
         if(["auth/popup-blocked","auth/cancelled-popup-request","auth/operation-not-supported-in-this-environment","auth/popup-closed-by-user"].includes(code)){
-          try{sessionStorage.setItem("astipFirebaseRedirectPending","redirect");}catch(e){}
-          status("Popup nešel dokončit. Přesměrovávám na Google přihlášení...");
-          return auth.signInWithRedirect(provider);
+          status(window.__szzGooglePopupErrorText?.(err) || "Google přihlášení nebylo dokončeno. Povol vyskakovací okno pro tento web a klepni znovu na Přihlásit přes Google.");
+          return;
         }
         status("Přihlášení selhalo: " + (code || (err && err.message) || err || ""));
       });
@@ -247,8 +251,8 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-cVGDnx0L.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CYyoNd4l.css">
+  <script type="module" crossorigin src="./assets/index-CxBJnlvn.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-gaN2oPkT.css">
 </head>
 <body>
 
