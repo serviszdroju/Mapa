@@ -1,0 +1,12 @@
+{
+  "channel": "release",
+  "versionCode": 152,
+  "versionName": "1.2.50-google-login",
+  "minSdk": 26,
+  "apkFile": "szz-mapa-tablet-1.2.50-google-login.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.50-google-login.apk",
+  "sha256": "20336125a47b3ceee3366f88fe7b6ab06f10792f2f054c4e6b99d50bb0fcf873",
+  "sizeBytes": 18743283,
+  "createdAt": "2026-10-13T20:04:03Z",
+  "published": true
+}
