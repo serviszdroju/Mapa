@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 154,
-  "versionName": "1.2.52-web-parity",
+  "versionCode": 156,
+  "versionName": "1.2.54-draft-recovery",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.52-web-parity.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.52-web-parity.apk",
-  "sha256": "3efe8f4f0f7df518e1519c5983e6cf6f5e27cf46d796f5d845d6efd640693c08",
-  "sizeBytes": 18872135,
-  "createdAt": "2026-10-14T07:44:30Z",
+  "apkFile": "szz-mapa-tablet-1.2.54-draft-recovery.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.54-draft-recovery.apk",
+  "sha256": "9c9948fd57fc32628457d6eea68f776206b31ca5ba64956051e0d212385a4692",
+  "sizeBytes": 18880929,
+  "createdAt": "2026-10-14T18:06:13Z",
   "published": true
 }
