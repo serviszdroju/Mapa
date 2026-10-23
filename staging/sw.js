@@ -1,5 +1,5 @@
 const CACHE_PREFIX = new URL(self.registration.scope).pathname.endsWith("/staging/") ? "astip-szz-staging-" : "astip-szz-";
-const CACHE_VERSION = `${CACHE_PREFIX}v509-compact-source-fields`;
+const CACHE_VERSION = `${CACHE_PREFIX}v510-unified-reference-fields`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";

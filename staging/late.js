@@ -635,6 +635,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     {label:"Popis zdroje", key:"Popis_zdroje", full:true},
     {label:"Výrobní číslo", key:"Zdroj"},
     {label:"Kontakt", key:"Kontakt"},
+    {label:"Rok výroby", key:"Rok výroby"},
+    {label:"Číslo nabídky", key:"Číslo nabídky"},
     {label:"Perioda kontrol", key:"Perioda kontrol", type:"period"},
     {label:"Hlídáme sami termín", key:"Hlídáme sami termín", type:"yesno"},
     {label:"Smlouva", key:"Smlouva ano/ne", type:"yesno"},
