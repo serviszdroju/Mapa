@@ -1,0 +1,67 @@
+/* FIREBASE UNIFIED MODE */
+#fbUnifiedOverlay{position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:99999;display:none}
+#fbUnifiedPanel{position:fixed;right:0;top:0;height:100dvh;width:min(780px,100vw);box-sizing:border-box;background:#fff;z-index:100000;overflow:hidden;padding:0;box-shadow:-12px 0 40px rgba(0,0,0,.2);display:none;color:#0f172a}
+#fbUnifiedOverlay.open{display:block}
+#fbUnifiedPanel.open{display:flex;flex-direction:column}
+#fbUnifiedPanel .fbUnifiedHead{flex:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #e2e8f0;background:#fff;margin:0}
+#fbUnifiedPanel .fbUnifiedHead h2{margin:0;font-size:20px;line-height:1.25;letter-spacing:0}
+#fbUnifiedPanel button{width:auto;min-height:36px;padding:7px 12px;border-radius:7px;border:1px solid #d6dfeb;font-size:13px;font-weight:700;line-height:1.25;cursor:pointer;flex-shrink:0}
+#fbUnifiedPanel button:disabled{cursor:wait;opacity:.65}
+#fbUnifiedPanel button:hover:not(:disabled){filter:brightness(.97)}
+#fbUnifiedPanel button:focus-visible{outline:2px solid #64748b;outline-offset:2px}
+#fbUnifiedPanel #fbUnifiedClose{display:grid;place-items:center;width:36px;height:36px;padding:0;min-height:36px;font-size:25px;font-weight:400;background:#f8fafc}
+#fbUnifiedPanel .fbUnifiedBody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px 18px;scrollbar-gutter:stable}
+#fbUnifiedPanel .fbUnifiedSection{margin:0 0 6px;padding:0 0 6px;border-bottom:1px solid #e2e8f0}
+#fbUnifiedPanel .fbUnifiedSection h3{margin:0 0 4px;font-size:13px;font-weight:800;line-height:1.3;color:#334155;letter-spacing:0}
+#fbUnifiedPanel .fbUnifiedGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 12px}
+#fbUnifiedPanel .fbUnifiedGrid>div{min-width:0;grid-column:span 2}
+#fbUnifiedPanel .fbUnifiedGrid>.full{grid-column:1/-1}
+#fbUnifiedPanel .fbUnifiedSection:first-child .fbUnifiedGrid>div:nth-child(-n+2){grid-column:span 2}
+#fbUnifiedPanel .fbUnifiedSection:nth-child(2) .fbUnifiedGrid>div:nth-child(n+3),
+#fbUnifiedPanel .fbUnifiedSection:nth-child(3) .fbUnifiedGrid>div:not(.full){grid-column:span 1}
+#fbUnifiedPanel label{display:block;font-size:12px;line-height:1.3;font-weight:700;color:#475569;margin:0 0 4px}
+#fbUnifiedPanel input,#fbUnifiedPanel textarea,#fbUnifiedPanel select{box-sizing:border-box;width:100%;min-width:0;min-height:36px;height:36px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;font-size:14px;line-height:1.3;background:#fff;color:#0f172a;box-shadow:none}
+#fbUnifiedPanel input:focus,#fbUnifiedPanel textarea:focus,#fbUnifiedPanel select:focus{outline:2px solid #94a3b8;outline-offset:1px;border-color:#94a3b8}
+#fbUnifiedPanel textarea{height:56px;min-height:56px;resize:vertical;font-family:inherit}
+#fbUnifiedPanel .fbUnifiedGpsAddressLine{display:grid;grid-template-columns:minmax(0,1fr) auto 36px 36px;gap:6px;align-items:center}
+#fbUnifiedPanel .fbUnifiedGpsAddressLine button{height:36px;min-height:36px;white-space:nowrap}
+#fbUnifiedPanel .fbUnifiedGpsAddressLine .fbUnifiedMapIcon,
+#fbUnifiedPanel .fbUnifiedGpsAddressLine .fbUnifiedFindIcon{width:36px;padding:8px;display:grid;place-items:center}
+#fbUnifiedPanel .fbUnifiedMapIcon::before,#fbUnifiedPanel .fbUnifiedFindIcon::before{content:"";display:block;width:18px;height:18px;background:currentColor;mask:var(--icon-pin) center/contain no-repeat;-webkit-mask:var(--icon-pin) center/contain no-repeat}
+#fbUnifiedPanel .fbUnifiedFindIcon::before{mask-image:var(--icon-crosshair);-webkit-mask-image:var(--icon-crosshair)}
+#fbUnifiedPanel .fbUnifiedDates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0}
+#fbUnifiedPanel .control-date-box{display:block;min-width:0;padding:7px 9px;border-radius:7px}
+#fbUnifiedPanel .control-date-box::before{display:none}
+#fbUnifiedPanel .control-date-box label{font-size:11px;margin:0 0 4px}
+#fbUnifiedPanel .control-date-box input{height:32px;min-height:32px;padding:4px 7px}
+#fbUnifiedPanel .fbUnifiedGrid .fbImportant{background:#fff7f7;border:0;border-left:3px solid #fca5a5;border-radius:0;padding:0 0 0 9px}
+#fbUnifiedPanel .fbUnifiedActions{flex:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 18px max(10px,env(safe-area-inset-bottom));border-top:1px solid #e2e8f0;background:#f8fafc}
+#fbUnifiedPanel .fbUnifiedActions .fbDanger{background:#fff;color:#991b1b;border-color:#fecaca!important}
+#fbUnifiedPanel .fbUnifiedNotice{flex:none;border-bottom:1px solid #bbf7d0;background:#ecfdf5;color:#166534;padding:9px 18px;margin:0;font-weight:700;font-size:13px}
+#fbUnifiedPanel .fbUnifiedErr{border-color:#fecaca!important;background:#fef2f2!important;color:#991b1b!important}
+.fbUnifiedNotice:not(.fbUnifiedErr),.fbDbBadge,.fbUnifiedHead .small{display:none!important}
+.fbPrimary{background:linear-gradient(180deg,var(--button-neutral-top),var(--button-neutral-bottom));color:white;border-color:var(--button-neutral-border)!important;box-shadow:var(--button-neutral-shadow)}
+.fbSecondary{background:#f1f5f9;color:#0f172a}
+.fbDanger{background:#fee2e2;color:#991b1b;border-color:#fecaca!important}
+@media(max-width:600px){
+  #fbUnifiedPanel .fbUnifiedHead{padding:10px 12px}
+  #fbUnifiedPanel .fbUnifiedBody{padding:10px 12px}
+  #fbUnifiedPanel .fbUnifiedGrid{gap:8px}
+  #fbUnifiedPanel .fbUnifiedSection:first-child .fbUnifiedGrid>div:nth-child(-n+2){grid-column:1/-1}
+  #fbUnifiedPanel .fbUnifiedSection:nth-child(3) .fbUnifiedGrid>div:not(.full){grid-column:span 2}
+  #fbUnifiedPanel .fbUnifiedSection:nth-child(2) .fbUnifiedGrid>div:nth-child(n+2){grid-column:span 2}
+  #fbUnifiedPanel .fbUnifiedSection:nth-child(2) .fbUnifiedGrid>div:last-child{grid-column:1/-1}
+  #fbUnifiedPanel .fbUnifiedDates{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px}
+  #fbUnifiedPanel input,#fbUnifiedPanel textarea,#fbUnifiedPanel select{font-size:16px;min-height:40px;height:40px}
+  #fbUnifiedPanel .fbUnifiedGpsAddressLine{grid-template-columns:minmax(0,1fr) 40px 40px}
+  #fbUnifiedPanel .fbUnifiedGpsAddressLine input{grid-column:1/-1}
+  #fbUnifiedPanel .fbUnifiedGpsAddressLine button{height:40px;min-height:40px}
+  #fbUnifiedPanel .fbUnifiedGpsAddressLine .fbUnifiedMapIcon,#fbUnifiedPanel .fbUnifiedGpsAddressLine .fbUnifiedFindIcon{width:40px}
+  #fbUnifiedPanel .fbUnifiedActions{padding:10px 12px max(10px,env(safe-area-inset-bottom));gap:8px}
+  #fbUnifiedPanel .fbUnifiedActions button{min-height:40px;font-size:12px;padding:7px 9px}
+}
+@media(max-width:370px){
+  #fbUnifiedPanel .fbUnifiedDates{grid-template-columns:1fr!important;gap:8px}
+  #fbUnifiedPanel .fbUnifiedActions{flex-wrap:wrap}
+  #fbUnifiedPanel .fbUnifiedActions button{flex:1}
+}
