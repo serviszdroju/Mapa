@@ -1182,7 +1182,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     const k=spec.key;
     const cls=[spec.full ? "full" : "", spec.important ? "fbImportant" : ""].filter(Boolean).join(" ");
     const wrap=fbNode("div",{className:cls});
-    const label=fbNode("label",{text:spec.label});
+    const controlId=spec.gpsAddress ? "fbUnifiedGpsAddress" : "fbUnifiedField"+FB_USER_FIELDS.indexOf(spec);
+    const label=fbNode("label",{text:spec.label,attrs:{for:controlId}});
     let control;
     if(spec.type==="region"){
       control=fbNode("select",{},regionOptionNodes());
@@ -1212,19 +1213,22 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       wrap.classList.add("fbUnifiedGpsAddressField");
       wrap.append(label,fbNode("div",{className:"fbUnifiedGpsAddressLine"},[
         input,
-        fbNode("button",{className:"fbSecondary",id:"fbUnifiedGpsInline",type:"button",text:"Dopočítat GPS"})
+        fbNode("button",{className:"fbSecondary",id:"fbUnifiedGpsInline",type:"button",text:"Dopočítat GPS"}),
+        fbNode("button",{className:"fbSecondary fbUnifiedMapIcon",id:"fbUnifiedPick",type:"button",title:"Vybrat polohu na mapě",attrs:{"aria-label":"Vybrat polohu na mapě"}}),
+        fbNode("button",{className:"fbSecondary fbUnifiedFindIcon",id:"fbUnifiedFind",type:"button",title:"Ukázat bod na mapě",attrs:{"aria-label":"Ukázat bod na mapě"}})
       ]));
       return wrap;
     }else{
       control=fbNode("input",{readOnly:spec.readonly,title:spec.readonly ? "Dopočítá se z adresy" : ""});
     }
+    control.id=controlId;
     control.dataset.fbKey=k;
     wrap.append(label,control);
     return wrap;
   }
   function fbDateBox(className,label,id){
     return fbNode("div",{className:`control-date-box ${className}`},[
-      fbNode("span",{text:label}),
+      fbNode("label",{text:label,attrs:{for:id}}),
       fbNode("input",{id,type:"date"})
     ]);
   }
@@ -1238,10 +1242,26 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
           fbNode("b",{text:FB_COLLECTION})
         ])
       ]),
-      fbNode("button",{className:"fbSecondary",id:"fbUnifiedClose",type:"button",text:"Zavřít"})
+      fbNode("button",{className:"fbSecondary",id:"fbUnifiedClose",type:"button",text:"×",title:"Zavřít",attrs:{"aria-label":"Zavřít"}})
     ]);
-    const grid=fbNode("div",{className:"fbUnifiedGrid"},[
-      ...FB_USER_FIELDS.map(fbField),
+    const section=(title,keys,extra=[])=>fbNode("section",{className:"fbUnifiedSection",attrs:{"aria-label":title}},[
+      fbNode("h3",{text:title}),
+      fbNode("div",{className:"fbUnifiedGrid"},[
+        ...keys.map(key=>fbField(FB_USER_FIELDS.find(field=>field.key===key))),...extra
+      ])
+    ]);
+    const body=fbNode("div",{className:"fbUnifiedBody"},[
+      section("Místo a kontakt",["Název","Adresa / umístění","Adresa_GPS","Kraj","Kontakt"]),
+      section("Zdroj",["Popis_zdroje","Zdroj","Rok výroby","Číslo nabídky"]),
+      section("Kontroly a smlouva",["Perioda kontrol","Hlídáme sami termín","Smlouva ano/ne","Záruka"],[
+        fbNode("div",{className:"fbUnifiedDates control-dates-strong full"},[
+          fbDateBox("control-date-last","Poslední proběhlá kontrola","fbUnifiedLastCheck"),
+          fbDateBox("control-date-next","Příští plánovaná kontrola","fbUnifiedNextCheck")
+        ])
+      ]),
+      fbNode("div",{className:"fbUnifiedGrid fbUnifiedNotes"},[
+        fbField(FB_USER_FIELDS.find(field=>field.important))
+      ]),
       ...FB_HIDDEN_KEYS.map(key=>{
         const input=fbNode("input",{type:"hidden"});
         input.dataset.fbKey=key;
@@ -1251,17 +1271,11 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return [
       head,
       fbNode("div",{className:"fbUnifiedNotice",id:"fbUnifiedStatus",text:"Připraveno. Vyplň aspoň název/adresu a GPS."}),
-      fbNode("div",{className:"fbUnifiedDates control-dates-strong"},[
-        fbDateBox("control-date-last","Poslední proběhlá kontrola","fbUnifiedLastCheck"),
-        fbDateBox("control-date-next","Příští plánovaná kontrola","fbUnifiedNextCheck")
-      ]),
+      body,
       fbNode("div",{className:"fbUnifiedActions"},[
-        fbNode("button",{className:"fbSecondary",id:"fbUnifiedPick",type:"button",text:"Vybrat na mapě"}),
-        fbNode("button",{className:"fbSecondary",id:"fbUnifiedFind",type:"button",text:"Ukázat bod na mapě"}),
-        fbNode("button",{className:"fbPrimary",id:"fbUnifiedSave",type:"button",text:"Uložit bod a otevřít detail"}),
-        fbNode("button",{className:"fbDanger",id:"fbUnifiedClear",type:"button",text:"Vymazat formulář"})
-      ]),
-      grid
+        fbNode("button",{className:"fbDanger",id:"fbUnifiedClear",type:"button",text:"Vymazat formulář"}),
+        fbNode("button",{className:"fbPrimary",id:"fbUnifiedSave",type:"button",text:"Uložit bod a otevřít detail"})
+      ])
     ];
   }
   function ensurePanel(){
