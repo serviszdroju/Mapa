@@ -165,6 +165,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       newKeyFieldAdd("Kontakt","Kontakt"),
       newKeyFieldAdd("Kraj","Kraj"),
       newKeyFieldAdd("Rok výroby","Rok výroby"),
+      newKeyFieldAdd("Číslo nabídky","Číslo nabídky"),
       newKeyFieldAdd("Serviska","Serviska",{type:"select",options:[
         {value:"",label:""},
         {value:"ano",label:"ano"},
@@ -2331,6 +2332,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         {value:"ano",label:"ano"}
       ]}),
       sourceNewKeyField("Rok výroby","Rok výroby"),
+      sourceNewKeyField("Číslo nabídky","Číslo nabídky"),
       sourceNewKeyField("Serviska","Serviska",{type:"select",options:[
         {value:"",label:""},
         {value:"ano",label:"ano"},
