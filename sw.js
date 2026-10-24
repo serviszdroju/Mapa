@@ -1,5 +1,5 @@
 const CACHE_PREFIX = new URL(self.registration.scope).pathname.endsWith("/staging/") ? "astip-szz-staging-" : "astip-szz-";
-const CACHE_VERSION = `${CACHE_PREFIX}v514-production-gallery-navigation`;
+const CACHE_VERSION = `${CACHE_PREFIX}v516-production-no-mail-orders`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const TILE_CACHE = "astip-szz-map-tiles-v1";
@@ -7,7 +7,7 @@ const OFFLINE_SYNC_TAG = "astip-szz-offline-sync";
 const RUNTIME_CACHE_MAX_ENTRIES = 260;
 const TILE_CACHE_MAX_ENTRIES = 1500;
 
-const PRECACHE_URLS = ["./","./index.html","./late.js","./official-template.rtf","./official-stop-template.rtf","./official-service-template.rtf","./manifest.webmanifest","./szz-icon.svg","./szz-icon-192.png","./szz-icon-512.png","./szz-app-icon-192.png","./szz-app-icon-512.png","./szz-app-icon-maskable-192.png","./szz-app-icon-maskable-512.png","./szz-logo.png","./szz-logo-display.png","./podpis-tipek.png","./podpis-tipek.jpg","./vendor/leaflet/leaflet.css","./vendor/leaflet/leaflet.js","./vendor/leaflet/images/layers.png","./vendor/leaflet/images/layers-2x.png","./vendor/leaflet/images/marker-icon.png","./vendor/leaflet/images/marker-icon-2x.png","./vendor/leaflet/images/marker-shadow.png","./assets/index-p13Y7ZAV.js","./assets/point-panel-e70f3f8f57f6.css","./assets/index-DUysltqa.js"];
+const PRECACHE_URLS = ["./","./index.html","./late.js","./official-template.rtf","./official-stop-template.rtf","./official-service-template.rtf","./manifest.webmanifest","./szz-icon.svg","./szz-icon-192.png","./szz-icon-512.png","./szz-app-icon-192.png","./szz-app-icon-512.png","./szz-app-icon-maskable-192.png","./szz-app-icon-maskable-512.png","./szz-logo.png","./szz-logo-display.png","./podpis-tipek.png","./podpis-tipek.jpg","./vendor/leaflet/leaflet.css","./vendor/leaflet/leaflet.js","./vendor/leaflet/images/layers.png","./vendor/leaflet/images/layers-2x.png","./vendor/leaflet/images/marker-icon.png","./vendor/leaflet/images/marker-icon-2x.png","./vendor/leaflet/images/marker-shadow.png","./assets/point-panel-e70f3f8f57f6.css","./assets/index-DIQU3guy.js","./assets/index-no-mail-13e803797a47.css"];
 
 const EXTERNAL_PRECACHE_URLS = [];
 
