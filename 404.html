@@ -251,9 +251,10 @@ try{
 <link rel="stylesheet" href="./vendor/leaflet/leaflet.css">
 <script defer src="./vendor/leaflet/leaflet.js"></script>
 
-  <script type="module" crossorigin src="./assets/index-DIQU3guy.js"></script>
+  <script type="module" crossorigin src="./assets/index-dOCJ46rM.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-no-mail-13e803797a47.css">
 <link rel="stylesheet" href="./assets/point-panel-e70f3f8f57f6.css">
+<link rel="stylesheet" href="./assets/protocol-required-48d2f1379701.css">
 </head>
 <body>
 
@@ -318,9 +319,9 @@ try{
   <h3>Protokol / potvrzení o provedené zkoušce</h3>
   <button class="primary" id="toggleProtocolBtn" type="button">Vyplnit protokol</button>
   <p class="small">Protokol se uloží k vybranému místu.</p>
-  <form id="protocolForm" style="display:none;margin-top:8px">
-    <label>Datum provedení kontroly zdroje</label>
-    <input type="date" id="protoDate" required>
+  <form id="protocolForm" style="display:none;margin-top:8px" novalidate>
+    <label for="protoDate">Datum provedení kontroly zdroje<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+    <input type="date" id="protoDate" required aria-required="true">
 
     <div class="protocol-summary" id="protoSummary">
       <div>Adresa<b id="protoSummaryAddress">-</b></div>
@@ -333,17 +334,17 @@ try{
     <h4>Základní údaje zdroje</h4>
 
     <div id="protoDeviceInputWrap" class="proto-device-input-wrap">
-      <label>Kontrolované zařízení – typ</label>
-      <input id="protoDeviceType">
+      <label for="protoDeviceType">Kontrolované zařízení – typ<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+      <input id="protoDeviceType" required aria-required="true">
     </div>
 
-    <label>Výrobní č.</label>
-    <input id="protoSerial">
+    <label for="protoSerial">Výrobní č.<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+    <input id="protoSerial" required aria-required="true">
 
     <h4>Místo a provozní údaje</h4>
 
-    <label class="protocol-point">1) Místo kontroly</label>
-    <input id="protoPlace">
+    <label for="protoPlace" class="protocol-point">1) Místo kontroly<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+    <input id="protoPlace" required aria-required="true">
 
     <label class="protocol-point">2) Provozovatel zařízení</label>
     <input id="protoOperator">
@@ -351,17 +352,17 @@ try{
     <label class="protocol-point">3) Objednatel zkoušky provozuschopnosti</label>
     <input id="protoCustomer">
 
-    <label class="protocol-point">4) Umístění PBZ v objektu</label>
-    <textarea id="protoPbzLocation"></textarea>
+    <label for="protoPbzLocation" class="protocol-point">4) Umístění PBZ v objektu<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+    <textarea id="protoPbzLocation" required aria-required="true"></textarea>
 
     <div class="edit-grid">
-      <div><label>Počet baterií (ks)</label><input id="protoBatteryCount"></div>
-      <div><label>Kapacita (Ah)</label><input id="protoCapacity"></div>
-      <div><label>Počet sad (ks)</label><input id="protoSetCount"></div>
-      <div><label>Pom. Bat (Ah)</label><input id="protoAuxBatteryAh"></div>
-      <div><label>Teplota okolí (°C)</label><input id="protoTemp"></div>
-      <div><label>Plomba</label>
-        <select id="protoSeal2">
+      <div><label for="protoBatteryCount">Počet baterií (ks)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoBatteryCount" required aria-required="true"></div>
+      <div><label for="protoCapacity">Kapacita (Ah)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoCapacity" required aria-required="true"></div>
+      <div><label for="protoSetCount">Počet sad (ks)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoSetCount" required aria-required="true"></div>
+      <div><label for="protoAuxBatteryAh">Pom. Bat (Ah)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoAuxBatteryAh" required aria-required="true"></div>
+      <div><label for="protoTemp">Teplota okolí (°C)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoTemp" required aria-required="true"></div>
+      <div><label for="protoSeal2">Plomba<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+        <select id="protoSeal2" required aria-required="true">
           <option value="">Vyber</option>
           <option value="v pořádku">v pořádku</option>
           <option value="porušena">porušena</option>
@@ -371,25 +372,25 @@ try{
 
     <h4>Měření AC</h4>
     <div class="edit-grid">
-      <div><label>Vstup (Vac)</label><input id="protoInputVac"></div>
-      <div><label>Výstup 1 (Vac)</label><input id="protoOutput1Vac"></div>
+      <div><label for="protoInputVac">Vstup (Vac)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoInputVac" required aria-required="true"></div>
+      <div><label for="protoOutput1Vac">Výstup 1 (Vac)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoOutput1Vac" required aria-required="true"></div>
       <div><label>Výstup 2 (Vac)</label><input id="protoOutput2Vac"></div>
-      <div><label>Výstup zál. 1 (Vac)</label><input id="protoBackup1Vac"></div>
+      <div><label for="protoBackup1Vac">Výstup zál. 1 (Vac)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoBackup1Vac" required aria-required="true"></div>
       <div><label>Výstup zál. 2 (Vac)</label><input id="protoBackup2Vac"></div>
     </div>
 
     <h4>Měření DC</h4>
     <div class="edit-grid">
-      <div><label>Hl. bat. 1 (Vdc)</label><input id="protoMainBatVdc"></div>
-      <div><label>Reset diagnostiky *</label>
-<select id="protoResetDiag" required>
+      <div><label for="protoMainBatVdc">Hl. bat. 1 (Vdc)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoMainBatVdc" required aria-required="true"></div>
+      <div><label for="protoResetDiag">Reset diagnostiky<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+<select id="protoResetDiag" required aria-required="true">
   <option value="">Vyber</option>
   <option value="ano">ano</option>
   <option value="není">není</option>
 </select>
 </div>
-      <div><label>Pom. bat. (Vdc)</label><input id="protoAuxBatVdc"></div>
-      <div><label>Rozvážení 1 (Vdc)</label><input id="protoUnbalance1"></div>
+      <div><label for="protoAuxBatVdc">Pom. bat. (Vdc)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoAuxBatVdc" required aria-required="true"></div>
+      <div><label for="protoUnbalance1">Rozvážení 1 (Vdc)<span class="protocol-required-marker" aria-hidden="true"> *</span></label><input id="protoUnbalance1" required aria-required="true"></div>
       <div><label>Rozvážení 2 (Vdc)</label><input id="protoUnbalance2"></div>
 </div>
     <h4>Umístění a zařízení</h4>
@@ -464,8 +465,8 @@ try{
 
     <h4>Výsledek a poznámky</h4>
 
-    <label class="protocol-point">12) Zařízení pracuje ve vyhovujících podmínkách</label>
-    <select id="protoConditions">
+    <label for="protoConditions" class="protocol-point">12) Zařízení pracuje ve vyhovujících podmínkách<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+    <select id="protoConditions" required aria-required="true">
       <option value="">Vyber</option>
       <option value="ano">ano</option>
       <option value="ne">ne</option>
@@ -483,8 +484,8 @@ try{
     <textarea id="protoChecklist" placeholder="Zapiš všechno atypické, co se týká zdroje."></textarea>
 
     <div class="protocol-final-state">
-      <label for="protoSourceState">Stav zdroje po kontrole *</label>
-      <select id="protoSourceState" required>
+      <label for="protoSourceState">Stav zdroje po kontrole<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+      <select id="protoSourceState" required aria-required="true">
         <option value="">Vyber stav zdroje</option>
         <option value="ok">Zdroj je v pořádku</option>
         <option value="stop">Zdroj je ve stop stavu</option>
@@ -500,8 +501,8 @@ try{
       </div>
     </div>
 
-    <label for="protoSeal">Číslo plomby</label>
-    <input id="protoSeal">
+    <label for="protoSeal">Číslo plomby<span class="protocol-required-marker" aria-hidden="true"> *</span></label>
+    <input id="protoSeal" required aria-required="true">
 
     <div class="edit-grid">
       <div><label>Za objednavatele</label><input id="protoClientSign" placeholder="čitelně + podpis"></div>
