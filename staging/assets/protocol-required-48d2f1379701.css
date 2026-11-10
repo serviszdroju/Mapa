@@ -1,0 +1,6 @@
+#protocolForm .protocol-required-marker{color:#b91c1c;font-weight:800}
+#protocolForm .protocol-field-invalid{border-color:#dc2626;background:#fff7f7}
+#protocolForm .protocol-field-invalid:focus{outline:2px solid #dc2626;outline-offset:1px}
+#protocolForm .protocol-field-error{margin:3px 0 6px;color:#b91c1c;font-size:12px;line-height:1.35}
+#protocolForm .protocol-field-error[hidden]{display:none}
+#protocolForm .protocol-validation-status{color:#b91c1c;font-weight:700}
