@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 159,
-  "versionName": "1.2.57-read-budget",
+  "versionCode": 160,
+  "versionName": "1.2.58-history-streams",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.57-read-budget.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.57-read-budget.apk",
-  "sha256": "d17fcde92c06c4b9213d14c7b26b3f78feaf5dc4c987f8a91ea79b9f3fdeb5cc",
-  "sizeBytes": 20757926,
-  "createdAt": "2026-11-23T07:52:43Z",
+  "apkFile": "szz-mapa-tablet-1.2.58-history-streams.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.58-history-streams.apk",
+  "sha256": "991a3238da763d5e8686e5a68bce537e76aaa10e2ec1d9644319328bdc135d0e",
+  "sizeBytes": 20914176,
+  "createdAt": "2026-11-23T10:12:03Z",
   "published": true
 }
