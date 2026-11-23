@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 161,
-  "versionName": "1.2.59-contact-save",
+  "versionCode": 162,
+  "versionName": "1.2.60-read-sharing",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.59-contact-save.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.59-contact-save.apk",
-  "sha256": "f6b63d75135bdfa97fd0710c4ac39175f48f4578b79eed447a4f72f1f05d02ea",
-  "sizeBytes": 21070570,
-  "createdAt": "2026-11-23T14:20:48Z",
+  "apkFile": "szz-mapa-tablet-1.2.60-read-sharing.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.60-read-sharing.apk",
+  "sha256": "e922c11484d5f9e6c22f8d4fc2389a1dd73dc10181e12639a42fdc1af375be4d",
+  "sizeBytes": 21227404,
+  "createdAt": "2026-11-23T19:39:25Z",
   "published": true
 }
