@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 160,
-  "versionName": "1.2.58-history-streams",
+  "versionCode": 161,
+  "versionName": "1.2.59-contact-save",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.58-history-streams.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.58-history-streams.apk",
-  "sha256": "991a3238da763d5e8686e5a68bce537e76aaa10e2ec1d9644319328bdc135d0e",
-  "sizeBytes": 20914176,
-  "createdAt": "2026-11-23T10:12:03Z",
+  "apkFile": "szz-mapa-tablet-1.2.59-contact-save.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.59-contact-save.apk",
+  "sha256": "f6b63d75135bdfa97fd0710c4ac39175f48f4578b79eed447a4f72f1f05d02ea",
+  "sizeBytes": 21070570,
+  "createdAt": "2026-11-23T14:20:48Z",
   "published": true
 }
