@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 163,
-  "versionName": "1.2.61-protocol-serial",
+  "versionCode": 164,
+  "versionName": "1.2.62-update-notice",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.61-protocol-serial.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.61-protocol-serial.apk",
-  "sha256": "b36100aae59892361b51055bc8a9d4ff4945858c024b8f150a94f04c9151d66c",
-  "sizeBytes": 21384442,
-  "createdAt": "2026-11-24T07:04:14Z",
+  "apkFile": "szz-mapa-tablet-1.2.62-update-notice.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.62-update-notice.apk",
+  "sha256": "b03e6d6ae6d8f5bc5055f5354b4d3a40ecd8b5f220830fed59137c09610538fd",
+  "sizeBytes": 21384434,
+  "createdAt": "2026-11-24T07:45:59Z",
   "published": true
 }
