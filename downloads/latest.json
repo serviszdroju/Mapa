@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 162,
-  "versionName": "1.2.60-read-sharing",
+  "versionCode": 163,
+  "versionName": "1.2.61-protocol-serial",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.60-read-sharing.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.60-read-sharing.apk",
-  "sha256": "e922c11484d5f9e6c22f8d4fc2389a1dd73dc10181e12639a42fdc1af375be4d",
-  "sizeBytes": 21227404,
-  "createdAt": "2026-11-23T19:39:25Z",
+  "apkFile": "szz-mapa-tablet-1.2.61-protocol-serial.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.61-protocol-serial.apk",
+  "sha256": "b36100aae59892361b51055bc8a9d4ff4945858c024b8f150a94f04c9151d66c",
+  "sizeBytes": 21384442,
+  "createdAt": "2026-11-24T07:04:14Z",
   "published": true
 }
