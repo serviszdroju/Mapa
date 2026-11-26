@@ -1270,7 +1270,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     ]);
     return [
       head,
-      fbNode("div",{className:"fbUnifiedNotice",id:"fbUnifiedStatus",text:"Připraveno. Vyplň aspoň název/adresu a GPS."}),
+      fbNode("div",{className:"fbUnifiedNotice",id:"fbUnifiedStatus",text:"Vyplň název nebo adresu. Chybějící poloha se dohledá po připojení."}),
       body,
       fbNode("div",{className:"fbUnifiedActions"},[
         fbNode("button",{className:"fbDanger",id:"fbUnifiedClear",type:"button",text:"Vymazat formulář"}),
@@ -1621,7 +1621,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return (firebaseRows || []).map(row=>({
       docId:row.firebaseDocId || row.raw?.["Firebase_doc_id"] || row.id || "",
       raw:row.raw || {},
-      latestProtocolDate:row.firebaseData?.latestProtocolDate || ""
+      latestProtocolDate:row.firebaseData?.latestProtocolDate || "",
+      pendingGeocode:row.firebaseData?.pendingGeocode || null
     })).filter(item=>item.docId && rawHasOwnKeys(item.raw));
   }
   function openMapRowsCacheDb(){
@@ -1652,7 +1653,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     });
   }
   function rowsFromMapRowsCacheItems(items){
-    return (items || []).map(item=>rowFromDoc(item.docId,{raw:item.raw || {},latestProtocolDate:item.latestProtocolDate || ""})).filter(Boolean);
+    return (items || []).map(item=>rowFromDoc(item.docId,{raw:item.raw || {},latestProtocolDate:item.latestProtocolDate || "",pendingGeocode:item.pendingGeocode || null})).filter(Boolean);
   }
   async function readMapRowsCacheIndexedDb(){
     try{
@@ -1748,36 +1749,20 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       return [];
     }
   }
-  function compactOfflineSiteQueueAfterIndexedDbSave(items=[]){
-    if(!window.saveOfflineSiteQueueItem || !Array.isArray(items) || !items.length) return;
-    Promise.allSettled(items.map(item=>window.saveOfflineSiteQueueItem(item))).then(results=>{
-      const unsaved=items.filter((_item,idx)=>!(results[idx] && results[idx].status==="fulfilled" && results[idx].value));
-      try{
-        const raw=JSON.stringify(unsaved);
-        localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,raw);
-        rememberOfflineSiteQueue(raw,unsaved);
-      }catch(e){}
-    }).catch(()=>{});
-  }
   function writeOfflineSiteQueue(items=[]){
-    try{
-      const queueItems=Array.isArray(items) ? items : [];
-      const raw=JSON.stringify(queueItems);
-      localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,raw);
-      rememberOfflineSiteQueue(raw,queueItems);
-      compactOfflineSiteQueueAfterIndexedDbSave(queueItems);
-    }catch(e){
-      console.warn("Offline frontu nových bodů se nepodařilo uložit",e);
-    }
+    const queueItems=Array.isArray(items) ? items : [];
+    const raw=JSON.stringify(queueItems);
+    localStorage.setItem(OFFLINE_SITE_QUEUE_KEY,raw);
+    rememberOfflineSiteQueue(raw,queueItems);
   }
-  function removeOfflineSiteFromQueue(docId){
+  async function removeOfflineSiteFromQueue(docId){
     const id=String(docId || "");
     if(!id) return;
     writeOfflineSiteQueue(readOfflineSiteQueue().filter(item=>String(item.docId || "")!==id));
-    if(window.removeOfflineSiteQueueItem) window.removeOfflineSiteQueueItem(id).catch(()=>{});
+    if(window.removeOfflineSiteQueueItem) await window.removeOfflineSiteQueueItem(id);
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
   }
-  function saveUnifiedSiteRawOffline(rawInput={},opts={},reason=""){
+  async function saveUnifiedSiteRawOffline(rawInput={},opts={},reason=""){
     const docId=String(opts.docId || rawInput.Firebase_doc_id || rawInput["Firebase_doc_id"] || `offline_${Date.now()}_${Math.random().toString(36).slice(2,7)}`);
     let raw=completeFirebaseRaw(rawInput || {}, docId);
     raw["Firebase_doc_id"]=docId;
@@ -1793,7 +1778,10 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       createdBy:(window.currentUser && window.currentUser.email) || window.lastKnownUserEmail?.() || ""
     };
     queue.push(queuedItem);
-    writeOfflineSiteQueue(queue);
+    let localSaved=false,indexedSaved=false;
+    try{writeOfflineSiteQueue(queue);localSaved=true;}catch(error){console.warn("Místní fronta bodů je nedostupná",error);}
+    try{indexedSaved=!!(await window.saveOfflineSiteQueueItem?.(queuedItem));}catch(error){console.warn("Záloha fronty bodů je nedostupná",error);}
+    if(!localSaved && !indexedSaved) throw new Error("Bod se nepodařilo uložit do zařízení. Formulář ponechávám otevřený.");
     let row=rowFromDoc(docId,{raw,createdAt:now,updatedAt:now,manualEntry:true,localOnly:true,offline:true});
     let loadedRows=null;
     if(typeof window.upsertFirebaseSiteRow==="function"){
@@ -1827,31 +1815,39 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     if(p) p.textContent="Nový bod/zdroj je uložený offline a čeká na synchronizaci.";
     if(window.scheduleSzzOfflineAppStatus) window.scheduleSzzOfflineAppStatus(80);
     if(window.registerSzzBackgroundSync) window.registerSzzBackgroundSync("site");
+    window.schedulePendingDataSync?.(1000);
     return {duplicate:false,id:docId,row,offline:true,localOnly:true};
   }
+  let offlineSiteSyncRunning=false;
   async function syncOfflineSites(options={}){
-    if(navigator.onLine===false) return 0;
-    const queue=(window.uniqueByOfflineId || ((items)=>items))([
+    if(offlineSiteSyncRunning || navigator.onLine===false) return 0;
+    const byId=new Map([
       ...readOfflineSiteQueue(),
       ...(window.readOfflineSiteQueueItems ? await window.readOfflineSiteQueueItems() : [])
-    ],"docId");
+    ].map(item=>[String(item.docId),item]));
+    const queue=[...byId.values()];
     if(!queue.length) return 0;
     const database=db();
     if(!database) return 0;
     const signedUser=await waitCompatUser(2500);
-    if(!signedUser) return 0;
+    if(!signedUser || offlineSiteSyncRunning) return 0;
     let synced=0;
     const syncedRows=[];
-    for(const item of queue){
+    const owner=String(signedUser.email || "").toLowerCase();
+    offlineSiteSyncRunning=true;
+    try{for(const item of queue){
+      if(navigator.onLine===false || String(user()?.email || "").toLowerCase()!==owner) break;
+      if(item.createdBy && String(item.createdBy).toLowerCase()!==owner) continue;
       try{
         const result=await saveUnifiedSiteRaw(item.raw,{docId:item.docId,skipOffline:true});
         if(result && result.row) syncedRows.push({id:result.id || item.docId,row:result.row});
-        removeOfflineSiteFromQueue(item.docId);
+        await removeOfflineSiteFromQueue(item.docId);
         synced++;
       }catch(e){
         console.warn("Offline bod/zdroj se nepodařilo synchronizovat",item.docId,e);
       }
     }
+    }finally{offlineSiteSyncRunning=false;}
     if(synced && !options.silent && window.showSaveConfirmation){
       window.showSaveConfirmation(synced===1 ? "Offline bod/zdroj odeslán online." : `Offline body/zdroje odeslány online: ${synced}.`);
     }
@@ -1892,6 +1888,7 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       window.scheduleFirebaseRowsAutoReload(7000);
     }
     sideStatus(sourceLabel || `<b>Firebase režim aktivní.</b> Načteno ${loadedRows.length} bodů z Firebase.`);
+    if(loadedRows.some(row=>row.firebaseData?.pendingGeocode && !hasSiteLocation(row.raw)))window.schedulePendingDataSync?.(1000);
     return loadedRows;
   }
   async function showMapRowsCache(openDocId=null, options={}){
@@ -1909,52 +1906,102 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
     return applyFirebaseRows(cachedRows, openDocId, label, false);
   }
   window.showFirebaseMapRowsCache=showMapRowsCache;
+  function hasSiteLocation(raw={}){
+    const lat=num(raw.GPS_lat),lon=num(raw.GPS_lon);
+    return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180;
+  }
+  function siteLocationAddress(raw={}){return val(raw["Adresa_GPS"] || raw["Adresa / umístění"] || raw["Název"]);}
+  function retryableSiteSaveError(error){
+    return navigator.onLine===false || /unavailable|deadline-exceeded|resource-exhausted|network-request-failed/.test(String(error?.code || ""))
+      || /network|failed to fetch|quota.*exceed|offline|timed? ?out/i.test(String(error?.message || ""));
+  }
   async function saveUnifiedSiteRaw(rawInput, opts={}){
-    if(navigator.onLine===false && !(opts && opts.skipOffline)){
-      return saveUnifiedSiteRawOffline(rawInput,opts,"Bez připojení k internetu.");
-    }
     const database=db();
+    const requestedDocId=String(opts.docId || rawInput?.Firebase_doc_id || database?.collection(FB_COLLECTION).doc().id || `offline_${Date.now()}_${Math.random().toString(36).slice(2,9)}`);
+    const saveOptions={...opts,docId:requestedDocId};
+    if(navigator.onLine===false && !opts.skipOffline) return saveUnifiedSiteRawOffline(rawInput,saveOptions,"Bez připojení k internetu.");
     if(!database){
-      if(!(opts && opts.skipOffline)) return saveUnifiedSiteRawOffline(rawInput,opts,"Firebase není dostupný.");
+      if(!opts.skipOffline) return saveUnifiedSiteRawOffline(rawInput,saveOptions,"Firebase není dostupný.");
       throw new Error("Firebase není dostupný nebo není inicializovaný.");
     }
     const u=await waitCompatUser();
     if(!u){
-      if(!(opts && opts.skipOffline)) return saveUnifiedSiteRawOffline(rawInput,opts,"Přihlášení se nepodařilo obnovit.");
+      if(!opts.skipOffline) return saveUnifiedSiteRawOffline(rawInput,saveOptions,"Přihlášení se nepodařilo obnovit.");
       throw new Error("Nejdřív se přihlaš přes Google.");
     }
-
-    const requestedDocId=opts && opts.docId ? String(opts.docId) : "";
-    let raw=completeFirebaseRaw(rawInput || {}, requestedDocId || null);
-    const duplicate=await findDuplicateDoc(database, raw, requestedDocId);
-    if(duplicate){
-      const row=await openDuplicateDoc(database,duplicate,raw,u);
-      return {duplicate:true,id:duplicate.id,row};
+    let raw=completeFirebaseRaw(rawInput || {},requestedDocId);
+    try{
+      const duplicate=await findDuplicateDoc(database,raw,requestedDocId);
+      if(duplicate){
+        const row=await openDuplicateDoc(database,duplicate,raw,u);
+        return {duplicate:true,id:duplicate.id,row};
+      }
+      const ref=database.collection(FB_COLLECTION).doc(requestedDocId);
+      const located=hasSiteLocation(raw);
+      const now=new Date().toISOString();
+      const savedData={raw,dedupKeys:dedupKeys(raw),createdAt:serverTimestampValue(),updatedAt:serverTimestampValue(),
+        createdBy:u.email||"",updatedBy:u.email||"",manualEntry:true,migratedFromCsv:false,
+        name:raw["Název"]||raw["Adresa / umístění"]||raw["Adresa_GPS"]||"",
+        lat:located?num(raw.GPS_lat):null,lon:located?num(raw.GPS_lon):null,
+        pendingGeocode:located?null:{address:siteLocationAddress(raw),requestedAt:now}};
+      await ref.set(savedData,{merge:true});
+      const row=rowFromDoc(ref.id,{...savedData,createdAt:now,updatedAt:now});
+      await unhideOpenedRow(database,row);
+      return {duplicate:false,id:ref.id,row};
+    }catch(error){
+      if(!opts.skipOffline && retryableSiteSaveError(error))return saveUnifiedSiteRawOffline(raw,saveOptions,error.message);
+      throw error;
     }
-
-    const ref=requestedDocId ? database.collection(FB_COLLECTION).doc(requestedDocId) : database.collection(FB_COLLECTION).doc();
-    raw=completeFirebaseRaw(raw, ref.id);
-    const lat=num(raw["GPS_lat"]);
-    const lon=num(raw["GPS_lon"]);
-    const now=new Date().toISOString();
-    const savedData={
-      raw,
-      dedupKeys:dedupKeys(raw),
-      createdAt:serverTimestampValue(),
-      updatedAt:serverTimestampValue(),
-      createdBy:u.email||"",
-      updatedBy:u.email||"",
-      manualEntry:true,
-      migratedFromCsv:false,
-      name:raw["Název"]||raw["Adresa / umístění"]||raw["Adresa_GPS"]||"",
-      lat:Number.isFinite(lat)?lat:null,
-      lon:Number.isFinite(lon)?lon:null
-    };
-    await ref.set(savedData,{merge:true});
-    const row=rowFromDoc(ref.id,{...savedData,createdAt:now,updatedAt:now});
-    await unhideOpenedRow(database,row);
-    return {duplicate:false,id:ref.id,row};
   }
+  const pendingLocationRetryAt=new Map();
+  let pendingLocationSyncRunning=false;
+  function pendingSiteLocationRows(){
+    return (Array.isArray(window.rows)?window.rows:[]).filter(row=>row.firebaseData?.pendingGeocode && !hasSiteLocation(row.raw) && siteLocationAddress(row.raw));
+  }
+  window.pendingSiteLocationCount=()=>pendingSiteLocationRows().length;
+  async function applyPendingSiteLocation(database,row,address,found){
+    const ref=database.collection(FB_COLLECTION).doc(row.firebaseDocId);
+    const apply=async tx=>{
+      const snap=await tx.get(ref);
+      const exists=typeof snap.exists==="function"?snap.exists():snap.exists;
+      if(!exists)return null;
+      const data=snap.data(),raw=data.raw||{};
+      // A delayed result cannot overwrite a manually selected location or a changed address.
+      if(!data.pendingGeocode || hasSiteLocation(raw) || siteLocationAddress(raw)!==address)return data;
+      const patch={raw:{GPS_lat:String(found.lat),GPS_lon:String(found.lon)},lat:Number(found.lat),lon:Number(found.lon),
+        pendingGeocode:null,updatedAt:serverTimestampValue(),updatedBy:user()?.email||""};
+      tx.set(ref,patch,{merge:true});
+      return {...data,...patch,raw:{...raw,...patch.raw}};
+    };
+    const fs=window.fb?.fsMod;
+    if(database.mode==="modular")return fs.runTransaction(window.db,tx=>apply({get:r=>tx.get(r._ref),set:(r,data,opts)=>tx.set(r._ref,data,opts)}));
+    return database.runTransaction(apply);
+  }
+  async function syncPendingSiteLocations(){
+    if(pendingLocationSyncRunning || navigator.onLine===false || document.visibilityState==="hidden" || !user())return 0;
+    const database=db();if(!database)return 0;
+    const owner=String(user().email||"");let completed=0;
+    pendingLocationSyncRunning=true;
+    try{for(const row of pendingSiteLocationRows()){
+      if(navigator.onLine===false || String(user()?.email||"")!==owner)break;
+      const address=siteLocationAddress(row.raw),key=row.firebaseDocId+"|"+address;
+      if(Date.now()<(pendingLocationRetryAt.get(key)||0))continue;
+      pendingLocationRetryAt.set(key,Date.now()+300000);
+      try{
+        const geocode=window.geocodeAddressFast || window.geocodeAddressGeneric;
+        const found=await geocode?.(address);
+        if(!found || !hasSiteLocation({GPS_lat:found.lat,GPS_lon:found.lon}))continue;
+        if(String(user()?.email||"")!==owner || navigator.onLine===false)break;
+        const data=await applyPendingSiteLocation(database,row,address,found);
+        if(!data){row.firebaseData.pendingGeocode=null;continue;}
+        upsertSavedFirebaseRowAfterSave(rowFromDoc(row.firebaseDocId,data),row.firebaseDocId,{openDetail:false,focusMap:false});
+        if(hasSiteLocation(data.raw)){completed++;pendingLocationRetryAt.delete(key);}
+      }catch(error){console.warn("Poloha bodu zatím nebyla doplněna",row.firebaseDocId,error);}
+    }}finally{pendingLocationSyncRunning=false;}
+    if(completed && window.showSaveConfirmation)window.showSaveConfirmation("Poloha bodu doplněna a uložena online.");
+    return completed;
+  }
+  window.syncPendingSiteLocations=syncPendingSiteLocations;
   async function loadFirebaseSites(openDocId=null, opts={}){
     if(opts.offlineCacheOnly && !openDocId && Array.isArray(window.rows) && window.rows.length){
       if(opts.backgroundRefreshAllowed===true) scheduleFirebaseSitesBackgroundRefresh(openDocId,500);
@@ -2131,73 +2178,37 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
   async function migrateCsvToFirebase(){
     sideStatus("Veřejná CSV migrace je v produkční verzi vypnutá. Data se spravují po přihlášení přes Firebase.",true);
   }
+  let pointSaveRunning=false;
   async function savePoint(e){
+    if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();}
+    if(pointSaveRunning)return false;
     const draftRevision=window.szzWorkingDraftRevision?.();
-    if(e){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();}
-    const database=db(), u=await waitCompatUser();
-    if(!database){status("Firebase není dostupný nebo není inicializovaný.",true);return false;}
-    if(!u){status("Nejdřív se přihlaš přes Google.",true);return false;}
-    let raw=getRaw(); const lat=num(raw["GPS_lat"]), lon=num(raw["GPS_lon"]);
+    const raw=getRaw();
     if(!raw["Název"] && !raw["Adresa / umístění"]){status("Vyplň Název nebo Adresa / umístění.",true);return false;}
-    if(!Number.isFinite(lat)||!Number.isFinite(lon)){status("Klikni Dopočítat GPS, aby se bod mohl zobrazit na mapě.",true);return false;}
-    raw["GPS_lat"]=String(lat); raw["GPS_lon"]=String(lon);
-    const inferRegion=window.inferRegionFromAddressText;
-    const geocode=window.geocodeAddressGeneric;
-    if(!raw["Kraj"] && typeof inferRegion==="function"){
-	      const address=raw["Adresa_GPS"] || raw["Adresa / umístění"] || raw["Název"] || "";
-      let region=inferRegion(address);
-      if(!region && address && typeof geocode==="function"){
-        try{
-          const found=await geocode(address);
-          region=inferRegion(found?.display || address, found?.address || {});
-        }catch(_e){}
-      }
-      if(region){
-        raw["Kraj"]=region;
-        setField("Kraj",region);
-      }
-    }
+    if(!user()?.email && !window.lastKnownUserEmail?.()){status("Nejdřív se přihlaš přes Google.",true);return false;}
+    const located=hasSiteLocation(raw);
+    if(!located){delete raw.GPS_lat;delete raw.GPS_lon;}
+    if(!raw.Kraj && typeof window.inferRegionFromAddressText==="function")raw.Kraj=window.inferRegionFromAddressText(siteLocationAddress(raw));
+    const button=document.getElementById("fbUnifiedSave");
+    pointSaveRunning=true;if(button)button.disabled=true;
     try{
-      status("Kontroluji duplicitu...");
-      const duplicate=await findDuplicateDoc(database,raw);
-      if(duplicate){
-        status("Bod už existuje. Otevírám existující záznam...");
-        await openDuplicateDoc(database,duplicate,raw,u);
-        sideStatus("<b>Bod už ve Firebase existoval.</b> Otevřel jsem existující záznam a doplnil chybějící údaje/GPS z formuláře.");
-        return false;
-      }
-      status("Ukládám bod do Firebase...");
-      const ref=database.collection(FB_COLLECTION).doc();
-      raw=completeFirebaseRaw(raw, ref.id);
-      const keys=dedupKeys(raw);
-      const savedData={
-        raw:raw,
-        dedupKeys:keys,
-        createdAt:serverTimestampValue(),
-        updatedAt:serverTimestampValue(),
-        createdBy:u.email||"",
-        updatedBy:u.email||"",
-        manualEntry:true,
-        migratedFromCsv:false,
-        name:raw["Název"]||raw["Adresa / umístění"]||raw["Adresa_GPS"]||"",
-        lat:lat,
-        lon:lon
-      };
-      await ref.set(savedData,{merge:true});
-      const localData={...savedData,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-      const row=rowFromDoc(ref.id,localData);
-      await unhideOpenedRow(database,row);
-      status("Bod uložen. Zobrazuji v mapě...");
+      status("Ukládám bod…");
+      const result=await saveUnifiedSiteRaw(raw);
+      if(!result?.row || !result.id)throw new Error("Uložení bodu nebylo potvrzeno.");
+      const message=result.offline
+        ? "Bod uložen v zařízení. Po připojení se odešle na web."+(located?"":" Poloha se doplní podle adresy.")
+        : located?"Bod uložen online.":"Bod uložen online bez polohy. Polohu automaticky dohledám podle adresy.";
+      status(message);
       await window.clearSzzWorkingDraft?.("point",null,"",draftRevision);
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Bod uložen.");
-      if(previewMarker){try{map.removeLayer(previewMarker);}catch(_e){} previewMarker=null;}
-      closePanel();
-      window.__lastSavedFirebaseSiteDocId=ref.id;
-      const visibleAfterReload=await refreshAfterSave(ref.id,row);
-      clearForm(true);
-      if(visibleAfterReload) sideStatus("<b>Bod uložen.</b> Nové místo je načtené z Firebase stejně jako po refreshi.");
+      if(window.showSaveConfirmation)window.showSaveConfirmation(message);
+      if(previewMarker){try{map.removeLayer(previewMarker);}catch(_error){}previewMarker=null;}
+      closePanel();window.__lastSavedFirebaseSiteDocId=result.id;
+      await refreshAfterSave(result.id,result.row);
+      clearForm(true);sideStatus(message);
+      window.schedulePendingDataSync?.(1000);
       return false;
-    }catch(e){status("Chyba uložení: "+e.message,true);return false;}
+    }catch(error){status("Chyba uložení: "+error.message,true);return false;}
+    finally{pointSaveRunning=false;if(button)button.disabled=false;}
   }
   function clearForm(silent=false){
     if(!silent)window.clearSzzWorkingDraft?.("point");
@@ -2459,8 +2470,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       || site.kraj || raw["Kraj"] || "";
     const name = raw["Název"] || site.adresa || place || "Nový zdroj";
     const contact = site.kontakt || firstRawValue(raw, ["Kontakt","Kontakt_mapy","Hlavní kontakt"]);
-    const lat = Number.isFinite(Number(site.lat)) ? String(site.lat) : firstRawValue(raw, ["GPS_lat"]);
-    const lon = Number.isFinite(Number(site.lon)) ? String(site.lon) : firstRawValue(raw, ["GPS_lon"]);
+    const lat = Number.isFinite(numSource(site.lat)) ? String(site.lat) : firstRawValue(raw, ["GPS_lat"]);
+    const lon = Number.isFinite(numSource(site.lon)) ? String(site.lon) : firstRawValue(raw, ["GPS_lon"]);
     const periodText = firstRawValue(raw, ["Perioda kontrol","Perioda"]);
     const period = /\b6\b/.test(periodText) ? "6" : "12";
     const lastCheck = dateInputSource(firstRawValue(raw, ["Poslední_kontrola","Poslední proběhlá kontrola","Poslední kontrola"]));
@@ -2552,8 +2563,8 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       || baseSite.gpsAddress || baseSite.adresa || baseRaw["Adresa / umístění"] || baseRaw["Adresa_GPS"] || "";
     const region = (typeof window.rowRegion === "function" ? window.rowRegion(baseSite) : "")
       || baseSite.kraj || baseRaw["Kraj"] || "";
-    const lat = Number.isFinite(Number(baseSite.lat)) ? String(baseSite.lat) : firstRawValue(baseRaw, ["GPS_lat"]);
-    const lon = Number.isFinite(Number(baseSite.lon)) ? String(baseSite.lon) : firstRawValue(baseRaw, ["GPS_lon"]);
+    const lat = Number.isFinite(numSource(baseSite.lat)) ? String(baseSite.lat) : firstRawValue(baseRaw, ["GPS_lat"]);
+    const lon = Number.isFinite(numSource(baseSite.lon)) ? String(baseSite.lon) : firstRawValue(baseRaw, ["GPS_lon"]);
 
     const raw = collectSourceFormRaw();
     raw["Název"] = raw["Název"] || baseRaw["Název"] || baseSite.adresa || place || "Nový zdroj";
@@ -2570,10 +2581,6 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
       if(st) st.textContent = "Doplň popis zdroje nebo výrobní číslo, aby se nový zdroj odlišil od původního.";
       const target = document.getElementById("addSourceType") || document.getElementById("addSourceSerial");
       if(target) target.focus();
-      return;
-    }
-    if(!Number.isFinite(numSource(lat)) || !Number.isFinite(numSource(lon))){
-      if(st) st.textContent = "Původní místo nemá GPS. Nejdřív oprav GPS u místa.";
       return;
     }
     if(typeof window.saveUnifiedSiteRaw !== "function"){
@@ -2597,10 +2604,13 @@ window.szzRestoreNormalDrawerSnapshot = window.szzRestoreNormalDrawerSnapshot ||
         return;
       }
 
-      const localRow = upsertAddedSourceRowLocally(raw, savedId);
+      const localRow = result?.row || upsertAddedSourceRowLocally(raw, savedId);
+      if(result?.row && typeof window.upsertFirebaseSiteRow==="function") window.upsertFirebaseSiteRow(result.row,false);
 
-      if(window.showSaveConfirmation) window.showSaveConfirmation("Nový zdroj uložen.");
-      if(st) st.textContent = "Nový zdroj uložen.";
+      const savedMessage=savedOffline ? "Nový zdroj uložen v zařízení; čeká na odeslání na web." : "Nový zdroj uložen online.";
+      if(window.showSaveConfirmation) window.showSaveConfirmation(savedMessage);
+      if(st) st.textContent = savedMessage;
+      window.schedulePendingDataSync?.(1000);
       await window.clearSzzWorkingDraft?.("new",null,"",draftRevision);
 
       let visible = true;
