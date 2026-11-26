@@ -1,12 +1,12 @@
 {
   "channel": "release",
-  "versionCode": 165,
-  "versionName": "1.2.63-offline-contact",
+  "versionCode": 166,
+  "versionName": "1.2.64-place-keyboard",
   "minSdk": 26,
-  "apkFile": "szz-mapa-tablet-1.2.63-offline-contact.apk",
-  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.63-offline-contact.apk",
-  "sha256": "6dc933d2e2a7bc9fab0b69742b443aab18acda0e2ab9b46c159ba494379da21d",
-  "sizeBytes": 21543280,
-  "createdAt": "2026-11-26T07:39:30Z",
+  "apkFile": "szz-mapa-tablet-1.2.64-place-keyboard.apk",
+  "apkUrl": "https://serviszdroju.github.io/Mapa/downloads/szz-mapa-tablet-1.2.64-place-keyboard.apk",
+  "sha256": "67b12e9cd7d51ce8d283599bb0e0d7af4781f530be7c1fd6f86e6b95b073d8da",
+  "sizeBytes": 21702018,
+  "createdAt": "2026-11-26T09:13:52Z",
   "published": true
 }
